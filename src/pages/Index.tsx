@@ -1,137 +1,122 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { KPICards } from "@/components/dashboard/KPICards";
-import { BatchOrbit } from "@/components/dashboard/BatchOrbit";
-import { BatchTable } from "@/components/dashboard/BatchTable";
-import { AlertFeed } from "@/components/dashboard/AlertFeed";
-import { Bell, Menu } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TrendingUp, TrendingDown, Users, Truck, Package, AlertTriangle } from "lucide-react";
 
-interface Batch {
-  id: string;
-  name: string;
-  product: string;
-  status: string;
-  progress: number;
-  stage: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface Alert {
-  id: string;
-  type: string;
-  severity: string;
-  message: string;
-  batch_id: string | null;
-  created_at: string;
-  resolved: boolean;
-}
-
-const Index = () => {
-  const { user, loading: authLoading } = useAuth();
+export default function Index() {
   const navigate = useNavigate();
-  const [batches, setBatches] = useState<Batch[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalCustomers: 0,
+    totalSuppliers: 0,
+    totalProducts: 0,
+    totalReceivables: 0,
+    totalPayables: 0,
+    lowStockCount: 0,
+  });
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [user, authLoading, navigate]);
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) navigate("/auth");
+    };
+    checkAuth();
+  }, [navigate]);
 
   useEffect(() => {
-    if (!user) return;
-
-    const fetchData = async () => {
-      const [batchRes, alertRes] = await Promise.all([
-        supabase.from("batches").select("*").order("updated_at", { ascending: false }),
-        supabase.from("alerts").select("*").order("created_at", { ascending: false }),
+    const loadStats = async () => {
+      const [customers, suppliers, products] = await Promise.all([
+        supabase.from("customers").select("id, balance"),
+        supabase.from("suppliers").select("id, balance"),
+        supabase.from("products").select("id, stock_quantity, reorder_level"),
       ]);
 
-      if (batchRes.data) setBatches(batchRes.data);
-      if (alertRes.data) setAlerts(alertRes.data);
-      setLoading(false);
+      const totalReceivables = (customers.data || []).reduce((sum, c) => sum + Number(c.balance), 0);
+      const totalPayables = (suppliers.data || []).reduce((sum, s) => sum + Number(s.balance), 0);
+      const lowStock = (products.data || []).filter(p => Number(p.stock_quantity) <= Number(p.reorder_level)).length;
+
+      setStats({
+        totalCustomers: customers.data?.length || 0,
+        totalSuppliers: suppliers.data?.length || 0,
+        totalProducts: products.data?.length || 0,
+        totalReceivables,
+        totalPayables,
+        lowStockCount: lowStock,
+      });
     };
+    loadStats();
+  }, []);
 
-    fetchData();
-  }, [user]);
-
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
-  const kpiData = {
-    activeBatches: batches.filter(b => b.status === "in_progress").length,
-    quarantineItems: batches.filter(b => b.status === "quarantine").length,
-    complianceScore: 94,
-    pendingQC: batches.filter(b => b.stage === "quality_check").length,
-  };
+  const kpiCards = [
+    { label: "Total Receivables", value: `PKR ${stats.totalReceivables.toLocaleString()}`, icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: "Total Payables", value: `PKR ${stats.totalPayables.toLocaleString()}`, icon: TrendingDown, color: "text-destructive", bg: "bg-destructive/10" },
+    { label: "Customers", value: stats.totalCustomers, icon: Users, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Suppliers", value: stats.totalSuppliers, icon: Truck, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "Products", value: stats.totalProducts, icon: Package, color: "text-violet-600", bg: "bg-violet-50" },
+    { label: "Low Stock Alerts", value: stats.lowStockCount, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
+  ];
 
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
-
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Header */}
-          <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-card">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger>
-                <Menu className="h-5 w-5 text-muted-foreground" />
-              </SidebarTrigger>
-              <div>
-                <h1 className="font-heading font-semibold text-foreground text-sm">
-                  Production Dashboard
-                </h1>
-                <p className="text-[11px] text-muted-foreground">
-                  Real-time manufacturing overview
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button className="relative p-2 rounded-lg hover:bg-accent transition-colors">
-                <Bell className="h-4 w-4 text-muted-foreground" />
-                {alerts.filter(a => !a.resolved && a.severity === "critical").length > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full animate-pulse-glow" />
-                )}
-              </button>
-              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary">
-                {user.email?.charAt(0).toUpperCase()}
-              </div>
+        <main className="flex-1 overflow-auto">
+          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
+            <SidebarTrigger />
+            <div>
+              <h1 className="text-xl font-bold text-foreground font-heading">Dashboard</h1>
+              <p className="text-sm text-muted-foreground">Financial overview of your pharma business</p>
             </div>
           </header>
 
-          {/* Main Content */}
-          <main className="flex-1 p-6 space-y-6 overflow-auto">
-            <KPICards data={kpiData} />
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1">
-                <BatchOrbit batches={batches} />
-              </div>
-              <div className="lg:col-span-2">
-                <AlertFeed alerts={alerts} />
-              </div>
+          <div className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {kpiCards.map((kpi) => (
+                <Card key={kpi.label} className="glass-card hover:shadow-md transition-shadow">
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">{kpi.label}</p>
+                        <p className="text-2xl font-bold text-foreground mt-1 font-heading">{kpi.value}</p>
+                      </div>
+                      <div className={`p-2.5 rounded-lg ${kpi.bg}`}>
+                        <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
 
-            <BatchTable batches={batches} />
-          </main>
-        </div>
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="text-lg font-heading">Quick Start</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <button onClick={() => navigate("/customers")} className="p-4 rounded-lg border border-border hover:bg-accent transition-colors text-left">
+                    <Users className="h-5 w-5 text-primary mb-2" />
+                    <p className="font-medium text-foreground">Add Customer</p>
+                    <p className="text-xs text-muted-foreground mt-1">Set up customer accounts & credit terms</p>
+                  </button>
+                  <button onClick={() => navigate("/suppliers")} className="p-4 rounded-lg border border-border hover:bg-accent transition-colors text-left">
+                    <Truck className="h-5 w-5 text-amber-600 mb-2" />
+                    <p className="font-medium text-foreground">Add Supplier</p>
+                    <p className="text-xs text-muted-foreground mt-1">Register RM & packing material suppliers</p>
+                  </button>
+                  <button onClick={() => navigate("/products")} className="p-4 rounded-lg border border-border hover:bg-accent transition-colors text-left">
+                    <Package className="h-5 w-5 text-violet-600 mb-2" />
+                    <p className="font-medium text-foreground">Add Product</p>
+                    <p className="text-xs text-muted-foreground mt-1">Register products with DRAP & pricing</p>
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
       </div>
     </SidebarProvider>
   );
-};
-
-export default Index;
+}
