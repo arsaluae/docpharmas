@@ -52,6 +52,50 @@ export type Database = {
           },
         ]
       }
+      audit_events: {
+        Row: {
+          actor_name: string | null
+          batch_id: string
+          created_at: string
+          entity_name: string | null
+          event_label: string
+          event_type: string
+          id: string
+          metadata: Json
+          occurred_at: string
+        }
+        Insert: {
+          actor_name?: string | null
+          batch_id: string
+          created_at?: string
+          entity_name?: string | null
+          event_label: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+        }
+        Update: {
+          actor_name?: string | null
+          batch_id?: string
+          created_at?: string
+          entity_name?: string | null
+          event_label?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_events_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       batches: {
         Row: {
           created_at: string
@@ -216,6 +260,101 @@ export type Database = {
           sku?: string
           unit?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          batch_id: string | null
+          created_at: string
+          customer_name: string
+          customer_ntn: string
+          fbr_qr_data: string | null
+          finalized_at: string | null
+          finalized_by: string | null
+          id: string
+          invoice_number: string
+          items: Json
+          status: string
+          subtotal: number
+          tax: number
+          total: number
+        }
+        Insert: {
+          batch_id?: string | null
+          created_at?: string
+          customer_name: string
+          customer_ntn?: string
+          fbr_qr_data?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          invoice_number: string
+          items?: Json
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+        }
+        Update: {
+          batch_id?: string | null
+          created_at?: string
+          customer_name?: string
+          customer_ntn?: string
+          fbr_qr_data?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          invoice_number?: string
+          items?: Json
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          priority: string
+          read: boolean
+          source_id: string | null
+          source_type: string | null
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          priority?: string
+          read?: boolean
+          source_id?: string | null
+          source_type?: string | null
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          priority?: string
+          read?: boolean
+          source_id?: string | null
+          source_type?: string | null
+          title?: string
+          user_id?: string | null
         }
         Relationships: []
       }
