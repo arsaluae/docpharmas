@@ -14,6 +14,16 @@ import PurchaseOrders from "./pages/PurchaseOrders";
 import GoodsReceivedNotes from "./pages/GoodsReceivedNotes";
 import PurchaseInvoicesPage from "./pages/PurchaseInvoicesPage";
 import Payments from "./pages/Payments";
+import Expenses from "./pages/Expenses";
+import BankAccounts from "./pages/BankAccounts";
+import StockMovements from "./pages/StockMovements";
+import ProfitLoss from "./pages/reports/ProfitLoss";
+import BalanceSheet from "./pages/reports/BalanceSheet";
+import CashFlow from "./pages/reports/CashFlow";
+import ReceivablesAging from "./pages/reports/ReceivablesAging";
+import PayablesAging from "./pages/reports/PayablesAging";
+import ProductCosting from "./pages/reports/ProductCosting";
+import TaxCompliance from "./pages/reports/TaxCompliance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +46,16 @@ const App = () => (
           <Route path="/grn" element={<GoodsReceivedNotes />} />
           <Route path="/purchase-invoices" element={<PurchaseInvoicesPage />} />
           <Route path="/payments" element={<Payments />} />
+          <Route path="/expenses" element={<Expenses />} />
+          <Route path="/bank" element={<BankAccounts />} />
+          <Route path="/stock" element={<StockMovements />} />
+          <Route path="/reports/pl" element={<ProfitLoss />} />
+          <Route path="/reports/balance-sheet" element={<BalanceSheet />} />
+          <Route path="/reports/cash-flow" element={<CashFlow />} />
+          <Route path="/reports/receivables" element={<ReceivablesAging />} />
+          <Route path="/reports/payables" element={<PayablesAging />} />
+          <Route path="/reports/product-costing" element={<ProductCosting />} />
+          <Route path="/reports/tax" element={<TaxCompliance />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

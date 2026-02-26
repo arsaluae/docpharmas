@@ -11,6 +11,15 @@ import {
   PackageCheck,
   Receipt,
   Wallet,
+  CreditCard,
+  Landmark,
+  ArrowDownUp,
+  TrendingUp,
+  Scale,
+  BarChart3,
+  Clock,
+  DollarSign,
+  ShieldCheck,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -57,12 +66,27 @@ const sections = [
     label: "Inventory",
     items: [
       { title: "Products", url: "/products", icon: Package },
+      { title: "Stock Movements", url: "/stock", icon: ArrowDownUp },
     ],
   },
   {
     label: "Finance",
     items: [
       { title: "Payments", url: "/payments", icon: Wallet },
+      { title: "Expenses", url: "/expenses", icon: CreditCard },
+      { title: "Bank Accounts", url: "/bank", icon: Landmark },
+    ],
+  },
+  {
+    label: "Reports",
+    items: [
+      { title: "Profit & Loss", url: "/reports/pl", icon: TrendingUp },
+      { title: "Balance Sheet", url: "/reports/balance-sheet", icon: Scale },
+      { title: "Cash Flow", url: "/reports/cash-flow", icon: BarChart3 },
+      { title: "Receivables", url: "/reports/receivables", icon: Clock },
+      { title: "Payables", url: "/reports/payables", icon: DollarSign },
+      { title: "Product Costing", url: "/reports/product-costing", icon: Package },
+      { title: "Tax & DRAP", url: "/reports/tax", icon: ShieldCheck },
     ],
   },
 ];
