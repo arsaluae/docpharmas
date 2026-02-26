@@ -1,125 +1,86 @@
 
 
-# Complete Revamp: Pharma Accounting Software for Pakistan
+# Phase 3: Expenses, Banking, Stock, Reports & Tax
 
-## What Gets Removed
-Everything current is removed: Production Floor, Quality Control, Batch tracking, BMR Steps, Quarantine, DNA Timeline, Ambient Glow, BatchOrbit, AlertFeed. All existing tables will be dropped. Fresh start.
+## Overview
+Build the remaining modules to complete PharmBooks: Expenses recording, Bank accounts, Stock movements, 7 financial reports, and Tax/DRAP compliance tracking. No database changes needed — all tables already exist.
 
-## What Gets Built
+## New Pages (10 files)
 
-### Database Schema (New Tables)
+### 1. Expenses Page (`src/pages/Expenses.tsx`)
+- CRUD for expenses with category dropdown (utilities/salaries/rent/transport/maintenance/marketing/regulatory/other)
+- GST amount field, payment method selector, bank account linking
+- Auto-numbering EXP-0001
+- Filter by category, search by description
 
-**Core Accounting:**
-- `chart_of_accounts` — id, code (e.g. "1001"), name, account_type (asset/liability/equity/revenue/expense/cogs), parent_id (self-ref for sub-accounts), is_system (prevent deletion of built-in accounts), balance numeric, created_at
-- `journal_entries` — id, entry_number, date, description, reference, status (draft/posted), created_by, created_at
-- `journal_lines` — id, journal_entry_id FK, account_id FK→chart_of_accounts, debit numeric, credit numeric, description
+### 2. Bank Accounts Page (`src/pages/BankAccounts.tsx`)
+- CRUD for bank accounts (name, bank_name, account_number, branch, opening_balance)
+- Show current balance per account
+- Simple reconciliation view: list payments linked to each bank account
 
-**Customers & Sales:**
-- `customers` — id, name, company, ntn, strn, phone, email, address, city, credit_limit, credit_days, opening_balance, balance, created_at
-- `sales_invoices` — id, invoice_number, customer_id FK, date, due_date, subtotal, gst_amount, discount, total, amount_paid, status (draft/sent/partial/paid/overdue), notes, fbr_qr_data, created_by, created_at
-- `sales_invoice_items` — id, invoice_id FK, product_id FK, batch_number, quantity, rate, discount_percent, gst_rate (17%), amount
-- `sales_returns` — id, return_number, invoice_id FK, customer_id FK, date, total, reason, status, created_at
-- `proforma_invoices` — id, proforma_number, customer_id FK, date, validity_days, items jsonb, subtotal, gst, total, status (draft/sent/converted), converted_invoice_id, created_at
+### 3. Stock Movements Page (`src/pages/StockMovements.tsx`)
+- Record stock adjustments (purchase_in/sale_out/return_in/return_out/adjustment)
+- Show batch_number, reference linking
+- Filter by product, movement type
+- Running stock balance per product
 
-**Suppliers & Purchases:**
-- `suppliers` — id, name, company, ntn, strn, phone, email, address, city, payment_terms_days, wht_rate (default 4.5%), opening_balance, balance, created_at
-- `purchase_orders` — id, po_number, supplier_id FK, date, expected_delivery, subtotal, gst, total, status (draft/sent/partial/received/cancelled), notes, created_at
-- `purchase_order_items` — id, po_id FK, product_id FK or raw_material text, quantity, rate, amount
-- `goods_received_notes` — id, grn_number, po_id FK, supplier_id FK, date, received_by, notes, created_at
-- `grn_items` — id, grn_id FK, item_name, batch_number, quantity_ordered, quantity_received, expiry_date, rate, amount
-- `purchase_invoices` — id, bill_number, supplier_id FK, grn_id FK nullable, date, due_date, subtotal, gst, wht_amount, total, status (unpaid/partial/paid), created_at
+### 4. Profit & Loss Report (`src/pages/reports/ProfitLoss.tsx`)
+- Date range picker
+- Revenue (sum sales_invoices), COGS, Gross Profit
+- Operating Expenses (sum expenses by category)
+- Net Profit calculation
+- All from existing table data
 
-**Inventory:**
-- `products` — id, name, sku, category (tablet/capsule/syrup/injection/cream/ointment), drap_reg_number, pack_size, unit, cost_price, selling_price, gst_rate, stock_quantity, reorder_level, created_at
-- `stock_movements` — id, product_id FK, movement_type (purchase_in/sale_out/return_in/return_out/adjustment), quantity, batch_number, reference_type, reference_id, date, notes, created_at
+### 5. Balance Sheet Report (`src/pages/reports/BalanceSheet.tsx`)
+- Assets: Cash + Bank balances + Receivables + Inventory value
+- Liabilities: Payables + GST/WHT payable
+- Equity: Assets - Liabilities
+- Point-in-time snapshot
 
-**Payments & Banking:**
-- `bank_accounts` — id, name, bank_name, account_number, branch, opening_balance, balance, is_default, created_at
-- `payments` — id, payment_number, type (received/made), party_type (customer/supplier), party_id, amount, payment_method (cash/cheque/bank_transfer/online), bank_account_id FK nullable, cheque_number, cheque_date, reference, date, notes, created_at
-- `expenses` — id, expense_number, date, category (utilities/salaries/rent/transport/maintenance/marketing/regulatory/other), description, amount, gst_amount, payment_method, bank_account_id FK nullable, account_id FK→chart_of_accounts, notes, created_at
+### 6. Cash Flow Report (`src/pages/reports/CashFlow.tsx`)
+- Inflows: payments received
+- Outflows: payments made + expenses
+- Net cash flow with recharts bar chart by month
 
-**Tax & Compliance:**
-- `tax_records` — id, period (e.g. "2026-02"), type (gst_output/gst_input/wht), amount, reference_type, reference_id, date, created_at
-- `drap_registrations` — id, product_id FK, registration_number, registration_date, expiry_date, renewal_fee, status (active/expiring/expired/pending), notes, created_at
+### 7. Receivables Aging (`src/pages/reports/ReceivablesAging.tsx`)
+- Group unpaid/partial sales invoices by aging buckets (Current, 30, 60, 90, 90+)
+- Show customer name, invoice number, amount, days outstanding
 
-**Keep:** `user_roles` table and auth system as-is.
+### 8. Payables Aging (`src/pages/reports/PayablesAging.tsx`)
+- Same structure for unpaid purchase invoices by supplier
 
-### Pages & Navigation
+### 9. Product Costing (`src/pages/reports/ProductCosting.tsx`)
+- Per-product: cost_price, selling_price, margin %, markup %
+- Filter by category
+- Sort by margin
 
-Sidebar sections:
+### 10. Tax & DRAP Module (`src/pages/reports/TaxCompliance.tsx`)
+- Tabs: GST Summary | WHT Certificates | DRAP Tracker
+- GST: output tax (from sales invoices) vs input tax (from purchase invoices) = net payable
+- WHT: list of WHT deductions from purchase invoices by supplier
+- DRAP: list from drap_registrations table with status badges (active/expiring/expired), CRUD for registrations
 
-**Overview**
-- `/` — Dashboard (revenue/expense cards, receivables/payables, recent transactions, cash flow mini-chart, expiring DRAP alerts)
+## Updated Files
 
-**Sales**
-- `/customers` — Customer list + create/edit + individual ledger view
-- `/sales-invoices` — Sales invoice list + create with line items, GST calc, FBR QR on finalize
-- `/proforma` — Proforma invoices + convert-to-invoice
-- `/sales-returns` — Credit notes / returns
+### `src/App.tsx`
+- Add 10 new routes: `/expenses`, `/bank`, `/stock`, `/reports/pl`, `/reports/balance-sheet`, `/reports/cash-flow`, `/reports/receivables`, `/reports/payables`, `/reports/product-costing`, `/reports/tax`
 
-**Purchases**
-- `/suppliers` — Supplier list + create/edit + individual ledger view  
-- `/purchase-orders` — PO creation + tracking
-- `/grn` — Goods Received Notes linked to POs
-- `/purchase-invoices` — Supplier bills + WHT deduction
+### `src/components/AppSidebar.tsx`
+- Add sidebar sections:
+  - **Inventory**: add "Stock Movements" link
+  - **Finance**: add "Expenses" and "Bank Accounts" links
+  - **Reports**: P&L, Balance Sheet, Cash Flow, Receivables, Payables, Product Costing, Tax & DRAP
 
-**Inventory**
-- `/products` — Product catalog with DRAP reg, stock levels, costing
-- `/stock` — Stock movements, batch tracking, reorder alerts
+## Technical Approach
+- All pages follow existing pattern: SidebarProvider + AppSidebar + header + content
+- Reports are read-only query pages with date pickers and summary cards
+- Use recharts (already installed) for Cash Flow chart
+- All monetary formatting: `PKR ${value.toLocaleString()}`
+- No new database tables or migrations needed
 
-**Finance**
-- `/payments` — Payments received & made, cheque tracking
-- `/expenses` — Expense recording by category
-- `/bank` — Bank accounts, reconciliation view
-
-**Reports**
-- `/reports/pl` — Profit & Loss statement
-- `/reports/balance-sheet` — Balance Sheet
-- `/reports/cash-flow` — Cash Flow statement
-- `/reports/receivables` — Aging report
-- `/reports/payables` — Aging report
-- `/reports/product-costing` — Per-product cost breakdown & margins
-- `/reports/tax` — GST summary, WHT certificates, DRAP renewals
-
-**Settings**
-- `/settings` — Company profile, fiscal year, tax rates
-
-### Implementation Phases
-
-Given the scope, this will be built in **3 phases** across multiple messages:
-
-**Phase 1 (this implementation):**
-1. Database migration — drop old tables, create all new tables with RLS
-2. Seed default Chart of Accounts (pharma-specific: RM inventory, WIP, finished goods, COGS breakdowns)
-3. Dashboard page with financial KPI cards
-4. Customers page (CRUD + ledger)
-5. Suppliers page (CRUD + ledger)
-6. Products page (CRUD with DRAP fields)
-7. Updated sidebar navigation
-
-**Phase 2 (next message):**
-8. Sales Invoices with GST + FBR QR
-9. Proforma Invoices
-10. Purchase Orders + GRN
-11. Purchase Invoices with WHT
-12. Payments (received/made)
-
-**Phase 3 (following message):**
-13. Expenses module
-14. Bank accounts + reconciliation
-15. Stock movements + batch tracking
-16. All reports (P&L, Balance Sheet, Cash Flow, Aging, Product Costing)
-17. Tax module (GST returns, WHT certificates, DRAP tracker)
-
-### Technical Details
-
-- All monetary values stored as `numeric` (not float)
-- Pre-seeded COA with ~40 accounts following Pakistan pharma industry standards
-- GST default 17%, configurable per product
-- WHT rates: 4.5% filer, 6.5% non-filer (stored per supplier)
-- Invoice numbering: auto-increment with prefix (SI-0001, PO-0001, etc.)
-- All tables RLS-protected for authenticated users
-- Existing `user_roles` and auth kept intact
-- Remove all old components (dashboard/, audit/, quality/, production/, inventory/, invoicing/, notifications/)
-- Fresh UI keeping same design system (Sora/DM Sans, glass-card, status-pill patterns)
+## Implementation Order
+1. Expenses + Bank Accounts + Stock Movements (CRUD pages)
+2. All 6 report pages
+3. Tax & DRAP module
+4. Update App.tsx routes + AppSidebar navigation
 
