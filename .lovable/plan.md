@@ -1,115 +1,83 @@
 
 
-# PharmaZen — Production Floor, Quality Control & Inventory Modules
+# Compliance & Finance Layer for PharmaZen
 
-## Database Schema (Migration)
+## Overview
+Four features: Invoicing with FBR QR mockup, Audit Vault with DNA-strand batch timeline, Ambient Glow notification system, and hard-lock quarantine logic in Production.
 
-### New Tables
+## Database Changes (Migration)
 
-**`bmr_steps`** — Batch Manufacturing Record steps
-- `id` uuid PK, `batch_id` uuid FK→batches, `step_name` text (Weighing/Mixing/Granulation/etc), `step_order` int, `status` text default 'pending', `completed_by` uuid nullable, `completed_at` timestamptz nullable, `yield_expected` numeric, `yield_actual` numeric nullable, `notes` text nullable, `created_at` timestamptz default now()
+**`invoices` table** — stores invoice records
+- `id` uuid PK, `invoice_number` text UNIQUE, `batch_id` uuid nullable, `customer_name` text, `customer_ntn` text, `items` jsonb default '[]', `subtotal` numeric default 0, `tax` numeric default 0, `total` numeric default 0, `status` text default 'draft' (draft/finalized), `fbr_qr_data` text nullable, `finalized_at` timestamptz nullable, `finalized_by` uuid nullable, `created_at` timestamptz default now()
+- RLS: authenticated CRUD
 
-**`raw_materials`** — Quarantine Vault items
-- `id` uuid PK, `name` text, `supplier` text, `lot_number` text, `quantity` numeric, `unit` text, `status` text default 'locked' (locked/released/rejected), `released_by` uuid nullable, `released_at` timestamptz nullable, `received_at` timestamptz default now(), `expiry_date` date, `created_at` timestamptz default now()
+**`audit_events` table** — tracks batch genealogy events for the DNA strand timeline
+- `id` uuid PK, `batch_id` uuid FK→batches, `event_type` text (e.g. 'raw_material_received', 'qc_released', 'production_started', 'step_completed', 'qc_passed', 'dispatched'), `event_label` text, `actor_name` text nullable, `entity_name` text nullable, `metadata` jsonb default '{}', `occurred_at` timestamptz default now(), `created_at` timestamptz default now()
+- RLS: authenticated SELECT/INSERT
 
-**`inventory_items`** — FEFO dashboard
-- `id` uuid PK, `name` text, `sku` text, `category` text, `quantity` numeric, `unit` text, `expiry_date` date, `location` text, `cost_per_unit` numeric default 0, `created_at` timestamptz default now(), `updated_at` timestamptz default now()
+**`notifications` table** — stores priority alerts for the ambient glow system
+- `id` uuid PK, `user_id` uuid nullable, `priority` text default 'info' (teal/amber/red/info), `title` text, `message` text, `read` boolean default false, `source_type` text nullable, `source_id` uuid nullable, `created_at` timestamptz default now()
+- RLS: authenticated read (filtered by user_id or global where user_id is null)
 
-**`import_folders`** — Landed Costing tracking
-- `id` uuid PK, `shipment_name` text, `supplier` text, `status` text default 'in_transit', `lc_number` text, `duties` numeric default 0, `freight` numeric default 0, `insurance` numeric default 0, `total_landed_cost` numeric default 0, `arrival_date` date nullable, `created_at` timestamptz default now()
+No changes to existing tables needed — the quarantine hard-lock is enforced via a frontend query join (only show released materials in Production material selector).
 
-**`user_roles`** — Admin role for QC release (per security guidelines)
-- `id` uuid PK, `user_id` uuid FK→auth.users ON DELETE CASCADE, `role` app_role enum ('admin','moderator','user'), UNIQUE(user_id, role)
+## New Pages & Components
 
-**`has_role` function** — Security definer function for RLS
+### 1. `/invoicing` — Invoicing Page
+- List of invoices with status pills (Draft / Finalized)
+- Create invoice form: customer name, NTN, line items (name, qty, rate), auto-calc subtotal/tax/total
+- **"Direct-to-FBR" finalize button** on each draft invoice
+- On click: updates status to 'finalized', generates a visual QR code mockup containing invoice data (rendered as an SVG QR-code pattern — not a real QR library, a visual mockup using a grid pattern with the invoice number encoded visually)
+- Finalized invoice shows the QR code prominently with "FBR Verified" badge
 
-### RLS
-- All new tables: authenticated can read. `raw_materials` UPDATE restricted to admin role via `has_role()` for release action. All others: authenticated CRUD.
+### 2. `/audit` — Audit Vault (One-Click DRAP Audit)
+- Batch selector dropdown at top
+- **DNA Strand vertical timeline**: a centered vertical line with alternating left/right event nodes
+- Each node is a card showing: event type icon, label, actor, timestamp, entity
+- Events traced from raw material vendor receipt → QC release → production steps → final QC → dispatch
+- Data sourced by joining `audit_events` for the selected batch
+- Visual: vertical line with dots, connecting lines, alternating sides, color-coded by event type
 
-### Seed Data
-- BMR steps for existing batches (Weighing, Mixing, Granulation, Compression, Coating, Quality Check)
-- ~8 raw materials in quarantine (locked status, various expiry dates)
-- ~12 inventory items with varied expiry dates (some within 90 days for heat map)
-- 3 import folders with landed costing data
+### 3. Ambient Glow System (Global Component)
+- `AmbientGlow.tsx` — a fixed overlay with 4 edge strips (top/bottom/left/right)
+- Subscribes to `notifications` table via realtime
+- When unread notification arrives, edges pulse in the priority color:
+  - Teal (`#14B8A6`) for batch completion
+  - Amber/Orchid (`#8B5CF6`) for warnings
+  - Red/Rose (`#EC4899`) for audit alerts
+  - Sapphire (`#4F6DF7`) for info
+- Glow fades after 5 seconds or on dismiss
+- Small notification badge in header shows count
+- Wrapped in App.tsx around all authenticated routes
 
----
+### 4. Quarantine Hard-Lock in Production
+- Modify `ProductionFloor.tsx`: when a BMR step involves material selection (Weighing step), query `raw_materials` and only show items where `status = 'released'`
+- Add a "Materials" indicator on the BMR step card showing which materials are available
+- Locked materials shown as disabled/greyed with a lock icon and tooltip "Pending QC Release"
 
-## New Pages & Routes
+## Files to Create
 
-### 1. `/production` — Production Floor
-**Layout**: Two-panel — main area (BMR steps) + right sidebar (Yield Variance)
+1. `src/pages/Invoicing.tsx` — invoice list + create + FBR finalize
+2. `src/pages/AuditVault.tsx` — DRAP audit DNA strand timeline
+3. `src/components/invoicing/InvoiceCard.tsx` — individual invoice card
+4. `src/components/invoicing/FBRQRCode.tsx` — visual QR code mockup SVG
+5. `src/components/audit/DNATimeline.tsx` — vertical DNA strand timeline
+6. `src/components/audit/TimelineNode.tsx` — individual timeline event node
+7. `src/components/notifications/AmbientGlow.tsx` — edge-glow overlay
+8. `src/hooks/useNotifications.tsx` — realtime notification subscription hook
 
-**BMR Step Cards** (main area):
-- Large haptic-style cards (rounded-2xl, soft shadow, min-h-[140px])
-- Each card shows: step name (large Sora heading), batch context, status indicator
-- **Massive toggle switch** (custom oversized Switch ~h-10 w-20) — workers toggle step complete/incomplete
-- Toggle triggers DB update (bmr_steps status → 'completed', records user + timestamp)
-- Cards use subtle sapphire border-left accent when active, muted when completed
-- Batch selector dropdown at top to pick which batch's BMR to view
+## Files to Modify
 
-**Yield Variance Sidebar** (right panel):
-- Per-step yield tracking: expected vs actual with variance %
-- Inline editable yield_actual fields
-- Visual bar comparing expected/actual per step
-- Overall batch yield summary at top
+1. `src/App.tsx` — add `/invoicing` and `/audit` routes, wrap with AmbientGlow
+2. `src/components/AppSidebar.tsx` — add "Invoicing" (FileText icon) and "Audit" (ScrollText icon) nav items, replace placeholder Alerts/Settings
+3. `src/pages/ProductionFloor.tsx` — add released-materials query, pass `disabled` prop to BMRStepCard when materials not released
+4. `src/components/production/BMRStepCard.tsx` — show lock icon + "Awaiting QC" when disabled
+5. `src/index.css` — add ambient-glow keyframes (edge pulse animation)
+6. `tailwind.config.ts` — add ambient-glow animation + teal color variable
 
-### 2. `/quality` — Quality Control (Quarantine Vault)
-**Layout**: Grid of material cards
+## Seed Data
 
-**Quarantine Vault**:
-- Each raw material = a card with "Locked" status and amber/orchid glow border
-- Shows: material name, supplier, lot #, quantity, received date, expiry
-- **Release Button**: Only visible if current user has admin role (checked via `has_role` DB function call on page load)
-- On release click: update `raw_materials` status→'released', record user + timestamp
-- **Pulse Ripple Animation**: On successful release, a full-screen radial pulse ripple (sapphire → transparent) emanates from the button using framer-motion
-- Rejected items shown with rose/magenta accent
-
-### 3. `/inventory` — Inventory Module
-**Layout**: Two sections — FEFO Heat Map + Import Folders
-
-**FEFO Dashboard**:
-- Table/grid of inventory items sorted by expiry_date ASC (first-expired first)
-- **Heat Map coloring**: Items expiring <30 days = destructive/rose pulse animation, 30-90 days = warning/orchid tint, >90 days = normal
-- Items within 90 days have a subtle pulsing border animation
-- Shows: name, SKU, category, quantity, location, expiry date, days remaining
-
-**Import Folders Section**:
-- Cards per shipment showing landed costing breakdown
-- Fields: L/C Number, Duties, Freight, Insurance, Total Landed Cost
-- Status pills: In Transit / Customs / Delivered
-- Expandable detail view per folder
-
----
-
-## Files to Create/Modify
-
-### New Files
-1. `src/pages/ProductionFloor.tsx` — BMR interface with toggle switches + yield sidebar
-2. `src/pages/QualityControl.tsx` — Quarantine Vault with admin release + ripple animation
-3. `src/pages/Inventory.tsx` — FEFO heat map + Import Folders
-4. `src/components/production/BMRStepCard.tsx` — Haptic toggle card component
-5. `src/components/production/YieldVarianceSidebar.tsx` — Yield tracking panel
-6. `src/components/quality/QuarantineCard.tsx` — Locked material card with glow
-7. `src/components/quality/PulseRipple.tsx` — Full-screen ripple animation component
-8. `src/components/inventory/FEFOHeatMap.tsx` — Heat map table
-9. `src/components/inventory/ImportFolderCard.tsx` — Landed costing card
-10. `src/hooks/useUserRole.tsx` — Hook to check admin role via has_role function
-
-### Modified Files
-1. `src/App.tsx` — Add routes for `/production`, `/quality`, `/inventory`
-2. `src/components/AppSidebar.tsx` — Update nav items with real URLs: Batches→`/production`, Quality→`/quality`, Inventory→`/inventory`
-3. `src/index.css` — Add pulse-ring animation keyframes for the release ripple effect
-4. `tailwind.config.ts` — Add ripple animation keyframe
-
-### Technical Details
-
-**Oversized Toggle Switch**: Custom variant of the existing Switch component scaled up (~h-10 w-20 with h-9 w-9 thumb) for glove-friendly interaction.
-
-**Admin Role Check**: `useUserRole` hook calls `supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' })` on mount. Release button conditionally rendered.
-
-**Pulse Ripple**: Framer-motion `<motion.div>` with `scale: [0, 30]`, `opacity: [0.4, 0]` over 1.2s, positioned absolute from click origin, `pointer-events-none`.
-
-**FEFO Heat Map**: Uses `date-fns` `differenceInDays` to compute days-to-expiry, applies conditional className for pulsing/color tinting.
-
-**All pages** follow the same authenticated layout pattern as Index: SidebarProvider wrapper, AppSidebar, header with SidebarTrigger.
+- 3 sample invoices (2 draft, 1 finalized with QR data)
+- ~15 audit events across existing batches (raw material receipt → QC → production → dispatch)
+- 3 sample notifications (one teal, one red, one amber)
 
