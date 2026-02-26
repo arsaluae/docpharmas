@@ -16,8 +16,8 @@ export function BatchOrbit({ batches }: { batches: Batch[] }) {
   const statusColor = (status: string) => {
     switch (status) {
       case "in_progress": return "hsl(231, 91%, 64%)";
-      case "quarantine": return "hsl(271, 81%, 76%)";
-      case "failed": return "hsl(330, 81%, 70%)";
+      case "quarantine": return "hsl(258, 73%, 58%)";
+      case "failed": return "hsl(330, 81%, 60%)";
       default: return "hsl(231, 91%, 64%)";
     }
   };
@@ -37,8 +37,7 @@ export function BatchOrbit({ batches }: { batches: Batch[] }) {
       <div className="relative w-[280px] h-[280px] flex items-center justify-center">
         {/* Outer ring */}
         <div
-          className="absolute inset-0 rounded-full border-2 border-primary/20"
-          style={{ boxShadow: "0 0 30px hsl(231 91% 64% / 0.08)" }}
+          className="absolute inset-0 rounded-full border-2 border-primary/15"
         />
 
         {/* Progress ring SVG */}
@@ -46,18 +45,18 @@ export function BatchOrbit({ batches }: { batches: Batch[] }) {
           <circle
             cx="140" cy="140" r="130"
             fill="none"
-            stroke="hsl(222 30% 12%)"
+            stroke="hsl(220, 13%, 91%)"
             strokeWidth="4"
           />
           {centerBatch && (
             <circle
               cx="140" cy="140" r="130"
               fill="none"
-              stroke="hsl(231 91% 64%)"
+              stroke="hsl(231, 91%, 64%)"
               strokeWidth="4"
               strokeLinecap="round"
               strokeDasharray={`${(centerBatch.progress / 100) * 817} 817`}
-              style={{ filter: "drop-shadow(0 0 6px hsl(231 91% 64% / 0.5))" }}
+              style={{ filter: "drop-shadow(0 0 4px hsl(231 91% 64% / 0.3))" }}
             />
           )}
         </svg>
@@ -88,10 +87,10 @@ export function BatchOrbit({ batches }: { batches: Batch[] }) {
             }}
           >
             <div
-              className="w-3 h-3 rounded-full animate-pulse-glow"
+              className="w-3 h-3 rounded-full"
               style={{
                 backgroundColor: statusColor(batch.status),
-                boxShadow: `0 0 10px ${statusColor(batch.status)}`,
+                boxShadow: `0 0 8px ${statusColor(batch.status)}`,
                 transform: `translateX(120px)`,
               }}
             />
