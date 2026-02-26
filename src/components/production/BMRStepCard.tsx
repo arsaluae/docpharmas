@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
-import { Check, Clock } from "lucide-react";
+import { Check, Clock, Lock } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface BMRStepCardProps {
   stepName: string;
@@ -10,6 +11,7 @@ interface BMRStepCardProps {
   yieldActual: number | null;
   onToggle: () => void;
   disabled?: boolean;
+  lockReason?: string;
 }
 
 export function BMRStepCard({
@@ -21,6 +23,7 @@ export function BMRStepCard({
   yieldActual,
   onToggle,
   disabled,
+  lockReason,
 }: BMRStepCardProps) {
   const isCompleted = status === "completed";
 
@@ -73,23 +76,35 @@ export function BMRStepCard({
         </div>
       </div>
 
-      {/* Oversized toggle */}
-      <button
-        onClick={onToggle}
-        disabled={disabled}
-        className={cn(
-          "relative h-12 w-24 rounded-full transition-colors duration-300 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-          isCompleted ? "bg-primary" : "bg-input",
-          disabled && "opacity-50 cursor-not-allowed"
-        )}
-      >
-        <span
+      {/* Lock indicator or toggle */}
+      {disabled && lockReason ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 text-warning text-xs font-medium">
+              <Lock className="h-4 w-4" />
+              <span>Awaiting QC</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>{lockReason}</TooltipContent>
+        </Tooltip>
+      ) : (
+        <button
+          onClick={onToggle}
+          disabled={disabled}
           className={cn(
-            "absolute top-1 block h-10 w-10 rounded-full bg-card shadow-lg transition-transform duration-300",
-            isCompleted ? "translate-x-[52px]" : "translate-x-1"
+            "relative h-12 w-24 rounded-full transition-colors duration-300 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+            isCompleted ? "bg-primary" : "bg-input",
+            disabled && "opacity-50 cursor-not-allowed"
           )}
-        />
-      </button>
+        >
+          <span
+            className={cn(
+              "absolute top-1 block h-10 w-10 rounded-full bg-card shadow-lg transition-transform duration-300",
+              isCompleted ? "translate-x-[52px]" : "translate-x-1"
+            )}
+          />
+        </button>
+      )}
     </div>
   );
 }

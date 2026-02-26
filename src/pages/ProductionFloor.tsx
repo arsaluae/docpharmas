@@ -34,6 +34,8 @@ export default function ProductionFloor() {
   const [selectedBatch, setSelectedBatch] = useState<string>("");
   const [steps, setSteps] = useState<BMRStep[]>([]);
   const [loading, setLoading] = useState(true);
+  const [releasedMaterials, setReleasedMaterials] = useState<string[]>([]);
+  const [lockedCount, setLockedCount] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -51,6 +53,20 @@ export default function ProductionFloor() {
           setSelectedBatch(data[0].id);
         }
         setLoading(false);
+      });
+  }, [user]);
+
+  // Fetch released materials for quarantine hard-lock
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("raw_materials")
+      .select("id, name, status")
+      .then(({ data }) => {
+        if (data) {
+          setReleasedMaterials(data.filter((m) => m.status === "released").map((m) => m.name));
+          setLockedCount(data.filter((m) => m.status !== "released").length);
+        }
       });
   }, [user]);
 
@@ -140,18 +156,25 @@ export default function ProductionFloor() {
                     Batch <span className="font-mono text-foreground">{batch.name}</span> · {batch.product}
                   </p>
                 )}
-                {steps.map((step) => (
-                  <BMRStepCard
-                    key={step.id}
-                    stepName={step.step_name}
-                    stepOrder={step.step_order}
-                    status={step.status}
-                    completedAt={step.completed_at}
-                    yieldExpected={step.yield_expected}
-                    yieldActual={step.yield_actual}
-                    onToggle={() => handleToggle(step)}
-                  />
-                ))}
+                {steps.map((step) => {
+                  // Hard-lock weighing step if no released materials
+                  const isWeighing = step.step_name.toLowerCase().includes("weigh");
+                  const locked = isWeighing && releasedMaterials.length === 0 && lockedCount > 0;
+                  return (
+                    <BMRStepCard
+                      key={step.id}
+                      stepName={step.step_name}
+                      stepOrder={step.step_order}
+                      status={step.status}
+                      completedAt={step.completed_at}
+                      yieldExpected={step.yield_expected}
+                      yieldActual={step.yield_actual}
+                      onToggle={() => handleToggle(step)}
+                      disabled={locked}
+                      lockReason={locked ? `${lockedCount} material(s) pending QC release` : undefined}
+                    />
+                  );
+                })}
                 {steps.length === 0 && (
                   <div className="glass-card p-10 text-center text-muted-foreground text-sm">
                     No BMR steps found for this batch.

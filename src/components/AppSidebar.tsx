@@ -3,8 +3,8 @@ import {
   FlaskConical,
   Package,
   ShieldCheck,
-  Settings,
-  Bell,
+  FileText,
+  ScrollText,
   LogOut,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -29,8 +29,8 @@ const navItems = [
   { title: "Production", url: "/production", icon: FlaskConical },
   { title: "Quality", url: "/quality", icon: ShieldCheck },
   { title: "Inventory", url: "/inventory", icon: Package },
-  { title: "Alerts", url: "#", icon: Bell },
-  { title: "Settings", url: "#", icon: Settings },
+  { title: "Invoicing", url: "/invoicing", icon: FileText },
+  { title: "Audit", url: "/audit", icon: ScrollText },
 ];
 
 export function AppSidebar() {
