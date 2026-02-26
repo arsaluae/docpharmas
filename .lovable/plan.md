@@ -1,86 +1,74 @@
 
 
-# PharmaZen — Premium UI/UX Redesign
+# PharmaZen — Premium Light Theme Redesign
 
-## Problem with Current Design
-The current palette uses Clinical Teal (#00F5D4 — reads green), Warning Amber (#FFEE32 — yellow), and Audit Crimson (#FF5A5F — red). All three are explicitly ruled out. The fonts (Inter + Space Grotesk) are generic and don't feel premium or pharma-specific.
+## Design Philosophy: "Ivory Clinical"
 
----
-
-## New Color System: "Sapphire Clinical"
-
-A pharma-grade palette built on deep navy, electric blue, and violet — evoking precision, trust, and clinical authority.
+A warm, elegant light palette that feels like a premium pharmaceutical brand — think Apple Health meets a high-end medical device interface. No harsh whites, no sterile blues. Instead: warm ivory backgrounds, soft cool grays, and refined sapphire accents.
 
 ```text
-┌─────────────────────────────────────────────┐
-│  BACKGROUNDS                                │
-│  Base:     #070B14  (Deep Obsidian Navy)     │
-│  Surface:  #0F1629  (Elevated Panel)        │
-│  Card:     #141B2E  (Glass Surface)         │
-│                                             │
-│  PRIMARY ACCENTS                            │
-│  Primary:  #4F6DF7  (Electric Sapphire)     │
-│  Accent:   #A78BFA  (Soft Violet)           │
-│                                             │
-│  SEMANTIC STATES                            │
-│  Active:   #6C8CFF  (Bright Sapphire)       │
-│  Caution:  #C084FC  (Orchid)                │
-│  Critical: #F472B6  (Hot Magenta)           │
-│                                             │
-│  TEXT                                       │
-│  Foreground:  #E2E8F0  (Cool Silver)        │
-│  Muted:       #64748B  (Slate)              │
-│  Subtle:      #475569  (Deep Slate)         │
-│                                             │
-│  GLOW                                       │
-│  Primary glow: #4F6DF7 / 0.3               │
-│  Caution glow: #C084FC / 0.3               │
-│  Critical glow: #F472B6 / 0.3              │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│  BACKGROUNDS                                     │
+│  Base:       #FAFBFD  (Ivory White)              │
+│  Surface:    #F1F3F8  (Soft Lavender Gray)       │
+│  Card:       #FFFFFF  (Pure White)               │
+│  Sidebar:    #F5F6FA  (Cool Mist)               │
+│                                                  │
+│  PRIMARY ACCENTS                                 │
+│  Primary:    #4F6DF7  (Electric Sapphire)        │
+│  Accent:     #A78BFA  (Soft Violet)              │
+│                                                  │
+│  SEMANTIC STATES                                 │
+│  Warning:    #8B5CF6  (Orchid Violet)            │
+│  Critical:   #EC4899  (Rose Pink)                │
+│                                                  │
+│  TEXT                                            │
+│  Foreground:    #1A1D2B  (Deep Ink)              │
+│  Muted:         #6B7280  (Warm Gray)             │
+│  Subtle:        #9CA3AF  (Light Slate)           │
+│                                                  │
+│  BORDERS & SURFACES                              │
+│  Border:     #E5E7EB  (Whisper Gray)             │
+│  Input:      #E5E7EB                             │
+│                                                  │
+│  SOFT SHADOWS (replace glows)                    │
+│  Cards: 0 1px 3px rgba(0,0,0,0.04),             │
+│         0 4px 16px rgba(0,0,0,0.06)              │
+│  Floating rows: 0 1px 8px rgba(0,0,0,0.04)      │
+└──────────────────────────────────────────────────┘
 ```
-
-## New Typography
-
-Replace Inter + Space Grotesk with a premium pairing from Google Fonts:
-
-- **Headings**: **Sora** — geometric, modern, feels like precision engineering. Perfect for pharmaceutical branding.
-- **Body/Data**: **DM Sans** — clean, excellent readability at small sizes, pairs beautifully with Sora.
 
 ## Files to Change
 
 ### 1. `src/index.css`
-- Replace Google Fonts import (Sora + DM Sans instead of Inter + Space Grotesk)
-- Rewrite all CSS custom properties with the new Sapphire Clinical palette
-- Update glassmorphism utility classes to use new glow colors
-- Update status pill classes (`.status-active`, `.status-quarantine`, `.status-critical`) with new accent colors
+- Rewrite all CSS custom properties to the Ivory Clinical light palette
+- Update glassmorphism classes: white cards with very soft shadows instead of dark glass + glows
+- Floating rows become white with subtle shadows
+- Status pills use softer, pastel-tinted backgrounds
+- Scrollbar updated to light grays
+- Remove `.dark` block
 
 ### 2. `tailwind.config.ts`
-- Update `fontFamily` to use Sora (headings) and DM Sans (body)
-- All color tokens already reference CSS variables — no changes needed beyond font
+- Remove `darkMode` setting
+- Font family stays (Sora + DM Sans are perfect)
 
-### 3. `src/components/dashboard/KPICards.tsx`
-- Replace `text-primary`, `text-warning`, `text-destructive` references to use the new semantic classes
-- Remove any explicit green/yellow/red color references
+### 3. `src/components/dashboard/BatchOrbit.tsx`
+- Update hardcoded HSL colors in SVG strokes and statusColor() to work on light background
+- Progress ring track becomes light gray instead of dark
 
-### 4. `src/components/dashboard/BatchOrbit.tsx`
-- Replace hardcoded HSL colors in `statusColor()` function with new palette values
-- Update SVG stroke colors from teal to Electric Sapphire
-- Update glow/shadow references
+### 4. `src/components/dashboard/AlertFeed.tsx`
+- Severity colors stay (sapphire/orchid/rose) but border and background tints adjusted for light
 
-### 5. `src/components/dashboard/AlertFeed.tsx`
-- Update `severityConfig()` to use new semantic colors (Orchid for caution, Hot Magenta for critical, Sapphire for info)
+### 5. `src/components/dashboard/KPICards.tsx`
+- No structural changes, colors come from CSS variables
 
-### 6. `src/components/dashboard/BatchTable.tsx`
-- Update `statusLabel()` to map statuses to new color classes
+### 6. `src/components/AppSidebar.tsx`
+- Sidebar uses cool mist background, active items have sapphire tint on white
 
-### 7. `src/components/AppSidebar.tsx`
-- Update active state indicator colors from primary/teal to Sapphire
-- Logo glow effect updated
+### 7. `src/pages/Auth.tsx`
+- Background gradient orbs become very subtle pastel washes on ivory
+- Card becomes white with soft shadow
 
-### 8. `src/pages/Auth.tsx`
-- Update background blur orbs from teal/destructive to Sapphire/Violet
-- Button styling to new primary
-
-### 9. `src/pages/Index.tsx`
-- Minor: pulse indicator on bell icon uses new critical color (already via CSS var)
+### 8. `src/pages/Index.tsx`
+- Header becomes white/transparent with soft bottom border
 
