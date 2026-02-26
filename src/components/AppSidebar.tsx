@@ -26,9 +26,9 @@ import {
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Batches", url: "#", icon: FlaskConical },
-  { title: "Inventory", url: "#", icon: Package },
-  { title: "Quality", url: "#", icon: ShieldCheck },
+  { title: "Production", url: "/production", icon: FlaskConical },
+  { title: "Quality", url: "/quality", icon: ShieldCheck },
+  { title: "Inventory", url: "/inventory", icon: Package },
   { title: "Alerts", url: "#", icon: Bell },
   { title: "Settings", url: "#", icon: Settings },
 ];
