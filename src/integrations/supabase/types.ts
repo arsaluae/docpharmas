@@ -14,392 +14,1019 @@ export type Database = {
   }
   public: {
     Tables: {
-      alerts: {
+      bank_accounts: {
         Row: {
-          batch_id: string | null
+          account_number: string | null
+          balance: number
+          bank_name: string
+          branch: string | null
           created_at: string
           id: string
-          message: string
-          resolved: boolean
-          severity: string
+          is_default: boolean
+          name: string
+          opening_balance: number
+        }
+        Insert: {
+          account_number?: string | null
+          balance?: number
+          bank_name: string
+          branch?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          opening_balance?: number
+        }
+        Update: {
+          account_number?: string | null
+          balance?: number
+          bank_name?: string
+          branch?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          opening_balance?: number
+        }
+        Relationships: []
+      }
+      chart_of_accounts: {
+        Row: {
+          account_type: string
+          balance: number
+          code: string
+          created_at: string
+          id: string
+          is_system: boolean
+          name: string
+          parent_id: string | null
+        }
+        Insert: {
+          account_type: string
+          balance?: number
+          code: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          account_type?: string
+          balance?: number
+          code?: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chart_of_accounts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          address: string | null
+          balance: number
+          city: string | null
+          company: string | null
+          created_at: string
+          credit_days: number
+          credit_limit: number
+          email: string | null
+          id: string
+          name: string
+          ntn: string | null
+          opening_balance: number
+          phone: string | null
+          strn: string | null
+        }
+        Insert: {
+          address?: string | null
+          balance?: number
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          credit_days?: number
+          credit_limit?: number
+          email?: string | null
+          id?: string
+          name: string
+          ntn?: string | null
+          opening_balance?: number
+          phone?: string | null
+          strn?: string | null
+        }
+        Update: {
+          address?: string | null
+          balance?: number
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          credit_days?: number
+          credit_limit?: number
+          email?: string | null
+          id?: string
+          name?: string
+          ntn?: string | null
+          opening_balance?: number
+          phone?: string | null
+          strn?: string | null
+        }
+        Relationships: []
+      }
+      drap_registrations: {
+        Row: {
+          created_at: string
+          expiry_date: string | null
+          id: string
+          notes: string | null
+          product_id: string
+          registration_date: string | null
+          registration_number: string
+          renewal_fee: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          notes?: string | null
+          product_id: string
+          registration_date?: string | null
+          registration_number: string
+          renewal_fee?: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          notes?: string | null
+          product_id?: string
+          registration_date?: string | null
+          registration_number?: string
+          renewal_fee?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drap_registrations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          account_id: string | null
+          amount: number
+          bank_account_id: string | null
+          category: string
+          created_at: string
+          date: string
+          description: string | null
+          expense_number: string
+          gst_amount: number
+          id: string
+          notes: string | null
+          payment_method: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount?: number
+          bank_account_id?: string | null
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          expense_number: string
+          gst_amount?: number
+          id?: string
+          notes?: string | null
+          payment_method?: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          bank_account_id?: string | null
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          expense_number?: string
+          gst_amount?: number
+          id?: string
+          notes?: string | null
+          payment_method?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goods_received_notes: {
+        Row: {
+          created_at: string
+          date: string
+          grn_number: string
+          id: string
+          notes: string | null
+          po_id: string | null
+          received_by: string | null
+          supplier_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          grn_number: string
+          id?: string
+          notes?: string | null
+          po_id?: string | null
+          received_by?: string | null
+          supplier_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          grn_number?: string
+          id?: string
+          notes?: string | null
+          po_id?: string | null
+          received_by?: string | null
+          supplier_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goods_received_notes_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_received_notes_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grn_items: {
+        Row: {
+          amount: number
+          batch_number: string | null
+          expiry_date: string | null
+          grn_id: string
+          id: string
+          item_name: string
+          quantity_ordered: number
+          quantity_received: number
+          rate: number
+        }
+        Insert: {
+          amount?: number
+          batch_number?: string | null
+          expiry_date?: string | null
+          grn_id: string
+          id?: string
+          item_name: string
+          quantity_ordered?: number
+          quantity_received?: number
+          rate?: number
+        }
+        Update: {
+          amount?: number
+          batch_number?: string | null
+          expiry_date?: string | null
+          grn_id?: string
+          id?: string
+          item_name?: string
+          quantity_ordered?: number
+          quantity_received?: number
+          rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grn_items_grn_id_fkey"
+            columns: ["grn_id"]
+            isOneToOne: false
+            referencedRelation: "goods_received_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date: string
+          description: string | null
+          entry_number: string
+          id: string
+          reference: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          entry_number: string
+          id?: string
+          reference?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          entry_number?: string
+          id?: string
+          reference?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      journal_lines: {
+        Row: {
+          account_id: string
+          credit: number
+          debit: number
+          description: string | null
+          id: string
+          journal_entry_id: string
+        }
+        Insert: {
+          account_id: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          id?: string
+          journal_entry_id: string
+        }
+        Update: {
+          account_id?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          id?: string
+          journal_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          bank_account_id: string | null
+          cheque_date: string | null
+          cheque_number: string | null
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+          party_id: string
+          party_type: string
+          payment_method: string
+          payment_number: string
+          reference: string | null
           type: string
         }
         Insert: {
-          batch_id?: string | null
+          amount?: number
+          bank_account_id?: string | null
+          cheque_date?: string | null
+          cheque_number?: string | null
           created_at?: string
+          date?: string
           id?: string
-          message: string
-          resolved?: boolean
-          severity: string
+          notes?: string | null
+          party_id: string
+          party_type: string
+          payment_method?: string
+          payment_number: string
+          reference?: string | null
           type: string
         }
         Update: {
-          batch_id?: string | null
+          amount?: number
+          bank_account_id?: string | null
+          cheque_date?: string | null
+          cheque_number?: string | null
           created_at?: string
+          date?: string
           id?: string
-          message?: string
-          resolved?: boolean
-          severity?: string
+          notes?: string | null
+          party_id?: string
+          party_type?: string
+          payment_method?: string
+          payment_number?: string
+          reference?: string | null
           type?: string
         }
         Relationships: [
           {
-            foreignKeyName: "alerts_batch_id_fkey"
-            columns: ["batch_id"]
+            foreignKeyName: "payments_bank_account_id_fkey"
+            columns: ["bank_account_id"]
             isOneToOne: false
-            referencedRelation: "batches"
+            referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
         ]
       }
-      audit_events: {
-        Row: {
-          actor_name: string | null
-          batch_id: string
-          created_at: string
-          entity_name: string | null
-          event_label: string
-          event_type: string
-          id: string
-          metadata: Json
-          occurred_at: string
-        }
-        Insert: {
-          actor_name?: string | null
-          batch_id: string
-          created_at?: string
-          entity_name?: string | null
-          event_label: string
-          event_type: string
-          id?: string
-          metadata?: Json
-          occurred_at?: string
-        }
-        Update: {
-          actor_name?: string | null
-          batch_id?: string
-          created_at?: string
-          entity_name?: string | null
-          event_label?: string
-          event_type?: string
-          id?: string
-          metadata?: Json
-          occurred_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "audit_events_batch_id_fkey"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "batches"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      batches: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          product: string
-          progress: number
-          stage: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          product: string
-          progress?: number
-          stage?: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          product?: string
-          progress?: number
-          stage?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      bmr_steps: {
-        Row: {
-          batch_id: string
-          completed_at: string | null
-          completed_by: string | null
-          created_at: string
-          id: string
-          notes: string | null
-          status: string
-          step_name: string
-          step_order: number
-          yield_actual: number | null
-          yield_expected: number
-        }
-        Insert: {
-          batch_id: string
-          completed_at?: string | null
-          completed_by?: string | null
-          created_at?: string
-          id?: string
-          notes?: string | null
-          status?: string
-          step_name: string
-          step_order: number
-          yield_actual?: number | null
-          yield_expected?: number
-        }
-        Update: {
-          batch_id?: string
-          completed_at?: string | null
-          completed_by?: string | null
-          created_at?: string
-          id?: string
-          notes?: string | null
-          status?: string
-          step_name?: string
-          step_order?: number
-          yield_actual?: number | null
-          yield_expected?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bmr_steps_batch_id_fkey"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "batches"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      import_folders: {
-        Row: {
-          arrival_date: string | null
-          created_at: string
-          duties: number
-          freight: number
-          id: string
-          insurance: number
-          lc_number: string
-          shipment_name: string
-          status: string
-          supplier: string
-          total_landed_cost: number
-        }
-        Insert: {
-          arrival_date?: string | null
-          created_at?: string
-          duties?: number
-          freight?: number
-          id?: string
-          insurance?: number
-          lc_number: string
-          shipment_name: string
-          status?: string
-          supplier: string
-          total_landed_cost?: number
-        }
-        Update: {
-          arrival_date?: string | null
-          created_at?: string
-          duties?: number
-          freight?: number
-          id?: string
-          insurance?: number
-          lc_number?: string
-          shipment_name?: string
-          status?: string
-          supplier?: string
-          total_landed_cost?: number
-        }
-        Relationships: []
-      }
-      inventory_items: {
+      products: {
         Row: {
           category: string
-          cost_per_unit: number
+          cost_price: number
           created_at: string
-          expiry_date: string
+          drap_reg_number: string | null
+          gst_rate: number
           id: string
-          location: string
           name: string
-          quantity: number
-          sku: string
+          pack_size: string | null
+          reorder_level: number
+          selling_price: number
+          sku: string | null
+          stock_quantity: number
           unit: string
-          updated_at: string
         }
         Insert: {
-          category: string
-          cost_per_unit?: number
+          category?: string
+          cost_price?: number
           created_at?: string
-          expiry_date: string
+          drap_reg_number?: string | null
+          gst_rate?: number
           id?: string
-          location?: string
           name: string
-          quantity?: number
-          sku: string
+          pack_size?: string | null
+          reorder_level?: number
+          selling_price?: number
+          sku?: string | null
+          stock_quantity?: number
           unit?: string
-          updated_at?: string
         }
         Update: {
           category?: string
-          cost_per_unit?: number
+          cost_price?: number
           created_at?: string
-          expiry_date?: string
+          drap_reg_number?: string | null
+          gst_rate?: number
           id?: string
-          location?: string
           name?: string
-          quantity?: number
-          sku?: string
+          pack_size?: string | null
+          reorder_level?: number
+          selling_price?: number
+          sku?: string | null
+          stock_quantity?: number
           unit?: string
-          updated_at?: string
         }
         Relationships: []
       }
-      invoices: {
+      proforma_invoices: {
         Row: {
-          batch_id: string | null
+          converted_invoice_id: string | null
           created_at: string
-          customer_name: string
-          customer_ntn: string
-          fbr_qr_data: string | null
-          finalized_at: string | null
-          finalized_by: string | null
+          customer_id: string | null
+          date: string
+          gst: number
           id: string
-          invoice_number: string
           items: Json
+          proforma_number: string
           status: string
           subtotal: number
-          tax: number
           total: number
+          validity_days: number
         }
         Insert: {
-          batch_id?: string | null
+          converted_invoice_id?: string | null
           created_at?: string
-          customer_name: string
-          customer_ntn?: string
-          fbr_qr_data?: string | null
-          finalized_at?: string | null
-          finalized_by?: string | null
+          customer_id?: string | null
+          date?: string
+          gst?: number
           id?: string
-          invoice_number: string
           items?: Json
+          proforma_number: string
           status?: string
           subtotal?: number
-          tax?: number
           total?: number
+          validity_days?: number
         }
         Update: {
-          batch_id?: string | null
+          converted_invoice_id?: string | null
           created_at?: string
-          customer_name?: string
-          customer_ntn?: string
-          fbr_qr_data?: string | null
-          finalized_at?: string | null
-          finalized_by?: string | null
+          customer_id?: string | null
+          date?: string
+          gst?: number
           id?: string
-          invoice_number?: string
           items?: Json
+          proforma_number?: string
           status?: string
           subtotal?: number
-          tax?: number
           total?: number
+          validity_days?: number
         }
         Relationships: [
           {
-            foreignKeyName: "invoices_batch_id_fkey"
-            columns: ["batch_id"]
+            foreignKeyName: "proforma_invoices_converted_invoice_id_fkey"
+            columns: ["converted_invoice_id"]
             isOneToOne: false
-            referencedRelation: "batches"
+            referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proforma_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
         ]
       }
-      notifications: {
+      purchase_invoices: {
+        Row: {
+          bill_number: string
+          created_at: string
+          date: string
+          due_date: string | null
+          grn_id: string | null
+          gst: number
+          id: string
+          status: string
+          subtotal: number
+          supplier_id: string | null
+          total: number
+          wht_amount: number
+        }
+        Insert: {
+          bill_number: string
+          created_at?: string
+          date?: string
+          due_date?: string | null
+          grn_id?: string | null
+          gst?: number
+          id?: string
+          status?: string
+          subtotal?: number
+          supplier_id?: string | null
+          total?: number
+          wht_amount?: number
+        }
+        Update: {
+          bill_number?: string
+          created_at?: string
+          date?: string
+          due_date?: string | null
+          grn_id?: string | null
+          gst?: number
+          id?: string
+          status?: string
+          subtotal?: number
+          supplier_id?: string | null
+          total?: number
+          wht_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_invoices_grn_id_fkey"
+            columns: ["grn_id"]
+            isOneToOne: false
+            referencedRelation: "goods_received_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoices_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_order_items: {
+        Row: {
+          amount: number
+          description: string | null
+          id: string
+          po_id: string
+          product_id: string | null
+          quantity: number
+          rate: number
+        }
+        Insert: {
+          amount?: number
+          description?: string | null
+          id?: string
+          po_id: string
+          product_id?: string | null
+          quantity?: number
+          rate?: number
+        }
+        Update: {
+          amount?: number
+          description?: string | null
+          id?: string
+          po_id?: string
+          product_id?: string | null
+          quantity?: number
+          rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
         Row: {
           created_at: string
+          date: string
+          expected_delivery: string | null
+          gst: number
           id: string
-          message: string
-          priority: string
-          read: boolean
-          source_id: string | null
-          source_type: string | null
-          title: string
-          user_id: string | null
+          notes: string | null
+          po_number: string
+          status: string
+          subtotal: number
+          supplier_id: string | null
+          total: number
         }
         Insert: {
           created_at?: string
+          date?: string
+          expected_delivery?: string | null
+          gst?: number
           id?: string
-          message: string
-          priority?: string
-          read?: boolean
-          source_id?: string | null
-          source_type?: string | null
-          title: string
-          user_id?: string | null
+          notes?: string | null
+          po_number: string
+          status?: string
+          subtotal?: number
+          supplier_id?: string | null
+          total?: number
         }
         Update: {
           created_at?: string
+          date?: string
+          expected_delivery?: string | null
+          gst?: number
           id?: string
-          message?: string
-          priority?: string
-          read?: boolean
-          source_id?: string | null
-          source_type?: string | null
-          title?: string
-          user_id?: string | null
+          notes?: string | null
+          po_number?: string
+          status?: string
+          subtotal?: number
+          supplier_id?: string | null
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_invoice_items: {
+        Row: {
+          amount: number
+          batch_number: string | null
+          discount_percent: number
+          gst_rate: number
+          id: string
+          invoice_id: string
+          product_id: string | null
+          quantity: number
+          rate: number
+        }
+        Insert: {
+          amount?: number
+          batch_number?: string | null
+          discount_percent?: number
+          gst_rate?: number
+          id?: string
+          invoice_id: string
+          product_id?: string | null
+          quantity?: number
+          rate?: number
+        }
+        Update: {
+          amount?: number
+          batch_number?: string | null
+          discount_percent?: number
+          gst_rate?: number
+          id?: string
+          invoice_id?: string
+          product_id?: string | null
+          quantity?: number
+          rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_invoices: {
+        Row: {
+          amount_paid: number
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          date: string
+          discount: number
+          due_date: string | null
+          fbr_qr_data: string | null
+          gst_amount: number
+          id: string
+          invoice_number: string
+          notes: string | null
+          status: string
+          subtotal: number
+          total: number
+        }
+        Insert: {
+          amount_paid?: number
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          date?: string
+          discount?: number
+          due_date?: string | null
+          fbr_qr_data?: string | null
+          gst_amount?: number
+          id?: string
+          invoice_number: string
+          notes?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+        }
+        Update: {
+          amount_paid?: number
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          date?: string
+          discount?: number
+          due_date?: string | null
+          fbr_qr_data?: string | null
+          gst_amount?: number
+          id?: string
+          invoice_number?: string
+          notes?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_returns: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          date: string
+          id: string
+          invoice_id: string | null
+          reason: string | null
+          return_number: string
+          status: string
+          total: number
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          date?: string
+          id?: string
+          invoice_id?: string | null
+          reason?: string | null
+          return_number: string
+          status?: string
+          total?: number
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          date?: string
+          id?: string
+          invoice_id?: string | null
+          reason?: string | null
+          return_number?: string
+          status?: string
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_returns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_returns_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          batch_number: string | null
+          created_at: string
+          date: string
+          id: string
+          movement_type: string
+          notes: string | null
+          product_id: string
+          quantity: number
+          reference_id: string | null
+          reference_type: string | null
+        }
+        Insert: {
+          batch_number?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          movement_type: string
+          notes?: string | null
+          product_id: string
+          quantity: number
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Update: {
+          batch_number?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          movement_type?: string
+          notes?: string | null
+          product_id?: string
+          quantity?: number
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          balance: number
+          city: string | null
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          ntn: string | null
+          opening_balance: number
+          payment_terms_days: number
+          phone: string | null
+          strn: string | null
+          wht_rate: number
+        }
+        Insert: {
+          address?: string | null
+          balance?: number
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          ntn?: string | null
+          opening_balance?: number
+          payment_terms_days?: number
+          phone?: string | null
+          strn?: string | null
+          wht_rate?: number
+        }
+        Update: {
+          address?: string | null
+          balance?: number
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          ntn?: string | null
+          opening_balance?: number
+          payment_terms_days?: number
+          phone?: string | null
+          strn?: string | null
+          wht_rate?: number
         }
         Relationships: []
       }
-      raw_materials: {
+      tax_records: {
         Row: {
+          amount: number
           created_at: string
-          expiry_date: string
+          date: string
           id: string
-          lot_number: string
-          name: string
-          quantity: number
-          received_at: string
-          released_at: string | null
-          released_by: string | null
-          status: string
-          supplier: string
-          unit: string
+          period: string
+          reference_id: string | null
+          reference_type: string | null
+          type: string
         }
         Insert: {
+          amount?: number
           created_at?: string
-          expiry_date: string
+          date?: string
           id?: string
-          lot_number: string
-          name: string
-          quantity: number
-          received_at?: string
-          released_at?: string | null
-          released_by?: string | null
-          status?: string
-          supplier: string
-          unit?: string
+          period: string
+          reference_id?: string | null
+          reference_type?: string | null
+          type: string
         }
         Update: {
+          amount?: number
           created_at?: string
-          expiry_date?: string
+          date?: string
           id?: string
-          lot_number?: string
-          name?: string
-          quantity?: number
-          received_at?: string
-          released_at?: string | null
-          released_by?: string | null
-          status?: string
-          supplier?: string
-          unit?: string
+          period?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          type?: string
         }
         Relationships: []
       }
