@@ -47,7 +47,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r-0 bg-sidebar">
       <div className="p-4 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center glow-teal">
+        <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center glow-primary">
           <FlaskConical className="h-4 w-4 text-primary" />
         </div>
         {!collapsed && (

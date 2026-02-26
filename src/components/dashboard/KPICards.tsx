@@ -15,7 +15,6 @@ export function KPICards({ data }: { data: KPIData }) {
       value: data.activeBatches,
       icon: Activity,
       color: "text-primary",
-      glow: "glow-teal",
       bgAccent: "bg-primary/10",
     },
     {
@@ -23,7 +22,6 @@ export function KPICards({ data }: { data: KPIData }) {
       value: data.quarantineItems,
       icon: ShieldAlert,
       color: "text-warning",
-      glow: "",
       bgAccent: "bg-warning/10",
     },
     {
@@ -31,7 +29,6 @@ export function KPICards({ data }: { data: KPIData }) {
       value: `${data.complianceScore}%`,
       icon: CheckCircle,
       color: "text-primary",
-      glow: "",
       bgAccent: "bg-primary/10",
     },
     {
@@ -39,7 +36,6 @@ export function KPICards({ data }: { data: KPIData }) {
       value: data.pendingQC,
       icon: FlaskConical,
       color: "text-destructive",
-      glow: "",
       bgAccent: "bg-destructive/10",
     },
   ];

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,58 +6,58 @@
 
 @layer base {
   :root {
-    --background: 216 28% 7%;
-    --foreground: 210 40% 92%;
+    --background: 222 47% 5%;
+    --foreground: 214 32% 91%;
 
-    --card: 215 25% 10%;
-    --card-foreground: 210 40% 92%;
+    --card: 222 38% 8%;
+    --card-foreground: 214 32% 91%;
 
-    --popover: 215 25% 10%;
-    --popover-foreground: 210 40% 92%;
+    --popover: 222 38% 8%;
+    --popover-foreground: 214 32% 91%;
 
-    --primary: 166 100% 48%;
-    --primary-foreground: 216 28% 7%;
+    --primary: 231 91% 64%;
+    --primary-foreground: 222 47% 5%;
 
-    --secondary: 215 20% 14%;
-    --secondary-foreground: 210 40% 85%;
+    --secondary: 222 30% 12%;
+    --secondary-foreground: 215 25% 75%;
 
-    --muted: 215 20% 14%;
-    --muted-foreground: 215 15% 55%;
+    --muted: 222 30% 12%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 215 20% 16%;
-    --accent-foreground: 210 40% 92%;
+    --accent: 222 30% 14%;
+    --accent-foreground: 214 32% 91%;
 
-    --destructive: 2 76% 67%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 330 81% 70%;
+    --destructive-foreground: 222 47% 5%;
 
-    --warning: 55 100% 60%;
-    --warning-foreground: 216 28% 7%;
+    --warning: 271 81% 76%;
+    --warning-foreground: 222 47% 5%;
 
-    --border: 215 20% 16%;
-    --input: 215 20% 16%;
-    --ring: 166 100% 48%;
+    --border: 222 25% 14%;
+    --input: 222 25% 14%;
+    --ring: 231 91% 64%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 216 28% 5%;
-    --sidebar-foreground: 215 15% 55%;
-    --sidebar-primary: 166 100% 48%;
-    --sidebar-primary-foreground: 216 28% 7%;
-    --sidebar-accent: 215 20% 12%;
-    --sidebar-accent-foreground: 210 40% 92%;
-    --sidebar-border: 215 20% 12%;
-    --sidebar-ring: 166 100% 48%;
+    --sidebar-background: 222 47% 4%;
+    --sidebar-foreground: 215 16% 47%;
+    --sidebar-primary: 231 91% 64%;
+    --sidebar-primary-foreground: 222 47% 5%;
+    --sidebar-accent: 222 30% 10%;
+    --sidebar-accent-foreground: 214 32% 91%;
+    --sidebar-border: 222 25% 10%;
+    --sidebar-ring: 231 91% 64%;
 
-    --glass-bg: 215 25% 10% / 0.6;
-    --glass-border: 166 100% 48% / 0.15;
-    --glow-teal: 166 100% 48%;
-    --glow-amber: 55 100% 60%;
-    --glow-crimson: 2 76% 67%;
+    --glass-bg: 222 38% 8% / 0.6;
+    --glass-border: 231 91% 64% / 0.12;
+    --glow-primary: 231 91% 64%;
+    --glow-caution: 271 81% 76%;
+    --glow-critical: 330 81% 70%;
   }
 
   .dark {
-    --background: 216 28% 7%;
-    --foreground: 210 40% 92%;
+    --background: 222 47% 5%;
+    --foreground: 214 32% 91%;
   }
 }
 
@@ -68,11 +68,11 @@
 
   body {
     @apply bg-background text-foreground font-sans;
-    font-family: 'Inter', sans-serif;
+    font-family: 'DM Sans', sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Sora', sans-serif;
   }
 }
 
@@ -80,7 +80,7 @@
   .glass-card {
     @apply bg-card/60 backdrop-blur-xl border border-border rounded-xl;
     box-shadow: 
-      0 0 15px -3px hsl(var(--glow-teal) / 0.05),
+      0 0 15px -3px hsl(var(--glow-primary) / 0.05),
       0 4px 20px -4px rgba(0, 0, 0, 0.4);
   }
 
@@ -88,7 +88,7 @@
     @apply glass-card;
     border-color: hsl(var(--glass-border));
     box-shadow: 
-      0 0 20px -3px hsl(var(--glow-teal) / 0.1),
+      0 0 20px -3px hsl(var(--glow-primary) / 0.1),
       0 4px 25px -4px rgba(0, 0, 0, 0.5);
   }
 
@@ -103,25 +103,25 @@
 
   .status-active {
     @apply status-pill bg-primary/15 text-primary;
-    box-shadow: 0 0 8px hsl(var(--glow-teal) / 0.3);
+    box-shadow: 0 0 8px hsl(var(--glow-primary) / 0.3);
   }
 
   .status-quarantine {
     @apply status-pill bg-warning/15 text-warning;
-    box-shadow: 0 0 8px hsl(var(--glow-amber) / 0.3);
+    box-shadow: 0 0 8px hsl(var(--glow-caution) / 0.3);
   }
 
   .status-critical {
     @apply status-pill bg-destructive/15 text-destructive;
-    box-shadow: 0 0 8px hsl(var(--glow-crimson) / 0.3);
+    box-shadow: 0 0 8px hsl(var(--glow-critical) / 0.3);
   }
 
   .status-completed {
     @apply status-pill bg-primary/10 text-primary/70;
   }
 
-  .glow-teal {
-    box-shadow: 0 0 20px hsl(var(--glow-teal) / 0.3);
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--glow-primary) / 0.3);
   }
 }
 

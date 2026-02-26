@@ -43,13 +43,13 @@ export default function Auth() {
       {/* Background effects */}
       <div className="absolute inset-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-destructive/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-warning/5 rounded-full blur-3xl" />
       </div>
 
       <div className="glass-card-glow w-full max-w-md p-8 relative z-10">
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center glow-teal">
+          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center glow-primary">
             <FlaskConical className="h-5 w-5 text-primary" />
           </div>
           <h1 className="font-heading font-bold text-2xl text-foreground">PharmaZen</h1>
