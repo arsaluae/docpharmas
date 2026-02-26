@@ -1,83 +1,125 @@
 
 
-# Compliance & Finance Layer for PharmaZen
+# Complete Revamp: Pharma Accounting Software for Pakistan
 
-## Overview
-Four features: Invoicing with FBR QR mockup, Audit Vault with DNA-strand batch timeline, Ambient Glow notification system, and hard-lock quarantine logic in Production.
+## What Gets Removed
+Everything current is removed: Production Floor, Quality Control, Batch tracking, BMR Steps, Quarantine, DNA Timeline, Ambient Glow, BatchOrbit, AlertFeed. All existing tables will be dropped. Fresh start.
 
-## Database Changes (Migration)
+## What Gets Built
 
-**`invoices` table** — stores invoice records
-- `id` uuid PK, `invoice_number` text UNIQUE, `batch_id` uuid nullable, `customer_name` text, `customer_ntn` text, `items` jsonb default '[]', `subtotal` numeric default 0, `tax` numeric default 0, `total` numeric default 0, `status` text default 'draft' (draft/finalized), `fbr_qr_data` text nullable, `finalized_at` timestamptz nullable, `finalized_by` uuid nullable, `created_at` timestamptz default now()
-- RLS: authenticated CRUD
+### Database Schema (New Tables)
 
-**`audit_events` table** — tracks batch genealogy events for the DNA strand timeline
-- `id` uuid PK, `batch_id` uuid FK→batches, `event_type` text (e.g. 'raw_material_received', 'qc_released', 'production_started', 'step_completed', 'qc_passed', 'dispatched'), `event_label` text, `actor_name` text nullable, `entity_name` text nullable, `metadata` jsonb default '{}', `occurred_at` timestamptz default now(), `created_at` timestamptz default now()
-- RLS: authenticated SELECT/INSERT
+**Core Accounting:**
+- `chart_of_accounts` — id, code (e.g. "1001"), name, account_type (asset/liability/equity/revenue/expense/cogs), parent_id (self-ref for sub-accounts), is_system (prevent deletion of built-in accounts), balance numeric, created_at
+- `journal_entries` — id, entry_number, date, description, reference, status (draft/posted), created_by, created_at
+- `journal_lines` — id, journal_entry_id FK, account_id FK→chart_of_accounts, debit numeric, credit numeric, description
 
-**`notifications` table** — stores priority alerts for the ambient glow system
-- `id` uuid PK, `user_id` uuid nullable, `priority` text default 'info' (teal/amber/red/info), `title` text, `message` text, `read` boolean default false, `source_type` text nullable, `source_id` uuid nullable, `created_at` timestamptz default now()
-- RLS: authenticated read (filtered by user_id or global where user_id is null)
+**Customers & Sales:**
+- `customers` — id, name, company, ntn, strn, phone, email, address, city, credit_limit, credit_days, opening_balance, balance, created_at
+- `sales_invoices` — id, invoice_number, customer_id FK, date, due_date, subtotal, gst_amount, discount, total, amount_paid, status (draft/sent/partial/paid/overdue), notes, fbr_qr_data, created_by, created_at
+- `sales_invoice_items` — id, invoice_id FK, product_id FK, batch_number, quantity, rate, discount_percent, gst_rate (17%), amount
+- `sales_returns` — id, return_number, invoice_id FK, customer_id FK, date, total, reason, status, created_at
+- `proforma_invoices` — id, proforma_number, customer_id FK, date, validity_days, items jsonb, subtotal, gst, total, status (draft/sent/converted), converted_invoice_id, created_at
 
-No changes to existing tables needed — the quarantine hard-lock is enforced via a frontend query join (only show released materials in Production material selector).
+**Suppliers & Purchases:**
+- `suppliers` — id, name, company, ntn, strn, phone, email, address, city, payment_terms_days, wht_rate (default 4.5%), opening_balance, balance, created_at
+- `purchase_orders` — id, po_number, supplier_id FK, date, expected_delivery, subtotal, gst, total, status (draft/sent/partial/received/cancelled), notes, created_at
+- `purchase_order_items` — id, po_id FK, product_id FK or raw_material text, quantity, rate, amount
+- `goods_received_notes` — id, grn_number, po_id FK, supplier_id FK, date, received_by, notes, created_at
+- `grn_items` — id, grn_id FK, item_name, batch_number, quantity_ordered, quantity_received, expiry_date, rate, amount
+- `purchase_invoices` — id, bill_number, supplier_id FK, grn_id FK nullable, date, due_date, subtotal, gst, wht_amount, total, status (unpaid/partial/paid), created_at
 
-## New Pages & Components
+**Inventory:**
+- `products` — id, name, sku, category (tablet/capsule/syrup/injection/cream/ointment), drap_reg_number, pack_size, unit, cost_price, selling_price, gst_rate, stock_quantity, reorder_level, created_at
+- `stock_movements` — id, product_id FK, movement_type (purchase_in/sale_out/return_in/return_out/adjustment), quantity, batch_number, reference_type, reference_id, date, notes, created_at
 
-### 1. `/invoicing` — Invoicing Page
-- List of invoices with status pills (Draft / Finalized)
-- Create invoice form: customer name, NTN, line items (name, qty, rate), auto-calc subtotal/tax/total
-- **"Direct-to-FBR" finalize button** on each draft invoice
-- On click: updates status to 'finalized', generates a visual QR code mockup containing invoice data (rendered as an SVG QR-code pattern — not a real QR library, a visual mockup using a grid pattern with the invoice number encoded visually)
-- Finalized invoice shows the QR code prominently with "FBR Verified" badge
+**Payments & Banking:**
+- `bank_accounts` — id, name, bank_name, account_number, branch, opening_balance, balance, is_default, created_at
+- `payments` — id, payment_number, type (received/made), party_type (customer/supplier), party_id, amount, payment_method (cash/cheque/bank_transfer/online), bank_account_id FK nullable, cheque_number, cheque_date, reference, date, notes, created_at
+- `expenses` — id, expense_number, date, category (utilities/salaries/rent/transport/maintenance/marketing/regulatory/other), description, amount, gst_amount, payment_method, bank_account_id FK nullable, account_id FK→chart_of_accounts, notes, created_at
 
-### 2. `/audit` — Audit Vault (One-Click DRAP Audit)
-- Batch selector dropdown at top
-- **DNA Strand vertical timeline**: a centered vertical line with alternating left/right event nodes
-- Each node is a card showing: event type icon, label, actor, timestamp, entity
-- Events traced from raw material vendor receipt → QC release → production steps → final QC → dispatch
-- Data sourced by joining `audit_events` for the selected batch
-- Visual: vertical line with dots, connecting lines, alternating sides, color-coded by event type
+**Tax & Compliance:**
+- `tax_records` — id, period (e.g. "2026-02"), type (gst_output/gst_input/wht), amount, reference_type, reference_id, date, created_at
+- `drap_registrations` — id, product_id FK, registration_number, registration_date, expiry_date, renewal_fee, status (active/expiring/expired/pending), notes, created_at
 
-### 3. Ambient Glow System (Global Component)
-- `AmbientGlow.tsx` — a fixed overlay with 4 edge strips (top/bottom/left/right)
-- Subscribes to `notifications` table via realtime
-- When unread notification arrives, edges pulse in the priority color:
-  - Teal (`#14B8A6`) for batch completion
-  - Amber/Orchid (`#8B5CF6`) for warnings
-  - Red/Rose (`#EC4899`) for audit alerts
-  - Sapphire (`#4F6DF7`) for info
-- Glow fades after 5 seconds or on dismiss
-- Small notification badge in header shows count
-- Wrapped in App.tsx around all authenticated routes
+**Keep:** `user_roles` table and auth system as-is.
 
-### 4. Quarantine Hard-Lock in Production
-- Modify `ProductionFloor.tsx`: when a BMR step involves material selection (Weighing step), query `raw_materials` and only show items where `status = 'released'`
-- Add a "Materials" indicator on the BMR step card showing which materials are available
-- Locked materials shown as disabled/greyed with a lock icon and tooltip "Pending QC Release"
+### Pages & Navigation
 
-## Files to Create
+Sidebar sections:
 
-1. `src/pages/Invoicing.tsx` — invoice list + create + FBR finalize
-2. `src/pages/AuditVault.tsx` — DRAP audit DNA strand timeline
-3. `src/components/invoicing/InvoiceCard.tsx` — individual invoice card
-4. `src/components/invoicing/FBRQRCode.tsx` — visual QR code mockup SVG
-5. `src/components/audit/DNATimeline.tsx` — vertical DNA strand timeline
-6. `src/components/audit/TimelineNode.tsx` — individual timeline event node
-7. `src/components/notifications/AmbientGlow.tsx` — edge-glow overlay
-8. `src/hooks/useNotifications.tsx` — realtime notification subscription hook
+**Overview**
+- `/` — Dashboard (revenue/expense cards, receivables/payables, recent transactions, cash flow mini-chart, expiring DRAP alerts)
 
-## Files to Modify
+**Sales**
+- `/customers` — Customer list + create/edit + individual ledger view
+- `/sales-invoices` — Sales invoice list + create with line items, GST calc, FBR QR on finalize
+- `/proforma` — Proforma invoices + convert-to-invoice
+- `/sales-returns` — Credit notes / returns
 
-1. `src/App.tsx` — add `/invoicing` and `/audit` routes, wrap with AmbientGlow
-2. `src/components/AppSidebar.tsx` — add "Invoicing" (FileText icon) and "Audit" (ScrollText icon) nav items, replace placeholder Alerts/Settings
-3. `src/pages/ProductionFloor.tsx` — add released-materials query, pass `disabled` prop to BMRStepCard when materials not released
-4. `src/components/production/BMRStepCard.tsx` — show lock icon + "Awaiting QC" when disabled
-5. `src/index.css` — add ambient-glow keyframes (edge pulse animation)
-6. `tailwind.config.ts` — add ambient-glow animation + teal color variable
+**Purchases**
+- `/suppliers` — Supplier list + create/edit + individual ledger view  
+- `/purchase-orders` — PO creation + tracking
+- `/grn` — Goods Received Notes linked to POs
+- `/purchase-invoices` — Supplier bills + WHT deduction
 
-## Seed Data
+**Inventory**
+- `/products` — Product catalog with DRAP reg, stock levels, costing
+- `/stock` — Stock movements, batch tracking, reorder alerts
 
-- 3 sample invoices (2 draft, 1 finalized with QR data)
-- ~15 audit events across existing batches (raw material receipt → QC → production → dispatch)
-- 3 sample notifications (one teal, one red, one amber)
+**Finance**
+- `/payments` — Payments received & made, cheque tracking
+- `/expenses` — Expense recording by category
+- `/bank` — Bank accounts, reconciliation view
+
+**Reports**
+- `/reports/pl` — Profit & Loss statement
+- `/reports/balance-sheet` — Balance Sheet
+- `/reports/cash-flow` — Cash Flow statement
+- `/reports/receivables` — Aging report
+- `/reports/payables` — Aging report
+- `/reports/product-costing` — Per-product cost breakdown & margins
+- `/reports/tax` — GST summary, WHT certificates, DRAP renewals
+
+**Settings**
+- `/settings` — Company profile, fiscal year, tax rates
+
+### Implementation Phases
+
+Given the scope, this will be built in **3 phases** across multiple messages:
+
+**Phase 1 (this implementation):**
+1. Database migration — drop old tables, create all new tables with RLS
+2. Seed default Chart of Accounts (pharma-specific: RM inventory, WIP, finished goods, COGS breakdowns)
+3. Dashboard page with financial KPI cards
+4. Customers page (CRUD + ledger)
+5. Suppliers page (CRUD + ledger)
+6. Products page (CRUD with DRAP fields)
+7. Updated sidebar navigation
+
+**Phase 2 (next message):**
+8. Sales Invoices with GST + FBR QR
+9. Proforma Invoices
+10. Purchase Orders + GRN
+11. Purchase Invoices with WHT
+12. Payments (received/made)
+
+**Phase 3 (following message):**
+13. Expenses module
+14. Bank accounts + reconciliation
+15. Stock movements + batch tracking
+16. All reports (P&L, Balance Sheet, Cash Flow, Aging, Product Costing)
+17. Tax module (GST returns, WHT certificates, DRAP tracker)
+
+### Technical Details
+
+- All monetary values stored as `numeric` (not float)
+- Pre-seeded COA with ~40 accounts following Pakistan pharma industry standards
+- GST default 17%, configurable per product
+- WHT rates: 4.5% filer, 6.5% non-filer (stored per supplier)
+- Invoice numbering: auto-increment with prefix (SI-0001, PO-0001, etc.)
+- All tables RLS-protected for authenticated users
+- Existing `user_roles` and auth kept intact
+- Remove all old components (dashboard/, audit/, quality/, production/, inventory/, invoicing/, notifications/)
+- Fresh UI keeping same design system (Sora/DM Sans, glass-card, status-pill patterns)
 
