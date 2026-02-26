@@ -5,6 +5,12 @@ import {
   Package,
   LogOut,
   Pill,
+  FileText,
+  FilePlus,
+  ClipboardList,
+  PackageCheck,
+  Receipt,
+  Wallet,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -34,18 +40,29 @@ const sections = [
     label: "Sales",
     items: [
       { title: "Customers", url: "/customers", icon: Users },
+      { title: "Sales Invoices", url: "/sales-invoices", icon: FileText },
+      { title: "Proforma", url: "/proforma", icon: FilePlus },
     ],
   },
   {
     label: "Purchases",
     items: [
       { title: "Suppliers", url: "/suppliers", icon: Truck },
+      { title: "Purchase Orders", url: "/purchase-orders", icon: ClipboardList },
+      { title: "GRN", url: "/grn", icon: PackageCheck },
+      { title: "Purchase Bills", url: "/purchase-invoices", icon: Receipt },
     ],
   },
   {
     label: "Inventory",
     items: [
       { title: "Products", url: "/products", icon: Package },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      { title: "Payments", url: "/payments", icon: Wallet },
     ],
   },
 ];

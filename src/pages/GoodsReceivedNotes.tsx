@@ -1,0 +1,179 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Search, PackageCheck, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+interface PO { id: string; po_number: string; supplier_id: string | null; suppliers?: { name: string } | null; }
+interface GRNItem { item_name: string; batch_number: string; quantity_ordered: number; quantity_received: number; expiry_date: string; rate: number; amount: number; }
+
+interface GRN {
+  id: string; grn_number: string; po_id: string | null; supplier_id: string | null; date: string;
+  received_by: string | null; notes: string | null; created_at: string;
+  purchase_orders?: { po_number: string } | null;
+  suppliers?: { name: string } | null;
+}
+
+export default function GoodsReceivedNotes() {
+  const navigate = useNavigate();
+  const [grns, setGrns] = useState<GRN[]>([]);
+  const [pos, setPos] = useState<PO[]>([]);
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const [poId, setPoId] = useState("");
+  const [grnDate, setGrnDate] = useState(new Date().toISOString().split("T")[0]);
+  const [receivedBy, setReceivedBy] = useState("");
+  const [notes, setNotes] = useState("");
+  const [items, setItems] = useState<GRNItem[]>([]);
+
+  useEffect(() => {
+    const check = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) navigate("/auth");
+    };
+    check(); load();
+  }, [navigate]);
+
+  const load = async () => {
+    const [g, p] = await Promise.all([
+      supabase.from("goods_received_notes").select("*, purchase_orders(po_number), suppliers(name)").order("created_at", { ascending: false }),
+      supabase.from("purchase_orders").select("id, po_number, supplier_id, suppliers(name)").eq("status", "draft").order("created_at", { ascending: false }),
+    ]);
+    if (g.data) setGrns(g.data as any);
+    if (p.data) setPos(p.data as any);
+  };
+
+  const addItem = () => setItems([...items, { item_name: "", batch_number: "", quantity_ordered: 0, quantity_received: 0, expiry_date: "", rate: 0, amount: 0 }]);
+
+  const updateItem = (idx: number, field: string, value: any) => {
+    const u = [...items];
+    (u[idx] as any)[field] = value;
+    u[idx].amount = Number(u[idx].quantity_received) * Number(u[idx].rate);
+    setItems(u);
+  };
+
+  const handleSave = async () => {
+    if (items.length === 0) { toast.error("Add at least one item"); return; }
+    const { count } = await supabase.from("goods_received_notes").select("id", { count: "exact", head: true });
+    const grnNumber = `GRN-${String((count || 0) + 1).padStart(4, "0")}`;
+    const selectedPO = pos.find(p => p.id === poId);
+
+    const { data: grn } = await supabase.from("goods_received_notes").insert({
+      grn_number: grnNumber, po_id: poId || null, supplier_id: selectedPO?.supplier_id || null,
+      date: grnDate, received_by: receivedBy || null, notes: notes || null,
+    }).select().single();
+
+    if (grn) {
+      await supabase.from("grn_items").insert(
+        items.map(i => ({
+          grn_id: grn.id, item_name: i.item_name, batch_number: i.batch_number || null,
+          quantity_ordered: Number(i.quantity_ordered), quantity_received: Number(i.quantity_received),
+          expiry_date: i.expiry_date || null, rate: Number(i.rate), amount: i.amount,
+        }))
+      );
+      if (poId) await supabase.from("purchase_orders").update({ status: "received" }).eq("id", poId);
+      toast.success(`GRN ${grnNumber} created`);
+      setOpen(false); setPoId(""); setItems([]); setReceivedBy(""); setNotes(""); load();
+    }
+  };
+
+  const filtered = grns.filter(g => g.grn_number.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <AppSidebar />
+        <main className="flex-1 overflow-auto">
+          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
+            <SidebarTrigger />
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-foreground font-heading">Goods Received Notes</h1>
+              <p className="text-sm text-muted-foreground">Record materials received against purchase orders</p>
+            </div>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> New GRN</Button></DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader><DialogTitle>New Goods Received Note</DialogTitle></DialogHeader>
+                <div className="grid grid-cols-3 gap-3 mt-2">
+                  <div>
+                    <Label>Purchase Order</Label>
+                    <Select value={poId} onValueChange={setPoId}>
+                      <SelectTrigger><SelectValue placeholder="Select PO..." /></SelectTrigger>
+                      <SelectContent>{pos.map(p => <SelectItem key={p.id} value={p.id}>{p.po_number} — {(p.suppliers as any)?.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Date</Label><Input type="date" value={grnDate} onChange={e => setGrnDate(e.target.value)} /></div>
+                  <div><Label>Received By</Label><Input value={receivedBy} onChange={e => setReceivedBy(e.target.value)} /></div>
+                </div>
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-sm font-semibold">Items Received</Label>
+                    <Button variant="outline" size="sm" onClick={addItem}><Plus className="h-3 w-3 mr-1" /> Add</Button>
+                  </div>
+                  {items.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
+                      <div className="col-span-3"><Input placeholder="Item name" value={item.item_name} onChange={e => updateItem(idx, "item_name", e.target.value)} className="text-xs" /></div>
+                      <div className="col-span-2"><Input placeholder="Batch #" value={item.batch_number} onChange={e => updateItem(idx, "batch_number", e.target.value)} className="text-xs" /></div>
+                      <div className="col-span-1"><Input type="number" placeholder="Ord" value={item.quantity_ordered} onChange={e => updateItem(idx, "quantity_ordered", e.target.value)} className="text-xs" /></div>
+                      <div className="col-span-1"><Input type="number" placeholder="Rcvd" value={item.quantity_received} onChange={e => updateItem(idx, "quantity_received", e.target.value)} className="text-xs" /></div>
+                      <div className="col-span-2"><Input type="date" value={item.expiry_date} onChange={e => updateItem(idx, "expiry_date", e.target.value)} className="text-xs" /></div>
+                      <div className="col-span-1"><Input type="number" placeholder="Rate" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" /></div>
+                      <div className="col-span-1 text-right text-xs font-mono pt-2">{item.amount.toLocaleString()}</div>
+                      <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3"><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
+                <Button onClick={handleSave} className="w-full mt-4">Create GRN</Button>
+              </DialogContent>
+            </Dialog>
+          </header>
+
+          <div className="p-6">
+            <div className="mb-4 relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search GRNs..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <Card className="glass-card">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>GRN #</TableHead><TableHead>PO #</TableHead><TableHead>Supplier</TableHead>
+                      <TableHead>Date</TableHead><TableHead>Received By</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.length === 0 ? (
+                      <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                        <PackageCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No GRNs yet.
+                      </TableCell></TableRow>
+                    ) : filtered.map(g => (
+                      <TableRow key={g.id}>
+                        <TableCell className="font-medium font-mono">{g.grn_number}</TableCell>
+                        <TableCell className="font-mono text-muted-foreground">{(g.purchase_orders as any)?.po_number || "—"}</TableCell>
+                        <TableCell>{(g.suppliers as any)?.name || "—"}</TableCell>
+                        <TableCell className="text-muted-foreground">{g.date}</TableCell>
+                        <TableCell>{g.received_by || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    </SidebarProvider>
+  );
+}
