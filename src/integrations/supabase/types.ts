@@ -85,15 +85,219 @@ export type Database = {
         }
         Relationships: []
       }
+      bmr_steps: {
+        Row: {
+          batch_id: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          status: string
+          step_name: string
+          step_order: number
+          yield_actual: number | null
+          yield_expected: number
+        }
+        Insert: {
+          batch_id: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          step_name: string
+          step_order: number
+          yield_actual?: number | null
+          yield_expected?: number
+        }
+        Update: {
+          batch_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          step_name?: string
+          step_order?: number
+          yield_actual?: number | null
+          yield_expected?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bmr_steps_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_folders: {
+        Row: {
+          arrival_date: string | null
+          created_at: string
+          duties: number
+          freight: number
+          id: string
+          insurance: number
+          lc_number: string
+          shipment_name: string
+          status: string
+          supplier: string
+          total_landed_cost: number
+        }
+        Insert: {
+          arrival_date?: string | null
+          created_at?: string
+          duties?: number
+          freight?: number
+          id?: string
+          insurance?: number
+          lc_number: string
+          shipment_name: string
+          status?: string
+          supplier: string
+          total_landed_cost?: number
+        }
+        Update: {
+          arrival_date?: string | null
+          created_at?: string
+          duties?: number
+          freight?: number
+          id?: string
+          insurance?: number
+          lc_number?: string
+          shipment_name?: string
+          status?: string
+          supplier?: string
+          total_landed_cost?: number
+        }
+        Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          category: string
+          cost_per_unit: number
+          created_at: string
+          expiry_date: string
+          id: string
+          location: string
+          name: string
+          quantity: number
+          sku: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          cost_per_unit?: number
+          created_at?: string
+          expiry_date: string
+          id?: string
+          location?: string
+          name: string
+          quantity?: number
+          sku: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          cost_per_unit?: number
+          created_at?: string
+          expiry_date?: string
+          id?: string
+          location?: string
+          name?: string
+          quantity?: number
+          sku?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      raw_materials: {
+        Row: {
+          created_at: string
+          expiry_date: string
+          id: string
+          lot_number: string
+          name: string
+          quantity: number
+          received_at: string
+          released_at: string | null
+          released_by: string | null
+          status: string
+          supplier: string
+          unit: string
+        }
+        Insert: {
+          created_at?: string
+          expiry_date: string
+          id?: string
+          lot_number: string
+          name: string
+          quantity: number
+          received_at?: string
+          released_at?: string | null
+          released_by?: string | null
+          status?: string
+          supplier: string
+          unit?: string
+        }
+        Update: {
+          created_at?: string
+          expiry_date?: string
+          id?: string
+          lot_number?: string
+          name?: string
+          quantity?: number
+          received_at?: string
+          released_at?: string | null
+          released_by?: string | null
+          status?: string
+          supplier?: string
+          unit?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_authenticated: { Args: never; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -220,6 +424,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
