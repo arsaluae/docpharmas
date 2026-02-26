@@ -85,7 +85,7 @@ const Index = () => {
 
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <header className="h-14 border-b border-border/50 flex items-center justify-between px-4 bg-card/30 backdrop-blur-sm">
+          <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-card">
             <div className="flex items-center gap-3">
               <SidebarTrigger>
                 <Menu className="h-5 w-5 text-muted-foreground" />
