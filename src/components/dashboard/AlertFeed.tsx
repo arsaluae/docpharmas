@@ -43,6 +43,7 @@ export function AlertFeed({ alerts }: { alerts: Alert[] }) {
         {unresolvedAlerts.map((alert, i) => {
           const cfg = severityConfig(alert.severity);
           const Icon = cfg.icon;
+          const borderVar = alert.severity === "critical" ? "--destructive" : alert.severity === "warning" ? "--warning" : "--primary";
           return (
             <motion.div
               key={alert.id}
@@ -50,7 +51,7 @@ export function AlertFeed({ alerts }: { alerts: Alert[] }) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.5 + i * 0.08 }}
               className={`floating-row flex gap-3 items-start ${cfg.bg} border-l-2`}
-              style={{ borderLeftColor: `hsl(var(--${alert.severity === "critical" ? "destructive" : alert.severity === "warning" ? "warning" : "primary"}))` }}
+              style={{ borderLeftColor: `hsl(var(${borderVar}))` }}
             >
               <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${cfg.cls}`} />
               <div className="flex-1 min-w-0">

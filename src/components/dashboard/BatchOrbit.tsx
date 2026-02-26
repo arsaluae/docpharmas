@@ -15,10 +15,10 @@ export function BatchOrbit({ batches }: { batches: Batch[] }) {
 
   const statusColor = (status: string) => {
     switch (status) {
-      case "in_progress": return "hsl(166, 100%, 48%)";
-      case "quarantine": return "hsl(55, 100%, 60%)";
-      case "failed": return "hsl(2, 76%, 67%)";
-      default: return "hsl(166, 100%, 48%)";
+      case "in_progress": return "hsl(231, 91%, 64%)";
+      case "quarantine": return "hsl(271, 81%, 76%)";
+      case "failed": return "hsl(330, 81%, 70%)";
+      default: return "hsl(231, 91%, 64%)";
     }
   };
 
@@ -38,7 +38,7 @@ export function BatchOrbit({ batches }: { batches: Batch[] }) {
         {/* Outer ring */}
         <div
           className="absolute inset-0 rounded-full border-2 border-primary/20"
-          style={{ boxShadow: "0 0 30px hsl(166 100% 48% / 0.08)" }}
+          style={{ boxShadow: "0 0 30px hsl(231 91% 64% / 0.08)" }}
         />
 
         {/* Progress ring SVG */}
@@ -46,18 +46,18 @@ export function BatchOrbit({ batches }: { batches: Batch[] }) {
           <circle
             cx="140" cy="140" r="130"
             fill="none"
-            stroke="hsl(215 20% 14%)"
+            stroke="hsl(222 30% 12%)"
             strokeWidth="4"
           />
           {centerBatch && (
             <circle
               cx="140" cy="140" r="130"
               fill="none"
-              stroke="hsl(166 100% 48%)"
+              stroke="hsl(231 91% 64%)"
               strokeWidth="4"
               strokeLinecap="round"
               strokeDasharray={`${(centerBatch.progress / 100) * 817} 817`}
-              style={{ filter: "drop-shadow(0 0 6px hsl(166 100% 48% / 0.5))" }}
+              style={{ filter: "drop-shadow(0 0 6px hsl(231 91% 64% / 0.5))" }}
             />
           )}
         </svg>
