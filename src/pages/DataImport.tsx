@@ -211,13 +211,19 @@ export default function DataImport() {
             return;
           }
           if (mapped && cols.includes(mapped)) {
-            obj[mapped] = row[i] || "";
+            const val = row[i] || "";
+            // Don't overwrite existing non-empty value with empty
+            if (val || !obj[mapped]) {
+              obj[mapped] = val;
+            }
           }
         });
 
         // Concatenate first + last name if last name exists
-        if (lastName && obj.name) {
-          obj.name = `${obj.name} ${lastName}`.trim();
+        if (lastName) {
+          obj.name = obj.name 
+            ? `${obj.name} ${lastName}`.trim() 
+            : lastName.trim();
         }
 
         // Skip rows without a name
