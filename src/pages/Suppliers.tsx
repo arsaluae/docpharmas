@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Truck } from "lucide-react";
+import { Plus, Search, Truck, BookOpen, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 interface Supplier {
@@ -32,10 +33,7 @@ export default function Suppliers() {
   const [editId, setEditId] = useState<string | null>(null);
 
   useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate("/auth");
-    };
+    const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
     check(); loadSuppliers();
   }, [navigate]);
 
@@ -72,9 +70,16 @@ export default function Suppliers() {
     setOpen(true);
   };
 
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { error } = await supabase.from("suppliers").delete().eq("id", id);
+    if (error) { toast.error("Cannot delete — may have linked records"); return; }
+    toast.success("Supplier deleted");
+    loadSuppliers();
+  };
+
   const filtered = suppliers.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    (s.company || "").toLowerCase().includes(search.toLowerCase())
+    s.name.toLowerCase().includes(search.toLowerCase()) || (s.company || "").toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -88,14 +93,13 @@ export default function Suppliers() {
               <h1 className="text-xl font-bold text-foreground font-heading">Suppliers</h1>
               <p className="text-sm text-muted-foreground">RM & packing material suppliers with WHT tracking</p>
             </div>
+            <Button variant="outline" size="sm" onClick={() => navigate("/import?tab=suppliers")}><Upload className="h-4 w-4 mr-1" /> Import CSV</Button>
             <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditId(null); setForm(emptyForm); } }}>
               <DialogTrigger asChild>
                 <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Supplier</Button>
               </DialogTrigger>
               <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editId ? "Edit" : "New"} Supplier</DialogTitle>
-                </DialogHeader>
+                <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Supplier</DialogTitle></DialogHeader>
                 <div className="grid grid-cols-2 gap-3 mt-2">
                   <div className="col-span-2"><Label>Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
                   <div><Label>Company</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} /></div>
@@ -113,7 +117,6 @@ export default function Suppliers() {
               </DialogContent>
             </Dialog>
           </header>
-
           <div className="p-6">
             <div className="mb-4 relative max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -124,34 +127,36 @@ export default function Suppliers() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Company</TableHead>
-                      <TableHead>City</TableHead>
-                      <TableHead>WHT %</TableHead>
-                      <TableHead className="text-right">Balance</TableHead>
-                      <TableHead>Terms</TableHead>
+                      <TableHead>Name</TableHead><TableHead>Company</TableHead><TableHead>City</TableHead>
+                      <TableHead>WHT %</TableHead><TableHead className="text-right">Balance</TableHead>
+                      <TableHead>Terms</TableHead><TableHead className="text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                          <Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                          No suppliers yet.
+                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground"><Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />No suppliers yet.</TableCell></TableRow>
+                    ) : filtered.map(s => (
+                      <TableRow key={s.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(s)}>
+                        <TableCell className="font-medium">{s.name}</TableCell>
+                        <TableCell>{s.company || "—"}</TableCell>
+                        <TableCell>{s.city || "—"}</TableCell>
+                        <TableCell><span className="status-pill bg-amber-50 text-amber-700">{s.wht_rate}%</span></TableCell>
+                        <TableCell className="text-right font-mono">{Number(s.balance).toLocaleString()}</TableCell>
+                        <TableCell className="text-muted-foreground">{s.payment_terms_days}d</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/suppliers/${s.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader><AlertDialogTitle>Delete {s.name}?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this supplier.</AlertDialogDescription></AlertDialogHeader>
+                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => handleDelete(s.id, e)}>Delete</AlertDialogAction></AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      filtered.map(s => (
-                        <TableRow key={s.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(s)}>
-                          <TableCell className="font-medium">{s.name}</TableCell>
-                          <TableCell>{s.company || "—"}</TableCell>
-                          <TableCell>{s.city || "—"}</TableCell>
-                          <TableCell><span className="status-pill bg-amber-50 text-amber-700">{s.wht_rate}%</span></TableCell>
-                          <TableCell className="text-right font-mono">{Number(s.balance).toLocaleString()}</TableCell>
-                          <TableCell className="text-muted-foreground">{s.payment_terms_days}d</TableCell>
-                        </TableRow>
-                      ))
-                    )}
+                    ))}
                   </TableBody>
                 </Table>
               </CardContent>
