@@ -57,6 +57,7 @@ const sections = [
     label: "Purchases",
     items: [
       { title: "Suppliers", url: "/suppliers", icon: Truck },
+      { title: "Purchase Proforma", url: "/purchase-proforma", icon: FilePlus },
       { title: "Purchase Orders", url: "/purchase-orders", icon: ClipboardList },
       { title: "GRN", url: "/grn", icon: PackageCheck },
       { title: "Purchase Bills", url: "/purchase-invoices", icon: Receipt },
