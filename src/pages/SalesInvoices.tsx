@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FileText, Trash2, QrCode } from "lucide-react";
+import { Plus, Search, FileText, Trash2, QrCode, Download, FileOutput } from "lucide-react";
 import { toast } from "sonner";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { generatePdf } from "@/lib/pdf-generator";
 
 interface Customer { id: string; name: string; company: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
@@ -19,7 +21,7 @@ interface InvoiceItem { product_id: string; product_name: string; quantity: numb
 interface SalesInvoice {
   id: string; invoice_number: string; customer_id: string | null; date: string; due_date: string | null;
   subtotal: number; gst_amount: number; discount: number; total: number; amount_paid: number;
-  status: string; fbr_qr_data: string | null; created_at: string;
+  status: string; fbr_qr_data: string | null; notes: string | null; created_at: string;
   customers?: { name: string } | null;
 }
 
@@ -32,6 +34,7 @@ export default function SalesInvoices() {
   const [open, setOpen] = useState(false);
   const [qrData, setQrData] = useState<string | null>(null);
   const [qrOpen, setQrOpen] = useState(false);
+  const { settings } = useCompanySettings();
 
   // Form state
   const [customerId, setCustomerId] = useState("");
@@ -130,6 +133,53 @@ export default function SalesInvoices() {
   const resetForm = () => {
     setOpen(false); setCustomerId(""); setInvoiceDate(new Date().toISOString().split("T")[0]);
     setDueDate(""); setNotes(""); setItems([]);
+  };
+
+  const printInvoice = async (inv: SalesInvoice) => {
+    const { data: lineItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
+    generatePdf({
+      title: "SALES INVOICE",
+      documentNumber: inv.invoice_number,
+      date: inv.date,
+      partyLabel: "Customer",
+      partyName: (inv.customers as any)?.name || "—",
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "name" },
+        { header: "Batch", key: "batch_number" },
+        { header: "Qty", key: "quantity", align: "right" },
+        { header: "Rate", key: "rate", align: "right" },
+        { header: "Disc%", key: "discount_percent", align: "right" },
+        { header: "Amount", key: "amount", align: "right" },
+      ],
+      rows: (lineItems || []).map((i: any, idx: number) => ({
+        idx: idx + 1, name: i.products?.name || "Item", batch_number: i.batch_number || "—",
+        quantity: i.quantity, rate: Number(i.rate).toLocaleString(), discount_percent: i.discount_percent,
+        amount: Number(i.amount).toLocaleString(),
+      })),
+      totals: [
+        { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
+        { label: "Discount", value: `-PKR ${Number(inv.discount).toLocaleString()}` },
+        { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
+        { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
+      ],
+      notes: inv.notes || undefined,
+      settings,
+    });
+  };
+
+  const createDeliveryNote = async (inv: SalesInvoice) => {
+    const { data: lineItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
+    const { count } = await supabase.from("delivery_notes").select("id", { count: "exact", head: true });
+    const dnNumber = `DN-${String((count || 0) + 1).padStart(4, "0")}`;
+    const dnItems = (lineItems || []).map((i: any) => ({
+      product_name: i.products?.name || "Item", batch_number: i.batch_number || "", expiry_date: "", quantity: i.quantity,
+    }));
+    await supabase.from("delivery_notes").insert({
+      dn_number: dnNumber, reference_type: "sales_invoice", reference_id: inv.id,
+      customer_id: inv.customer_id, items: dnItems,
+    });
+    toast.success(`Delivery Note ${dnNumber} created`);
   };
 
   const generateFBR = async (inv: SalesInvoice) => {
@@ -232,12 +282,13 @@ export default function SalesInvoices() {
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">GST</TableHead>
                       <TableHead className="text-right">Total</TableHead>
-                      <TableHead>FBR</TableHead>
+                      {settings?.fbr_enabled && <TableHead>FBR</TableHead>}
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={settings?.fbr_enabled ? 8 : 7} className="text-center py-12 text-muted-foreground">
                         <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No invoices yet.
                       </TableCell></TableRow>
                     ) : filtered.map(inv => (
@@ -248,14 +299,20 @@ export default function SalesInvoices() {
                         <TableCell><span className={`status-pill ${statusColor(inv.status)}`}>{inv.status}</span></TableCell>
                         <TableCell className="text-right font-mono">{Number(inv.gst_amount).toLocaleString()}</TableCell>
                         <TableCell className="text-right font-mono font-medium">{Number(inv.total).toLocaleString()}</TableCell>
-                        <TableCell>
-                          {inv.fbr_qr_data ? (
-                            <Button variant="ghost" size="sm" onClick={() => { setQrData(inv.fbr_qr_data); setQrOpen(true); }}>
-                              <QrCode className="h-4 w-4 text-primary" />
-                            </Button>
-                          ) : (
-                            <Button variant="outline" size="sm" onClick={() => generateFBR(inv)} className="text-xs">Generate</Button>
-                          )}
+                        {settings?.fbr_enabled && (
+                          <TableCell>
+                            {inv.fbr_qr_data ? (
+                              <Button variant="ghost" size="sm" onClick={() => { setQrData(inv.fbr_qr_data); setQrOpen(true); }}>
+                                <QrCode className="h-4 w-4 text-primary" />
+                              </Button>
+                            ) : (
+                              <Button variant="outline" size="sm" onClick={() => generateFBR(inv)} className="text-xs">Generate</Button>
+                            )}
+                          </TableCell>
+                        )}
+                        <TableCell className="space-x-1">
+                          <Button variant="outline" size="sm" onClick={() => printInvoice(inv)} className="text-xs"><Download className="h-3 w-3 mr-1" />PDF</Button>
+                          <Button variant="outline" size="sm" onClick={() => createDeliveryNote(inv)} className="text-xs"><FileOutput className="h-3 w-3 mr-1" />DN</Button>
                         </TableCell>
                       </TableRow>
                     ))}

@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, Truck, Package, LogOut, Pill, FileText,
   ClipboardList, Receipt, Wallet, CreditCard, Landmark,
-  BarChart3, RotateCcw, Upload,
+  BarChart3, RotateCcw, Upload, Settings, PackageCheck, FilePlus, FileOutput,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -15,13 +15,17 @@ const sections = [
   { label: "Overview", items: [{ title: "Dashboard", url: "/", icon: LayoutDashboard }] },
   { label: "Sales", items: [
     { title: "Customers", url: "/customers", icon: Users },
+    { title: "Proforma", url: "/proforma", icon: FilePlus },
     { title: "Invoices", url: "/sales-invoices", icon: FileText },
     { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList },
+    { title: "Delivery Notes", url: "/delivery-notes", icon: FileOutput },
     { title: "Returns", url: "/sales-returns", icon: RotateCcw },
   ]},
   { label: "Purchases", items: [
     { title: "Suppliers", url: "/suppliers", icon: Truck },
-    { title: "Orders & GRN", url: "/purchase-orders", icon: ClipboardList },
+    { title: "Purchase Proforma", url: "/purchase-proforma", icon: FilePlus },
+    { title: "Purchase Orders", url: "/purchase-orders", icon: ClipboardList },
+    { title: "GRN", url: "/grn", icon: PackageCheck },
     { title: "Bills", url: "/purchase-invoices", icon: Receipt },
     { title: "Returns", url: "/purchase-returns", icon: RotateCcw },
   ]},
@@ -37,6 +41,7 @@ const sections = [
     { title: "Reports", url: "/reports", icon: BarChart3 },
   ]},
   { label: "Settings", items: [
+    { title: "Company Settings", url: "/settings", icon: Settings },
     { title: "Data Import", url: "/import", icon: Upload },
   ]},
 ];

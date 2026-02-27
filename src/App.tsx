@@ -24,6 +24,8 @@ import Expenses from "./pages/Expenses";
 import BankAccounts from "./pages/BankAccounts";
 import StockMovements from "./pages/StockMovements";
 import DataImport from "./pages/DataImport";
+import Settings from "./pages/Settings";
+import DeliveryNotes from "./pages/DeliveryNotes";
 import ProfitLoss from "./pages/reports/ProfitLoss";
 import BalanceSheet from "./pages/reports/BalanceSheet";
 import CashFlow from "./pages/reports/CashFlow";
@@ -68,6 +70,8 @@ const App = () => (
           <Route path="/bank" element={<BankAccounts />} />
           <Route path="/stock" element={<StockMovements />} />
           <Route path="/import" element={<DataImport />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/delivery-notes" element={<DeliveryNotes />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/reports/pl" element={<ProfitLoss />} />
           <Route path="/reports/balance-sheet" element={<BalanceSheet />} />

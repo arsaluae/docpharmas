@@ -11,8 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FilePlus, ArrowRight, Trash2 } from "lucide-react";
+import { Plus, Search, FilePlus, ArrowRight, Trash2, Download } from "lucide-react";
 import { toast } from "sonner";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { generatePdf } from "@/lib/pdf-generator";
 
 interface Customer { id: string; name: string; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
@@ -47,6 +49,7 @@ export default function ProformaInvoices() {
   const [convertPf, setConvertPf] = useState<Proforma | null>(null);
   const [convertItems, setConvertItems] = useState<any[]>([]);
   const [batchOptions, setBatchOptions] = useState<Record<string, BatchOption[]>>({});
+  const { settings } = useCompanySettings();
 
   useEffect(() => {
     const check = async () => {
@@ -280,12 +283,32 @@ export default function ProformaInvoices() {
                         <TableCell>{pf.validity_days}d</TableCell>
                         <TableCell><span className={`status-pill ${statusColor(pf.status)}`}>{pf.status}</span></TableCell>
                         <TableCell className="text-right font-mono">{Number(pf.total).toLocaleString()}</TableCell>
-                        <TableCell>
+                        <TableCell className="space-x-1">
                           {pf.status !== "converted" && (
                             <Button variant="outline" size="sm" onClick={() => openConvertDialog(pf)} className="text-xs">
                               <ArrowRight className="h-3 w-3 mr-1" /> Convert
                             </Button>
                           )}
+                          <Button variant="outline" size="sm" onClick={() => {
+                            const pfItems = typeof pf.items === "string" ? JSON.parse(pf.items) : pf.items;
+                            generatePdf({
+                              title: "SALES PROFORMA", documentNumber: pf.proforma_number, date: pf.date,
+                              partyLabel: "Customer", partyName: (pf.customers as any)?.name || "—",
+                              meta: [{ label: "Validity", value: `${pf.validity_days} days` }],
+                              columns: [
+                                { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+                                { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+                                { header: "Amount", key: "amount", align: "right" },
+                              ],
+                              rows: pfItems.map((i: any, idx: number) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString() })),
+                              totals: [
+                                { label: "Subtotal", value: `PKR ${Number(pf.subtotal).toLocaleString()}` },
+                                { label: "GST", value: `PKR ${Number(pf.gst).toLocaleString()}` },
+                                { label: "Total", value: `PKR ${Number(pf.total).toLocaleString()}` },
+                              ],
+                              notes: pf.payment_instructions || undefined, settings,
+                            });
+                          }} className="text-xs"><Download className="h-3 w-3 mr-1" />PDF</Button>
                         </TableCell>
                       </TableRow>
                     ))}

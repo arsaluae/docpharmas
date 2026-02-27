@@ -11,8 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FileText, Trash2, ArrowRight, DollarSign } from "lucide-react";
+import { Plus, Search, FileText, Trash2, ArrowRight, DollarSign, Download } from "lucide-react";
 import { toast } from "sonner";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { generatePdf } from "@/lib/pdf-generator";
 
 interface Supplier { id: string; name: string; }
 interface Product { id: string; name: string; cost_price: number; }
@@ -49,6 +51,7 @@ export default function PurchaseProforma() {
   const [costDesc, setCostDesc] = useState("");
   const [costAmount, setCostAmount] = useState("");
   const [costVendorId, setCostVendorId] = useState("");
+  const { settings } = useCompanySettings();
 
   useEffect(() => {
     const check = async () => {
@@ -327,6 +330,29 @@ export default function PurchaseProforma() {
                           <Button variant="ghost" size="sm" onClick={() => { setSelectedProformaId(pp.id); setCostOpen(true); }} className="text-xs">
                             <DollarSign className="h-3 w-3 mr-1" /> Costs
                           </Button>
+                          <Button variant="outline" size="sm" onClick={async () => {
+                            const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", pp.id);
+                            generatePdf({
+                              title: "PURCHASE PROFORMA", documentNumber: pp.proforma_number, date: pp.date,
+                              partyLabel: "Supplier", partyName: (pp.suppliers as any)?.name || "—",
+                              meta: [{ label: "Validity", value: `${pp.validity_days} days` }],
+                              columns: [
+                                { header: "#", key: "idx" }, { header: "Product", key: "name" },
+                                { header: "Qty", key: "quantity_requested", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+                                { header: "Amount", key: "amount", align: "right" },
+                              ],
+                              rows: (ppItems || []).map((i: any, idx: number) => ({
+                                idx: idx + 1, name: i.products?.name || "Item",
+                                quantity_requested: i.quantity_requested, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+                              })),
+                              totals: [
+                                { label: "Subtotal", value: `PKR ${Number(pp.subtotal).toLocaleString()}` },
+                                { label: "GST", value: `PKR ${Number(pp.gst).toLocaleString()}` },
+                                { label: "Total", value: `PKR ${Number(pp.total).toLocaleString()}` },
+                              ],
+                              notes: pp.notes || undefined, settings,
+                            });
+                          }} className="text-xs"><Download className="h-3 w-3 mr-1" />PDF</Button>
                         </TableCell>
                       </TableRow>
                     ))}

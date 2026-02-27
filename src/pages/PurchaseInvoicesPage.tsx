@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Receipt } from "lucide-react";
+import { Plus, Search, Receipt, Download, FileOutput } from "lucide-react";
 import { toast } from "sonner";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { generatePdf } from "@/lib/pdf-generator";
 
 interface Supplier { id: string; name: string; wht_rate: number; }
 interface GRN { id: string; grn_number: string; supplier_id: string | null; }
@@ -30,6 +32,7 @@ export default function PurchaseInvoicesPage() {
   const [grns, setGrns] = useState<GRN[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const { settings } = useCompanySettings();
 
   const [supplierId, setSupplierId] = useState("");
   const [grnId, setGrnId] = useState("");
@@ -148,12 +151,12 @@ export default function PurchaseInvoicesPage() {
                     <TableRow>
                       <TableHead>Bill #</TableHead><TableHead>Supplier</TableHead><TableHead>Date</TableHead>
                       <TableHead className="text-right">Subtotal</TableHead><TableHead className="text-right">WHT</TableHead>
-                      <TableHead className="text-right">Net Total</TableHead><TableHead>Status</TableHead>
+                      <TableHead className="text-right">Net Total</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                         <Receipt className="h-8 w-8 mx-auto mb-2 opacity-40" />No purchase bills yet.
                       </TableCell></TableRow>
                     ) : filtered.map(b => (
@@ -165,6 +168,31 @@ export default function PurchaseInvoicesPage() {
                         <TableCell className="text-right font-mono text-amber-700">-{Number(b.wht_amount).toLocaleString()}</TableCell>
                         <TableCell className="text-right font-mono font-medium">{Number(b.total).toLocaleString()}</TableCell>
                         <TableCell><span className={`status-pill ${statusColor(b.status)}`}>{b.status}</span></TableCell>
+                        <TableCell className="space-x-1">
+                          <Button variant="outline" size="sm" onClick={() => {
+                            generatePdf({
+                              title: "PURCHASE BILL", documentNumber: b.bill_number, date: b.date,
+                              partyLabel: "Supplier", partyName: (b.suppliers as any)?.name || "—",
+                              columns: [
+                                { header: "Subtotal", key: "subtotal", align: "right" },
+                                { header: "GST", key: "gst", align: "right" },
+                                { header: "WHT", key: "wht", align: "right" },
+                                { header: "Net Total", key: "total", align: "right" },
+                              ],
+                              rows: [{ subtotal: Number(b.subtotal).toLocaleString(), gst: Number(b.gst).toLocaleString(), wht: `-${Number(b.wht_amount).toLocaleString()}`, total: Number(b.total).toLocaleString() }],
+                              settings,
+                            });
+                          }} className="text-xs"><Download className="h-3 w-3 mr-1" />PDF</Button>
+                          <Button variant="outline" size="sm" onClick={async () => {
+                            const { count } = await supabase.from("delivery_notes").select("id", { count: "exact", head: true });
+                            const dnNumber = `DN-${String((count || 0) + 1).padStart(4, "0")}`;
+                            await supabase.from("delivery_notes").insert({
+                              dn_number: dnNumber, reference_type: "purchase_invoice", reference_id: b.id,
+                              supplier_id: b.supplier_id, items: [],
+                            });
+                            toast.success(`Delivery Note ${dnNumber} created`);
+                          }} className="text-xs"><FileOutput className="h-3 w-3 mr-1" />DN</Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
