@@ -1,128 +1,107 @@
 
 
-# Revamp: Connected Purchase & Sales Workflow with Additional Costs, Ledgers & Enhanced Reporting
+# Phase B: Ledgers, Returns, Reports & Bulk Import/Delete
 
-This is a significant rework of the existing flow to match the real pharma business workflow described.
+## Scope
+14 deliverables: Customer/Supplier ledger views, Sales Returns, Purchase Returns, 4 new report pages, CSV bulk import with batch delete for Customers/Suppliers/Products/Inventory, plus routing and sidebar updates.
 
-## Current Problems
-- Proforma (purchase side) doesn't exist — only sales proforma exists
-- No linked flow: Proforma → PO → GRN with quantity variance handling
-- No additional costs (printing/packaging) that hit a different ledger (printer) but affect item cost
-- Sales proforma doesn't have payment instructions or convert properly with batch/qty selection
-- No customer/supplier ledger views
-- No sales returns or purchase returns pages
-- No freight in/out cost tracking
-- Reports lack item-wise, batch-wise, customer-wise, area-wise, supplier-wise breakdowns
+## No Database Changes Needed
+All required tables already exist: `sales_returns`, `sales_return_items`, `purchase_returns`, `purchase_return_items`, `customers` (has `area`), `stock_movements`, etc.
 
-## Database Changes (Migration)
+## New Pages (9 files)
 
-### New Tables
-1. **`purchase_proformas`** — id, proforma_number, supplier_id FK, date, validity_days, items jsonb, subtotal, gst, total, status (draft/sent/confirmed/converted), converted_po_id, notes, created_at
-2. **`purchase_proforma_items`** — id, proforma_id FK, product_id FK, quantity_requested, quantity_confirmed (factory may confirm less), rate, amount
-3. **`additional_costs`** — id, reference_type (purchase_proforma/purchase_order/grn), reference_id uuid, cost_type (printing/packaging/freight_in/freight_out/other), description, amount, vendor_id uuid nullable (the printer/packager — references suppliers table), date, notes, created_at
-   - This table tracks costs like printing/packaging. `vendor_id` points to the printer/packager supplier so it hits THEIR ledger, while `reference_id` links to the PO/proforma so the cost is reflected on the item's landed cost.
-4. **`purchase_returns`** — id, return_number, supplier_id FK, purchase_invoice_id FK nullable, date, total, reason, status, created_at
-5. **`purchase_return_items`** — id, return_id FK, product_id FK, batch_number, quantity, rate, amount
-6. **`sales_return_items`** — id, return_id FK→sales_returns, product_id FK, batch_number, quantity, rate, amount
+### 1. `src/pages/CustomerLedger.tsx`
+- Route: `/customers/:id/ledger`
+- Shows: all sales invoices, payments received, sales returns for the customer, chronologically
+- Running balance calculation
+- Summary cards: total sales, total received, outstanding
 
-### Alter Existing Tables
-- **`purchase_orders`**: add column `proforma_id uuid nullable` (link back to purchase proforma)
-- **`purchase_order_items`**: add `quantity_confirmed numeric default 0` (factory confirms different qty)
-- **`grn_items`**: add `product_id uuid nullable` (to properly link received items to products for stock)
-- **`proforma_invoices`** (sales): add `payment_instructions text nullable`
-- **`sales_invoice_items`**: already has `batch_number` — good
-- **`customers`**: add `area text nullable` (for area-wise reporting)
+### 2. `src/pages/SupplierLedger.tsx`
+- Route: `/suppliers/:id/ledger`
+- Shows: all POs, purchase invoices, payments made, purchase returns, additional costs (where vendor_id = supplier)
+- Running balance, summary cards
 
-### RLS
-All new tables get the same authenticated CRUD policies as existing tables.
+### 3. `src/pages/SalesReturns.tsx`
+- Route: `/sales-returns`
+- CRUD with line items: select customer, link to sales invoice, add return items with product, batch_number, quantity, rate
+- Auto-number SR-0001
+- Updates `sales_returns` + `sales_return_items` tables
 
-## Workflow Changes
+### 4. `src/pages/PurchaseReturns.tsx`
+- Route: `/purchase-returns`
+- Same pattern: select supplier, link to purchase invoice, line items with product, batch, qty, rate
+- Auto-number PR-0001
 
-### Purchase Flow (Revised)
-1. **Purchase Proforma** (`/purchase-proforma`): User creates a proforma to the supplier/factory (e.g., 5000 units of Coliza). Can add additional costs (printing, packaging) — these link to printer's ledger via `vendor_id`.
-2. **Convert to PO** (`/purchase-orders`): From proforma, convert to PO. Factory confirms quantities (may be 3000 instead of 5000). `quantity_confirmed` tracked.
-3. **GRN** (`/grn`): When goods arrive, record received quantities (may be 2900 or 3050). Batch number and expiry assigned here. Variance between confirmed and received auto-creates a stock adjustment note.
-4. **Purchase Invoice** (`/purchase-invoices`): Bill from supplier with WHT.
+### 5. `src/pages/reports/ItemWiseReport.tsx`
+- Route: `/reports/item-wise`
+- Per product: total purchased qty, total sold qty, current stock, total revenue, total cost
+- Date range filter
 
-### Sales Flow (Revised)
-1. **Sales Proforma** (`/proforma`): Send proforma to customer with payment instructions. Status: draft → sent → payment_received → converted.
-2. **Convert to Sales Invoice** (`/sales-invoices`): Once payment confirmed, convert proforma to invoice. During conversion, user selects batch numbers and quantities from available stock.
-3. **Sales Returns** (`/sales-returns`): Credit notes with item-level returns (product, batch, qty).
+### 6. `src/pages/reports/BatchWiseReport.tsx`
+- Route: `/reports/batch-wise`
+- Per batch: product name, batch_number, expiry_date, qty received (from GRN), qty sold (from sales_invoice_items), remaining
+- Filter by product, highlight near-expiry
 
-### Additional Costs
-- Can be added on Purchase Proforma, PO, or GRN
-- Each cost has a `vendor_id` (e.g., the printer) — this affects the vendor's ledger
-- The cost amount is added to the item's landed cost for product costing reports
-- Cost types: printing, packaging, freight_in, freight_out, other
+### 7. `src/pages/reports/CustomerWiseReport.tsx`
+- Route: `/reports/customer-wise`
+- Per customer: total sales, returns, payments, balance
+- Filter by area (from customers.area column)
+- Area-wise summary totals
 
-### Ledger Views
-- **Customer Ledger** (on Customers page): Click a customer → see all sales invoices, payments received, sales returns, running balance
-- **Supplier Ledger** (on Suppliers page): Click a supplier → see all POs, purchase invoices, payments made, purchase returns, additional costs (where they are the vendor), running balance
+### 8. `src/pages/reports/SupplierWiseReport.tsx`
+- Route: `/reports/supplier-wise`
+- Per supplier: total purchases, returns, payments, balance
 
-### Returns
-- **Sales Returns** (`/sales-returns`): Full page with item-level detail (product, batch, qty, rate)
-- **Purchase Returns** (`/purchase-returns`): New page — return to supplier with item-level detail
+### 9. `src/pages/DataImport.tsx`
+- Route: `/import`
+- Tabs: Customers | Suppliers | Products | Inventory (opening stock)
+- CSV upload with file input, parse client-side using simple split logic (no extra lib needed)
+- Preview table showing parsed rows before import
+- Column mapping hints (show expected columns)
+- "Import Batch" button: inserts all rows, tags them with a `batch_id` (generated UUID stored in a `notes` or via a convention)
+- After import: shows success count + error count
+- "Delete This Import Batch" button: deletes all records created in that batch
+- Individual delete: each row in Customers/Suppliers/Products tables gets a delete button (with confirmation dialog)
+- For inventory import: creates stock_movements with type `adjustment` and a batch reference
 
-### Freight
-- Handled via `additional_costs` table with cost_type `freight_in` or `freight_out`
-- Freight in: added on purchase side (increases landed cost)
-- Freight out: added on sales side (tracked as expense)
+## Modified Pages (4 files)
 
-## Enhanced Reports
-Update existing report pages + add new ones:
+### 10. `src/pages/Customers.tsx`
+- Add "View Ledger" button per row (navigates to `/customers/:id/ledger`)
+- Add individual delete button with confirmation
+- Add "Import CSV" button linking to `/import?tab=customers`
 
-- **Item-wise Report** (`/reports/item-wise`): Sales/purchases/stock by product
-- **Batch-wise Report** (`/reports/batch-wise`): Stock, sales, expiry by batch
-- **Customer-wise Report** (`/reports/customer-wise`): Sales, returns, balance by customer
-- **Area-wise Report** (`/reports/area-wise`): Sales by customer area/city
-- **Supplier-wise Report** (`/reports/supplier-wise`): Purchases, returns, balance by supplier
+### 11. `src/pages/Suppliers.tsx`
+- Same: ledger link, delete button, import link
 
-## Pages to Create/Modify
+### 12. `src/pages/Products.tsx`
+- Add delete button with confirmation
+- Add import link
 
-### New Pages (8)
-1. `src/pages/PurchaseProforma.tsx` — Purchase proformas with additional costs + convert to PO
-2. `src/pages/PurchaseReturns.tsx` — Purchase returns with line items
-3. `src/pages/SalesReturns.tsx` — Revamp existing (currently minimal) to include line items with batch selection
-4. `src/pages/CustomerLedger.tsx` — Detailed ledger for a single customer (linked from Customers page)
-5. `src/pages/SupplierLedger.tsx` — Detailed ledger for a single supplier
-6. `src/pages/reports/ItemWiseReport.tsx`
-7. `src/pages/reports/BatchWiseReport.tsx`
-8. `src/pages/reports/CustomerWiseReport.tsx` (includes area-wise filter)
-9. `src/pages/reports/SupplierWiseReport.tsx`
+### 13. `src/App.tsx`
+- Add routes: `/customers/:id/ledger`, `/suppliers/:id/ledger`, `/sales-returns`, `/purchase-returns`, `/reports/item-wise`, `/reports/batch-wise`, `/reports/customer-wise`, `/reports/supplier-wise`, `/import`
 
-### Modified Pages (7)
-1. `src/pages/ProformaInvoices.tsx` — Add payment instructions field, improve convert-to-invoice with batch/qty selection
-2. `src/pages/PurchaseOrders.tsx` — Add "from proforma" linking, quantity_confirmed column
-3. `src/pages/GoodsReceivedNotes.tsx` — Auto-populate from PO items, track variance, assign batch/expiry, auto stock adjustment
-4. `src/pages/SalesInvoices.tsx` — Batch selection when creating from proforma conversion
-5. `src/pages/Customers.tsx` — Add area field, link to customer ledger view
-6. `src/pages/Suppliers.tsx` — Link to supplier ledger view
-7. `src/components/AppSidebar.tsx` — Add new nav items
-8. `src/App.tsx` — Add new routes
+### 14. `src/components/AppSidebar.tsx`
+- Sales section: add "Sales Returns"
+- Purchases section: add "Purchase Returns"
+- Reports section: add Item-wise, Batch-wise, Customer-wise, Supplier-wise
+- Add "Data Import" under a new "Settings" section
 
-## Implementation Phases
+## Bulk Import Technical Approach
+- Parse CSV client-side: `FileReader` + `text.split('\n')` + `row.split(',')`
+- Generate a `batch_id` UUID for each import session
+- Store `batch_id` in the record's `notes` field (or a dedicated approach) so we can query and delete by batch
+- For customers: map columns `name, company, ntn, strn, phone, email, address, city, credit_limit, credit_days, opening_balance`
+- For suppliers: `name, company, ntn, strn, phone, email, address, city, payment_terms_days, wht_rate, opening_balance`
+- For products: `name, sku, category, drap_reg_number, pack_size, unit, cost_price, selling_price, gst_rate, stock_quantity, reorder_level`
+- For inventory: `product_name (matched to product_id), quantity, batch_number, notes` → creates stock_movements
+- Delete batch: `DELETE FROM table WHERE notes LIKE 'IMPORT:batch_id'`
 
-Given scope, split into **2 phases**:
-
-**Phase A (this implementation):**
-1. Database migration (new tables + alter existing)
-2. Purchase Proforma page with additional costs
-3. Rework PO to link from proforma with confirmed quantities
-4. Rework GRN with variance handling + batch assignment + auto stock adjustment
-5. Sales Proforma with payment instructions + convert with batch selection
-6. Update sidebar + routes
-
-**Phase B (next message):**
-7. Customer & Supplier ledger views
-8. Sales Returns with line items + batch
-9. Purchase Returns with line items
-10. All 4 new report pages (item/batch/customer+area/supplier-wise)
-11. Freight in/out via additional costs on both sides
-
-## Technical Details
-- `additional_costs.vendor_id` references suppliers table (printers, packagers are added as suppliers with a category)
-- GRN variance: if received != confirmed, auto-insert `stock_movements` with type `adjustment` and notes explaining variance
-- Sales invoice conversion from proforma: dialog shows available batches (from stock_movements/grn_items) for each product, user picks batch + qty
-- Ledger views aggregate: invoices + payments + returns chronologically with running balance
-- Area field on customers enables area-wise grouping in reports
+## Implementation Order
+1. Customer & Supplier ledger pages
+2. Sales Returns & Purchase Returns pages
+3. All 4 report pages
+4. DataImport page with CSV parsing and batch delete
+5. Update Customers/Suppliers/Products pages with delete + ledger + import buttons
+6. Update App.tsx routes + AppSidebar navigation
 
