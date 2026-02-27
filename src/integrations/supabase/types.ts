@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      additional_costs: {
+        Row: {
+          amount: number
+          cost_type: string
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          notes: string | null
+          reference_id: string
+          reference_type: string
+          vendor_id: string | null
+        }
+        Insert: {
+          amount?: number
+          cost_type?: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          notes?: string | null
+          reference_id: string
+          reference_type: string
+          vendor_id?: string | null
+        }
+        Update: {
+          amount?: number
+          cost_type?: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          notes?: string | null
+          reference_id?: string
+          reference_type?: string
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "additional_costs_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_accounts: {
         Row: {
           account_number: string | null
@@ -94,6 +141,7 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          area: string | null
           balance: number
           city: string | null
           company: string | null
@@ -110,6 +158,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          area?: string | null
           balance?: number
           city?: string | null
           company?: string | null
@@ -126,6 +175,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          area?: string | null
           balance?: number
           city?: string | null
           company?: string | null
@@ -302,6 +352,7 @@ export type Database = {
           grn_id: string
           id: string
           item_name: string
+          product_id: string | null
           quantity_ordered: number
           quantity_received: number
           rate: number
@@ -313,6 +364,7 @@ export type Database = {
           grn_id: string
           id?: string
           item_name: string
+          product_id?: string | null
           quantity_ordered?: number
           quantity_received?: number
           rate?: number
@@ -324,6 +376,7 @@ export type Database = {
           grn_id?: string
           id?: string
           item_name?: string
+          product_id?: string | null
           quantity_ordered?: number
           quantity_received?: number
           rate?: number
@@ -334,6 +387,13 @@ export type Database = {
             columns: ["grn_id"]
             isOneToOne: false
             referencedRelation: "goods_received_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grn_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -529,6 +589,7 @@ export type Database = {
           gst: number
           id: string
           items: Json
+          payment_instructions: string | null
           proforma_number: string
           status: string
           subtotal: number
@@ -543,6 +604,7 @@ export type Database = {
           gst?: number
           id?: string
           items?: Json
+          payment_instructions?: string | null
           proforma_number: string
           status?: string
           subtotal?: number
@@ -557,6 +619,7 @@ export type Database = {
           gst?: number
           id?: string
           items?: Json
+          payment_instructions?: string | null
           proforma_number?: string
           status?: string
           subtotal?: number
@@ -648,6 +711,7 @@ export type Database = {
           po_id: string
           product_id: string | null
           quantity: number
+          quantity_confirmed: number
           rate: number
         }
         Insert: {
@@ -657,6 +721,7 @@ export type Database = {
           po_id: string
           product_id?: string | null
           quantity?: number
+          quantity_confirmed?: number
           rate?: number
         }
         Update: {
@@ -666,6 +731,7 @@ export type Database = {
           po_id?: string
           product_id?: string | null
           quantity?: number
+          quantity_confirmed?: number
           rate?: number
         }
         Relationships: [
@@ -694,6 +760,7 @@ export type Database = {
           id: string
           notes: string | null
           po_number: string
+          proforma_id: string | null
           status: string
           subtotal: number
           supplier_id: string | null
@@ -707,6 +774,7 @@ export type Database = {
           id?: string
           notes?: string | null
           po_number: string
+          proforma_id?: string | null
           status?: string
           subtotal?: number
           supplier_id?: string | null
@@ -720,6 +788,7 @@ export type Database = {
           id?: string
           notes?: string | null
           po_number?: string
+          proforma_id?: string | null
           status?: string
           subtotal?: number
           supplier_id?: string | null
@@ -727,7 +796,215 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "purchase_orders_proforma_id_fkey"
+            columns: ["proforma_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_proformas"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_proforma_items: {
+        Row: {
+          amount: number
+          id: string
+          product_id: string | null
+          proforma_id: string
+          quantity_confirmed: number
+          quantity_requested: number
+          rate: number
+        }
+        Insert: {
+          amount?: number
+          id?: string
+          product_id?: string | null
+          proforma_id: string
+          quantity_confirmed?: number
+          quantity_requested?: number
+          rate?: number
+        }
+        Update: {
+          amount?: number
+          id?: string
+          product_id?: string | null
+          proforma_id?: string
+          quantity_confirmed?: number
+          quantity_requested?: number
+          rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_proforma_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_proforma_items_proforma_id_fkey"
+            columns: ["proforma_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_proformas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_proformas: {
+        Row: {
+          converted_po_id: string | null
+          created_at: string
+          date: string
+          gst: number
+          id: string
+          notes: string | null
+          proforma_number: string
+          status: string
+          subtotal: number
+          supplier_id: string | null
+          total: number
+          validity_days: number
+        }
+        Insert: {
+          converted_po_id?: string | null
+          created_at?: string
+          date?: string
+          gst?: number
+          id?: string
+          notes?: string | null
+          proforma_number: string
+          status?: string
+          subtotal?: number
+          supplier_id?: string | null
+          total?: number
+          validity_days?: number
+        }
+        Update: {
+          converted_po_id?: string | null
+          created_at?: string
+          date?: string
+          gst?: number
+          id?: string
+          notes?: string | null
+          proforma_number?: string
+          status?: string
+          subtotal?: number
+          supplier_id?: string | null
+          total?: number
+          validity_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_proformas_converted_po_id_fkey"
+            columns: ["converted_po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_proformas_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_return_items: {
+        Row: {
+          amount: number
+          batch_number: string | null
+          id: string
+          product_id: string | null
+          quantity: number
+          rate: number
+          return_id: string
+        }
+        Insert: {
+          amount?: number
+          batch_number?: string | null
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          rate?: number
+          return_id: string
+        }
+        Update: {
+          amount?: number
+          batch_number?: string | null
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          rate?: number
+          return_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_return_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_return_items_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_returns: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          purchase_invoice_id: string | null
+          reason: string | null
+          return_number: string
+          status: string
+          supplier_id: string | null
+          total: number
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          purchase_invoice_id?: string | null
+          reason?: string | null
+          return_number: string
+          status?: string
+          supplier_id?: string | null
+          total?: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          purchase_invoice_id?: string | null
+          reason?: string | null
+          return_number?: string
+          status?: string
+          supplier_id?: string | null
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_returns_purchase_invoice_id_fkey"
+            columns: ["purchase_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_returns_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
@@ -844,6 +1121,51 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_return_items: {
+        Row: {
+          amount: number
+          batch_number: string | null
+          id: string
+          product_id: string | null
+          quantity: number
+          rate: number
+          return_id: string
+        }
+        Insert: {
+          amount?: number
+          batch_number?: string | null
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          rate?: number
+          return_id: string
+        }
+        Update: {
+          amount?: number
+          batch_number?: string | null
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          rate?: number
+          return_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_return_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_return_items_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "sales_returns"
             referencedColumns: ["id"]
           },
         ]

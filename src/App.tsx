@@ -10,6 +10,7 @@ import Suppliers from "./pages/Suppliers";
 import Products from "./pages/Products";
 import SalesInvoices from "./pages/SalesInvoices";
 import ProformaInvoices from "./pages/ProformaInvoices";
+import PurchaseProforma from "./pages/PurchaseProforma";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import GoodsReceivedNotes from "./pages/GoodsReceivedNotes";
 import PurchaseInvoicesPage from "./pages/PurchaseInvoicesPage";
@@ -42,6 +43,7 @@ const App = () => (
           <Route path="/products" element={<Products />} />
           <Route path="/sales-invoices" element={<SalesInvoices />} />
           <Route path="/proforma" element={<ProformaInvoices />} />
+          <Route path="/purchase-proforma" element={<PurchaseProforma />} />
           <Route path="/purchase-orders" element={<PurchaseOrders />} />
           <Route path="/grn" element={<GoodsReceivedNotes />} />
           <Route path="/purchase-invoices" element={<PurchaseInvoicesPage />} />

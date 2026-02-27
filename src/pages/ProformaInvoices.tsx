@@ -7,23 +7,26 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FilePlus, ArrowRight } from "lucide-react";
+import { Plus, Search, FilePlus, ArrowRight, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Customer { id: string; name: string; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
-
 interface ProformaItem { product_id: string; product_name: string; quantity: number; rate: number; gst_rate: number; amount: number; }
 
 interface Proforma {
   id: string; proforma_number: string; customer_id: string | null; date: string; validity_days: number;
   items: any; subtotal: number; gst: number; total: number; status: string;
+  payment_instructions: string | null;
   converted_invoice_id: string | null; created_at: string;
   customers?: { name: string } | null;
 }
+
+interface BatchOption { batch_number: string; available: number; }
 
 export default function ProformaInvoices() {
   const navigate = useNavigate();
@@ -36,7 +39,14 @@ export default function ProformaInvoices() {
   const [customerId, setCustomerId] = useState("");
   const [pfDate, setPfDate] = useState(new Date().toISOString().split("T")[0]);
   const [validityDays, setValidityDays] = useState("30");
+  const [paymentInstructions, setPaymentInstructions] = useState("");
   const [items, setItems] = useState<ProformaItem[]>([]);
+
+  // Convert dialog
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [convertPf, setConvertPf] = useState<Proforma | null>(null);
+  const [convertItems, setConvertItems] = useState<any[]>([]);
+  const [batchOptions, setBatchOptions] = useState<Record<string, BatchOption[]>>({});
 
   useEffect(() => {
     const check = async () => {
@@ -85,38 +95,99 @@ export default function ProformaInvoices() {
 
     await supabase.from("proforma_invoices").insert({
       proforma_number: pfNumber, customer_id: customerId, date: pfDate,
-      validity_days: Number(validityDays), items: JSON.stringify(items), subtotal, gst, total, status: "draft",
+      validity_days: Number(validityDays), items: JSON.stringify(items), subtotal, gst, total,
+      status: "draft", payment_instructions: paymentInstructions || null,
     });
     toast.success(`Proforma ${pfNumber} created`);
-    setOpen(false); setCustomerId(""); setItems([]); load();
+    setOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); load();
   };
 
-  const convertToInvoice = async (pf: Proforma) => {
+  const openConvertDialog = async (pf: Proforma) => {
+    setConvertPf(pf);
+    const pfItems: ProformaItem[] = typeof pf.items === "string" ? JSON.parse(pf.items) : pf.items;
+    
+    // Load batch options for each product
+    const productIds = pfItems.filter(i => i.product_id).map(i => i.product_id);
+    const batches: Record<string, BatchOption[]> = {};
+    
+    if (productIds.length > 0) {
+      const { data: movements } = await supabase.from("stock_movements")
+        .select("product_id, batch_number, quantity, movement_type")
+        .in("product_id", productIds);
+      
+      if (movements) {
+        // Calculate available per batch
+        const batchMap: Record<string, number> = {};
+        movements.forEach((m: any) => {
+          const key = `${m.product_id}__${m.batch_number || "no-batch"}`;
+          if (!batchMap[key]) batchMap[key] = 0;
+          if (m.movement_type === "purchase_in" || m.movement_type === "return_in") {
+            batchMap[key] += Number(m.quantity);
+          } else if (m.movement_type === "sale_out" || m.movement_type === "return_out") {
+            batchMap[key] -= Number(m.quantity);
+          } else if (m.movement_type === "adjustment") {
+            batchMap[key] += Number(m.quantity);
+          }
+        });
+        
+        for (const [key, qty] of Object.entries(batchMap)) {
+          const [pid, batch] = key.split("__");
+          if (!batches[pid]) batches[pid] = [];
+          if (qty > 0) batches[pid].push({ batch_number: batch, available: qty });
+        }
+      }
+    }
+    
+    setBatchOptions(batches);
+    setConvertItems(pfItems.map(i => ({ ...i, batch_number: "", convert_quantity: i.quantity })));
+    setConvertOpen(true);
+  };
+
+  const handleConvert = async () => {
+    if (!convertPf) return;
     const { count } = await supabase.from("sales_invoices").select("id", { count: "exact", head: true });
     const invNumber = `SI-${String((count || 0) + 1).padStart(4, "0")}`;
 
     const { data: inv } = await supabase.from("sales_invoices").insert({
-      invoice_number: invNumber, customer_id: pf.customer_id, date: new Date().toISOString().split("T")[0],
-      subtotal: pf.subtotal, gst_amount: pf.gst, total: pf.total, status: "draft",
+      invoice_number: invNumber, customer_id: convertPf.customer_id, date: new Date().toISOString().split("T")[0],
+      subtotal: convertPf.subtotal, gst_amount: convertPf.gst, total: convertPf.total, status: "draft",
     }).select().single();
 
     if (inv) {
-      const pfItems: ProformaItem[] = typeof pf.items === "string" ? JSON.parse(pf.items) : pf.items;
-      if (Array.isArray(pfItems)) {
-        const lineItems = pfItems.map((i: ProformaItem) => ({
-          invoice_id: inv.id, product_id: i.product_id || null,
-          quantity: Number(i.quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate), amount: i.amount,
-        }));
-        await supabase.from("sales_invoice_items").insert(lineItems);
+      const lineItems = convertItems.map((i: any) => ({
+        invoice_id: inv.id, product_id: i.product_id || null,
+        quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
+        amount: i.amount, batch_number: i.batch_number || null,
+      }));
+      await supabase.from("sales_invoice_items").insert(lineItems);
+
+      // Create stock movements for sold items
+      for (const item of convertItems) {
+        if (item.product_id && Number(item.convert_quantity) > 0) {
+          await supabase.from("stock_movements").insert({
+            product_id: item.product_id, quantity: Number(item.convert_quantity),
+            movement_type: "sale_out", batch_number: item.batch_number || null,
+            reference_type: "sales_invoice", reference_id: inv.id,
+            notes: `Invoice ${invNumber}`,
+          });
+        }
       }
-      await supabase.from("proforma_invoices").update({ status: "converted", converted_invoice_id: inv.id }).eq("id", pf.id);
+
+      await supabase.from("proforma_invoices").update({ status: "converted", converted_invoice_id: inv.id }).eq("id", convertPf.id);
       toast.success(`Converted to ${invNumber}`);
-      load();
+      setConvertOpen(false); load();
     }
   };
 
   const { subtotal, gst, total } = calcTotals();
   const filtered = proformas.filter(p => p.proforma_number.toLowerCase().includes(search.toLowerCase()));
+
+  const statusColor = (s: string) => {
+    if (s === "converted") return "bg-emerald-50 text-emerald-700";
+    if (s === "payment_received") return "bg-primary/10 text-primary";
+    if (s === "sent") return "bg-amber-50 text-amber-700";
+    return "bg-muted text-muted-foreground";
+  };
 
   return (
     <SidebarProvider>
@@ -126,13 +197,13 @@ export default function ProformaInvoices() {
           <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
             <SidebarTrigger />
             <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading">Proforma Invoices</h1>
-              <p className="text-sm text-muted-foreground">Quotations that can be converted to sales invoices</p>
+              <h1 className="text-xl font-bold text-foreground font-heading">Sales Proforma</h1>
+              <p className="text-sm text-muted-foreground">Quotations with payment instructions, convert to invoice with batch selection</p>
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Proforma</Button></DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>New Proforma Invoice</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>New Sales Proforma</DialogTitle></DialogHeader>
                 <div className="grid grid-cols-3 gap-3 mt-2">
                   <div>
                     <Label>Customer *</Label>
@@ -144,6 +215,12 @@ export default function ProformaInvoices() {
                   <div><Label>Date</Label><Input type="date" value={pfDate} onChange={e => setPfDate(e.target.value)} /></div>
                   <div><Label>Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
                 </div>
+
+                <div className="mt-3">
+                  <Label>Payment Instructions</Label>
+                  <Textarea value={paymentInstructions} onChange={e => setPaymentInstructions(e.target.value)} placeholder="Bank details, payment terms, etc." rows={2} />
+                </div>
+
                 <div className="mt-4">
                   <div className="flex items-center justify-between mb-2">
                     <Label className="text-sm font-semibold">Items</Label>
@@ -160,7 +237,8 @@ export default function ProformaInvoices() {
                       <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" /></div>
                       <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" /></div>
                       <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" /></div>
-                      <div className="col-span-3 text-right text-sm font-mono pt-2">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                      <div className="col-span-2 text-right text-sm font-mono pt-2">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                      <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
                     </div>
                   ))}
                 </div>
@@ -184,12 +262,8 @@ export default function ProformaInvoices() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Proforma #</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Validity</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead>Proforma #</TableHead><TableHead>Customer</TableHead><TableHead>Date</TableHead>
+                      <TableHead>Validity</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead>
                       <TableHead>Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -204,15 +278,11 @@ export default function ProformaInvoices() {
                         <TableCell>{(pf.customers as any)?.name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{pf.date}</TableCell>
                         <TableCell>{pf.validity_days}d</TableCell>
-                        <TableCell>
-                          <span className={`status-pill ${pf.status === "converted" ? "bg-emerald-50 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
-                            {pf.status}
-                          </span>
-                        </TableCell>
+                        <TableCell><span className={`status-pill ${statusColor(pf.status)}`}>{pf.status}</span></TableCell>
                         <TableCell className="text-right font-mono">{Number(pf.total).toLocaleString()}</TableCell>
                         <TableCell>
                           {pf.status !== "converted" && (
-                            <Button variant="outline" size="sm" onClick={() => convertToInvoice(pf)} className="text-xs">
+                            <Button variant="outline" size="sm" onClick={() => openConvertDialog(pf)} className="text-xs">
                               <ArrowRight className="h-3 w-3 mr-1" /> Convert
                             </Button>
                           )}
@@ -224,6 +294,42 @@ export default function ProformaInvoices() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Convert dialog with batch selection */}
+          <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader><DialogTitle>Convert to Sales Invoice</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground mb-3">Select batch numbers and quantities for each item.</p>
+              {convertItems.map((item, idx) => (
+                <div key={idx} className="border border-border rounded-lg p-3 mb-2">
+                  <div className="font-medium text-sm mb-2">{item.product_name || "Item"} — Qty: {item.quantity}</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Batch</Label>
+                      <Select value={item.batch_number} onValueChange={v => {
+                        const u = [...convertItems]; u[idx].batch_number = v; setConvertItems(u);
+                      }}>
+                        <SelectTrigger className="text-xs"><SelectValue placeholder="Select batch..." /></SelectTrigger>
+                        <SelectContent>
+                          {(batchOptions[item.product_id] || []).map(b => (
+                            <SelectItem key={b.batch_number} value={b.batch_number}>
+                              {b.batch_number} (avail: {b.available})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Quantity</Label>
+                      <Input type="number" className="text-xs" value={item.convert_quantity}
+                        onChange={e => { const u = [...convertItems]; u[idx].convert_quantity = e.target.value; setConvertItems(u); }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <Button onClick={handleConvert} className="w-full mt-3">Convert to Invoice</Button>
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </SidebarProvider>

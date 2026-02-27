@@ -1,0 +1,374 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Search, FileText, Trash2, ArrowRight, DollarSign } from "lucide-react";
+import { toast } from "sonner";
+
+interface Supplier { id: string; name: string; }
+interface Product { id: string; name: string; cost_price: number; }
+
+interface PPItem { product_id: string; product_name: string; quantity_requested: number; rate: number; amount: number; }
+interface AdditionalCost { cost_type: string; description: string; amount: number; vendor_id: string; }
+
+interface PurchaseProformaRow {
+  id: string; proforma_number: string; supplier_id: string | null; date: string;
+  validity_days: number; subtotal: number; gst: number; total: number;
+  status: string; converted_po_id: string | null; notes: string | null; created_at: string;
+  suppliers?: { name: string } | null;
+}
+
+export default function PurchaseProforma() {
+  const navigate = useNavigate();
+  const [proformas, setProformas] = useState<PurchaseProformaRow[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [costOpen, setCostOpen] = useState(false);
+  const [selectedProformaId, setSelectedProformaId] = useState("");
+
+  const [supplierId, setSupplierId] = useState("");
+  const [ppDate, setPpDate] = useState(new Date().toISOString().split("T")[0]);
+  const [validityDays, setValidityDays] = useState("30");
+  const [notes, setNotes] = useState("");
+  const [items, setItems] = useState<PPItem[]>([]);
+
+  // Additional costs form
+  const [costs, setCosts] = useState<AdditionalCost[]>([]);
+  const [costType, setCostType] = useState("printing");
+  const [costDesc, setCostDesc] = useState("");
+  const [costAmount, setCostAmount] = useState("");
+  const [costVendorId, setCostVendorId] = useState("");
+
+  useEffect(() => {
+    const check = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) navigate("/auth");
+    };
+    check(); load();
+  }, [navigate]);
+
+  const load = async () => {
+    const [pp, sup, prod] = await Promise.all([
+      supabase.from("purchase_proformas").select("*, suppliers(name)").order("created_at", { ascending: false }),
+      supabase.from("suppliers").select("id, name"),
+      supabase.from("products").select("id, name, cost_price"),
+    ]);
+    if (pp.data) setProformas(pp.data as any);
+    if (sup.data) setSuppliers(sup.data);
+    if (prod.data) setProducts(prod.data);
+  };
+
+  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }]);
+
+  const updateItem = (idx: number, field: string, value: any) => {
+    const u = [...items];
+    (u[idx] as any)[field] = value;
+    if (field === "product_id") {
+      const p = products.find(pr => pr.id === value);
+      if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.cost_price); }
+    }
+    u[idx].amount = Number(u[idx].quantity_requested) * Number(u[idx].rate);
+    setItems(u);
+  };
+
+  const calcTotals = () => {
+    const subtotal = items.reduce((s, i) => s + i.amount, 0);
+    const gst = subtotal * 0.17;
+    return { subtotal, gst, total: subtotal + gst };
+  };
+
+  const handleSave = async () => {
+    if (!supplierId || items.length === 0) { toast.error("Supplier and items required"); return; }
+    const { subtotal, gst, total } = calcTotals();
+    const { count } = await supabase.from("purchase_proformas").select("id", { count: "exact", head: true });
+    const ppNumber = `PP-${String((count || 0) + 1).padStart(4, "0")}`;
+
+    const { data: pp } = await supabase.from("purchase_proformas").insert({
+      proforma_number: ppNumber, supplier_id: supplierId, date: ppDate,
+      validity_days: Number(validityDays), subtotal, gst, total, status: "draft", notes: notes || null,
+    }).select().single();
+
+    if (pp) {
+      await supabase.from("purchase_proforma_items").insert(
+        items.map(i => ({
+          proforma_id: pp.id, product_id: i.product_id || null,
+          quantity_requested: Number(i.quantity_requested), rate: Number(i.rate), amount: i.amount,
+        }))
+      );
+
+      // Save additional costs
+      if (costs.length > 0) {
+        await supabase.from("additional_costs").insert(
+          costs.map(c => ({
+            reference_type: "purchase_proforma", reference_id: pp.id,
+            cost_type: c.cost_type, description: c.description, amount: Number(c.amount),
+            vendor_id: c.vendor_id || null,
+          }))
+        );
+      }
+
+      toast.success(`Purchase Proforma ${ppNumber} created`);
+      setOpen(false); setSupplierId(""); setItems([]); setNotes(""); setCosts([]); load();
+    }
+  };
+
+  const addCostLine = () => {
+    if (!costAmount) return;
+    setCosts([...costs, { cost_type: costType, description: costDesc, amount: Number(costAmount), vendor_id: costVendorId }]);
+    setCostDesc(""); setCostAmount(""); setCostVendorId("");
+  };
+
+  const convertToPO = async (pp: PurchaseProformaRow) => {
+    const { count } = await supabase.from("purchase_orders").select("id", { count: "exact", head: true });
+    const poNumber = `PO-${String((count || 0) + 1).padStart(4, "0")}`;
+
+    const { data: po } = await supabase.from("purchase_orders").insert({
+      po_number: poNumber, supplier_id: pp.supplier_id, date: new Date().toISOString().split("T")[0],
+      subtotal: pp.subtotal, gst: pp.gst, total: pp.total, status: "draft", proforma_id: pp.id,
+    }).select().single();
+
+    if (po) {
+      // Get proforma items and copy to PO items
+      const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*").eq("proforma_id", pp.id);
+      if (ppItems && ppItems.length > 0) {
+        await supabase.from("purchase_order_items").insert(
+          ppItems.map((i: any) => ({
+            po_id: po.id, product_id: i.product_id, description: null,
+            quantity: Number(i.quantity_requested), rate: Number(i.rate), amount: Number(i.amount),
+          }))
+        );
+      }
+
+      // Copy additional costs to PO reference
+      const { data: ppCosts } = await supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", pp.id);
+      if (ppCosts && ppCosts.length > 0) {
+        await supabase.from("additional_costs").insert(
+          ppCosts.map((c: any) => ({
+            reference_type: "purchase_order", reference_id: po.id,
+            cost_type: c.cost_type, description: c.description, amount: Number(c.amount), vendor_id: c.vendor_id,
+          }))
+        );
+      }
+
+      await supabase.from("purchase_proformas").update({ status: "converted", converted_po_id: po.id }).eq("id", pp.id);
+      toast.success(`Converted to ${poNumber}`);
+      load();
+    }
+  };
+
+  const addCostToExisting = async () => {
+    if (!selectedProformaId || !costAmount) return;
+    await supabase.from("additional_costs").insert({
+      reference_type: "purchase_proforma", reference_id: selectedProformaId,
+      cost_type: costType, description: costDesc, amount: Number(costAmount),
+      vendor_id: costVendorId || null,
+    });
+    toast.success("Additional cost added");
+    setCostOpen(false); setCostDesc(""); setCostAmount(""); setCostVendorId("");
+  };
+
+  const { subtotal, gst, total } = calcTotals();
+  const filtered = proformas.filter(p => p.proforma_number.toLowerCase().includes(search.toLowerCase()));
+
+  const statusColor = (s: string) => {
+    if (s === "converted") return "bg-emerald-50 text-emerald-700";
+    if (s === "confirmed") return "bg-primary/10 text-primary";
+    if (s === "sent") return "bg-amber-50 text-amber-700";
+    return "bg-muted text-muted-foreground";
+  };
+
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <AppSidebar />
+        <main className="flex-1 overflow-auto">
+          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
+            <SidebarTrigger />
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-foreground font-heading">Purchase Proformas</h1>
+              <p className="text-sm text-muted-foreground">Create proformas to suppliers with additional costs, convert to PO</p>
+            </div>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Proforma</Button></DialogTrigger>
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader><DialogTitle>New Purchase Proforma</DialogTitle></DialogHeader>
+                <div className="grid grid-cols-3 gap-3 mt-2">
+                  <div>
+                    <Label>Supplier *</Label>
+                    <Select value={supplierId} onValueChange={setSupplierId}>
+                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Date</Label><Input type="date" value={ppDate} onChange={e => setPpDate(e.target.value)} /></div>
+                  <div><Label>Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
+                </div>
+
+                {/* Items */}
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-sm font-semibold">Items</Label>
+                    <Button variant="outline" size="sm" onClick={addItem}><Plus className="h-3 w-3 mr-1" /> Add</Button>
+                  </div>
+                  {items.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
+                      <div className="col-span-4">
+                        <Select value={item.product_id} onValueChange={v => updateItem(idx, "product_id", v)}>
+                          <SelectTrigger className="text-xs"><SelectValue placeholder="Product" /></SelectTrigger>
+                          <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateItem(idx, "quantity_requested", e.target.value)} className="text-xs" placeholder="Qty" /></div>
+                      <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" /></div>
+                      <div className="col-span-3 text-right text-sm font-mono pt-2">{item.amount.toLocaleString()}</div>
+                      <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Additional Costs */}
+                <div className="mt-4 border-t border-border pt-3">
+                  <Label className="text-sm font-semibold">Additional Costs (Printing, Packaging, Freight)</Label>
+                  <p className="text-xs text-muted-foreground mb-2">These costs affect the item's landed cost. Vendor ledger is updated separately.</p>
+                  {costs.map((c, idx) => (
+                    <div key={idx} className="flex items-center gap-2 mb-1 text-xs">
+                      <span className="bg-muted px-2 py-1 rounded capitalize">{c.cost_type}</span>
+                      <span className="flex-1">{c.description}</span>
+                      <span className="font-mono">PKR {Number(c.amount).toLocaleString()}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCosts(costs.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                    </div>
+                  ))}
+                  <div className="grid grid-cols-12 gap-2 mt-2 items-end">
+                    <div className="col-span-2">
+                      <Select value={costType} onValueChange={setCostType}>
+                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="printing">Printing</SelectItem>
+                          <SelectItem value="packaging">Packaging</SelectItem>
+                          <SelectItem value="freight_in">Freight In</SelectItem>
+                          <SelectItem value="freight_out">Freight Out</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-3"><Input className="text-xs" placeholder="Description" value={costDesc} onChange={e => setCostDesc(e.target.value)} /></div>
+                    <div className="col-span-2"><Input className="text-xs" type="number" placeholder="Amount" value={costAmount} onChange={e => setCostAmount(e.target.value)} /></div>
+                    <div className="col-span-3">
+                      <Select value={costVendorId} onValueChange={setCostVendorId}>
+                        <SelectTrigger className="text-xs"><SelectValue placeholder="Vendor (printer etc)" /></SelectTrigger>
+                        <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-2"><Button variant="outline" size="sm" onClick={addCostLine} className="text-xs w-full">+ Add</Button></div>
+                  </div>
+                </div>
+
+                {/* Totals */}
+                <div className="mt-4 border-t border-border pt-3 space-y-1 text-sm">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">GST 17%</span><span className="font-mono">{gst.toLocaleString()}</span></div>
+                  {costs.length > 0 && (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Additional Costs</span><span className="font-mono">{costs.reduce((s, c) => s + Number(c.amount), 0).toLocaleString()}</span></div>
+                  )}
+                  <div className="flex justify-between font-bold"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
+                </div>
+
+                <div className="mt-3"><Label>Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
+                <Button onClick={handleSave} className="w-full mt-4">Create Purchase Proforma</Button>
+              </DialogContent>
+            </Dialog>
+          </header>
+
+          <div className="p-6">
+            <div className="mb-4 relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search proformas..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <Card className="glass-card">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Proforma #</TableHead><TableHead>Supplier</TableHead><TableHead>Date</TableHead>
+                      <TableHead>Validity</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                        <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No purchase proformas yet.
+                      </TableCell></TableRow>
+                    ) : filtered.map(pp => (
+                      <TableRow key={pp.id}>
+                        <TableCell className="font-medium font-mono">{pp.proforma_number}</TableCell>
+                        <TableCell>{(pp.suppliers as any)?.name || "—"}</TableCell>
+                        <TableCell className="text-muted-foreground">{pp.date}</TableCell>
+                        <TableCell>{pp.validity_days}d</TableCell>
+                        <TableCell><span className={`status-pill ${statusColor(pp.status)}`}>{pp.status}</span></TableCell>
+                        <TableCell className="text-right font-mono font-medium">{Number(pp.total).toLocaleString()}</TableCell>
+                        <TableCell className="space-x-1">
+                          {pp.status !== "converted" && (
+                            <Button variant="outline" size="sm" onClick={() => convertToPO(pp)} className="text-xs">
+                              <ArrowRight className="h-3 w-3 mr-1" /> To PO
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => { setSelectedProformaId(pp.id); setCostOpen(true); }} className="text-xs">
+                            <DollarSign className="h-3 w-3 mr-1" /> Costs
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Add cost to existing proforma */}
+          <Dialog open={costOpen} onOpenChange={setCostOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader><DialogTitle>Add Additional Cost</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div>
+                  <Label>Cost Type</Label>
+                  <Select value={costType} onValueChange={setCostType}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="printing">Printing</SelectItem>
+                      <SelectItem value="packaging">Packaging</SelectItem>
+                      <SelectItem value="freight_in">Freight In</SelectItem>
+                      <SelectItem value="freight_out">Freight Out</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Description</Label><Input value={costDesc} onChange={e => setCostDesc(e.target.value)} /></div>
+                <div><Label>Amount</Label><Input type="number" value={costAmount} onChange={e => setCostAmount(e.target.value)} /></div>
+                <div>
+                  <Label>Vendor (Printer/Packager)</Label>
+                  <Select value={costVendorId} onValueChange={setCostVendorId}>
+                    <SelectTrigger><SelectValue placeholder="Select vendor..." /></SelectTrigger>
+                    <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={addCostToExisting} className="w-full">Add Cost</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </main>
+      </div>
+    </SidebarProvider>
+  );
+}

@@ -10,17 +10,18 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, ClipboardList, Trash2 } from "lucide-react";
+import { Plus, Search, ClipboardList, Trash2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface Supplier { id: string; name: string; }
 interface Product { id: string; name: string; cost_price: number; }
-interface POItem { product_id: string; description: string; quantity: number; rate: number; amount: number; }
+interface POItem { product_id: string; description: string; quantity: number; quantity_confirmed: number; rate: number; amount: number; }
 
 interface PO {
   id: string; po_number: string; supplier_id: string | null; date: string; expected_delivery: string | null;
-  subtotal: number; gst: number; total: number; status: string; created_at: string;
+  subtotal: number; gst: number; total: number; status: string; proforma_id: string | null; created_at: string;
   suppliers?: { name: string } | null;
+  purchase_proformas?: { proforma_number: string } | null;
 }
 
 export default function PurchaseOrders() {
@@ -30,6 +31,9 @@ export default function PurchaseOrders() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [selectedPO, setSelectedPO] = useState<PO | null>(null);
+  const [confirmItems, setConfirmItems] = useState<any[]>([]);
 
   const [supplierId, setSupplierId] = useState("");
   const [poDate, setPoDate] = useState(new Date().toISOString().split("T")[0]);
@@ -47,7 +51,7 @@ export default function PurchaseOrders() {
 
   const load = async () => {
     const [po, sup, prod] = await Promise.all([
-      supabase.from("purchase_orders").select("*, suppliers(name)").order("created_at", { ascending: false }),
+      supabase.from("purchase_orders").select("*, suppliers(name), purchase_proformas(proforma_number)").order("created_at", { ascending: false }),
       supabase.from("suppliers").select("id, name"),
       supabase.from("products").select("id, name, cost_price"),
     ]);
@@ -56,7 +60,7 @@ export default function PurchaseOrders() {
     if (prod.data) setProducts(prod.data);
   };
 
-  const addItem = () => setItems([...items, { product_id: "", description: "", quantity: 1, rate: 0, amount: 0 }]);
+  const addItem = () => setItems([...items, { product_id: "", description: "", quantity: 1, quantity_confirmed: 0, rate: 0, amount: 0 }]);
 
   const updateItem = (idx: number, field: string, value: any) => {
     const u = [...items];
@@ -88,11 +92,30 @@ export default function PurchaseOrders() {
 
     if (po) {
       await supabase.from("purchase_order_items").insert(
-        items.map(i => ({ po_id: po.id, product_id: i.product_id || null, description: i.description || null, quantity: Number(i.quantity), rate: Number(i.rate), amount: i.amount }))
+        items.map(i => ({ po_id: po.id, product_id: i.product_id || null, description: i.description || null, quantity: Number(i.quantity), quantity_confirmed: Number(i.quantity_confirmed) || 0, rate: Number(i.rate), amount: i.amount }))
       );
       toast.success(`PO ${poNumber} created`);
       setOpen(false); setSupplierId(""); setItems([]); setNotes(""); load();
     }
+  };
+
+  const openConfirm = async (po: PO) => {
+    setSelectedPO(po);
+    const { data } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", po.id);
+    if (data) {
+      setConfirmItems(data.map((i: any) => ({ ...i, quantity_confirmed: i.quantity_confirmed || i.quantity })));
+    }
+    setConfirmOpen(true);
+  };
+
+  const handleConfirm = async () => {
+    if (!selectedPO) return;
+    for (const item of confirmItems) {
+      await supabase.from("purchase_order_items").update({ quantity_confirmed: Number(item.quantity_confirmed) }).eq("id", item.id);
+    }
+    await supabase.from("purchase_orders").update({ status: "confirmed" }).eq("id", selectedPO.id);
+    toast.success("Quantities confirmed by factory");
+    setConfirmOpen(false); load();
   };
 
   const { subtotal, gst, total } = calcTotals();
@@ -100,7 +123,8 @@ export default function PurchaseOrders() {
 
   const statusColor = (s: string) => {
     if (s === "received") return "bg-emerald-50 text-emerald-700";
-    if (s === "sent") return "bg-primary/10 text-primary";
+    if (s === "confirmed") return "bg-primary/10 text-primary";
+    if (s === "sent") return "bg-amber-50 text-amber-700";
     if (s === "cancelled") return "bg-destructive/10 text-destructive";
     return "bg-muted text-muted-foreground";
   };
@@ -114,7 +138,7 @@ export default function PurchaseOrders() {
             <SidebarTrigger />
             <div className="flex-1">
               <h1 className="text-xl font-bold text-foreground font-heading">Purchase Orders</h1>
-              <p className="text-sm text-muted-foreground">Create and track purchase orders to suppliers</p>
+              <p className="text-sm text-muted-foreground">Create and track purchase orders with factory confirmation</p>
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> New PO</Button></DialogTrigger>
@@ -140,7 +164,7 @@ export default function PurchaseOrders() {
                     <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
                       <div className="col-span-4">
                         <Select value={item.product_id} onValueChange={v => updateItem(idx, "product_id", v)}>
-                          <SelectTrigger className="text-xs"><SelectValue placeholder="Product/Material" /></SelectTrigger>
+                          <SelectTrigger className="text-xs"><SelectValue placeholder="Product" /></SelectTrigger>
                           <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
@@ -172,23 +196,30 @@ export default function PurchaseOrders() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>PO #</TableHead><TableHead>Supplier</TableHead><TableHead>Date</TableHead>
-                      <TableHead>Delivery</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead>
+                      <TableHead>PO #</TableHead><TableHead>From Proforma</TableHead><TableHead>Supplier</TableHead><TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                         <ClipboardList className="h-8 w-8 mx-auto mb-2 opacity-40" />No purchase orders yet.
                       </TableCell></TableRow>
                     ) : filtered.map(po => (
                       <TableRow key={po.id}>
                         <TableCell className="font-medium font-mono">{po.po_number}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{(po.purchase_proformas as any)?.proforma_number || "—"}</TableCell>
                         <TableCell>{(po.suppliers as any)?.name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{po.date}</TableCell>
-                        <TableCell className="text-muted-foreground">{po.expected_delivery || "—"}</TableCell>
                         <TableCell><span className={`status-pill ${statusColor(po.status)}`}>{po.status}</span></TableCell>
                         <TableCell className="text-right font-mono font-medium">{Number(po.total).toLocaleString()}</TableCell>
+                        <TableCell>
+                          {po.status === "draft" && (
+                            <Button variant="outline" size="sm" onClick={() => openConfirm(po)} className="text-xs">
+                              <CheckCircle className="h-3 w-3 mr-1" /> Confirm Qty
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -196,6 +227,25 @@ export default function PurchaseOrders() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Confirm quantities dialog */}
+          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader><DialogTitle>Factory Quantity Confirmation</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground mb-3">Update confirmed quantities from factory (may differ from ordered).</p>
+              {confirmItems.map((item, idx) => (
+                <div key={item.id} className="flex items-center gap-3 mb-2">
+                  <span className="text-sm flex-1">{(item.products as any)?.name || item.description || "Item"}</span>
+                  <div className="text-xs text-muted-foreground">Ordered: {item.quantity}</div>
+                  <Input type="number" className="w-24 text-xs" value={item.quantity_confirmed}
+                    onChange={e => {
+                      const u = [...confirmItems]; u[idx].quantity_confirmed = e.target.value; setConfirmItems(u);
+                    }} />
+                </div>
+              ))}
+              <Button onClick={handleConfirm} className="w-full mt-3">Confirm Quantities</Button>
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </SidebarProvider>
