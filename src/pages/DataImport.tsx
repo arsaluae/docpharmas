@@ -9,17 +9,57 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Upload, Trash2, CheckCircle, XCircle } from "lucide-react";
+import { Upload, Trash2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 type TabType = "customers" | "suppliers" | "products" | "inventory";
 
 const TAB_COLUMNS: Record<TabType, string[]> = {
-  customers: ["name", "company", "ntn", "strn", "phone", "email", "address", "city", "credit_limit", "credit_days", "opening_balance"],
+  customers: ["name", "company", "ntn", "strn", "phone", "email", "address", "city", "area", "credit_limit", "credit_days", "opening_balance"],
   suppliers: ["name", "company", "ntn", "strn", "phone", "email", "address", "city", "payment_terms_days", "wht_rate", "opening_balance"],
   products: ["name", "sku", "category", "drap_reg_number", "pack_size", "unit", "cost_price", "selling_price", "gst_rate", "stock_quantity", "reorder_level"],
   inventory: ["product_name", "quantity", "batch_number", "notes"],
 };
+
+// Smart alias mapping: common Excel header variants → our column names
+const COLUMN_ALIASES: Record<string, string> = {
+  "customer name": "name", "party name": "name", "account name": "name",
+  "supplier name": "name", "vendor name": "name", "item name": "name",
+  "product name": "name", "product": "name", "customer": "name",
+  "supplier": "name", "vendor": "name", "item": "name", "party": "name",
+  "contact": "phone", "contact number": "phone", "mobile": "phone",
+  "phone number": "phone", "telephone": "phone", "cell": "phone",
+  "town": "city", "location": "city",
+  "company name": "company", "firm": "company", "firm name": "company",
+  "e-mail": "email", "email address": "email",
+  "sku code": "sku", "item code": "sku", "product code": "sku", "code": "sku",
+  "cost": "cost_price", "purchase price": "cost_price", "buy price": "cost_price", "cp": "cost_price",
+  "price": "selling_price", "sale price": "selling_price", "sell price": "selling_price",
+  "sp": "selling_price", "mrp": "selling_price", "retail price": "selling_price",
+  "stock": "stock_quantity", "qty": "stock_quantity", "quantity": "stock_quantity",
+  "opening stock": "stock_quantity", "current stock": "stock_quantity",
+  "reorder": "reorder_level", "min stock": "reorder_level", "minimum stock": "reorder_level",
+  "gst": "gst_rate", "tax rate": "gst_rate", "tax": "gst_rate",
+  "credit limit": "credit_limit", "limit": "credit_limit",
+  "credit days": "credit_days", "payment days": "credit_days", "days": "credit_days",
+  "opening balance": "opening_balance", "balance": "opening_balance", "ob": "opening_balance",
+  "opening": "opening_balance",
+  "payment terms": "payment_terms_days", "payment terms days": "payment_terms_days",
+  "wht": "wht_rate", "withholding tax": "wht_rate", "wht rate": "wht_rate",
+  "drap": "drap_reg_number", "drap no": "drap_reg_number", "drap number": "drap_reg_number",
+  "reg no": "drap_reg_number", "registration": "drap_reg_number",
+  "pack": "pack_size", "packing": "pack_size",
+  "batch": "batch_number", "batch no": "batch_number", "lot": "batch_number",
+  "region": "area", "zone": "area",
+};
+
+function resolveColumnName(header: string, tabColumns: string[]): string | null {
+  const h = header.toLowerCase().trim();
+  if (tabColumns.includes(h)) return h;
+  const alias = COLUMN_ALIASES[h];
+  if (alias && tabColumns.includes(alias)) return alias;
+  return null;
+}
 
 function parseCSV(text: string): string[][] {
   const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
@@ -38,6 +78,10 @@ function parseCSV(text: string): string[][] {
   });
 }
 
+function isEmptyRow(row: string[]): boolean {
+  return row.every(cell => !cell || cell.trim() === "");
+}
+
 export default function DataImport() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -45,15 +89,41 @@ export default function DataImport() {
   const [tab, setTab] = useState<TabType>(defaultTab);
   const [parsedRows, setParsedRows] = useState<string[][]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
+  const [mappedColumns, setMappedColumns] = useState<(string | null)[]>([]);
   const [importing, setImporting] = useState(false);
-  const [lastBatchId, setLastBatchId] = useState<string | null>(null);
+  const [lastBatchIds, setLastBatchIds] = useState<string[]>([]);
   const [importResult, setImportResult] = useState<{ success: number; errors: number } | null>(null);
+  const [validationWarning, setValidationWarning] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
     check();
   }, [navigate]);
+
+  const processRows = (rawHeaders: string[], rawRows: string[][]) => {
+    const cols = TAB_COLUMNS[tab];
+    const mapped = rawHeaders.map(h => resolveColumnName(h, cols));
+    const nonEmptyRows = rawRows.filter(r => !isEmptyRow(r));
+
+    setHeaders(rawHeaders);
+    setMappedColumns(mapped);
+    setParsedRows(nonEmptyRows);
+    setImportResult(null);
+    setLastBatchIds([]);
+
+    // Check if required "name" column is mapped
+    const nameCol = tab === "inventory" ? "product_name" : "name";
+    const hasNameCol = tab === "inventory"
+      ? mapped.some(m => m === "product_name") || rawHeaders.some(h => h.toLowerCase().trim() === "product_name" || h.toLowerCase().trim() === "product name")
+      : mapped.includes("name");
+
+    if (!hasNameCol && nonEmptyRows.length > 0) {
+      setValidationWarning(`⚠️ No "${nameCol}" column detected. Found columns: ${rawHeaders.join(", ")}. Records without a name will be skipped.`);
+    } else {
+      setValidationWarning(null);
+    }
+  };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,10 +138,7 @@ export default function DataImport() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
         if (rows.length > 0) {
-          setHeaders(rows[0].map(String));
-          setParsedRows(rows.slice(1).map(r => r.map(String)));
-          setImportResult(null);
-          setLastBatchId(null);
+          processRows(rows[0].map(String), rows.slice(1).map(r => r.map(String)));
         }
       };
       reader.readAsArrayBuffer(file);
@@ -81,48 +148,56 @@ export default function DataImport() {
         const text = ev.target?.result as string;
         const rows = parseCSV(text);
         if (rows.length > 0) {
-          setHeaders(rows[0]);
-          setParsedRows(rows.slice(1));
-          setImportResult(null);
-          setLastBatchId(null);
+          processRows(rows[0], rows.slice(1));
         }
       };
       reader.readAsText(file);
     }
   };
 
-  const resetFile = () => { setParsedRows([]); setHeaders([]); setImportResult(null); setLastBatchId(null); if (fileRef.current) fileRef.current.value = ""; };
+  const resetFile = () => { setParsedRows([]); setHeaders([]); setMappedColumns([]); setImportResult(null); setLastBatchIds([]); setValidationWarning(null); if (fileRef.current) fileRef.current.value = ""; };
 
   const handleImport = async () => {
     if (parsedRows.length === 0) return;
     setImporting(true);
-    const batchId = crypto.randomUUID();
     const cols = TAB_COLUMNS[tab];
     let success = 0, errors = 0;
+    const importedIds: string[] = [];
 
     if (tab === "inventory") {
       const { data: products } = await supabase.from("products").select("id, name");
       const pMap = new Map((products || []).map(p => [p.name.toLowerCase(), p.id]));
+      const batchId = crypto.randomUUID();
 
       for (const row of parsedRows) {
         const obj: Record<string, string> = {};
-        headers.forEach((h, i) => { obj[h.toLowerCase().trim()] = row[i] || ""; });
-        const productId = pMap.get((obj.product_name || "").toLowerCase());
-        if (!productId) { errors++; continue; }
-        const { error } = await supabase.from("stock_movements").insert({
+        headers.forEach((h, i) => {
+          const mapped = mappedColumns[i] || h.toLowerCase().trim();
+          obj[mapped] = row[i] || "";
+        });
+        const pName = obj.product_name || obj.name || "";
+        const productId = pMap.get(pName.toLowerCase());
+        if (!productId || !pName.trim()) { errors++; continue; }
+        const { data, error } = await supabase.from("stock_movements").insert({
           product_id: productId, quantity: Number(obj.quantity) || 0, movement_type: "adjustment",
           batch_number: obj.batch_number || null, notes: `IMPORT:${batchId}`,
-        });
-        if (error) errors++; else success++;
+        }).select("id").single();
+        if (error) errors++; else { success++; if (data) importedIds.push(data.id); }
       }
     } else {
       const tableName = tab as "customers" | "suppliers" | "products";
       for (const row of parsedRows) {
         const obj: Record<string, any> = {};
         headers.forEach((h, i) => {
-          const key = h.toLowerCase().trim();
-          if (cols.includes(key)) obj[key] = row[i] || "";
+          const mapped = mappedColumns[i];
+          if (mapped && cols.includes(mapped)) {
+            obj[mapped] = row[i] || "";
+          }
         });
+
+        // Skip rows without a name
+        if (!obj.name || !String(obj.name).trim()) { errors++; continue; }
+
         // Convert numerics
         const numericFields: Record<TabType, string[]> = {
           customers: ["credit_limit", "credit_days", "opening_balance"],
@@ -134,32 +209,28 @@ export default function DataImport() {
         if (tab === "customers" || tab === "suppliers") {
           obj.balance = obj.opening_balance || 0;
         }
-        obj.notes = `IMPORT:${batchId}`;
-        // notes field doesn't exist on customers/suppliers/products — use a workaround: we'll store in city/address/notes field
-        // Actually customers and suppliers don't have notes. We'll tag via a convention in the `company` or `address` field suffix won't work.
-        // Better approach: we add the batch tag in a way we can query. For products, no notes field either.
-        // Let's use a different approach: store batch IDs in memory and offer delete by IDs.
-        delete obj.notes;
 
-        const { error } = await supabase.from(tableName).insert(obj as any);
-        if (error) { console.error(error); errors++; } else success++;
+        const { data, error } = await supabase.from(tableName).insert(obj as any).select("id").single();
+        if (error) { console.error(error); errors++; } else { success++; if (data) importedIds.push(data.id); }
       }
     }
 
-    setLastBatchId(batchId);
+    setLastBatchIds(importedIds);
     setImportResult({ success, errors });
     setImporting(false);
-    toast.success(`Imported ${success} rows${errors > 0 ? `, ${errors} errors` : ""}`);
+    toast.success(`Imported ${success} rows${errors > 0 ? `, ${errors} skipped/errors` : ""}`);
   };
 
   const handleDeleteBatch = async () => {
-    if (!lastBatchId) return;
+    if (lastBatchIds.length === 0) return;
     if (tab === "inventory") {
-      await supabase.from("stock_movements").delete().like("notes", `IMPORT:${lastBatchId}`);
-      toast.success("Import batch deleted");
+      // Inventory uses notes-based batch tracking
+      await supabase.from("stock_movements").delete().in("id", lastBatchIds);
     } else {
-      toast.info("For non-inventory imports, use individual delete on the list page");
+      const tableName = tab as "customers" | "suppliers" | "products";
+      await supabase.from(tableName).delete().in("id", lastBatchIds);
     }
+    toast.success(`Deleted ${lastBatchIds.length} imported records`);
     resetFile();
   };
 
@@ -172,7 +243,7 @@ export default function DataImport() {
             <SidebarTrigger />
             <div className="flex-1">
               <h1 className="text-xl font-bold text-foreground font-heading">Data Import</h1>
-              <p className="text-sm text-muted-foreground">Import customers, suppliers, products & inventory from CSV</p>
+              <p className="text-sm text-muted-foreground">Import from CSV or Excel (.xlsx/.xls)</p>
             </div>
           </header>
           <div className="p-6">
@@ -190,12 +261,30 @@ export default function DataImport() {
                     <CardHeader>
                       <CardTitle className="text-base">Import {t.charAt(0).toUpperCase() + t.slice(1)}</CardTitle>
                       <p className="text-xs text-muted-foreground">Expected columns: <code className="bg-muted px-1 rounded">{TAB_COLUMNS[t].join(", ")}</code></p>
+                      <p className="text-xs text-muted-foreground">Accepts common variants like "Customer Name", "Party Name", "Contact", "Town", etc.</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex items-center gap-3">
                         <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} className="text-sm" />
                         {parsedRows.length > 0 && <span className="text-xs text-muted-foreground">{parsedRows.length} rows parsed</span>}
                       </div>
+
+                      {validationWarning && (
+                        <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-200">
+                          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                          <span>{validationWarning}</span>
+                        </div>
+                      )}
+
+                      {parsedRows.length > 0 && mappedColumns.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {headers.map((h, i) => (
+                            <span key={i} className={`text-xs px-2 py-1 rounded ${mappedColumns[i] ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground"}`}>
+                              {h} → {mappedColumns[i] || "ignored"}
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
                       {parsedRows.length > 0 && (
                         <>
@@ -225,8 +314,8 @@ export default function DataImport() {
                       {importResult && (
                         <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
                           <div className="flex items-center gap-1 text-emerald-600"><CheckCircle className="h-4 w-4" /> {importResult.success} imported</div>
-                          {importResult.errors > 0 && <div className="flex items-center gap-1 text-destructive"><XCircle className="h-4 w-4" /> {importResult.errors} errors</div>}
-                          {lastBatchId && tab === "inventory" && (
+                          {importResult.errors > 0 && <div className="flex items-center gap-1 text-destructive"><XCircle className="h-4 w-4" /> {importResult.errors} skipped</div>}
+                          {lastBatchIds.length > 0 && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="destructive" size="sm"><Trash2 className="h-3 w-3 mr-1" /> Delete This Batch</Button>
@@ -234,7 +323,7 @@ export default function DataImport() {
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete import batch?</AlertDialogTitle>
-                                  <AlertDialogDescription>This will remove all {importResult.success} records created in this import.</AlertDialogDescription>
+                                  <AlertDialogDescription>This will remove all {lastBatchIds.length} records created in this import.</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>

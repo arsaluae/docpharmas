@@ -34,6 +34,7 @@ import ItemWiseReport from "./pages/reports/ItemWiseReport";
 import BatchWiseReport from "./pages/reports/BatchWiseReport";
 import CustomerWiseReport from "./pages/reports/CustomerWiseReport";
 import SupplierWiseReport from "./pages/reports/SupplierWiseReport";
+import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ const App = () => (
           <Route path="/bank" element={<BankAccounts />} />
           <Route path="/stock" element={<StockMovements />} />
           <Route path="/import" element={<DataImport />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/reports/pl" element={<ProfitLoss />} />
           <Route path="/reports/balance-sheet" element={<BalanceSheet />} />
           <Route path="/reports/cash-flow" element={<CashFlow />} />
