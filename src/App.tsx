@@ -6,18 +6,23 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Customers from "./pages/Customers";
+import CustomerLedger from "./pages/CustomerLedger";
 import Suppliers from "./pages/Suppliers";
+import SupplierLedger from "./pages/SupplierLedger";
 import Products from "./pages/Products";
 import SalesInvoices from "./pages/SalesInvoices";
+import SalesReturns from "./pages/SalesReturns";
 import ProformaInvoices from "./pages/ProformaInvoices";
 import PurchaseProforma from "./pages/PurchaseProforma";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import GoodsReceivedNotes from "./pages/GoodsReceivedNotes";
 import PurchaseInvoicesPage from "./pages/PurchaseInvoicesPage";
+import PurchaseReturns from "./pages/PurchaseReturns";
 import Payments from "./pages/Payments";
 import Expenses from "./pages/Expenses";
 import BankAccounts from "./pages/BankAccounts";
 import StockMovements from "./pages/StockMovements";
+import DataImport from "./pages/DataImport";
 import ProfitLoss from "./pages/reports/ProfitLoss";
 import BalanceSheet from "./pages/reports/BalanceSheet";
 import CashFlow from "./pages/reports/CashFlow";
@@ -25,6 +30,10 @@ import ReceivablesAging from "./pages/reports/ReceivablesAging";
 import PayablesAging from "./pages/reports/PayablesAging";
 import ProductCosting from "./pages/reports/ProductCosting";
 import TaxCompliance from "./pages/reports/TaxCompliance";
+import ItemWiseReport from "./pages/reports/ItemWiseReport";
+import BatchWiseReport from "./pages/reports/BatchWiseReport";
+import CustomerWiseReport from "./pages/reports/CustomerWiseReport";
+import SupplierWiseReport from "./pages/reports/SupplierWiseReport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,18 +48,23 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/customers" element={<Customers />} />
+          <Route path="/customers/:id/ledger" element={<CustomerLedger />} />
           <Route path="/suppliers" element={<Suppliers />} />
+          <Route path="/suppliers/:id/ledger" element={<SupplierLedger />} />
           <Route path="/products" element={<Products />} />
           <Route path="/sales-invoices" element={<SalesInvoices />} />
+          <Route path="/sales-returns" element={<SalesReturns />} />
           <Route path="/proforma" element={<ProformaInvoices />} />
           <Route path="/purchase-proforma" element={<PurchaseProforma />} />
           <Route path="/purchase-orders" element={<PurchaseOrders />} />
           <Route path="/grn" element={<GoodsReceivedNotes />} />
           <Route path="/purchase-invoices" element={<PurchaseInvoicesPage />} />
+          <Route path="/purchase-returns" element={<PurchaseReturns />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/bank" element={<BankAccounts />} />
           <Route path="/stock" element={<StockMovements />} />
+          <Route path="/import" element={<DataImport />} />
           <Route path="/reports/pl" element={<ProfitLoss />} />
           <Route path="/reports/balance-sheet" element={<BalanceSheet />} />
           <Route path="/reports/cash-flow" element={<CashFlow />} />
@@ -58,6 +72,10 @@ const App = () => (
           <Route path="/reports/payables" element={<PayablesAging />} />
           <Route path="/reports/product-costing" element={<ProductCosting />} />
           <Route path="/reports/tax" element={<TaxCompliance />} />
+          <Route path="/reports/item-wise" element={<ItemWiseReport />} />
+          <Route path="/reports/batch-wise" element={<BatchWiseReport />} />
+          <Route path="/reports/customer-wise" element={<CustomerWiseReport />} />
+          <Route path="/reports/supplier-wise" element={<SupplierWiseReport />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
