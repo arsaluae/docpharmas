@@ -4,18 +4,20 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Users, Truck, Package, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, Truck, Package, AlertTriangle, DollarSign, ShoppingCart } from "lucide-react";
+
+interface RecentInvoice { id: string; invoice_number: string; total: number; date: string; status: string; }
+interface RecentPO { id: string; po_number: string; total: number; date: string; status: string; }
 
 export default function Index() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
-    totalCustomers: 0,
-    totalSuppliers: 0,
-    totalProducts: 0,
-    totalReceivables: 0,
-    totalPayables: 0,
-    lowStockCount: 0,
+    totalCustomers: 0, totalSuppliers: 0, totalProducts: 0,
+    totalReceivables: 0, totalPayables: 0, lowStockCount: 0,
+    inventoryValue: 0, retailValue: 0,
   });
+  const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([]);
+  const [recentPOs, setRecentPOs] = useState<RecentPO[]>([]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -27,24 +29,30 @@ export default function Index() {
 
   useEffect(() => {
     const loadStats = async () => {
-      const [customers, suppliers, products] = await Promise.all([
+      const [customers, suppliers, products, invoices, pos] = await Promise.all([
         supabase.from("customers").select("id, balance"),
         supabase.from("suppliers").select("id, balance"),
-        supabase.from("products").select("id, stock_quantity, reorder_level"),
+        supabase.from("products").select("id, stock_quantity, reorder_level, cost_price, selling_price"),
+        supabase.from("sales_invoices").select("id, invoice_number, total, date, status").order("created_at", { ascending: false }).limit(5),
+        supabase.from("purchase_orders").select("id, po_number, total, date, status").order("created_at", { ascending: false }).limit(5),
       ]);
 
       const totalReceivables = (customers.data || []).reduce((sum, c) => sum + Number(c.balance), 0);
       const totalPayables = (suppliers.data || []).reduce((sum, s) => sum + Number(s.balance), 0);
-      const lowStock = (products.data || []).filter(p => Number(p.stock_quantity) <= Number(p.reorder_level)).length;
+      const prods = products.data || [];
+      const lowStock = prods.filter(p => Number(p.stock_quantity) <= Number(p.reorder_level)).length;
+      const inventoryValue = prods.reduce((s, p) => s + Number(p.stock_quantity) * Number(p.cost_price), 0);
+      const retailValue = prods.reduce((s, p) => s + Number(p.stock_quantity) * Number(p.selling_price), 0);
 
       setStats({
         totalCustomers: customers.data?.length || 0,
         totalSuppliers: suppliers.data?.length || 0,
-        totalProducts: products.data?.length || 0,
-        totalReceivables,
-        totalPayables,
-        lowStockCount: lowStock,
+        totalProducts: prods.length,
+        totalReceivables, totalPayables, lowStockCount: lowStock,
+        inventoryValue, retailValue,
       });
+      setRecentInvoices(invoices.data || []);
+      setRecentPOs(pos.data || []);
     };
     loadStats();
   }, []);
@@ -52,6 +60,8 @@ export default function Index() {
   const kpiCards = [
     { label: "Total Receivables", value: `PKR ${stats.totalReceivables.toLocaleString()}`, icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
     { label: "Total Payables", value: `PKR ${stats.totalPayables.toLocaleString()}`, icon: TrendingDown, color: "text-destructive", bg: "bg-destructive/10" },
+    { label: "Inventory Value", value: `PKR ${stats.inventoryValue.toLocaleString()}`, icon: DollarSign, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Retail Value", value: `PKR ${stats.retailValue.toLocaleString()}`, icon: ShoppingCart, color: "text-violet-600", bg: "bg-violet-50" },
     { label: "Customers", value: stats.totalCustomers, icon: Users, color: "text-primary", bg: "bg-primary/10" },
     { label: "Suppliers", value: stats.totalSuppliers, icon: Truck, color: "text-amber-600", bg: "bg-amber-50" },
     { label: "Products", value: stats.totalProducts, icon: Package, color: "text-violet-600", bg: "bg-violet-50" },
@@ -72,7 +82,7 @@ export default function Index() {
           </header>
 
           <div className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {kpiCards.map((kpi) => (
                 <Card key={kpi.label} className="glass-card hover:shadow-md transition-shadow">
                   <CardContent className="p-5">
@@ -90,30 +100,55 @@ export default function Index() {
               ))}
             </div>
 
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="text-lg font-heading">Quick Start</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <button onClick={() => navigate("/customers")} className="p-4 rounded-lg border border-border hover:bg-accent transition-colors text-left">
-                    <Users className="h-5 w-5 text-primary mb-2" />
-                    <p className="font-medium text-foreground">Add Customer</p>
-                    <p className="text-xs text-muted-foreground mt-1">Set up customer accounts & credit terms</p>
-                  </button>
-                  <button onClick={() => navigate("/suppliers")} className="p-4 rounded-lg border border-border hover:bg-accent transition-colors text-left">
-                    <Truck className="h-5 w-5 text-amber-600 mb-2" />
-                    <p className="font-medium text-foreground">Add Supplier</p>
-                    <p className="text-xs text-muted-foreground mt-1">Register RM & packing material suppliers</p>
-                  </button>
-                  <button onClick={() => navigate("/products")} className="p-4 rounded-lg border border-border hover:bg-accent transition-colors text-left">
-                    <Package className="h-5 w-5 text-violet-600 mb-2" />
-                    <p className="font-medium text-foreground">Add Product</p>
-                    <p className="text-xs text-muted-foreground mt-1">Register products with DRAP & pricing</p>
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="glass-card">
+                <CardHeader><CardTitle className="text-lg font-heading">Recent Sales Invoices</CardTitle></CardHeader>
+                <CardContent>
+                  {recentInvoices.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No invoices yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentInvoices.map(inv => (
+                        <div key={inv.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate("/sales-invoices")}>
+                          <div>
+                            <p className="font-medium text-sm">{inv.invoice_number}</p>
+                            <p className="text-xs text-muted-foreground">{inv.date}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-mono text-sm font-semibold">PKR {Number(inv.total).toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground capitalize">{inv.status}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="glass-card">
+                <CardHeader><CardTitle className="text-lg font-heading">Recent Purchase Orders</CardTitle></CardHeader>
+                <CardContent>
+                  {recentPOs.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No purchase orders yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentPOs.map(po => (
+                        <div key={po.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => navigate("/purchase-orders")}>
+                          <div>
+                            <p className="font-medium text-sm">{po.po_number}</p>
+                            <p className="text-xs text-muted-foreground">{po.date}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-mono text-sm font-semibold">PKR {Number(po.total).toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground capitalize">{po.status}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </main>
       </div>
