@@ -1,66 +1,51 @@
 
 
-# Fix Import Errors + UX Audit & Streamlining
+# Fix Import + Warranty Invoices + Customer Licenses
 
-## 1. Import Bug Fix
+## 1. Fix Import — "Business Name" / "First Name + Last Name" Not Mapped
 
-**Root Cause**: The column mapping does `h.toLowerCase().trim()` to match headers, but Excel files from accounting software often have headers like "Customer Name", "Party Name", "Item Name" etc. — not just "name". Also, empty rows at the end of Excel files produce insert attempts with null `name`.
+**Problem**: The Excel file has columns "Business Name", "First Name", "Last Name" — none map to `name`. Result: 428 rows skipped.
 
 **Fix in `DataImport.tsx`**:
-- Add smart column alias mapping: e.g., "customer name" / "party name" / "account name" all map to `name`; "item name" / "product name" maps to `name` for products tab; "contact" maps to `phone`; "town" maps to `city`, etc.
-- Skip rows where the `name` field is empty/blank (the #1 cause of the current errors)
-- Filter out completely empty rows from parsed data before import
-- Store imported record IDs in memory so "Delete This Batch" works for ALL tabs (customers/suppliers/products), not just inventory
-- Show a validation warning before import if required columns (like `name`) are not found in the headers
+- Add aliases: `"business name" → "company"`, `"first name" → "name"` (as primary name source)
+- Add post-parse logic: if both "First Name" and "Last Name" columns exist, concatenate them into `name` before import
+- If "Business Name" exists and no "name" mapped, use "Business Name" as `name` fallback
+- Add `"business name" → "name"` to alias map as highest priority for customers tab
+- This ensures the user's actual Excel format works out of the box
 
-## 2. Sidebar Streamlining — Reduce Noise
+## 2. Warranty Invoices — New Feature
 
-Current sidebar has 22+ items across 7 sections. Consolidate to fewer, cleaner groups:
+**Concept**: A warranty invoice is issued at MRP (retail) price on behalf of a customer's downstream pharmacy/distributor. Same items, batches, expiry — but different price and recipient details.
 
-**New sidebar structure**:
-- **Dashboard** (1 item)
-- **Sales** — Customers, Invoices, Returns (3 items — remove separate "Proforma" link, make it accessible from within Sales Invoices page as a tab or button)
-- **Purchases** — Suppliers, Orders & GRN, Bills, Returns (4 items — merge "Purchase Proforma" into Purchase Orders as a tab/step, remove standalone link)
-- **Inventory** — Products & Stock (1 item — merge Stock Movements into Products page as a tab)
-- **Finance** — Payments, Expenses, Bank (3 items)
-- **Reports** — Consolidate into a single "Reports" link that opens a reports hub page with cards for each report type (1 item instead of 11)
-- **Settings** — Data Import (1 item)
+**New DB table: `warranty_invoices`**
+- `id`, `warranty_number` (WI-0001), `date`, `customer_id` (your customer who requested it)
+- `pharmacy_name`, `pharmacy_address`, `pharmacy_license_no` (the downstream recipient)
+- `items` (jsonb — product_id, product_name, batch_number, expiry_date, quantity, mrp_rate, amount)
+- `subtotal`, `gst_amount`, `total`, `notes`, `status`, `created_at`
+- RLS: authenticated users can CRUD
 
-Total: ~14 items down from 22+. Much cleaner.
+**New page: `src/pages/WarrantyInvoices.tsx`**
+- Route: `/warranty-invoices`
+- Form: Select customer → enter pharmacy/distributor name, address, license → add line items with product, batch, expiry, qty, MRP rate
+- Auto-number WI-0001
+- List view with search
 
-## 3. Enhanced Products/Inventory Page
+## 3. Customer Medical Licenses — Sub-feature
 
-Merge Products and Stock Movements into one page with tabs: **Catalog | Stock Overview | Movements**
+**New DB table: `customer_licenses`**
+- `id`, `customer_id`, `license_number`, `license_type` (drug license, retail license, etc.)
+- `expiry_date`, `address`, `notes`, `created_at`
+- RLS: authenticated users can CRUD
 
-**Stock Overview tab** (new):
-- Table showing: Product Name, Current Stock, Cost Price, Selling Price, Stock Value (qty × cost), Margin %, Reorder Level, Status (OK/Low/Out)
-- Summary cards at top: Total Stock Value, Total Retail Value, Low Stock Count, Out of Stock Count
-- Color-coded rows: red for out of stock, yellow for low stock
-
-## 4. Dashboard Enhancement
-
-Add to the dashboard:
-- **Inventory Value card**: Total stock value (sum of qty × cost_price)
-- **Total Retail Value card**: sum of qty × selling_price
-- **Recent Activity section**: last 5 sales invoices and purchase orders
-- Remove "Quick Start" section (user is past onboarding)
-
-## 5. Reports Hub Page
-
-Create `/reports` as a single landing page with cards linking to each report:
-- Financial: P&L, Balance Sheet, Cash Flow
-- Receivables & Payables
-- Inventory: Product Costing, Item-wise, Batch-wise
-- Party: Customer-wise, Supplier-wise
-- Compliance: Tax & DRAP
+**UI**: Add a "Licenses" button/icon on each customer row in Customers page → opens a dialog showing that customer's licenses with add/edit/delete capability. Not shown on the main table — only accessible when needed.
 
 ## Files to Create
-1. `src/pages/Reports.tsx` — Reports hub page
+1. `src/pages/WarrantyInvoices.tsx` — Full CRUD page
+2. DB migration: `warranty_invoices` + `customer_licenses` tables
 
 ## Files to Modify
-1. `src/pages/DataImport.tsx` — Fix column mapping, skip empty rows, batch delete for all tabs
-2. `src/components/AppSidebar.tsx` — Streamlined navigation
-3. `src/pages/Products.tsx` — Add Stock Overview tab with value calculations
-4. `src/pages/Index.tsx` — Enhanced dashboard with inventory value + recent activity
-5. `src/App.tsx` — Add `/reports` route
+1. `src/pages/DataImport.tsx` — Fix alias mapping + first/last name concatenation
+2. `src/pages/Customers.tsx` — Add "Licenses" button per row with dialog
+3. `src/App.tsx` — Add `/warranty-invoices` route
+4. `src/components/AppSidebar.tsx` — Add "Warranty Invoices" under Sales section
 
