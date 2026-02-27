@@ -138,6 +138,47 @@ export type Database = {
           },
         ]
       }
+      customer_licenses: {
+        Row: {
+          address: string | null
+          created_at: string
+          customer_id: string
+          expiry_date: string | null
+          id: string
+          license_number: string
+          license_type: string
+          notes: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          customer_id: string
+          expiry_date?: string | null
+          id?: string
+          license_number: string
+          license_type?: string
+          notes?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          customer_id?: string
+          expiry_date?: string | null
+          id?: string
+          license_number?: string
+          license_type?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_licenses_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -1369,6 +1410,65 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      warranty_invoices: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          date: string
+          gst_amount: number
+          id: string
+          items: Json
+          notes: string | null
+          pharmacy_address: string | null
+          pharmacy_license_no: string | null
+          pharmacy_name: string
+          status: string
+          subtotal: number
+          total: number
+          warranty_number: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          date?: string
+          gst_amount?: number
+          id?: string
+          items?: Json
+          notes?: string | null
+          pharmacy_address?: string | null
+          pharmacy_license_no?: string | null
+          pharmacy_name: string
+          status?: string
+          subtotal?: number
+          total?: number
+          warranty_number: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          date?: string
+          gst_amount?: number
+          id?: string
+          items?: Json
+          notes?: string | null
+          pharmacy_address?: string | null
+          pharmacy_license_no?: string | null
+          pharmacy_name?: string
+          status?: string
+          subtotal?: number
+          total?: number
+          warranty_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warranty_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
