@@ -1,51 +1,44 @@
 
 
-# Fix Import + Warranty Invoices + Customer Licenses
+# Fix: Import Skipping Rows Due to Name Column Overwrite
 
-## 1. Fix Import — "Business Name" / "First Name + Last Name" Not Mapped
+## Root Cause
+Both "Business Name" and "First Name" are aliased to `name`. When the import loop processes headers sequentially, "First Name" (which is often empty) overwrites `obj.name` that was already set by "Business Name". Result: 322 rows with a Business Name but no First Name get skipped.
 
-**Problem**: The Excel file has columns "Business Name", "First Name", "Last Name" — none map to `name`. Result: 428 rows skipped.
+## Fix in `src/pages/DataImport.tsx`
 
-**Fix in `DataImport.tsx`**:
-- Add aliases: `"business name" → "company"`, `"first name" → "name"` (as primary name source)
-- Add post-parse logic: if both "First Name" and "Last Name" columns exist, concatenate them into `name` before import
-- If "Business Name" exists and no "name" mapped, use "Business Name" as `name` fallback
-- Add `"business name" → "name"` to alias map as highest priority for customers tab
-- This ensures the user's actual Excel format works out of the box
+### Change 1: Import logic — don't overwrite with empty values
+In `handleImport` (around line 207-216), when assigning `obj[mapped]`, skip assignment if the value is empty AND the key already has a non-empty value:
 
-## 2. Warranty Invoices — New Feature
+```
+// Current (broken):
+if (mapped && cols.includes(mapped)) {
+  obj[mapped] = row[i] || "";
+}
 
-**Concept**: A warranty invoice is issued at MRP (retail) price on behalf of a customer's downstream pharmacy/distributor. Same items, batches, expiry — but different price and recipient details.
+// Fixed:
+if (mapped && cols.includes(mapped)) {
+  const val = row[i] || "";
+  // Don't overwrite existing non-empty value with empty
+  if (val || !obj[mapped]) {
+    obj[mapped] = val;
+  }
+}
+```
 
-**New DB table: `warranty_invoices`**
-- `id`, `warranty_number` (WI-0001), `date`, `customer_id` (your customer who requested it)
-- `pharmacy_name`, `pharmacy_address`, `pharmacy_license_no` (the downstream recipient)
-- `items` (jsonb — product_id, product_name, batch_number, expiry_date, quantity, mrp_rate, amount)
-- `subtotal`, `gst_amount`, `total`, `notes`, `status`, `created_at`
-- RLS: authenticated users can CRUD
+### Change 2: Also handle "Mobile" column mapping
+The screenshot shows "Mobile → phone" is already mapped, but "Phone" also maps to `phone`. Same overwrite issue — apply the same non-empty guard.
 
-**New page: `src/pages/WarrantyInvoices.tsx`**
-- Route: `/warranty-invoices`
-- Form: Select customer → enter pharmacy/distributor name, address, license → add line items with product, batch, expiry, qty, MRP rate
-- Auto-number WI-0001
-- List view with search
+### Change 3: Concatenate name parts intelligently
+After the header loop, if `obj.name` exists and `lastName` exists, concatenate. But also: if `obj.name` is empty and `lastName` is not, use `lastName` alone as the name.
 
-## 3. Customer Medical Licenses — Sub-feature
+```
+if (lastName) {
+  obj.name = obj.name 
+    ? `${obj.name} ${lastName}`.trim() 
+    : lastName.trim();
+}
+```
 
-**New DB table: `customer_licenses`**
-- `id`, `customer_id`, `license_number`, `license_type` (drug license, retail license, etc.)
-- `expiry_date`, `address`, `notes`, `created_at`
-- RLS: authenticated users can CRUD
-
-**UI**: Add a "Licenses" button/icon on each customer row in Customers page → opens a dialog showing that customer's licenses with add/edit/delete capability. Not shown on the main table — only accessible when needed.
-
-## Files to Create
-1. `src/pages/WarrantyInvoices.tsx` — Full CRUD page
-2. DB migration: `warranty_invoices` + `customer_licenses` tables
-
-## Files to Modify
-1. `src/pages/DataImport.tsx` — Fix alias mapping + first/last name concatenation
-2. `src/pages/Customers.tsx` — Add "Licenses" button per row with dialog
-3. `src/App.tsx` — Add `/warranty-invoices` route
-4. `src/components/AppSidebar.tsx` — Add "Warranty Invoices" under Sales section
+This is a single-file fix in `src/pages/DataImport.tsx`, ~3 lines changed.
 
