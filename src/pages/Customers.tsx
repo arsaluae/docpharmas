@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Users, BookOpen, Trash2, Upload } from "lucide-react";
+import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Customer {
@@ -19,10 +20,17 @@ interface Customer {
   credit_limit: number; credit_days: number; opening_balance: number; balance: number; created_at: string;
 }
 
+interface License {
+  id: string; customer_id: string; license_number: string; license_type: string;
+  expiry_date: string | null; address: string | null; notes: string | null; created_at: string;
+}
+
 const emptyForm = {
   name: "", company: "", ntn: "", strn: "", phone: "", email: "", address: "", city: "",
   credit_limit: "0", credit_days: "30", opening_balance: "0",
 };
+
+const emptyLicenseForm = { license_number: "", license_type: "drug_license", expiry_date: "", address: "", notes: "" };
 
 export default function Customers() {
   const navigate = useNavigate();
@@ -31,6 +39,14 @@ export default function Customers() {
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+
+  // License state
+  const [licenseOpen, setLicenseOpen] = useState(false);
+  const [licenseCustomer, setLicenseCustomer] = useState<Customer | null>(null);
+  const [licenses, setLicenses] = useState<License[]>([]);
+  const [licenseForm, setLicenseForm] = useState(emptyLicenseForm);
+  const [editLicenseId, setEditLicenseId] = useState<string | null>(null);
+  const [showLicenseForm, setShowLicenseForm] = useState(false);
 
   useEffect(() => {
     const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
@@ -74,8 +90,54 @@ export default function Customers() {
     e.stopPropagation();
     const { error } = await supabase.from("customers").delete().eq("id", id);
     if (error) { toast.error("Cannot delete — may have linked invoices"); return; }
-    toast.success("Customer deleted");
-    loadCustomers();
+    toast.success("Customer deleted"); loadCustomers();
+  };
+
+  // License functions
+  const openLicenses = async (c: Customer, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLicenseCustomer(c);
+    setLicenseOpen(true);
+    setShowLicenseForm(false);
+    setEditLicenseId(null);
+    setLicenseForm(emptyLicenseForm);
+    const { data } = await supabase.from("customer_licenses").select("*").eq("customer_id", c.id).order("created_at", { ascending: false });
+    setLicenses(data || []);
+  };
+
+  const handleSaveLicense = async () => {
+    if (!licenseForm.license_number.trim()) { toast.error("License number is required"); return; }
+    const payload = {
+      customer_id: licenseCustomer!.id,
+      license_number: licenseForm.license_number,
+      license_type: licenseForm.license_type,
+      expiry_date: licenseForm.expiry_date || null,
+      address: licenseForm.address || null,
+      notes: licenseForm.notes || null,
+    };
+    if (editLicenseId) {
+      await supabase.from("customer_licenses").update(payload).eq("id", editLicenseId);
+      toast.success("License updated");
+    } else {
+      await supabase.from("customer_licenses").insert(payload);
+      toast.success("License added");
+    }
+    setShowLicenseForm(false); setEditLicenseId(null); setLicenseForm(emptyLicenseForm);
+    const { data } = await supabase.from("customer_licenses").select("*").eq("customer_id", licenseCustomer!.id).order("created_at", { ascending: false });
+    setLicenses(data || []);
+  };
+
+  const handleEditLicense = (l: License) => {
+    setEditLicenseId(l.id);
+    setLicenseForm({ license_number: l.license_number, license_type: l.license_type, expiry_date: l.expiry_date || "", address: l.address || "", notes: l.notes || "" });
+    setShowLicenseForm(true);
+  };
+
+  const handleDeleteLicense = async (id: string) => {
+    await supabase.from("customer_licenses").delete().eq("id", id);
+    toast.success("License deleted");
+    const { data } = await supabase.from("customer_licenses").select("*").eq("customer_id", licenseCustomer!.id).order("created_at", { ascending: false });
+    setLicenses(data || []);
   };
 
   const filtered = customers.filter(c =>
@@ -162,6 +224,9 @@ export default function Customers() {
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/customers/${c.id}/ledger`)} title="View Ledger">
                                 <BookOpen className="h-3.5 w-3.5" />
                               </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => openLicenses(c, e)} title="Medical Licenses">
+                                <Award className="h-3.5 w-3.5" />
+                              </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
@@ -187,6 +252,71 @@ export default function Customers() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Licenses Dialog */}
+          <Dialog open={licenseOpen} onOpenChange={(o) => { setLicenseOpen(o); if (!o) { setLicenseCustomer(null); setLicenses([]); setShowLicenseForm(false); } }}>
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Medical Licenses — {licenseCustomer?.name}</DialogTitle>
+              </DialogHeader>
+
+              {!showLicenseForm && (
+                <Button size="sm" variant="outline" onClick={() => { setShowLicenseForm(true); setEditLicenseId(null); setLicenseForm(emptyLicenseForm); }}>
+                  <Plus className="h-3 w-3 mr-1" /> Add License
+                </Button>
+              )}
+
+              {showLicenseForm && (
+                <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm font-medium">{editLicenseId ? "Edit" : "New"} License</p>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setShowLicenseForm(false); setEditLicenseId(null); }}><X className="h-3 w-3" /></Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label className="text-xs">License Number *</Label><Input className="h-8 text-sm" value={licenseForm.license_number} onChange={e => setLicenseForm({...licenseForm, license_number: e.target.value})} /></div>
+                    <div>
+                      <Label className="text-xs">Type</Label>
+                      <Select value={licenseForm.license_type} onValueChange={v => setLicenseForm({...licenseForm, license_type: v})}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="drug_license">Drug License</SelectItem>
+                          <SelectItem value="retail_license">Retail License</SelectItem>
+                          <SelectItem value="wholesale_license">Wholesale License</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label className="text-xs">Expiry Date</Label><Input className="h-8 text-sm" type="date" value={licenseForm.expiry_date} onChange={e => setLicenseForm({...licenseForm, expiry_date: e.target.value})} /></div>
+                    <div><Label className="text-xs">Address</Label><Input className="h-8 text-sm" value={licenseForm.address} onChange={e => setLicenseForm({...licenseForm, address: e.target.value})} /></div>
+                    <div className="col-span-2"><Label className="text-xs">Notes</Label><Input className="h-8 text-sm" value={licenseForm.notes} onChange={e => setLicenseForm({...licenseForm, notes: e.target.value})} /></div>
+                  </div>
+                  <Button size="sm" onClick={handleSaveLicense}>{editLicenseId ? "Update" : "Add"} License</Button>
+                </div>
+              )}
+
+              {licenses.length === 0 && !showLicenseForm ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No licenses recorded for this customer.</p>
+              ) : (
+                <div className="space-y-2 mt-2">
+                  {licenses.map(l => (
+                    <div key={l.id} className="border rounded-lg p-3 flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm">{l.license_number}</p>
+                        <p className="text-xs text-muted-foreground capitalize">{l.license_type.replace("_", " ")}</p>
+                        {l.expiry_date && <p className="text-xs text-muted-foreground">Expires: {l.expiry_date}</p>}
+                        {l.address && <p className="text-xs text-muted-foreground">{l.address}</p>}
+                        {l.notes && <p className="text-xs text-muted-foreground italic">{l.notes}</p>}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleEditLicense(l)}>Edit</Button>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => handleDeleteLicense(l.id)}>Delete</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </SidebarProvider>

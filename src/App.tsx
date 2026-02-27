@@ -13,6 +13,7 @@ import Products from "./pages/Products";
 import SalesInvoices from "./pages/SalesInvoices";
 import SalesReturns from "./pages/SalesReturns";
 import ProformaInvoices from "./pages/ProformaInvoices";
+import WarrantyInvoices from "./pages/WarrantyInvoices";
 import PurchaseProforma from "./pages/PurchaseProforma";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import GoodsReceivedNotes from "./pages/GoodsReceivedNotes";
@@ -56,6 +57,7 @@ const App = () => (
           <Route path="/sales-invoices" element={<SalesInvoices />} />
           <Route path="/sales-returns" element={<SalesReturns />} />
           <Route path="/proforma" element={<ProformaInvoices />} />
+          <Route path="/warranty-invoices" element={<WarrantyInvoices />} />
           <Route path="/purchase-proforma" element={<PurchaseProforma />} />
           <Route path="/purchase-orders" element={<PurchaseOrders />} />
           <Route path="/grn" element={<GoodsReceivedNotes />} />

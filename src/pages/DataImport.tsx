@@ -27,6 +27,7 @@ const COLUMN_ALIASES: Record<string, string> = {
   "supplier name": "name", "vendor name": "name", "item name": "name",
   "product name": "name", "product": "name", "customer": "name",
   "supplier": "name", "vendor": "name", "item": "name", "party": "name",
+  "business name": "name", "first name": "name",
   "contact": "phone", "contact number": "phone", "mobile": "phone",
   "phone number": "phone", "telephone": "phone", "cell": "phone",
   "town": "city", "location": "city",
@@ -51,6 +52,7 @@ const COLUMN_ALIASES: Record<string, string> = {
   "pack": "pack_size", "packing": "pack_size",
   "batch": "batch_number", "batch no": "batch_number", "lot": "batch_number",
   "region": "area", "zone": "area",
+  "last name": "__last_name",
 };
 
 function resolveColumnName(header: string, tabColumns: string[]): string | null {
@@ -103,7 +105,15 @@ export default function DataImport() {
 
   const processRows = (rawHeaders: string[], rawRows: string[][]) => {
     const cols = TAB_COLUMNS[tab];
-    const mapped = rawHeaders.map(h => resolveColumnName(h, cols));
+    // Also allow "__last_name" to be resolved for first+last name concatenation
+    const mapped = rawHeaders.map(h => {
+      const resolved = resolveColumnName(h, cols);
+      if (resolved) return resolved;
+      // Check for special __last_name alias
+      const alias = COLUMN_ALIASES[h.toLowerCase().trim()];
+      if (alias === "__last_name") return "__last_name";
+      return null;
+    });
     const nonEmptyRows = rawRows.filter(r => !isEmptyRow(r));
 
     setHeaders(rawHeaders);
@@ -116,9 +126,14 @@ export default function DataImport() {
     const nameCol = tab === "inventory" ? "product_name" : "name";
     const hasNameCol = tab === "inventory"
       ? mapped.some(m => m === "product_name") || rawHeaders.some(h => h.toLowerCase().trim() === "product_name" || h.toLowerCase().trim() === "product name")
-      : mapped.includes("name");
+      : mapped.includes("name") || (mapped.includes("name") && mapped.includes("__last_name"));
 
-    if (!hasNameCol && nonEmptyRows.length > 0) {
+    // Also check for "Business Name" fallback or "First Name" presence
+    const hasFirstName = rawHeaders.some(h => h.toLowerCase().trim() === "first name");
+    const hasBusinessName = rawHeaders.some(h => h.toLowerCase().trim() === "business name");
+    const effectiveHasName = mapped.includes("name") || hasFirstName || hasBusinessName;
+
+    if (!effectiveHasName && tab !== "inventory" && nonEmptyRows.length > 0) {
       setValidationWarning(`⚠️ No "${nameCol}" column detected. Found columns: ${rawHeaders.join(", ")}. Records without a name will be skipped.`);
     } else {
       setValidationWarning(null);
@@ -188,12 +203,22 @@ export default function DataImport() {
       const tableName = tab as "customers" | "suppliers" | "products";
       for (const row of parsedRows) {
         const obj: Record<string, any> = {};
+        let lastName = "";
         headers.forEach((h, i) => {
           const mapped = mappedColumns[i];
+          if (mapped === "__last_name") {
+            lastName = row[i] || "";
+            return;
+          }
           if (mapped && cols.includes(mapped)) {
             obj[mapped] = row[i] || "";
           }
         });
+
+        // Concatenate first + last name if last name exists
+        if (lastName && obj.name) {
+          obj.name = `${obj.name} ${lastName}`.trim();
+        }
 
         // Skip rows without a name
         if (!obj.name || !String(obj.name).trim()) { errors++; continue; }

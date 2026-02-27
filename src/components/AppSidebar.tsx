@@ -16,6 +16,7 @@ const sections = [
   { label: "Sales", items: [
     { title: "Customers", url: "/customers", icon: Users },
     { title: "Invoices", url: "/sales-invoices", icon: FileText },
+    { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList },
     { title: "Returns", url: "/sales-returns", icon: RotateCcw },
   ]},
   { label: "Purchases", items: [
