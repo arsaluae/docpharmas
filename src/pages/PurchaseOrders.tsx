@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, ClipboardList, Trash2, CheckCircle } from "lucide-react";
+import { Plus, Search, ClipboardList, Trash2, CheckCircle, Download } from "lucide-react";
 import { toast } from "sonner";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { generatePdf } from "@/lib/pdf-generator";
 
 interface Supplier { id: string; name: string; }
 interface Product { id: string; name: string; cost_price: number; }
@@ -34,6 +36,7 @@ export default function PurchaseOrders() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState<PO | null>(null);
   const [confirmItems, setConfirmItems] = useState<any[]>([]);
+  const { settings } = useCompanySettings();
 
   const [supplierId, setSupplierId] = useState("");
   const [poDate, setPoDate] = useState(new Date().toISOString().split("T")[0]);
@@ -213,12 +216,34 @@ export default function PurchaseOrders() {
                         <TableCell className="text-muted-foreground">{po.date}</TableCell>
                         <TableCell><span className={`status-pill ${statusColor(po.status)}`}>{po.status}</span></TableCell>
                         <TableCell className="text-right font-mono font-medium">{Number(po.total).toLocaleString()}</TableCell>
-                        <TableCell>
+                        <TableCell className="space-x-1">
                           {po.status === "draft" && (
                             <Button variant="outline" size="sm" onClick={() => openConfirm(po)} className="text-xs">
                               <CheckCircle className="h-3 w-3 mr-1" /> Confirm Qty
                             </Button>
                           )}
+                          <Button variant="outline" size="sm" onClick={async () => {
+                            const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", po.id);
+                            generatePdf({
+                              title: "PURCHASE ORDER", documentNumber: po.po_number, date: po.date,
+                              partyLabel: "Supplier", partyName: (po.suppliers as any)?.name || "—",
+                              columns: [
+                                { header: "#", key: "idx" }, { header: "Product", key: "name" },
+                                { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+                                { header: "Amount", key: "amount", align: "right" },
+                              ],
+                              rows: (poItems || []).map((i: any, idx: number) => ({
+                                idx: idx + 1, name: i.products?.name || i.description || "Item",
+                                quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+                              })),
+                              totals: [
+                                { label: "Subtotal", value: `PKR ${Number(po.subtotal).toLocaleString()}` },
+                                { label: "GST", value: `PKR ${Number(po.gst).toLocaleString()}` },
+                                { label: "Total", value: `PKR ${Number(po.total).toLocaleString()}` },
+                              ],
+                              settings,
+                            });
+                          }} className="text-xs"><Download className="h-3 w-3 mr-1" />PDF</Button>
                         </TableCell>
                       </TableRow>
                     ))}

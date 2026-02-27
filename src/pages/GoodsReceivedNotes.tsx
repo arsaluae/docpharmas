@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, PackageCheck, Trash2 } from "lucide-react";
+import { Plus, Search, PackageCheck, Trash2, Download } from "lucide-react";
 import { toast } from "sonner";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { generatePdf } from "@/lib/pdf-generator";
 
 interface PO { id: string; po_number: string; supplier_id: string | null; suppliers?: { name: string } | null; }
 interface GRNItemForm { product_id: string; item_name: string; batch_number: string; quantity_ordered: number; quantity_confirmed: number; quantity_received: number; expiry_date: string; rate: number; amount: number; }
@@ -35,6 +37,7 @@ export default function GoodsReceivedNotes() {
   const [receivedBy, setReceivedBy] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<GRNItemForm[]>([]);
+  const { settings } = useCompanySettings();
 
   useEffect(() => {
     const check = async () => {
@@ -220,12 +223,12 @@ export default function GoodsReceivedNotes() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>GRN #</TableHead><TableHead>PO #</TableHead><TableHead>Supplier</TableHead>
-                      <TableHead>Date</TableHead><TableHead>Received By</TableHead>
+                      <TableHead>Date</TableHead><TableHead>Received By</TableHead><TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                         <PackageCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No GRNs yet.
                       </TableCell></TableRow>
                     ) : filtered.map(g => (
@@ -235,6 +238,27 @@ export default function GoodsReceivedNotes() {
                         <TableCell>{(g.suppliers as any)?.name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{g.date}</TableCell>
                         <TableCell>{g.received_by || "—"}</TableCell>
+                        <TableCell>
+                          <Button variant="outline" size="sm" onClick={async () => {
+                            const { data: gItems } = await supabase.from("grn_items").select("*").eq("grn_id", g.id);
+                            generatePdf({
+                              title: "GOODS RECEIVED NOTE", documentNumber: g.grn_number, date: g.date,
+                              partyLabel: "Supplier", partyName: (g.suppliers as any)?.name || "—",
+                              meta: [{ label: "PO #", value: (g.purchase_orders as any)?.po_number || "—" }],
+                              columns: [
+                                { header: "#", key: "idx" }, { header: "Item", key: "item_name" },
+                                { header: "Batch", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
+                                { header: "Ordered", key: "quantity_ordered", align: "right" },
+                                { header: "Received", key: "quantity_received", align: "right" },
+                              ],
+                              rows: (gItems || []).map((i: any, idx: number) => ({
+                                idx: idx + 1, item_name: i.item_name, batch_number: i.batch_number || "—",
+                                expiry_date: i.expiry_date || "—", quantity_ordered: i.quantity_ordered, quantity_received: i.quantity_received,
+                              })),
+                              settings,
+                            });
+                          }} className="text-xs"><Download className="h-3 w-3 mr-1" />PDF</Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

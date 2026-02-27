@@ -138,6 +138,51 @@ export type Database = {
           },
         ]
       }
+      company_settings: {
+        Row: {
+          address: string | null
+          company_name: string | null
+          created_at: string
+          email: string | null
+          fbr_enabled: boolean
+          id: string
+          logo_url: string | null
+          ntn: string | null
+          phone: string | null
+          strn: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          fbr_enabled?: boolean
+          id?: string
+          logo_url?: string | null
+          ntn?: string | null
+          phone?: string | null
+          strn?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          fbr_enabled?: boolean
+          id?: string
+          logo_url?: string | null
+          ntn?: string | null
+          phone?: string | null
+          strn?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       customer_licenses: {
         Row: {
           address: string | null
@@ -230,6 +275,48 @@ export type Database = {
           opening_balance?: number
           phone?: string | null
           strn?: string | null
+        }
+        Relationships: []
+      }
+      delivery_notes: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          date: string
+          dn_number: string
+          id: string
+          items: Json
+          notes: string | null
+          reference_id: string
+          reference_type: string
+          status: string
+          supplier_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          date?: string
+          dn_number: string
+          id?: string
+          items?: Json
+          notes?: string | null
+          reference_id: string
+          reference_type: string
+          status?: string
+          supplier_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          date?: string
+          dn_number?: string
+          id?: string
+          items?: Json
+          notes?: string | null
+          reference_id?: string
+          reference_type?: string
+          status?: string
+          supplier_id?: string | null
         }
         Relationships: []
       }

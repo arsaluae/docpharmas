@@ -12,8 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, ShieldCheck, Trash2, X } from "lucide-react";
+import { Plus, Search, ShieldCheck, Trash2, X, Download } from "lucide-react";
 import { toast } from "sonner";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { generatePdf } from "@/lib/pdf-generator";
 
 interface Customer { id: string; name: string; company: string | null; }
 interface Product { id: string; name: string; selling_price: number; }
@@ -46,6 +48,7 @@ export default function WarrantyInvoices() {
   const [form, setForm] = useState(emptyForm);
   const [items, setItems] = useState<LineItem[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
+  const { settings } = useCompanySettings();
 
   useEffect(() => {
     const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
@@ -265,7 +268,31 @@ export default function WarrantyInvoices() {
                         <TableCell>{inv.pharmacy_name}</TableCell>
                         <TableCell className="text-right font-mono">{Number(inv.total).toLocaleString()}</TableCell>
                         <TableCell className="text-center">
-                          <div onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => {
+                              const wiItems = Array.isArray(inv.items) ? inv.items : [];
+                              generatePdf({
+                                title: "WARRANTY INVOICE", documentNumber: inv.warranty_number, date: inv.date,
+                                partyLabel: "Pharmacy", partyName: inv.pharmacy_name,
+                                partyAddress: inv.pharmacy_address || undefined,
+                                meta: inv.pharmacy_license_no ? [{ label: "License #", value: inv.pharmacy_license_no }] : [],
+                                columns: [
+                                  { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+                                  { header: "Batch", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
+                                  { header: "Qty", key: "quantity", align: "right" }, { header: "MRP Rate", key: "mrp_rate", align: "right" },
+                                  { header: "Amount", key: "amount", align: "right" },
+                                ],
+                                rows: wiItems.map((i: any, idx: number) => ({
+                                  ...i, idx: idx + 1, mrp_rate: Number(i.mrp_rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+                                })),
+                                totals: [
+                                  { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
+                                  { label: "GST (17%)", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
+                                  { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
+                                ],
+                                notes: inv.notes || undefined, settings,
+                              });
+                            }}><Download className="h-3.5 w-3.5" /></Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
