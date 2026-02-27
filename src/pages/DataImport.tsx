@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import * as XLSX from "xlsx";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -57,18 +58,37 @@ export default function DataImport() {
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      const rows = parseCSV(text);
-      if (rows.length > 0) {
-        setHeaders(rows[0]);
-        setParsedRows(rows.slice(1));
-        setImportResult(null);
-        setLastBatchId(null);
-      }
-    };
-    reader.readAsText(file);
+    const ext = file.name.split(".").pop()?.toLowerCase();
+
+    if (ext === "xlsx" || ext === "xls") {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const data = new Uint8Array(ev.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+        if (rows.length > 0) {
+          setHeaders(rows[0].map(String));
+          setParsedRows(rows.slice(1).map(r => r.map(String)));
+          setImportResult(null);
+          setLastBatchId(null);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target?.result as string;
+        const rows = parseCSV(text);
+        if (rows.length > 0) {
+          setHeaders(rows[0]);
+          setParsedRows(rows.slice(1));
+          setImportResult(null);
+          setLastBatchId(null);
+        }
+      };
+      reader.readAsText(file);
+    }
   };
 
   const resetFile = () => { setParsedRows([]); setHeaders([]); setImportResult(null); setLastBatchId(null); if (fileRef.current) fileRef.current.value = ""; };
@@ -173,7 +193,7 @@ export default function DataImport() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex items-center gap-3">
-                        <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="text-sm" />
+                        <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} className="text-sm" />
                         {parsedRows.length > 0 && <span className="text-xs text-muted-foreground">{parsedRows.length} rows parsed</span>}
                       </div>
 
