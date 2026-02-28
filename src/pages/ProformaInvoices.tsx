@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, FilePlus, ArrowRight, Trash2, Download, CheckCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
@@ -37,6 +38,7 @@ export default function ProformaInvoices() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const [customerId, setCustomerId] = useState("");
   const [pfDate, setPfDate] = useState(new Date().toISOString().split("T")[0]);
@@ -185,6 +187,20 @@ export default function ProformaInvoices() {
   const { subtotal, gst, total } = calcTotals();
   const filtered = proformas.filter(p => p.proforma_number.toLowerCase().includes(search.toLowerCase()));
 
+  const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
+  const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
+
+  const handleBulkDelete = async (ids: string[]) => {
+    if (!window.confirm(`Delete ${ids.length} proforma(s)?`)) return;
+    for (let i = 0; i < ids.length; i += 200) {
+      const chunk = ids.slice(i, i + 200);
+      await supabase.from("proforma_invoices").delete().in("id", chunk);
+    }
+    toast.success(`${ids.length} deleted`);
+    setSelected(new Set());
+    load();
+  };
+
   const handleApprove = async (id: string) => {
     await supabase.from("proforma_invoices").update({ status: "approved" }).eq("id", id);
     toast.success("Proforma approved");
@@ -272,6 +288,7 @@ export default function ProformaInvoices() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                       <TableHead>Proforma #</TableHead><TableHead>Customer</TableHead><TableHead>Date</TableHead>
                       <TableHead>Validity</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead>
                       <TableHead>Action</TableHead>
@@ -279,11 +296,12 @@ export default function ProformaInvoices() {
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                         <FilePlus className="h-8 w-8 mx-auto mb-2 opacity-40" />No proformas yet.
                       </TableCell></TableRow>
                     ) : filtered.map(pf => (
-                      <TableRow key={pf.id}>
+                      <TableRow key={pf.id} data-state={selected.has(pf.id) ? "selected" : undefined}>
+                        <TableCell><Checkbox checked={selected.has(pf.id)} onCheckedChange={() => toggleSelect(pf.id)} /></TableCell>
                         <TableCell className="font-medium font-mono">{pf.proforma_number}</TableCell>
                         <TableCell>{(pf.customers as any)?.name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{pf.date}</TableCell>
@@ -301,6 +319,9 @@ export default function ProformaInvoices() {
                               <ArrowRight className="h-3 w-3 mr-1" /> Convert
                             </Button>
                           )}
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleBulkDelete([pf.id])}>
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
                           <Button variant="outline" size="sm" onClick={() => {
                             const pfItems = typeof pf.items === "string" ? JSON.parse(pf.items) : pf.items;
                             generatePdf({
@@ -329,6 +350,15 @@ export default function ProformaInvoices() {
               </CardContent>
             </Card>
           </div>
+
+          {selected.size > 0 && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-destructive text-destructive-foreground px-6 py-3 rounded-full shadow-lg flex items-center gap-3 z-50">
+              <span className="text-sm font-medium">{selected.size} selected</span>
+              <Button size="sm" variant="secondary" onClick={() => handleBulkDelete(Array.from(selected))}>
+                <Trash2 className="h-3 w-3 mr-1" /> Delete
+              </Button>
+            </div>
+          )}
 
           {/* Convert dialog with batch selection */}
           <Dialog open={convertOpen} onOpenChange={setConvertOpen}>

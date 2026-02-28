@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Receipt, Download, FileOutput } from "lucide-react";
+import { Plus, Search, Receipt, Download, FileOutput, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
@@ -32,6 +33,7 @@ export default function PurchaseInvoicesPage() {
   const [grns, setGrns] = useState<GRN[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const { settings } = useCompanySettings();
 
   const [supplierId, setSupplierId] = useState("");
@@ -87,6 +89,20 @@ export default function PurchaseInvoicesPage() {
 
   const { gst, wht, whtRate, total } = calcTotals();
   const filtered = bills.filter(b => b.bill_number.toLowerCase().includes(search.toLowerCase()));
+
+  const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
+  const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(b => b.id)));
+
+  const handleBulkDelete = async (ids: string[]) => {
+    if (!window.confirm(`Delete ${ids.length} purchase bill(s)?`)) return;
+    for (let i = 0; i < ids.length; i += 200) {
+      const chunk = ids.slice(i, i + 200);
+      await supabase.from("purchase_invoices").delete().in("id", chunk);
+    }
+    toast.success(`${ids.length} deleted`);
+    setSelected(new Set());
+    load();
+  };
 
   const statusColor = (s: string) => {
     if (s === "paid") return "bg-emerald-50 text-emerald-700";
@@ -149,6 +165,7 @@ export default function PurchaseInvoicesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                       <TableHead>Bill #</TableHead><TableHead>Supplier</TableHead><TableHead>Date</TableHead>
                       <TableHead className="text-right">Subtotal</TableHead><TableHead className="text-right">WHT</TableHead>
                       <TableHead className="text-right">Net Total</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead>
@@ -156,11 +173,12 @@ export default function PurchaseInvoicesPage() {
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                         <Receipt className="h-8 w-8 mx-auto mb-2 opacity-40" />No purchase bills yet.
                       </TableCell></TableRow>
                     ) : filtered.map(b => (
-                      <TableRow key={b.id}>
+                      <TableRow key={b.id} data-state={selected.has(b.id) ? "selected" : undefined}>
+                        <TableCell><Checkbox checked={selected.has(b.id)} onCheckedChange={() => toggleSelect(b.id)} /></TableCell>
                         <TableCell className="font-medium font-mono">{b.bill_number}</TableCell>
                         <TableCell>{(b.suppliers as any)?.name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{b.date}</TableCell>
@@ -192,6 +210,9 @@ export default function PurchaseInvoicesPage() {
                             });
                             toast.success(`Delivery Note ${dnNumber} created`);
                           }} className="text-xs"><FileOutput className="h-3 w-3 mr-1" />DN</Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleBulkDelete([b.id])}>
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -200,6 +221,14 @@ export default function PurchaseInvoicesPage() {
               </CardContent>
             </Card>
           </div>
+          {selected.size > 0 && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-destructive text-destructive-foreground px-6 py-3 rounded-full shadow-lg flex items-center gap-3 z-50">
+              <span className="text-sm font-medium">{selected.size} selected</span>
+              <Button size="sm" variant="secondary" onClick={() => handleBulkDelete(Array.from(selected))}>
+                <Trash2 className="h-3 w-3 mr-1" /> Delete
+              </Button>
+            </div>
+          )}
         </main>
       </div>
     </SidebarProvider>

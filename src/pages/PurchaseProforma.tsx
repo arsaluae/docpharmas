@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, FileText, Trash2, ArrowRight, DollarSign, Download, CheckCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
@@ -36,6 +37,7 @@ export default function PurchaseProforma() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [costOpen, setCostOpen] = useState(false);
   const [selectedProformaId, setSelectedProformaId] = useState("");
 
@@ -184,6 +186,22 @@ export default function PurchaseProforma() {
   const { subtotal, gst, total } = calcTotals();
   const filtered = proformas.filter(p => p.proforma_number.toLowerCase().includes(search.toLowerCase()));
 
+  const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
+  const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
+
+  const handleBulkDelete = async (ids: string[]) => {
+    if (!window.confirm(`Delete ${ids.length} purchase proforma(s)?`)) return;
+    for (let i = 0; i < ids.length; i += 200) {
+      const chunk = ids.slice(i, i + 200);
+      await supabase.from("purchase_proforma_items").delete().in("proforma_id", chunk);
+      await supabase.from("additional_costs").delete().eq("reference_type", "purchase_proforma").in("reference_id", chunk);
+      await supabase.from("purchase_proformas").delete().in("id", chunk);
+    }
+    toast.success(`${ids.length} deleted`);
+    setSelected(new Set());
+    load();
+  };
+
   const handleApprove = async (id: string) => {
     await supabase.from("purchase_proformas").update({ status: "approved" }).eq("id", id);
     toast.success("Proforma approved");
@@ -310,6 +328,7 @@ export default function PurchaseProforma() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                       <TableHead>Proforma #</TableHead><TableHead>Supplier</TableHead><TableHead>Date</TableHead>
                       <TableHead>Validity</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead>
                       <TableHead>Actions</TableHead>
@@ -317,11 +336,12 @@ export default function PurchaseProforma() {
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                         <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No purchase proformas yet.
                       </TableCell></TableRow>
                     ) : filtered.map(pp => (
-                      <TableRow key={pp.id}>
+                      <TableRow key={pp.id} data-state={selected.has(pp.id) ? "selected" : undefined}>
+                        <TableCell><Checkbox checked={selected.has(pp.id)} onCheckedChange={() => toggleSelect(pp.id)} /></TableCell>
                         <TableCell className="font-medium font-mono">{pp.proforma_number}</TableCell>
                         <TableCell>{(pp.suppliers as any)?.name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{pp.date}</TableCell>
@@ -341,6 +361,9 @@ export default function PurchaseProforma() {
                           )}
                           <Button variant="ghost" size="sm" onClick={() => { setSelectedProformaId(pp.id); setCostOpen(true); }} className="text-xs">
                             <DollarSign className="h-3 w-3 mr-1" /> Costs
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleBulkDelete([pp.id])}>
+                            <Trash2 className="h-3 w-3 text-destructive" />
                           </Button>
                           <Button variant="outline" size="sm" onClick={async () => {
                             const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", pp.id);
@@ -373,6 +396,15 @@ export default function PurchaseProforma() {
               </CardContent>
             </Card>
           </div>
+
+          {selected.size > 0 && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-destructive text-destructive-foreground px-6 py-3 rounded-full shadow-lg flex items-center gap-3 z-50">
+              <span className="text-sm font-medium">{selected.size} selected</span>
+              <Button size="sm" variant="secondary" onClick={() => handleBulkDelete(Array.from(selected))}>
+                <Trash2 className="h-3 w-3 mr-1" /> Delete
+              </Button>
+            </div>
+          )}
 
           {/* Add cost to existing proforma */}
           <Dialog open={costOpen} onOpenChange={setCostOpen}>
