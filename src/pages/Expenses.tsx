@@ -13,7 +13,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Search, Receipt } from "lucide-react";
 import { toast } from "sonner";
 
-const CATEGORIES = ["utilities", "salaries", "rent", "transport", "maintenance", "marketing", "regulatory", "other"];
+const CATEGORIES = [
+  "salaries", "rent", "utilities", "transport", "travel", "food",
+  "maintenance", "marketing", "regulatory", "license_renewal",
+  "personal", "insurance", "office_supplies", "communication",
+  "professional_fees", "depreciation", "other",
+];
 const METHODS = ["cash", "cheque", "bank_transfer", "online"];
 
 interface BankAccount { id: string; name: string; bank_name: string; }
@@ -86,6 +91,8 @@ export default function Expenses() {
 
   const totalExpenses = filtered.reduce((s, e) => s + Number(e.amount), 0);
 
+  const formatCategory = (c: string) => c.replace(/_/g, " ");
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -106,7 +113,7 @@ export default function Expenses() {
                     <Label>Category</Label>
                     <Select value={category} onValueChange={setCategory}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}</SelectContent>
+                      <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="capitalize">{formatCategory(c)}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
@@ -143,10 +150,10 @@ export default function Expenses() {
                 <Input placeholder="Search expenses..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
               </div>
               <Select value={catFilter} onValueChange={setCatFilter}>
-                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  {CATEGORIES.map(c => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
+                  {CATEGORIES.map(c => <SelectItem key={c} value={c} className="capitalize">{formatCategory(c)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -169,7 +176,7 @@ export default function Expenses() {
                     ) : filtered.map(e => (
                       <TableRow key={e.id}>
                         <TableCell className="font-medium font-mono">{e.expense_number}</TableCell>
-                        <TableCell className="capitalize">{e.category}</TableCell>
+                        <TableCell className="capitalize">{formatCategory(e.category)}</TableCell>
                         <TableCell className="text-muted-foreground">{e.description || "—"}</TableCell>
                         <TableCell className="capitalize text-muted-foreground">{e.payment_method.replace("_", " ")}</TableCell>
                         <TableCell className="text-muted-foreground">{e.date}</TableCell>

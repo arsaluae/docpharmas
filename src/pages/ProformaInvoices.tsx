@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FilePlus, ArrowRight, Trash2, Download } from "lucide-react";
+import { Plus, Search, FilePlus, ArrowRight, Trash2, Download, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
@@ -185,8 +185,15 @@ export default function ProformaInvoices() {
   const { subtotal, gst, total } = calcTotals();
   const filtered = proformas.filter(p => p.proforma_number.toLowerCase().includes(search.toLowerCase()));
 
+  const handleApprove = async (id: string) => {
+    await supabase.from("proforma_invoices").update({ status: "approved" }).eq("id", id);
+    toast.success("Proforma approved");
+    load();
+  };
+
   const statusColor = (s: string) => {
     if (s === "converted") return "bg-emerald-50 text-emerald-700";
+    if (s === "approved") return "bg-primary/10 text-primary";
     if (s === "payment_received") return "bg-primary/10 text-primary";
     if (s === "sent") return "bg-amber-50 text-amber-700";
     return "bg-muted text-muted-foreground";
@@ -284,7 +291,12 @@ export default function ProformaInvoices() {
                         <TableCell><span className={`status-pill ${statusColor(pf.status)}`}>{pf.status}</span></TableCell>
                         <TableCell className="text-right font-mono">{Number(pf.total).toLocaleString()}</TableCell>
                         <TableCell className="space-x-1">
-                          {pf.status !== "converted" && (
+                          {pf.status === "draft" && (
+                            <Button variant="outline" size="sm" onClick={() => handleApprove(pf.id)} className="text-xs">
+                              <CheckCircle className="h-3 w-3 mr-1" /> Approve
+                            </Button>
+                          )}
+                          {pf.status === "approved" && (
                             <Button variant="outline" size="sm" onClick={() => openConvertDialog(pf)} className="text-xs">
                               <ArrowRight className="h-3 w-3 mr-1" /> Convert
                             </Button>
