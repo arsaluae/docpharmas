@@ -1,34 +1,52 @@
 
 
-# Add Delete Functionality to Proforma Invoices, Purchase Proformas & Delivery Notes
+# Add Bulk Delete to Sales Invoices + Detail/Edit Dialogs for All Documents
 
-## Changes
+## 1. Sales Invoices — Bulk Delete (`SalesInvoices.tsx`)
 
-### 1. `src/pages/ProformaInvoices.tsx`
-- Add bulk select (checkboxes + select all) like Customers page
-- Add individual delete button (Trash icon) per row
-- Add floating "Delete X selected" bar when items selected
-- Delete uses batch `.in()` calls
+- Add `selected: Set<string>` state, select-all checkbox in header, per-row checkboxes
+- Add floating "Delete X selected" action bar
+- Batch delete: first `sales_invoice_items.delete().in("invoice_id", chunk)`, then `sales_invoices.delete().in("id", chunk)`
+- Add individual Trash2 button per row
 
-### 2. `src/pages/PurchaseProforma.tsx`
-- Same bulk select + individual delete pattern
-- When deleting, also delete related `purchase_proforma_items` via `.in("proforma_id", ids)`
-- Then delete the proformas themselves
+## 2. Sales Invoice Detail/Edit Dialog (`SalesInvoices.tsx`)
 
-### 3. `src/pages/DeliveryNotes.tsx`
-- Add bulk select + individual delete
-- Simple delete from `delivery_notes` table (no child records)
+- Click on any invoice row → opens a detail dialog showing full invoice info
+- Header: invoice number, customer, date, due date, status, notes
+- Table of line items fetched from `sales_invoice_items` with product names
+- Totals summary (subtotal, discount, GST, total)
+- Edit mode toggle: allows changing customer, date, due date, notes, and line items
+- Save updates both `sales_invoices` and replaces `sales_invoice_items`
 
-### 4. `src/pages/PurchaseInvoicesPage.tsx`
-- Add individual delete button per purchase invoice row
-- Add bulk select + delete pattern
+## 3. Proforma Detail/Edit Dialog (`ProformaInvoices.tsx`)
 
-All deletes use confirmation dialog via `window.confirm()` and batch `.in()` chunked by 200.
+- Click on proforma row → detail dialog with all fields
+- Shows items parsed from JSON, customer, validity, payment instructions
+- Edit mode: modify customer, date, validity, payment instructions, items
+- Save updates proforma record and items JSON
+- Only editable when status is `draft` or `approved`
+
+## 4. Purchase Proforma Detail/Edit Dialog (`PurchaseProforma.tsx`)
+
+- Click on row → detail dialog with supplier, items, additional costs
+- Items fetched from `purchase_proforma_items`, costs from `additional_costs`
+- Edit mode: modify supplier, date, validity, notes, items, additional costs
+- Save updates proforma, replaces items and costs
+- Only editable when status is `draft` or `approved`
+
+## 5. Delivery Note Detail/Edit Dialog (`DeliveryNotes.tsx`)
+
+- Click on row → detail dialog showing DN number, date, type, items (from JSON)
+- Items table: product name, batch, expiry, quantity
+- Edit mode: modify date, notes, items JSON
+- Save updates delivery note record
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `ProformaInvoices.tsx` | Add select-all, checkboxes, bulk delete, individual delete |
-| `PurchaseProforma.tsx` | Add select-all, checkboxes, bulk delete (cascade items), individual delete |
-| `DeliveryNotes.tsx` | Add select-all, checkboxes, bulk delete, individual delete |
-| `PurchaseInvoicesPage.tsx` | Add select-all, checkboxes, bulk delete, individual delete |
+| `SalesInvoices.tsx` | Add bulk delete + detail/edit dialog |
+| `ProformaInvoices.tsx` | Add detail/edit dialog on row click |
+| `PurchaseProforma.tsx` | Add detail/edit dialog on row click |
+| `DeliveryNotes.tsx` | Add detail/edit dialog on row click |
 
