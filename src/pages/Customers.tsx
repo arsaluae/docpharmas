@@ -99,13 +99,15 @@ export default function Customers() {
 
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds);
-    let deleted = 0;
+    const CHUNK = 200;
     let failed = 0;
-    for (const id of ids) {
-      await supabase.from("customer_licenses").delete().eq("customer_id", id);
-      const { error } = await supabase.from("customers").delete().eq("id", id);
-      if (error) failed++; else deleted++;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const chunk = ids.slice(i, i + CHUNK);
+      await supabase.from("customer_licenses").delete().in("customer_id", chunk);
+      const { error } = await supabase.from("customers").delete().in("id", chunk);
+      if (error) failed += chunk.length;
     }
+    const deleted = ids.length - failed;
     setSelectedIds(new Set());
     setBulkDeleteOpen(false);
     if (deleted > 0) toast.success(`${deleted} customer(s) deleted`);
