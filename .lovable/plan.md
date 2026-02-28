@@ -1,74 +1,39 @@
 
 
-# Plan: Bulk Delete, Proforma Approval Flow, Enhanced Expenses & Profitability
+# Fix Bulk Delete + Redesign PDF Template
 
-## 1. Bulk Select & Delete for Customers and Suppliers
+## Problem 1: Bulk Delete Timing Out
 
-**Files**: `src/pages/Customers.tsx`, `src/pages/Suppliers.tsx`
+The current `handleBulkDelete` loops through 1000+ IDs one-by-one with individual `await` calls. This is extremely slow and effectively hangs the UI.
 
-- Add a `selectedIds: Set<string>` state and a "select all" checkbox in the table header
-- Add individual checkboxes per row
-- Show a floating action bar when selection is active: "Delete X selected" button
-- On bulk delete: cascade-delete related `customer_licenses` for customers, then delete the selected records. Show error if any have linked invoices.
+**Fix**: Replace the sequential loop with batch `.in()` deletes in both `Customers.tsx` and `Suppliers.tsx`:
 
-## 2. Proforma Approval Flow (Sales & Purchase)
-
-**Files**: `src/pages/ProformaInvoices.tsx`, `src/pages/PurchaseProforma.tsx`
-
-Currently proformas go from `draft` → `converted`. Add an intermediate `approved` status:
-
-- **Draft** → user clicks "Approve" → status becomes `approved`
-- **Approved** → user clicks "Convert to Invoice" → status becomes `converted`
-- Only `approved` proformas can be converted (hide Convert button for drafts)
-- Add "Approve" button in the actions column for draft proformas
-- After invoice is created, show "Create Delivery Note" button on the invoice row (already partially exists via DeliveryNotes page, but add a direct action button)
-
-## 3. Enhanced Expense Categories
-
-**File**: `src/pages/Expenses.tsx`
-
-Expand the `CATEGORIES` array from the current 8 to a comprehensive list:
-```
-"salaries", "rent", "utilities", "transport", "travel", "food", 
-"maintenance", "marketing", "regulatory", "license_renewal", 
-"personal", "insurance", "office_supplies", "communication", 
-"professional_fees", "depreciation", "other"
+```ts
+// Delete all related licenses in one call
+await supabase.from("customer_licenses").delete().in("customer_id", ids);
+// Delete all customers in one call  
+const { error } = await supabase.from("customers").delete().in("id", ids);
 ```
 
-No database change needed — `category` is a text field.
+Note: Supabase `.in()` has a practical limit, so we'll chunk into batches of 200 for safety.
 
-## 4. Comprehensive P&L Report
+## Problem 2: PDF Template — High-End Redesign
 
-**File**: `src/pages/reports/ProfitLoss.tsx`
+Replace the current basic `pdf-generator.ts` with a premium pharmaceutical-grade template featuring:
 
-Enhance to show:
-- **Revenue** (sales invoices total)
-- **Sales Returns** deducted from revenue → **Net Revenue**
-- **COGS** (purchase invoices subtotal)
-- **Purchase Returns** deducted from COGS → **Net COGS**
-- **Gross Profit** = Net Revenue - Net COGS
-- **Gross Margin %**
-- **Operating Expenses** broken down by all categories
-- **Net Profit** = Gross Profit - Total Expenses
-- **Net Profit Margin %**
+- **Letterhead**: Company logo left, company info right with elegant typography, separated by a thin gold accent line
+- **Document header**: Centered title with decorative borders, document number in a styled badge
+- **Party info**: Two-column layout — document meta on left, customer/supplier details on right in a bordered card
+- **Items table**: Alternating row colors, bold header with dark background, proper number formatting with PKR currency, right-aligned amounts
+- **Totals section**: Right-aligned summary box with subtotal, discount, GST, and grand total with prominent styling
+- **Footer**: Terms/notes section, dual signature lines with labels, page border frame
+- **Print-optimized**: Clean `@media print` rules, proper page margins, no browser chrome
 
-Query `sales_returns` and `purchase_returns` tables in addition to the existing queries.
-
-## 5. No Database Changes Required
-
-All changes are front-end only:
-- Expense categories are stored as text — just expand the dropdown options
-- Proforma status is stored as text — `approved` is a new valid value, no constraint needed
-- Bulk delete uses existing delete endpoints
-
-## Summary of File Changes
+### Files Changed
 
 | File | Change |
 |------|--------|
-| `Customers.tsx` | Add select-all checkbox, bulk delete with cascade |
-| `Suppliers.tsx` | Add select-all checkbox, bulk delete |
-| `ProformaInvoices.tsx` | Add "Approve" button, restrict Convert to approved only |
-| `PurchaseProforma.tsx` | Add "Approve" button, restrict Convert to approved only |
-| `Expenses.tsx` | Expand categories list |
-| `ProfitLoss.tsx` | Add returns, margins, comprehensive breakdown |
+| `src/pages/Customers.tsx` | Replace loop delete with batch `.in()` delete (chunked) |
+| `src/pages/Suppliers.tsx` | Replace loop delete with batch `.in()` delete (chunked) |
+| `src/lib/pdf-generator.ts` | Complete redesign with premium template |
 
