@@ -7,7 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, FileText, Download } from "lucide-react";
+import { Search, FileText, Download, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
 
@@ -21,6 +23,7 @@ export default function DeliveryNotes() {
   const navigate = useNavigate();
   const [notes, setNotes] = useState<DeliveryNote[]>([]);
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const { settings } = useCompanySettings();
 
   useEffect(() => {
@@ -57,6 +60,26 @@ export default function DeliveryNotes() {
 
   const filtered = notes.filter(n => n.dn_number.toLowerCase().includes(search.toLowerCase()));
 
+  const toggleSelect = (id: string) => {
+    const s = new Set(selected);
+    s.has(id) ? s.delete(id) : s.add(id);
+    setSelected(s);
+  };
+  const toggleAll = () => {
+    setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(n => n.id)));
+  };
+
+  const handleDelete = async (ids: string[]) => {
+    if (!window.confirm(`Delete ${ids.length} delivery note(s)?`)) return;
+    for (let i = 0; i < ids.length; i += 200) {
+      const chunk = ids.slice(i, i + 200);
+      await supabase.from("delivery_notes").delete().in("id", chunk);
+    }
+    toast.success(`${ids.length} deleted`);
+    setSelected(new Set());
+    load();
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -80,24 +103,29 @@ export default function DeliveryNotes() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                       <TableHead>DN #</TableHead><TableHead>Date</TableHead><TableHead>Type</TableHead>
                       <TableHead>Status</TableHead><TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                         <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No delivery notes yet.
                       </TableCell></TableRow>
                     ) : filtered.map(dn => (
-                      <TableRow key={dn.id}>
+                      <TableRow key={dn.id} data-state={selected.has(dn.id) ? "selected" : undefined}>
+                        <TableCell><Checkbox checked={selected.has(dn.id)} onCheckedChange={() => toggleSelect(dn.id)} /></TableCell>
                         <TableCell className="font-medium font-mono">{dn.dn_number}</TableCell>
                         <TableCell className="text-muted-foreground">{dn.date}</TableCell>
                         <TableCell className="capitalize">{dn.reference_type.replace("_", " ")}</TableCell>
                         <TableCell><span className="status-pill bg-emerald-50 text-emerald-700">{dn.status}</span></TableCell>
-                        <TableCell>
+                        <TableCell className="space-x-1">
                           <Button variant="outline" size="sm" onClick={() => printDN(dn)} className="text-xs">
                             <Download className="h-3 w-3 mr-1" /> PDF
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete([dn.id])}>
+                            <Trash2 className="h-3 w-3 text-destructive" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -107,6 +135,14 @@ export default function DeliveryNotes() {
               </CardContent>
             </Card>
           </div>
+          {selected.size > 0 && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-destructive text-destructive-foreground px-6 py-3 rounded-full shadow-lg flex items-center gap-3 z-50">
+              <span className="text-sm font-medium">{selected.size} selected</span>
+              <Button size="sm" variant="secondary" onClick={() => handleDelete(Array.from(selected))}>
+                <Trash2 className="h-3 w-3 mr-1" /> Delete
+              </Button>
+            </div>
+          )}
         </main>
       </div>
     </SidebarProvider>
