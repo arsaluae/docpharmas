@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -39,6 +40,8 @@ export default function Customers() {
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   // License state
   const [licenseOpen, setLicenseOpen] = useState(false);
@@ -88,19 +91,43 @@ export default function Customers() {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    await supabase.from("customer_licenses").delete().eq("customer_id", id);
     const { error } = await supabase.from("customers").delete().eq("id", id);
     if (error) { toast.error("Cannot delete — may have linked invoices"); return; }
     toast.success("Customer deleted"); loadCustomers();
   };
 
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    let deleted = 0;
+    let failed = 0;
+    for (const id of ids) {
+      await supabase.from("customer_licenses").delete().eq("customer_id", id);
+      const { error } = await supabase.from("customers").delete().eq("id", id);
+      if (error) failed++; else deleted++;
+    }
+    setSelectedIds(new Set());
+    setBulkDeleteOpen(false);
+    if (deleted > 0) toast.success(`${deleted} customer(s) deleted`);
+    if (failed > 0) toast.error(`${failed} customer(s) could not be deleted (linked invoices)`);
+    loadCustomers();
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === filtered.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filtered.map(c => c.id)));
+  };
+
   // License functions
   const openLicenses = async (c: Customer, e: React.MouseEvent) => {
     e.stopPropagation();
-    setLicenseCustomer(c);
-    setLicenseOpen(true);
-    setShowLicenseForm(false);
-    setEditLicenseId(null);
-    setLicenseForm(emptyLicenseForm);
+    setLicenseCustomer(c); setLicenseOpen(true); setShowLicenseForm(false); setEditLicenseId(null); setLicenseForm(emptyLicenseForm);
     const { data } = await supabase.from("customer_licenses").select("*").eq("customer_id", c.id).order("created_at", { ascending: false });
     setLicenses(data || []);
   };
@@ -108,20 +135,12 @@ export default function Customers() {
   const handleSaveLicense = async () => {
     if (!licenseForm.license_number.trim()) { toast.error("License number is required"); return; }
     const payload = {
-      customer_id: licenseCustomer!.id,
-      license_number: licenseForm.license_number,
-      license_type: licenseForm.license_type,
-      expiry_date: licenseForm.expiry_date || null,
-      address: licenseForm.address || null,
-      notes: licenseForm.notes || null,
+      customer_id: licenseCustomer!.id, license_number: licenseForm.license_number,
+      license_type: licenseForm.license_type, expiry_date: licenseForm.expiry_date || null,
+      address: licenseForm.address || null, notes: licenseForm.notes || null,
     };
-    if (editLicenseId) {
-      await supabase.from("customer_licenses").update(payload).eq("id", editLicenseId);
-      toast.success("License updated");
-    } else {
-      await supabase.from("customer_licenses").insert(payload);
-      toast.success("License added");
-    }
+    if (editLicenseId) { await supabase.from("customer_licenses").update(payload).eq("id", editLicenseId); toast.success("License updated"); }
+    else { await supabase.from("customer_licenses").insert(payload); toast.success("License added"); }
     setShowLicenseForm(false); setEditLicenseId(null); setLicenseForm(emptyLicenseForm);
     const { data } = await supabase.from("customer_licenses").select("*").eq("customer_id", licenseCustomer!.id).order("created_at", { ascending: false });
     setLicenses(data || []);
@@ -159,9 +178,7 @@ export default function Customers() {
             </div>
             <Button variant="outline" size="sm" onClick={() => navigate("/import?tab=customers")}><Upload className="h-4 w-4 mr-1" /> Import CSV</Button>
             <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditId(null); setForm(emptyForm); } }}>
-              <DialogTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Customer</Button>
-              </DialogTrigger>
+              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Customer</Button></DialogTrigger>
               <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Customer</DialogTitle></DialogHeader>
                 <div className="grid grid-cols-2 gap-3 mt-2">
@@ -188,11 +205,37 @@ export default function Customers() {
               <Input placeholder="Search customers..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
 
+            {/* Bulk action bar */}
+            {selectedIds.size > 0 && (
+              <div className="mb-4 flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <span className="text-sm font-medium">{selectedIds.size} selected</span>
+                <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm"><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Selected</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete {selectedIds.size} customer(s)?</AlertDialogTitle>
+                      <AlertDialogDescription>This will permanently delete the selected customers and their licenses. Customers with linked invoices cannot be deleted.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleBulkDelete}>Delete All</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+              </div>
+            )}
+
             <Card className="glass-card">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox checked={filtered.length > 0 && selectedIds.size === filtered.length} onCheckedChange={toggleAll} />
+                      </TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Company</TableHead>
                       <TableHead>City</TableHead>
@@ -205,48 +248,36 @@ export default function Customers() {
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                          <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                          No customers yet. Add your first customer to get started.
+                        <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                          <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />No customers yet.
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      filtered.map(c => (
-                        <TableRow key={c.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(c)}>
-                          <TableCell className="font-medium">{c.name}</TableCell>
-                          <TableCell>{c.company || "—"}</TableCell>
-                          <TableCell>{c.city || "—"}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{c.ntn || "—"}</TableCell>
-                          <TableCell className="text-right font-mono">{Number(c.balance).toLocaleString()}</TableCell>
-                          <TableCell className="text-right font-mono text-muted-foreground">{Number(c.credit_limit).toLocaleString()}</TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/customers/${c.id}/ledger`)} title="View Ledger">
-                                <BookOpen className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => openLicenses(c, e)} title="Medical Licenses">
-                                <Award className="h-3.5 w-3.5" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete {c.name}?</AlertDialogTitle>
-                                    <AlertDialogDescription>This will permanently delete this customer. This action cannot be undone.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={(e) => handleDelete(c.id, e)}>Delete</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
+                    ) : filtered.map(c => (
+                      <TableRow key={c.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(c)}>
+                        <TableCell onClick={e => e.stopPropagation()}>
+                          <Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
+                        </TableCell>
+                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell>{c.company || "—"}</TableCell>
+                        <TableCell>{c.city || "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{c.ntn || "—"}</TableCell>
+                        <TableCell className="text-right font-mono">{Number(c.balance).toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-mono text-muted-foreground">{Number(c.credit_limit).toLocaleString()}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/customers/${c.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => openLicenses(c, e)} title="Medical Licenses"><Award className="h-3.5 w-3.5" /></Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader><AlertDialogTitle>Delete {c.name}?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this customer and their licenses.</AlertDialogDescription></AlertDialogHeader>
+                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => handleDelete(c.id, e)}>Delete</AlertDialogAction></AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -256,16 +287,10 @@ export default function Customers() {
           {/* Licenses Dialog */}
           <Dialog open={licenseOpen} onOpenChange={(o) => { setLicenseOpen(o); if (!o) { setLicenseCustomer(null); setLicenses([]); setShowLicenseForm(false); } }}>
             <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Medical Licenses — {licenseCustomer?.name}</DialogTitle>
-              </DialogHeader>
-
+              <DialogHeader><DialogTitle>Medical Licenses — {licenseCustomer?.name}</DialogTitle></DialogHeader>
               {!showLicenseForm && (
-                <Button size="sm" variant="outline" onClick={() => { setShowLicenseForm(true); setEditLicenseId(null); setLicenseForm(emptyLicenseForm); }}>
-                  <Plus className="h-3 w-3 mr-1" /> Add License
-                </Button>
+                <Button size="sm" variant="outline" onClick={() => { setShowLicenseForm(true); setEditLicenseId(null); setLicenseForm(emptyLicenseForm); }}><Plus className="h-3 w-3 mr-1" /> Add License</Button>
               )}
-
               {showLicenseForm && (
                 <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
                   <div className="flex justify-between items-center">
@@ -293,7 +318,6 @@ export default function Customers() {
                   <Button size="sm" onClick={handleSaveLicense}>{editLicenseId ? "Update" : "Add"} License</Button>
                 </div>
               )}
-
               {licenses.length === 0 && !showLicenseForm ? (
                 <p className="text-sm text-muted-foreground text-center py-6">No licenses recorded for this customer.</p>
               ) : (

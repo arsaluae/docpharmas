@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FileText, Trash2, ArrowRight, DollarSign, Download } from "lucide-react";
+import { Plus, Search, FileText, Trash2, ArrowRight, DollarSign, Download, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
@@ -184,8 +184,15 @@ export default function PurchaseProforma() {
   const { subtotal, gst, total } = calcTotals();
   const filtered = proformas.filter(p => p.proforma_number.toLowerCase().includes(search.toLowerCase()));
 
+  const handleApprove = async (id: string) => {
+    await supabase.from("purchase_proformas").update({ status: "approved" }).eq("id", id);
+    toast.success("Proforma approved");
+    load();
+  };
+
   const statusColor = (s: string) => {
     if (s === "converted") return "bg-emerald-50 text-emerald-700";
+    if (s === "approved") return "bg-primary/10 text-primary";
     if (s === "confirmed") return "bg-primary/10 text-primary";
     if (s === "sent") return "bg-amber-50 text-amber-700";
     return "bg-muted text-muted-foreground";
@@ -322,7 +329,12 @@ export default function PurchaseProforma() {
                         <TableCell><span className={`status-pill ${statusColor(pp.status)}`}>{pp.status}</span></TableCell>
                         <TableCell className="text-right font-mono font-medium">{Number(pp.total).toLocaleString()}</TableCell>
                         <TableCell className="space-x-1">
-                          {pp.status !== "converted" && (
+                          {pp.status === "draft" && (
+                            <Button variant="outline" size="sm" onClick={() => handleApprove(pp.id)} className="text-xs">
+                              <CheckCircle className="h-3 w-3 mr-1" /> Approve
+                            </Button>
+                          )}
+                          {pp.status === "approved" && (
                             <Button variant="outline" size="sm" onClick={() => convertToPO(pp)} className="text-xs">
                               <ArrowRight className="h-3 w-3 mr-1" /> To PO
                             </Button>
