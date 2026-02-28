@@ -77,11 +77,14 @@ export default function Suppliers() {
 
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds);
-    let deleted = 0, failed = 0;
-    for (const id of ids) {
-      const { error } = await supabase.from("suppliers").delete().eq("id", id);
-      if (error) failed++; else deleted++;
+    const CHUNK = 200;
+    let failed = 0;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const chunk = ids.slice(i, i + CHUNK);
+      const { error } = await supabase.from("suppliers").delete().in("id", chunk);
+      if (error) failed += chunk.length;
     }
+    const deleted = ids.length - failed;
     setSelectedIds(new Set()); setBulkDeleteOpen(false);
     if (deleted > 0) toast.success(`${deleted} supplier(s) deleted`);
     if (failed > 0) toast.error(`${failed} supplier(s) could not be deleted (linked records)`);
