@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FileText, Trash2, ArrowRight, DollarSign, Download, CheckCircle } from "lucide-react";
+import { Plus, Search, FileText, Trash2, ArrowRight, DollarSign, Download, CheckCircle, Pencil } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -47,13 +47,24 @@ export default function PurchaseProforma() {
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<PPItem[]>([]);
 
-  // Additional costs form
   const [costs, setCosts] = useState<AdditionalCost[]>([]);
   const [costType, setCostType] = useState("printing");
   const [costDesc, setCostDesc] = useState("");
   const [costAmount, setCostAmount] = useState("");
   const [costVendorId, setCostVendorId] = useState("");
   const { settings } = useCompanySettings();
+
+  // Detail/Edit
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailPP, setDetailPP] = useState<PurchaseProformaRow | null>(null);
+  const [detailItems, setDetailItems] = useState<any[]>([]);
+  const [detailCosts, setDetailCosts] = useState<any[]>([]);
+  const [editMode, setEditMode] = useState(false);
+  const [editSupplierId, setEditSupplierId] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editValidity, setEditValidity] = useState("30");
+  const [editNotes, setEditNotes] = useState("");
+  const [editItems, setEditItems] = useState<PPItem[]>([]);
 
   useEffect(() => {
     const check = async () => {
@@ -111,8 +122,6 @@ export default function PurchaseProforma() {
           quantity_requested: Number(i.quantity_requested), rate: Number(i.rate), amount: i.amount,
         }))
       );
-
-      // Save additional costs
       if (costs.length > 0) {
         await supabase.from("additional_costs").insert(
           costs.map(c => ({
@@ -122,7 +131,6 @@ export default function PurchaseProforma() {
           }))
         );
       }
-
       toast.success(`Purchase Proforma ${ppNumber} created`);
       setOpen(false); setSupplierId(""); setItems([]); setNotes(""); setCosts([]); load();
     }
@@ -137,14 +145,11 @@ export default function PurchaseProforma() {
   const convertToPO = async (pp: PurchaseProformaRow) => {
     const { count } = await supabase.from("purchase_orders").select("id", { count: "exact", head: true });
     const poNumber = `PO-${String((count || 0) + 1).padStart(4, "0")}`;
-
     const { data: po } = await supabase.from("purchase_orders").insert({
       po_number: poNumber, supplier_id: pp.supplier_id, date: new Date().toISOString().split("T")[0],
       subtotal: pp.subtotal, gst: pp.gst, total: pp.total, status: "draft", proforma_id: pp.id,
     }).select().single();
-
     if (po) {
-      // Get proforma items and copy to PO items
       const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*").eq("proforma_id", pp.id);
       if (ppItems && ppItems.length > 0) {
         await supabase.from("purchase_order_items").insert(
@@ -154,8 +159,6 @@ export default function PurchaseProforma() {
           }))
         );
       }
-
-      // Copy additional costs to PO reference
       const { data: ppCosts } = await supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", pp.id);
       if (ppCosts && ppCosts.length > 0) {
         await supabase.from("additional_costs").insert(
@@ -165,10 +168,8 @@ export default function PurchaseProforma() {
           }))
         );
       }
-
       await supabase.from("purchase_proformas").update({ status: "converted", converted_po_id: po.id }).eq("id", pp.id);
-      toast.success(`Converted to ${poNumber}`);
-      load();
+      toast.success(`Converted to ${poNumber}`); load();
     }
   };
 
@@ -198,14 +199,70 @@ export default function PurchaseProforma() {
       await supabase.from("purchase_proformas").delete().in("id", chunk);
     }
     toast.success(`${ids.length} deleted`);
-    setSelected(new Set());
-    load();
+    setSelected(new Set()); load();
   };
 
   const handleApprove = async (id: string) => {
     await supabase.from("purchase_proformas").update({ status: "approved" }).eq("id", id);
-    toast.success("Proforma approved");
-    load();
+    toast.success("Proforma approved"); load();
+  };
+
+  // Detail/Edit
+  const openDetail = async (pp: PurchaseProformaRow) => {
+    setDetailPP(pp);
+    const [itemsRes, costsRes] = await Promise.all([
+      supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", pp.id),
+      supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", pp.id),
+    ]);
+    setDetailItems(itemsRes.data || []);
+    setDetailCosts(costsRes.data || []);
+    setEditMode(false);
+    setDetailOpen(true);
+  };
+
+  const enterEditMode = () => {
+    if (!detailPP) return;
+    setEditSupplierId(detailPP.supplier_id || "");
+    setEditDate(detailPP.date);
+    setEditValidity(String(detailPP.validity_days));
+    setEditNotes(detailPP.notes || "");
+    setEditItems(detailItems.map((i: any) => ({
+      product_id: i.product_id || "", product_name: i.products?.name || "Item",
+      quantity_requested: i.quantity_requested, rate: Number(i.rate), amount: Number(i.amount),
+    })));
+    setEditMode(true);
+  };
+
+  const updateEditItem = (idx: number, field: string, value: any) => {
+    const u = [...editItems];
+    (u[idx] as any)[field] = value;
+    if (field === "product_id") {
+      const p = products.find(pr => pr.id === value);
+      if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.cost_price); }
+    }
+    u[idx].amount = Number(u[idx].quantity_requested) * Number(u[idx].rate);
+    setEditItems(u);
+  };
+
+  const handleEditSave = async () => {
+    if (!detailPP) return;
+    const subtotal = editItems.reduce((s, i) => s + i.amount, 0);
+    const gst = subtotal * 0.17;
+    const total = subtotal + gst;
+    await supabase.from("purchase_proformas").update({
+      supplier_id: editSupplierId || null, date: editDate, validity_days: Number(editValidity),
+      notes: editNotes || null, subtotal, gst, total,
+    }).eq("id", detailPP.id);
+    // Replace items
+    await supabase.from("purchase_proforma_items").delete().eq("proforma_id", detailPP.id);
+    if (editItems.length > 0) {
+      await supabase.from("purchase_proforma_items").insert(editItems.map(i => ({
+        proforma_id: detailPP.id, product_id: i.product_id || null,
+        quantity_requested: Number(i.quantity_requested), rate: Number(i.rate), amount: i.amount,
+      })));
+    }
+    toast.success("Proforma updated");
+    setDetailOpen(false); setEditMode(false); load();
   };
 
   const statusColor = (s: string) => {
@@ -242,8 +299,6 @@ export default function PurchaseProforma() {
                   <div><Label>Date</Label><Input type="date" value={ppDate} onChange={e => setPpDate(e.target.value)} /></div>
                   <div><Label>Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
                 </div>
-
-                {/* Items */}
                 <div className="mt-4">
                   <div className="flex items-center justify-between mb-2">
                     <Label className="text-sm font-semibold">Items</Label>
@@ -264,11 +319,9 @@ export default function PurchaseProforma() {
                     </div>
                   ))}
                 </div>
-
-                {/* Additional Costs */}
                 <div className="mt-4 border-t border-border pt-3">
                   <Label className="text-sm font-semibold">Additional Costs (Printing, Packaging, Freight)</Label>
-                  <p className="text-xs text-muted-foreground mb-2">These costs affect the item's landed cost. Vendor ledger is updated separately.</p>
+                  <p className="text-xs text-muted-foreground mb-2">These costs affect the item's landed cost.</p>
                   {costs.map((c, idx) => (
                     <div key={idx} className="flex items-center gap-2 mb-1 text-xs">
                       <span className="bg-muted px-2 py-1 rounded capitalize">{c.cost_type}</span>
@@ -282,10 +335,8 @@ export default function PurchaseProforma() {
                       <Select value={costType} onValueChange={setCostType}>
                         <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="printing">Printing</SelectItem>
-                          <SelectItem value="packaging">Packaging</SelectItem>
-                          <SelectItem value="freight_in">Freight In</SelectItem>
-                          <SelectItem value="freight_out">Freight Out</SelectItem>
+                          <SelectItem value="printing">Printing</SelectItem><SelectItem value="packaging">Packaging</SelectItem>
+                          <SelectItem value="freight_in">Freight In</SelectItem><SelectItem value="freight_out">Freight Out</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
@@ -294,24 +345,19 @@ export default function PurchaseProforma() {
                     <div className="col-span-2"><Input className="text-xs" type="number" placeholder="Amount" value={costAmount} onChange={e => setCostAmount(e.target.value)} /></div>
                     <div className="col-span-3">
                       <Select value={costVendorId} onValueChange={setCostVendorId}>
-                        <SelectTrigger className="text-xs"><SelectValue placeholder="Vendor (printer etc)" /></SelectTrigger>
+                        <SelectTrigger className="text-xs"><SelectValue placeholder="Vendor" /></SelectTrigger>
                         <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="col-span-2"><Button variant="outline" size="sm" onClick={addCostLine} className="text-xs w-full">+ Add</Button></div>
                   </div>
                 </div>
-
-                {/* Totals */}
                 <div className="mt-4 border-t border-border pt-3 space-y-1 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">GST 17%</span><span className="font-mono">{gst.toLocaleString()}</span></div>
-                  {costs.length > 0 && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">Additional Costs</span><span className="font-mono">{costs.reduce((s, c) => s + Number(c.amount), 0).toLocaleString()}</span></div>
-                  )}
+                  {costs.length > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Additional Costs</span><span className="font-mono">{costs.reduce((s, c) => s + Number(c.amount), 0).toLocaleString()}</span></div>}
                   <div className="flex justify-between font-bold"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
                 </div>
-
                 <div className="mt-3"><Label>Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
                 <Button onClick={handleSave} className="w-full mt-4">Create Purchase Proforma</Button>
               </DialogContent>
@@ -340,14 +386,14 @@ export default function PurchaseProforma() {
                         <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No purchase proformas yet.
                       </TableCell></TableRow>
                     ) : filtered.map(pp => (
-                      <TableRow key={pp.id} data-state={selected.has(pp.id) ? "selected" : undefined}>
+                      <TableRow key={pp.id} className="cursor-pointer" data-state={selected.has(pp.id) ? "selected" : undefined}>
                         <TableCell><Checkbox checked={selected.has(pp.id)} onCheckedChange={() => toggleSelect(pp.id)} /></TableCell>
-                        <TableCell className="font-medium font-mono">{pp.proforma_number}</TableCell>
-                        <TableCell>{(pp.suppliers as any)?.name || "—"}</TableCell>
-                        <TableCell className="text-muted-foreground">{pp.date}</TableCell>
-                        <TableCell>{pp.validity_days}d</TableCell>
-                        <TableCell><span className={`status-pill ${statusColor(pp.status)}`}>{pp.status}</span></TableCell>
-                        <TableCell className="text-right font-mono font-medium">{Number(pp.total).toLocaleString()}</TableCell>
+                        <TableCell className="font-medium font-mono" onClick={() => openDetail(pp)}>{pp.proforma_number}</TableCell>
+                        <TableCell onClick={() => openDetail(pp)}>{(pp.suppliers as any)?.name || "—"}</TableCell>
+                        <TableCell className="text-muted-foreground" onClick={() => openDetail(pp)}>{pp.date}</TableCell>
+                        <TableCell onClick={() => openDetail(pp)}>{pp.validity_days}d</TableCell>
+                        <TableCell onClick={() => openDetail(pp)}><span className={`status-pill ${statusColor(pp.status)}`}>{pp.status}</span></TableCell>
+                        <TableCell className="text-right font-mono font-medium" onClick={() => openDetail(pp)}>{Number(pp.total).toLocaleString()}</TableCell>
                         <TableCell className="space-x-1">
                           {pp.status === "draft" && (
                             <Button variant="outline" size="sm" onClick={() => handleApprove(pp.id)} className="text-xs">
@@ -406,6 +452,104 @@ export default function PurchaseProforma() {
             </div>
           )}
 
+          {/* Detail/Edit Dialog */}
+          <Dialog open={detailOpen} onOpenChange={o => { if (!o) { setDetailOpen(false); setEditMode(false); } }}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center justify-between">
+                  <span>{detailPP?.proforma_number} — Detail</span>
+                  {!editMode && (detailPP?.status === "draft" || detailPP?.status === "approved") && (
+                    <Button variant="outline" size="sm" onClick={enterEditMode}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
+                  )}
+                </DialogTitle>
+              </DialogHeader>
+
+              {!editMode ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><span className="text-muted-foreground">Supplier:</span> <strong>{(detailPP?.suppliers as any)?.name || "—"}</strong></div>
+                    <div><span className="text-muted-foreground">Date:</span> {detailPP?.date}</div>
+                    <div><span className="text-muted-foreground">Validity:</span> {detailPP?.validity_days} days</div>
+                    <div><span className="text-muted-foreground">Status:</span> <span className={`status-pill ${statusColor(detailPP?.status || "")}`}>{detailPP?.status}</span></div>
+                  </div>
+                  {detailPP?.notes && <p className="text-sm text-muted-foreground mt-2">Notes: {detailPP.notes}</p>}
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>#</TableHead><TableHead>Product</TableHead><TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Rate</TableHead><TableHead className="text-right">Amount</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {detailItems.map((i: any, idx: number) => (
+                        <TableRow key={i.id}>
+                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell>{i.products?.name || "Item"}</TableCell>
+                          <TableCell className="text-right">{i.quantity_requested}</TableCell>
+                          <TableCell className="text-right font-mono">{Number(i.rate).toLocaleString()}</TableCell>
+                          <TableCell className="text-right font-mono">{Number(i.amount).toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {detailCosts.length > 0 && (
+                    <div className="mt-3">
+                      <Label className="text-sm font-semibold">Additional Costs</Label>
+                      {detailCosts.map((c: any) => (
+                        <div key={c.id} className="flex justify-between text-xs py-1">
+                          <span className="capitalize">{c.cost_type}: {c.description}</span>
+                          <span className="font-mono">PKR {Number(c.amount).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="border-t border-border pt-3 space-y-1 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">PKR {Number(detailPP?.subtotal || 0).toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span className="font-mono">PKR {Number(detailPP?.gst || 0).toLocaleString()}</span></div>
+                    <div className="flex justify-between font-bold"><span>Total</span><span className="font-mono">PKR {Number(detailPP?.total || 0).toLocaleString()}</span></div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label>Supplier</Label>
+                      <Select value={editSupplierId} onValueChange={setEditSupplierId}>
+                        <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                        <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label>Date</Label><Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} /></div>
+                    <div><Label>Validity (days)</Label><Input type="number" value={editValidity} onChange={e => setEditValidity(e.target.value)} /></div>
+                  </div>
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-semibold">Items</Label>
+                      <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }])}><Plus className="h-3 w-3 mr-1" /> Add</Button>
+                    </div>
+                    {editItems.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
+                        <div className="col-span-4">
+                          <Select value={item.product_id} onValueChange={v => updateEditItem(idx, "product_id", v)}>
+                            <SelectTrigger className="text-xs"><SelectValue placeholder="Product" /></SelectTrigger>
+                            <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateEditItem(idx, "quantity_requested", e.target.value)} className="text-xs" /></div>
+                        <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs" /></div>
+                        <div className="col-span-3 text-right text-sm font-mono pt-2">{item.amount.toLocaleString()}</div>
+                        <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3"><Label>Notes</Label><Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} /></div>
+                  <div className="flex gap-2 mt-4">
+                    <Button onClick={handleEditSave} className="flex-1">Save Changes</Button>
+                    <Button variant="outline" onClick={() => setEditMode(false)}>Cancel</Button>
+                  </div>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
+
           {/* Add cost to existing proforma */}
           <Dialog open={costOpen} onOpenChange={setCostOpen}>
             <DialogContent className="max-w-md">
@@ -416,10 +560,8 @@ export default function PurchaseProforma() {
                   <Select value={costType} onValueChange={setCostType}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="printing">Printing</SelectItem>
-                      <SelectItem value="packaging">Packaging</SelectItem>
-                      <SelectItem value="freight_in">Freight In</SelectItem>
-                      <SelectItem value="freight_out">Freight Out</SelectItem>
+                      <SelectItem value="printing">Printing</SelectItem><SelectItem value="packaging">Packaging</SelectItem>
+                      <SelectItem value="freight_in">Freight In</SelectItem><SelectItem value="freight_out">Freight Out</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>

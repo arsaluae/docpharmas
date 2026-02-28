@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FilePlus, ArrowRight, Trash2, Download, CheckCircle } from "lucide-react";
+import { Plus, Search, FilePlus, ArrowRight, Trash2, Download, CheckCircle, Pencil } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -53,6 +53,16 @@ export default function ProformaInvoices() {
   const [batchOptions, setBatchOptions] = useState<Record<string, BatchOption[]>>({});
   const { settings } = useCompanySettings();
 
+  // Detail/Edit dialog
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailPf, setDetailPf] = useState<Proforma | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editCustomerId, setEditCustomerId] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editValidity, setEditValidity] = useState("30");
+  const [editPaymentInstr, setEditPaymentInstr] = useState("");
+  const [editItems, setEditItems] = useState<ProformaItem[]>([]);
+
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -92,6 +102,12 @@ export default function ProformaInvoices() {
     return { subtotal, gst, total: subtotal + gst };
   };
 
+  const calcEditTotals = () => {
+    const subtotal = editItems.reduce((s, i) => s + Number(i.quantity) * Number(i.rate), 0);
+    const gst = editItems.reduce((s, i) => s + (Number(i.quantity) * Number(i.rate) * Number(i.gst_rate) / 100), 0);
+    return { subtotal, gst, total: subtotal + gst };
+  };
+
   const handleSave = async () => {
     if (!customerId || items.length === 0) { toast.error("Customer and items required"); return; }
     const { subtotal, gst, total } = calcTotals();
@@ -110,31 +126,19 @@ export default function ProformaInvoices() {
   const openConvertDialog = async (pf: Proforma) => {
     setConvertPf(pf);
     const pfItems: ProformaItem[] = typeof pf.items === "string" ? JSON.parse(pf.items) : pf.items;
-    
-    // Load batch options for each product
     const productIds = pfItems.filter(i => i.product_id).map(i => i.product_id);
     const batches: Record<string, BatchOption[]> = {};
-    
     if (productIds.length > 0) {
-      const { data: movements } = await supabase.from("stock_movements")
-        .select("product_id, batch_number, quantity, movement_type")
-        .in("product_id", productIds);
-      
+      const { data: movements } = await supabase.from("stock_movements").select("product_id, batch_number, quantity, movement_type").in("product_id", productIds);
       if (movements) {
-        // Calculate available per batch
         const batchMap: Record<string, number> = {};
         movements.forEach((m: any) => {
           const key = `${m.product_id}__${m.batch_number || "no-batch"}`;
           if (!batchMap[key]) batchMap[key] = 0;
-          if (m.movement_type === "purchase_in" || m.movement_type === "return_in") {
-            batchMap[key] += Number(m.quantity);
-          } else if (m.movement_type === "sale_out" || m.movement_type === "return_out") {
-            batchMap[key] -= Number(m.quantity);
-          } else if (m.movement_type === "adjustment") {
-            batchMap[key] += Number(m.quantity);
-          }
+          if (m.movement_type === "purchase_in" || m.movement_type === "return_in") batchMap[key] += Number(m.quantity);
+          else if (m.movement_type === "sale_out" || m.movement_type === "return_out") batchMap[key] -= Number(m.quantity);
+          else if (m.movement_type === "adjustment") batchMap[key] += Number(m.quantity);
         });
-        
         for (const [key, qty] of Object.entries(batchMap)) {
           const [pid, batch] = key.split("__");
           if (!batches[pid]) batches[pid] = [];
@@ -142,7 +146,6 @@ export default function ProformaInvoices() {
         }
       }
     }
-    
     setBatchOptions(batches);
     setConvertItems(pfItems.map(i => ({ ...i, batch_number: "", convert_quantity: i.quantity })));
     setConvertOpen(true);
@@ -152,12 +155,10 @@ export default function ProformaInvoices() {
     if (!convertPf) return;
     const { count } = await supabase.from("sales_invoices").select("id", { count: "exact", head: true });
     const invNumber = `SI-${String((count || 0) + 1).padStart(4, "0")}`;
-
     const { data: inv } = await supabase.from("sales_invoices").insert({
       invoice_number: invNumber, customer_id: convertPf.customer_id, date: new Date().toISOString().split("T")[0],
       subtotal: convertPf.subtotal, gst_amount: convertPf.gst, total: convertPf.total, status: "draft",
     }).select().single();
-
     if (inv) {
       const lineItems = convertItems.map((i: any) => ({
         invoice_id: inv.id, product_id: i.product_id || null,
@@ -165,19 +166,15 @@ export default function ProformaInvoices() {
         amount: i.amount, batch_number: i.batch_number || null,
       }));
       await supabase.from("sales_invoice_items").insert(lineItems);
-
-      // Create stock movements for sold items
       for (const item of convertItems) {
         if (item.product_id && Number(item.convert_quantity) > 0) {
           await supabase.from("stock_movements").insert({
             product_id: item.product_id, quantity: Number(item.convert_quantity),
             movement_type: "sale_out", batch_number: item.batch_number || null,
-            reference_type: "sales_invoice", reference_id: inv.id,
-            notes: `Invoice ${invNumber}`,
+            reference_type: "sales_invoice", reference_id: inv.id, notes: `Invoice ${invNumber}`,
           });
         }
       }
-
       await supabase.from("proforma_invoices").update({ status: "converted", converted_invoice_id: inv.id }).eq("id", convertPf.id);
       toast.success(`Converted to ${invNumber}`);
       setConvertOpen(false); load();
@@ -197,14 +194,59 @@ export default function ProformaInvoices() {
       await supabase.from("proforma_invoices").delete().in("id", chunk);
     }
     toast.success(`${ids.length} deleted`);
-    setSelected(new Set());
-    load();
+    setSelected(new Set()); load();
   };
 
   const handleApprove = async (id: string) => {
     await supabase.from("proforma_invoices").update({ status: "approved" }).eq("id", id);
-    toast.success("Proforma approved");
-    load();
+    toast.success("Proforma approved"); load();
+  };
+
+  // Detail/Edit
+  const openDetail = (pf: Proforma) => {
+    setDetailPf(pf);
+    setEditMode(false);
+    setDetailOpen(true);
+  };
+
+  const enterEditMode = () => {
+    if (!detailPf) return;
+    setEditCustomerId(detailPf.customer_id || "");
+    setEditDate(detailPf.date);
+    setEditValidity(String(detailPf.validity_days));
+    setEditPaymentInstr(detailPf.payment_instructions || "");
+    const pfItems: ProformaItem[] = typeof detailPf.items === "string" ? JSON.parse(detailPf.items) : detailPf.items;
+    setEditItems(pfItems.map(i => ({ ...i })));
+    setEditMode(true);
+  };
+
+  const updateEditItem = (idx: number, field: string, value: any) => {
+    const u = [...editItems];
+    (u[idx] as any)[field] = value;
+    if (field === "product_id") {
+      const p = products.find(pr => pr.id === value);
+      if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = Number(p.gst_rate); }
+    }
+    const line = Number(u[idx].quantity) * Number(u[idx].rate);
+    u[idx].amount = line + (line * Number(u[idx].gst_rate) / 100);
+    setEditItems(u);
+  };
+
+  const handleEditSave = async () => {
+    if (!detailPf) return;
+    const { subtotal, gst, total } = calcEditTotals();
+    await supabase.from("proforma_invoices").update({
+      customer_id: editCustomerId || null, date: editDate, validity_days: Number(editValidity),
+      payment_instructions: editPaymentInstr || null, items: JSON.stringify(editItems),
+      subtotal, gst, total,
+    }).eq("id", detailPf.id);
+    toast.success("Proforma updated");
+    setDetailOpen(false); setEditMode(false); load();
+  };
+
+  const getPfItems = (pf: Proforma | null): ProformaItem[] => {
+    if (!pf) return [];
+    return typeof pf.items === "string" ? JSON.parse(pf.items) : pf.items;
   };
 
   const statusColor = (s: string) => {
@@ -241,12 +283,10 @@ export default function ProformaInvoices() {
                   <div><Label>Date</Label><Input type="date" value={pfDate} onChange={e => setPfDate(e.target.value)} /></div>
                   <div><Label>Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
                 </div>
-
                 <div className="mt-3">
                   <Label>Payment Instructions</Label>
                   <Textarea value={paymentInstructions} onChange={e => setPaymentInstructions(e.target.value)} placeholder="Bank details, payment terms, etc." rows={2} />
                 </div>
-
                 <div className="mt-4">
                   <div className="flex items-center justify-between mb-2">
                     <Label className="text-sm font-semibold">Items</Label>
@@ -300,14 +340,14 @@ export default function ProformaInvoices() {
                         <FilePlus className="h-8 w-8 mx-auto mb-2 opacity-40" />No proformas yet.
                       </TableCell></TableRow>
                     ) : filtered.map(pf => (
-                      <TableRow key={pf.id} data-state={selected.has(pf.id) ? "selected" : undefined}>
+                      <TableRow key={pf.id} className="cursor-pointer" data-state={selected.has(pf.id) ? "selected" : undefined}>
                         <TableCell><Checkbox checked={selected.has(pf.id)} onCheckedChange={() => toggleSelect(pf.id)} /></TableCell>
-                        <TableCell className="font-medium font-mono">{pf.proforma_number}</TableCell>
-                        <TableCell>{(pf.customers as any)?.name || "—"}</TableCell>
-                        <TableCell className="text-muted-foreground">{pf.date}</TableCell>
-                        <TableCell>{pf.validity_days}d</TableCell>
-                        <TableCell><span className={`status-pill ${statusColor(pf.status)}`}>{pf.status}</span></TableCell>
-                        <TableCell className="text-right font-mono">{Number(pf.total).toLocaleString()}</TableCell>
+                        <TableCell className="font-medium font-mono" onClick={() => openDetail(pf)}>{pf.proforma_number}</TableCell>
+                        <TableCell onClick={() => openDetail(pf)}>{(pf.customers as any)?.name || "—"}</TableCell>
+                        <TableCell className="text-muted-foreground" onClick={() => openDetail(pf)}>{pf.date}</TableCell>
+                        <TableCell onClick={() => openDetail(pf)}>{pf.validity_days}d</TableCell>
+                        <TableCell onClick={() => openDetail(pf)}><span className={`status-pill ${statusColor(pf.status)}`}>{pf.status}</span></TableCell>
+                        <TableCell className="text-right font-mono" onClick={() => openDetail(pf)}>{Number(pf.total).toLocaleString()}</TableCell>
                         <TableCell className="space-x-1">
                           {pf.status === "draft" && (
                             <Button variant="outline" size="sm" onClick={() => handleApprove(pf.id)} className="text-xs">
@@ -359,6 +399,106 @@ export default function ProformaInvoices() {
               </Button>
             </div>
           )}
+
+          {/* Detail/Edit Dialog */}
+          <Dialog open={detailOpen} onOpenChange={o => { if (!o) { setDetailOpen(false); setEditMode(false); } }}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center justify-between">
+                  <span>{detailPf?.proforma_number} — Detail</span>
+                  {!editMode && (detailPf?.status === "draft" || detailPf?.status === "approved") && (
+                    <Button variant="outline" size="sm" onClick={enterEditMode}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
+                  )}
+                </DialogTitle>
+              </DialogHeader>
+
+              {!editMode ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><span className="text-muted-foreground">Customer:</span> <strong>{(detailPf?.customers as any)?.name || "—"}</strong></div>
+                    <div><span className="text-muted-foreground">Date:</span> {detailPf?.date}</div>
+                    <div><span className="text-muted-foreground">Validity:</span> {detailPf?.validity_days} days</div>
+                    <div><span className="text-muted-foreground">Status:</span> <span className={`status-pill ${statusColor(detailPf?.status || "")}`}>{detailPf?.status}</span></div>
+                  </div>
+                  {detailPf?.payment_instructions && <p className="text-sm text-muted-foreground mt-2">Payment Instructions: {detailPf.payment_instructions}</p>}
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>#</TableHead><TableHead>Product</TableHead><TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Rate</TableHead><TableHead className="text-right">GST%</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {getPfItems(detailPf).map((i, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell>{i.product_name || "Item"}</TableCell>
+                          <TableCell className="text-right">{i.quantity}</TableCell>
+                          <TableCell className="text-right font-mono">{Number(i.rate).toLocaleString()}</TableCell>
+                          <TableCell className="text-right">{i.gst_rate}%</TableCell>
+                          <TableCell className="text-right font-mono">{Number(i.amount).toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  <div className="border-t border-border pt-3 space-y-1 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">PKR {Number(detailPf?.subtotal || 0).toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span className="font-mono">PKR {Number(detailPf?.gst || 0).toLocaleString()}</span></div>
+                    <div className="flex justify-between font-bold"><span>Total</span><span className="font-mono">PKR {Number(detailPf?.total || 0).toLocaleString()}</span></div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label>Customer</Label>
+                      <Select value={editCustomerId} onValueChange={setEditCustomerId}>
+                        <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                        <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label>Date</Label><Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} /></div>
+                    <div><Label>Validity (days)</Label><Input type="number" value={editValidity} onChange={e => setEditValidity(e.target.value)} /></div>
+                  </div>
+                  <div className="mt-3">
+                    <Label>Payment Instructions</Label>
+                    <Textarea value={editPaymentInstr} onChange={e => setEditPaymentInstr(e.target.value)} rows={2} />
+                  </div>
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-semibold">Items</Label>
+                      <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: 17, amount: 0 }])}><Plus className="h-3 w-3 mr-1" /> Add</Button>
+                    </div>
+                    {editItems.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
+                        <div className="col-span-4">
+                          <Select value={item.product_id} onValueChange={v => updateEditItem(idx, "product_id", v)}>
+                            <SelectTrigger className="text-xs"><SelectValue placeholder="Product" /></SelectTrigger>
+                            <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="text-xs" /></div>
+                        <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs" /></div>
+                        <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateEditItem(idx, "gst_rate", e.target.value)} className="text-xs" /></div>
+                        <div className="col-span-2 text-right text-sm font-mono pt-2">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                        <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
+                      </div>
+                    ))}
+                  </div>
+                  {(() => { const t = calcEditTotals(); return (
+                    <div className="border-t border-border pt-3 space-y-1 text-sm">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{t.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span className="font-mono">{t.gst.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                      <div className="flex justify-between font-bold"><span>Total</span><span className="font-mono">PKR {t.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                    </div>
+                  ); })()}
+                  <div className="flex gap-2 mt-4">
+                    <Button onClick={handleEditSave} className="flex-1">Save Changes</Button>
+                    <Button variant="outline" onClick={() => setEditMode(false)}>Cancel</Button>
+                  </div>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {/* Convert dialog with batch selection */}
           <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
