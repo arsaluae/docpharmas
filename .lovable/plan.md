@@ -1,52 +1,71 @@
 
 
-# Add Bulk Delete to Sales Invoices + Detail/Edit Dialogs for All Documents
+# Document Template System in Settings
 
-## 1. Sales Invoices — Bulk Delete (`SalesInvoices.tsx`)
+## The Right Approach
 
-- Add `selected: Set<string>` state, select-all checkbox in header, per-row checkboxes
-- Add floating "Delete X selected" action bar
-- Batch delete: first `sales_invoice_items.delete().in("invoice_id", chunk)`, then `sales_invoices.delete().in("id", chunk)`
-- Add individual Trash2 button per row
+You're absolutely right -- a proper ERP system should have configurable templates per document type. Here's what I recommend:
 
-## 2. Sales Invoice Detail/Edit Dialog (`SalesInvoices.tsx`)
+### Architecture: Template Profiles stored in a `document_templates` table
 
-- Click on any invoice row → opens a detail dialog showing full invoice info
-- Header: invoice number, customer, date, due date, status, notes
-- Table of line items fetched from `sales_invoice_items` with product names
-- Totals summary (subtotal, discount, GST, total)
-- Edit mode toggle: allows changing customer, date, due date, notes, and line items
-- Save updates both `sales_invoices` and replaces `sales_invoice_items`
+Each document type (Sales Invoice, Proforma, Warranty, Delivery Note, Purchase Order, GRN) gets its own template configuration row. Users can customize per document type:
 
-## 3. Proforma Detail/Edit Dialog (`ProformaInvoices.tsx`)
+- **Which columns to show** (e.g. Warranty needs Batch No, Batch Expiry, Discount; Sales Order needs MRP Inc. Tax)
+- **Footer text** (e.g. Warranty has a legal certification paragraph; Sales Order shows bank details)
+- **Signature labels** (e.g. "Sales Rep / Prepared By" vs "Approved By" vs "Authorized Signature")
+- **Show/hide sections**: Total in Words, Bank Details line, Notes section, NTN/CNIC fields
+- **Custom title override** (e.g. "Sales Order" instead of "Sales Invoice")
+- **Party section fields**: which party fields to display (Mobile, License Number, Area, CNIC, etc.)
 
-- Click on proforma row → detail dialog with all fields
-- Shows items parsed from JSON, customer, validity, payment instructions
-- Edit mode: modify customer, date, validity, payment instructions, items
-- Save updates proforma record and items JSON
-- Only editable when status is `draft` or `approved`
+### Database
 
-## 4. Purchase Proforma Detail/Edit Dialog (`PurchaseProforma.tsx`)
+New table `document_templates` with columns:
+- `id`, `document_type` (unique key like `sales_invoice`, `warranty_invoice`, `proforma`, `purchase_proforma`, `delivery_note`, `purchase_order`, `grn`)
+- `title` (display title on the PDF, e.g. "Sales Order", "Warranty Note")
+- `columns_config` (JSONB -- array of column definitions with header, key, align)
+- `show_total_in_words` (boolean)
+- `show_bank_details` (boolean)
+- `bank_details_text` (text -- e.g. "Meezan Bank: 09020102207667 (Mouj Pharmaceuticals)")
+- `footer_text` (text -- e.g. the warranty certification paragraph)
+- `signature_labels` (JSONB -- array like ["Sales Rep", "Approved By"])
+- `show_party_area` (boolean)
+- `show_party_license` (boolean)
+- `show_party_cnic` (boolean)
+- `extra_meta_fields` (JSONB -- additional meta fields like Currency, Created By)
+- `created_at`
 
-- Click on row → detail dialog with supplier, items, additional costs
-- Items fetched from `purchase_proforma_items`, costs from `additional_costs`
-- Edit mode: modify supplier, date, validity, notes, items, additional costs
-- Save updates proforma, replaces items and costs
-- Only editable when status is `draft` or `approved`
+### Settings UI
 
-## 5. Delivery Note Detail/Edit Dialog (`DeliveryNotes.tsx`)
+Add a new "Document Templates" tab/section in Settings page with:
+- A list of document types as cards or accordion items
+- Click to expand and configure: title, toggle sections on/off, edit bank details text, edit footer text, configure signature labels
+- Live preview button to see how the template looks with sample data
+- Each template auto-seeds with sensible defaults on first load
 
-- Click on row → detail dialog showing DN number, date, type, items (from JSON)
-- Items table: product name, batch, expiry, quantity
-- Edit mode: modify date, notes, items JSON
-- Save updates delivery note record
+### PDF Generator Update
 
-## Files Changed
+`generatePdf` will accept a `template` parameter. It reads the template config and dynamically:
+- Uses the custom title
+- Shows/hides Total in Words section
+- Shows/hides bank details footer line
+- Renders the custom footer/certification text
+- Uses configured signature labels
+- Adds the configured extra columns
+
+### Files Changed
 
 | File | Change |
 |------|--------|
-| `SalesInvoices.tsx` | Add bulk delete + detail/edit dialog |
-| `ProformaInvoices.tsx` | Add detail/edit dialog on row click |
-| `PurchaseProforma.tsx` | Add detail/edit dialog on row click |
-| `DeliveryNotes.tsx` | Add detail/edit dialog on row click |
+| New migration | Create `document_templates` table with RLS |
+| `src/pages/Settings.tsx` | Add "Document Templates" section with per-type config cards |
+| `src/lib/pdf-generator.ts` | Accept template config, render Total in Words, bank details, custom footer, dynamic signature labels |
+| `src/hooks/useDocumentTemplates.tsx` | New hook to load templates by document type |
+| All pages calling `generatePdf` | Pass the relevant template config |
+
+### Seeded Defaults
+
+On first load (no templates exist), auto-insert defaults matching the reference images:
+- **Sales Invoice/Proforma**: Title "Sales Order", columns: SrNo, Product Name, Quantity, Rate, Amount, MRP Inc. Tax; show bank details; signatures: "Approved By"
+- **Warranty Invoice**: Title "Warranty Note", columns: SrNo, Product Name, Product Description, Quantity, Rate, Batch No, Batch Expiry, Discount, Amount; show Total in Words; footer = warranty certification paragraph; signatures: "Sales Rep / Prepared By"
+- **Delivery Note / GRN / Purchase**: sensible defaults
 
