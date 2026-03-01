@@ -1,71 +1,107 @@
 
 
-# Document Template System in Settings
+# Artisan PDF Templates + Linked Document Workflow
 
-## The Right Approach
+This is a large scope request with two main pillars: (1) a premium PDF template redesign and (2) a fully linked document lifecycle for both sales and purchase flows.
 
-You're absolutely right -- a proper ERP system should have configurable templates per document type. Here's what I recommend:
+## Current State Analysis
 
-### Architecture: Template Profiles stored in a `document_templates` table
+**Sales flow gaps:**
+- Proforma converts to Invoice (works), but proforma status becomes "converted" -- not "invoiced"
+- Invoice has a "Create DN" button but doesn't update invoice status to "dispatched"
+- No auto-linking: delivery note creation doesn't update the invoice status
 
-Each document type (Sales Invoice, Proforma, Warranty, Delivery Note, Purchase Order, GRN) gets its own template configuration row. Users can customize per document type:
+**Purchase flow gaps:**
+- Purchase Proforma converts to PO (works), status becomes "converted"
+- PO has no "Create GRN" flow from it
+- No status chain linking PO -> GRN -> Purchase Invoice
 
-- **Which columns to show** (e.g. Warranty needs Batch No, Batch Expiry, Discount; Sales Order needs MRP Inc. Tax)
-- **Footer text** (e.g. Warranty has a legal certification paragraph; Sales Order shows bank details)
-- **Signature labels** (e.g. "Sales Rep / Prepared By" vs "Approved By" vs "Authorized Signature")
-- **Show/hide sections**: Total in Words, Bank Details line, Notes section, NTN/CNIC fields
-- **Custom title override** (e.g. "Sales Order" instead of "Sales Invoice")
-- **Party section fields**: which party fields to display (Mobile, License Number, Area, CNIC, etc.)
+**PDF templates:** `generatePdf` already accepts a `template` parameter from `useDocumentTemplates`, but no page actually passes it. The PDF design is good but the template system isn't wired up.
 
-### Database
+---
 
-New table `document_templates` with columns:
-- `id`, `document_type` (unique key like `sales_invoice`, `warranty_invoice`, `proforma`, `purchase_proforma`, `delivery_note`, `purchase_order`, `grn`)
-- `title` (display title on the PDF, e.g. "Sales Order", "Warranty Note")
-- `columns_config` (JSONB -- array of column definitions with header, key, align)
-- `show_total_in_words` (boolean)
-- `show_bank_details` (boolean)
-- `bank_details_text` (text -- e.g. "Meezan Bank: 09020102207667 (Mouj Pharmaceuticals)")
-- `footer_text` (text -- e.g. the warranty certification paragraph)
-- `signature_labels` (JSONB -- array like ["Sales Rep", "Approved By"])
-- `show_party_area` (boolean)
-- `show_party_license` (boolean)
-- `show_party_cnic` (boolean)
-- `extra_meta_fields` (JSONB -- additional meta fields like Currency, Created By)
-- `created_at`
+## Part 1: Premium PDF Template Design
 
-### Settings UI
+### `src/lib/pdf-generator.ts`
+- Redesign the HTML template with refined typography:
+  - Use **Georgia/serif** for company name and document title with elegant letter-spacing
+  - Use **Inter** for body text with carefully tuned weights (300 for labels, 600 for values)
+  - Monospaced numbers in a warm charcoal (#2d2d3a) instead of pure black
+- Refined color palette: deep navy (#1a1a2e) headers, warm gold (#c9a84c) accents, ivory (#faf9f6) alternating rows
+- Decorative touches: double-border page frame, gold gradient divider under letterhead, ornamental corners on document title box
+- Table header with navy background, gold bottom border, all-caps tracking
+- Totals section with subtle border radius and last-row emphasis
+- "Total in Words" in italic with gold label prefix
+- Signature lines with fine 1.5px rules and small-caps labels
+- Footer with a gold gradient fade-line and refined "computer-generated" notice
 
-Add a new "Document Templates" tab/section in Settings page with:
-- A list of document types as cards or accordion items
-- Click to expand and configure: title, toggle sections on/off, edit bank details text, edit footer text, configure signature labels
-- Live preview button to see how the template looks with sample data
-- Each template auto-seeds with sensible defaults on first load
+### Wire templates to all pages
+- `SalesInvoices.tsx`, `WarrantyInvoices.tsx`, `ProformaInvoices.tsx`, `PurchaseProforma.tsx`, `DeliveryNotes.tsx`, `PurchaseOrders.tsx`, `GoodsReceivedNotes.tsx`
+- Each page imports `useDocumentTemplates`, calls `getTemplate("sales_invoice")` etc., and passes the template to `generatePdf`
 
-### PDF Generator Update
+---
 
-`generatePdf` will accept a `template` parameter. It reads the template config and dynamically:
-- Uses the custom title
-- Shows/hides Total in Words section
-- Shows/hides bank details footer line
-- Renders the custom footer/certification text
-- Uses configured signature labels
-- Adds the configured extra columns
+## Part 2: Linked Document Lifecycle
 
-### Files Changed
+### Sales Flow: Proforma -> Invoice -> Delivery Note
+
+**`ProformaInvoices.tsx` changes:**
+- When "Convert to Invoice" completes, update proforma status to **"invoiced"** (not "converted")
+- Show "invoiced" status pill in teal
+
+**`SalesInvoices.tsx` changes:**
+- When "Create DN" is clicked, after creating the delivery note:
+  - Update invoice status to **"dispatched"**
+  - Show "dispatched" status pill in blue
+- Add a visual indicator showing source proforma number if invoice was created from a proforma
+
+**`DeliveryNotes.tsx` changes:**
+- Show linked invoice number and customer name (join on reference_id)
+- Add "Delivered" status button that updates DN status to "delivered"
+
+### Purchase Flow: Purchase Proforma -> PO -> GRN
+
+**`PurchaseProforma.tsx` changes:**
+- When "Convert to PO" completes, update status to **"ordered"** (not "converted")
+
+**`PurchaseOrders.tsx` changes:**
+- Add a **"Create GRN"** button per PO row
+- When clicked: pre-fill GRN form with PO items (product, qty ordered, rate)
+- After GRN creation, update PO status to **"received"**
+- Link the GRN back to the PO via `po_id`
+
+**`GoodsReceivedNotes.tsx` changes:**
+- Show linked PO number
+- After GRN is saved, auto-update PO status
+
+### Status Mapping Summary
+
+```text
+SALES:
+  Proforma:  draft -> approved -> invoiced
+  Invoice:   draft -> sent -> dispatched -> paid
+  DN:        issued -> delivered
+
+PURCHASE:
+  Proforma:  draft -> approved -> ordered
+  PO:        draft -> confirmed -> received
+  GRN:       (created from PO, links back)
+```
+
+---
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| New migration | Create `document_templates` table with RLS |
-| `src/pages/Settings.tsx` | Add "Document Templates" section with per-type config cards |
-| `src/lib/pdf-generator.ts` | Accept template config, render Total in Words, bank details, custom footer, dynamic signature labels |
-| `src/hooks/useDocumentTemplates.tsx` | New hook to load templates by document type |
-| All pages calling `generatePdf` | Pass the relevant template config |
+| `src/lib/pdf-generator.ts` | Premium typography redesign, refined colors, ornamental details |
+| `src/pages/ProformaInvoices.tsx` | Status "invoiced", wire template to PDF |
+| `src/pages/SalesInvoices.tsx` | DN creation updates status to "dispatched", wire template |
+| `src/pages/DeliveryNotes.tsx` | Show linked invoice/customer, "delivered" button, wire template |
+| `src/pages/PurchaseProforma.tsx` | Status "ordered", wire template |
+| `src/pages/PurchaseOrders.tsx` | Add "Create GRN" button, update status to "received", wire template |
+| `src/pages/GoodsReceivedNotes.tsx` | Show linked PO, wire template |
+| `src/pages/WarrantyInvoices.tsx` | Wire template to PDF |
 
-### Seeded Defaults
-
-On first load (no templates exist), auto-insert defaults matching the reference images:
-- **Sales Invoice/Proforma**: Title "Sales Order", columns: SrNo, Product Name, Quantity, Rate, Amount, MRP Inc. Tax; show bank details; signatures: "Approved By"
-- **Warranty Invoice**: Title "Warranty Note", columns: SrNo, Product Name, Product Description, Quantity, Rate, Batch No, Batch Expiry, Discount, Amount; show Total in Words; footer = warranty certification paragraph; signatures: "Sales Rep / Prepared By"
-- **Delivery Note / GRN / Purchase**: sensible defaults
+No database changes required -- all status fields are text columns already.
 
