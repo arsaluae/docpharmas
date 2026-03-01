@@ -101,10 +101,19 @@ export default function GoodsReceivedNotes() {
     setItems(u);
   };
 
+  // Auto-add 1 blank item when dialog opens (if not pre-filled from PO)
+  useEffect(() => {
+    if (open && items.length === 0 && !poId) {
+      addItem();
+    }
+  }, [open]);
+
   const handleSave = async () => {
     if (items.length === 0) { toast.error("Add at least one item"); return; }
     const hasBatch = items.every(i => i.batch_number);
     if (!hasBatch) { toast.error("Batch number required for all items"); return; }
+    const hasExpiry = items.every(i => i.expiry_date);
+    if (!hasExpiry) { toast.error("Expiry date required for all items"); return; }
 
     const { data: grnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "goods_received_note" });
     if (!grnNumber) { toast.error("Failed to generate GRN number"); return; }
@@ -157,6 +166,27 @@ export default function GoodsReceivedNotes() {
 
       if (poId) await supabase.from("purchase_orders").update({ status: "received" }).eq("id", poId);
       toast.success(`GRN ${grnNumber} created with stock updated`);
+      
+      // Auto-download GRN PDF
+      const { data: gItems } = await supabase.from("grn_items").select("*").eq("grn_id", grn.id);
+      const selectedPOData = pos.find(p => p.id === poId);
+      generatePdf({
+        title: "GOODS RECEIVED NOTE", documentNumber: grnNumber, date: grnDate,
+        partyLabel: "Supplier", partyName: (selectedPOData?.suppliers as any)?.name || "—",
+        columns: [
+          { header: "#", key: "idx" }, { header: "Item", key: "item_name" },
+          { header: "Batch", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
+          { header: "Ordered", key: "quantity_ordered", align: "right" },
+          { header: "Received", key: "quantity_received", align: "right" },
+        ],
+        rows: (gItems || []).map((i: any, idx: number) => ({
+          idx: idx + 1, item_name: i.item_name, batch_number: i.batch_number || "—",
+          expiry_date: i.expiry_date || "—", quantity_ordered: i.quantity_ordered, quantity_received: i.quantity_received,
+        })),
+        settings,
+        template: getTemplate("grn"),
+      });
+      
       setOpen(false); setPoId(""); setItems([]); setReceivedBy(""); setNotes(""); load();
     }
   };

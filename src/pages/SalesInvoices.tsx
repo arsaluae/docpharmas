@@ -82,6 +82,18 @@ export default function SalesInvoices() {
     setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, discount_percent: 0, gst_rate: defaultGst, amount: 0 }]);
   };
 
+  // Auto-add 1 blank item when dialog opens
+  useEffect(() => {
+    if (open && items.length === 0) addItem();
+  }, [open]);
+
+  // Batch selection for DN
+  interface BatchAllocation { batch_number: string; expiry_date: string; quantity: number; available: number; }
+  interface DNItemBatch { product_id: string; product_name: string; required_quantity: number; batches: BatchAllocation[]; }
+  const [dnOpen, setDnOpen] = useState(false);
+  const [dnInvoice, setDnInvoice] = useState<SalesInvoice | null>(null);
+  const [dnItems, setDnItems] = useState<DNItemBatch[]>([]);
+
   const updateItem = (idx: number, field: string, value: any) => {
     const updated = [...items];
     (updated[idx] as any)[field] = value;
@@ -265,21 +277,109 @@ export default function SalesInvoices() {
     });
   };
 
-  const createDeliveryNote = async (inv: SalesInvoice) => {
+  const openDNDialog = async (inv: SalesInvoice) => {
+    setDnInvoice(inv);
     const { data: lineItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
+    if (!lineItems || lineItems.length === 0) { toast.error("No items in this invoice"); return; }
+    
+    // Get available batches for each product from stock_movements and grn_items for expiry
+    const productIds = lineItems.filter((i: any) => i.product_id).map((i: any) => i.product_id);
+    const [movementsRes, grnItemsRes] = await Promise.all([
+      supabase.from("stock_movements").select("product_id, batch_number, quantity, movement_type").in("product_id", productIds),
+      supabase.from("grn_items").select("product_id, batch_number, expiry_date").in("product_id", productIds),
+    ]);
+    
+    // Calculate available qty per product+batch
+    const batchQty: Record<string, number> = {};
+    (movementsRes.data || []).forEach((m: any) => {
+      const key = `${m.product_id}__${m.batch_number || "no-batch"}`;
+      if (!batchQty[key]) batchQty[key] = 0;
+      if (["purchase_in", "return_in", "adjustment_in", "opening", "adjustment"].includes(m.movement_type)) batchQty[key] += Number(m.quantity);
+      else if (["sale_out", "return_out", "adjustment_out", "damage", "expired"].includes(m.movement_type)) batchQty[key] -= Number(m.quantity);
+    });
+    
+    // Get expiry dates from grn_items
+    const expiryMap: Record<string, string> = {};
+    (grnItemsRes.data || []).forEach((g: any) => {
+      const key = `${g.product_id}__${g.batch_number || "no-batch"}`;
+      if (g.expiry_date && !expiryMap[key]) expiryMap[key] = g.expiry_date;
+    });
+    
+    const items: DNItemBatch[] = lineItems.map((i: any) => {
+      // Find available batches for this product
+      const availBatches: BatchAllocation[] = [];
+      for (const [key, qty] of Object.entries(batchQty)) {
+        const [pid, batch] = key.split("__");
+        if (pid === i.product_id && qty > 0 && batch !== "no-batch") {
+          availBatches.push({ batch_number: batch, expiry_date: expiryMap[key] || "", quantity: 0, available: qty });
+        }
+      }
+      // If there's only one batch, auto-fill
+      if (availBatches.length === 1) {
+        availBatches[0].quantity = Math.min(Number(i.quantity), availBatches[0].available);
+      }
+      // If no batches at all, add an empty row for manual entry
+      if (availBatches.length === 0) {
+        availBatches.push({ batch_number: "", expiry_date: "", quantity: Number(i.quantity), available: 0 });
+      }
+      return { product_id: i.product_id, product_name: i.products?.name || "Item", required_quantity: Number(i.quantity), batches: availBatches };
+    });
+    setDnItems(items);
+    setDnOpen(true);
+  };
+
+  const addBatchRow = (itemIdx: number) => {
+    const updated = [...dnItems];
+    updated[itemIdx].batches.push({ batch_number: "", expiry_date: "", quantity: 0, available: 0 });
+    setDnItems(updated);
+  };
+
+  const updateBatchRow = (itemIdx: number, batchIdx: number, field: string, value: any) => {
+    const updated = [...dnItems];
+    (updated[itemIdx].batches[batchIdx] as any)[field] = value;
+    setDnItems(updated);
+  };
+
+  const removeBatchRow = (itemIdx: number, batchIdx: number) => {
+    const updated = [...dnItems];
+    updated[itemIdx].batches = updated[itemIdx].batches.filter((_, i) => i !== batchIdx);
+    setDnItems(updated);
+  };
+
+  const handleCreateDN = async () => {
+    if (!dnInvoice) return;
+    // Validate all items
+    for (const item of dnItems) {
+      const totalQty = item.batches.reduce((s, b) => s + Number(b.quantity), 0);
+      if (totalQty !== item.required_quantity) {
+        toast.error(`${item.product_name}: total batch qty (${totalQty}) must equal required qty (${item.required_quantity})`);
+        return;
+      }
+      for (const batch of item.batches) {
+        if (!batch.batch_number) { toast.error(`${item.product_name}: batch number is required`); return; }
+        if (!batch.expiry_date) { toast.error(`${item.product_name}: expiry date is required for batch ${batch.batch_number}`); return; }
+        if (batch.available > 0 && Number(batch.quantity) > batch.available) {
+          toast.error(`${item.product_name}: batch ${batch.batch_number} only has ${batch.available} available`); return;
+        }
+      }
+    }
+    
     const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "delivery_note" });
     if (!dnNumber) { toast.error("Failed to generate DN number"); return; }
-    const dnItems = (lineItems || []).map((i: any) => ({
-      product_name: i.products?.name || "Item", batch_number: i.batch_number || "", expiry_date: "", quantity: i.quantity,
-    }));
+    
+    const allDnItems = dnItems.flatMap(item => 
+      item.batches.map(b => ({
+        product_name: item.product_name, batch_number: b.batch_number, expiry_date: b.expiry_date, quantity: Number(b.quantity),
+      }))
+    );
+    
     await supabase.from("delivery_notes").insert({
-      dn_number: dnNumber, reference_type: "sales_invoice", reference_id: inv.id,
-      customer_id: inv.customer_id, items: dnItems,
+      dn_number: dnNumber, reference_type: "sales_invoice", reference_id: dnInvoice.id,
+      customer_id: dnInvoice.customer_id, items: allDnItems,
     });
-    // Update invoice status to dispatched
-    await supabase.from("sales_invoices").update({ status: "dispatched" }).eq("id", inv.id);
+    await supabase.from("sales_invoices").update({ status: "dispatched" }).eq("id", dnInvoice.id);
     toast.success(`Delivery Note ${dnNumber} created — Invoice marked as dispatched`);
-    load();
+    setDnOpen(false); load();
   };
 
   const generateFBR = async (inv: SalesInvoice) => {
@@ -414,7 +514,7 @@ export default function SalesInvoices() {
                         )}
                         <TableCell className="space-x-1">
                           <Button variant="outline" size="sm" onClick={() => printInvoice(inv)} className="text-xs"><Download className="h-3 w-3 mr-1" />PDF</Button>
-                          <Button variant="outline" size="sm" onClick={() => createDeliveryNote(inv)} className="text-xs"><FileOutput className="h-3 w-3 mr-1" />DN</Button>
+                          <Button variant="outline" size="sm" onClick={() => openDNDialog(inv)} className="text-xs"><FileOutput className="h-3 w-3 mr-1" />DN</Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleBulkDelete([inv.id])}>
                             <Trash2 className="h-3 w-3 text-destructive" />
                           </Button>
@@ -546,6 +646,56 @@ export default function SalesInvoices() {
                   </div>
                 </>
               )}
+             </DialogContent>
+          </Dialog>
+
+          {/* Batch Selection Dialog for Delivery Note */}
+          <Dialog open={dnOpen} onOpenChange={setDnOpen}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader><DialogTitle>Create Delivery Note — Batch Selection</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground mb-3">Select batch numbers and quantities for each item. Total must match invoice quantity.</p>
+              {dnItems.map((item, itemIdx) => (
+                <div key={itemIdx} className="border border-border rounded-lg p-3 mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-sm">{item.product_name} — Required: <strong>{item.required_quantity}</strong></span>
+                    <Button variant="outline" size="sm" onClick={() => addBatchRow(itemIdx)} className="text-xs"><Plus className="h-3 w-3 mr-1" /> Add Batch</Button>
+                  </div>
+                  {item.batches.map((batch, batchIdx) => (
+                    <div key={batchIdx} className="grid grid-cols-12 gap-2 mb-2 items-end">
+                      <div className="col-span-4">
+                        <Label className="text-xs">Batch #</Label>
+                        <Input value={batch.batch_number} onChange={e => updateBatchRow(itemIdx, batchIdx, "batch_number", e.target.value)} className="text-xs" placeholder="Batch number" />
+                      </div>
+                      <div className="col-span-3">
+                        <Label className="text-xs">Expiry</Label>
+                        <Input type="date" value={batch.expiry_date} onChange={e => updateBatchRow(itemIdx, batchIdx, "expiry_date", e.target.value)} className="text-xs" />
+                      </div>
+                      <div className="col-span-2">
+                        <Label className="text-xs">Qty</Label>
+                        <Input type="number" value={batch.quantity} onChange={e => updateBatchRow(itemIdx, batchIdx, "quantity", e.target.value)} className="text-xs" />
+                      </div>
+                      <div className="col-span-2 text-xs text-muted-foreground pt-5">
+                        {batch.available > 0 ? `Avail: ${batch.available}` : ""}
+                      </div>
+                      <div className="col-span-1">
+                        {item.batches.length > 1 && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeBatchRow(itemIdx, batchIdx)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {(() => {
+                    const totalAssigned = item.batches.reduce((s, b) => s + Number(b.quantity), 0);
+                    const diff = item.required_quantity - totalAssigned;
+                    return diff !== 0 ? (
+                      <p className="text-xs text-amber-600 mt-1">⚠ {diff > 0 ? `${diff} more needed` : `${Math.abs(diff)} excess`}</p>
+                    ) : (
+                      <p className="text-xs text-emerald-600 mt-1">✓ Fully allocated</p>
+                    );
+                  })()}
+                </div>
+              ))}
+              <Button onClick={handleCreateDN} className="w-full mt-3">Create Delivery Note</Button>
             </DialogContent>
           </Dialog>
         </main>
