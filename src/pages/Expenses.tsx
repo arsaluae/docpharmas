@@ -13,7 +13,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Plus, Search, Receipt, Briefcase, User, Wallet } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Search, Receipt, Briefcase, User, Wallet, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 
@@ -43,6 +47,9 @@ export default function Expenses() {
   const [catFilter, setCatFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("business");
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingNumber, setEditingNumber] = useState("");
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [expenseType, setExpenseType] = useState("business");
   const [category, setCategory] = useState("other");
@@ -73,21 +80,59 @@ export default function Expenses() {
 
   const handleSave = async () => {
     if (!amount || Number(amount) <= 0) { toast.error("Amount is required"); return; }
-    const { data: expNumber } = await supabase.rpc("generate_document_number", { p_document_type: "expense" });
-    if (!expNumber) { toast.error("Failed to generate expense number"); return; }
 
-    await supabase.from("expenses").insert({
-      expense_number: expNumber, category, description: description || null,
-      amount: Number(amount), gst_amount: Number(gstAmount) || 0,
-      payment_method: paymentMethod, bank_account_id: bankAccountId || null,
-      date, notes: notes || null, expense_type: expenseType,
-    });
-    toast.success(`Expense ${expNumber} recorded`);
+    if (editingId) {
+      // Delete-then-insert to let triggers fire
+      const { error: delErr } = await supabase.from("expenses").delete().eq("id", editingId);
+      if (delErr) { toast.error("Failed to update expense"); return; }
+      const { error: insErr } = await supabase.from("expenses").insert({
+        expense_number: editingNumber, category, description: description || null,
+        amount: Number(amount), gst_amount: Number(gstAmount) || 0,
+        payment_method: paymentMethod, bank_account_id: bankAccountId || null,
+        date, notes: notes || null, expense_type: expenseType,
+      });
+      if (insErr) { toast.error("Failed to save expense"); return; }
+      toast.success(`Expense ${editingNumber} updated`);
+    } else {
+      const { data: expNumber } = await supabase.rpc("generate_document_number", { p_document_type: "expense" });
+      if (!expNumber) { toast.error("Failed to generate expense number"); return; }
+      await supabase.from("expenses").insert({
+        expense_number: expNumber, category, description: description || null,
+        amount: Number(amount), gst_amount: Number(gstAmount) || 0,
+        payment_method: paymentMethod, bank_account_id: bankAccountId || null,
+        date, notes: notes || null, expense_type: expenseType,
+      });
+      toast.success(`Expense ${expNumber} recorded`);
+    }
     resetForm(); load();
   };
 
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const { error } = await supabase.from("expenses").delete().eq("id", deleteId);
+    if (error) { toast.error("Failed to delete expense"); } else { toast.success("Expense deleted"); }
+    setDeleteId(null);
+    load();
+  };
+
+  const handleEdit = (e: Expense) => {
+    setEditingId(e.id);
+    setEditingNumber(e.expense_number);
+    setExpenseType(e.expense_type);
+    setCategory(e.category);
+    setDescription(e.description || "");
+    setAmount(String(e.amount));
+    setGstAmount(String(e.gst_amount));
+    setPaymentMethod(e.payment_method);
+    setBankAccountId(e.bank_account_id || "");
+    setDate(e.date);
+    setNotes(e.notes || "");
+    setOpen(true);
+  };
+
   const resetForm = () => {
-    setOpen(false); setCategory(activeTab === "personal" ? "personal" : "other");
+    setOpen(false); setEditingId(null); setEditingNumber("");
+    setCategory(activeTab === "personal" ? "personal" : "other");
     setExpenseType(activeTab === "personal" ? "personal" : "business");
     setDescription(""); setAmount(""); setGstAmount("");
     setPaymentMethod("cash"); setBankAccountId(""); setNotes("");
@@ -129,9 +174,8 @@ export default function Expenses() {
             <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else handleOpenDialog(); }}>
               <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Expense</Button></DialogTrigger>
               <DialogContent className="max-w-lg">
-                <DialogHeader><DialogTitle>Record Expense</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{editingId ? "Edit Expense" : "Record Expense"}</DialogTitle></DialogHeader>
                 <div className="space-y-4 mt-2">
-                  {/* Type toggle */}
                   <div>
                     <Label className="mb-2 block">Expense Type</Label>
                     <RadioGroup value={expenseType} onValueChange={(v) => {
@@ -183,7 +227,7 @@ export default function Expenses() {
                     <div className="col-span-2"><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
                   </div>
                 </div>
-                <Button onClick={handleSave} className="w-full mt-4">Save Expense</Button>
+                <Button onClick={handleSave} className="w-full mt-4">{editingId ? "Update Expense" : "Save Expense"}</Button>
               </DialogContent>
             </Dialog>
           </header>
@@ -226,7 +270,6 @@ export default function Expenses() {
               </Card>
             </div>
 
-            {/* Tabs */}
             <Tabs value={activeTab} onValueChange={v => { setActiveTab(v); setCatFilter("all"); }}>
               <TabsList>
                 <TabsTrigger value="business">Business</TabsTrigger>
@@ -235,7 +278,6 @@ export default function Expenses() {
               </TabsList>
             </Tabs>
 
-            {/* Filters */}
             <div className="flex items-center gap-4">
               <div className="relative max-w-sm flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -264,11 +306,12 @@ export default function Expenses() {
                       <TableHead>Method</TableHead><TableHead>Date</TableHead>
                       {settings?.gst_enabled && <TableHead className="text-right">GST</TableHead>}
                       <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-center w-24">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={activeTab === "all" ? (settings?.gst_enabled ? 8 : 7) : (settings?.gst_enabled ? 7 : 6)} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={activeTab === "all" ? (settings?.gst_enabled ? 9 : 8) : (settings?.gst_enabled ? 8 : 7)} className="text-center py-12 text-muted-foreground">
                         <Receipt className="h-8 w-8 mx-auto mb-2 opacity-40" />No expenses recorded.
                       </TableCell></TableRow>
                     ) : filtered.map(e => (
@@ -287,6 +330,16 @@ export default function Expenses() {
                         <TableCell className="text-muted-foreground">{e.date}</TableCell>
                         {settings?.gst_enabled && <TableCell className="text-right text-muted-foreground font-mono">{Number(e.gst_amount).toLocaleString()}</TableCell>}
                         <TableCell className="text-right font-mono font-medium text-destructive">{Number(e.amount).toLocaleString()}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(e)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(e.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -296,6 +349,21 @@ export default function Expenses() {
           </div>
         </main>
       </div>
+
+      <AlertDialog open={!!deleteId} onOpenChange={o => { if (!o) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this expense and reverse any associated bank balance changes. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }

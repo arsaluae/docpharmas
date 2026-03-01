@@ -10,8 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Wallet, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Search, Wallet, ArrowDownLeft, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Customer { id: string; name: string; }
@@ -34,8 +38,10 @@ export default function Payments() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("all");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingNumber, setEditingNumber] = useState("");
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Party name lookup
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
 
   const [paymentType, setPaymentType] = useState<"received" | "made">("received");
@@ -70,7 +76,6 @@ export default function Payments() {
     if (sup.data) setSuppliers(sup.data);
     if (banks.data) setBankAccounts(banks.data);
 
-    // Build lookup
     const names: Record<string, string> = {};
     cust.data?.forEach(c => { names[c.id] = c.name; });
     sup.data?.forEach(s => { names[s.id] = s.name; });
@@ -79,22 +84,61 @@ export default function Payments() {
 
   const handleSave = async () => {
     if (!partyId || !amount || Number(amount) <= 0) { toast.error("Party and amount required"); return; }
-    const { data: paymentNumber } = await supabase.rpc("generate_document_number", { p_document_type: "payment" });
-    if (!paymentNumber) { toast.error("Failed to generate payment number"); return; }
 
-    await supabase.from("payments").insert({
-      payment_number: paymentNumber, type: paymentType, party_type: partyType, party_id: partyId,
-      amount: Number(amount), payment_method: paymentMethod,
-      bank_account_id: bankAccountId || null, cheque_number: chequeNumber || null,
-      cheque_date: chequeDate || null, reference: reference || null, date: payDate, notes: notes || null,
-    });
-
-    toast.success(`Payment ${paymentNumber} recorded`);
+    if (editingId) {
+      // Delete-then-insert to let triggers fire
+      const { error: delErr } = await supabase.from("payments").delete().eq("id", editingId);
+      if (delErr) { toast.error("Failed to update payment"); return; }
+      const { error: insErr } = await supabase.from("payments").insert({
+        payment_number: editingNumber, type: paymentType, party_type: partyType, party_id: partyId,
+        amount: Number(amount), payment_method: paymentMethod,
+        bank_account_id: bankAccountId || null, cheque_number: chequeNumber || null,
+        cheque_date: chequeDate || null, reference: reference || null, date: payDate, notes: notes || null,
+      });
+      if (insErr) { toast.error("Failed to save payment"); return; }
+      toast.success(`Payment ${editingNumber} updated`);
+    } else {
+      const { data: paymentNumber } = await supabase.rpc("generate_document_number", { p_document_type: "payment" });
+      if (!paymentNumber) { toast.error("Failed to generate payment number"); return; }
+      await supabase.from("payments").insert({
+        payment_number: paymentNumber, type: paymentType, party_type: partyType, party_id: partyId,
+        amount: Number(amount), payment_method: paymentMethod,
+        bank_account_id: bankAccountId || null, cheque_number: chequeNumber || null,
+        cheque_date: chequeDate || null, reference: reference || null, date: payDate, notes: notes || null,
+      });
+      toast.success(`Payment ${paymentNumber} recorded`);
+    }
     resetForm(); load();
   };
 
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const { error } = await supabase.from("payments").delete().eq("id", deleteId);
+    if (error) { toast.error("Failed to delete payment"); } else { toast.success("Payment deleted"); }
+    setDeleteId(null);
+    load();
+  };
+
+  const handleEdit = (p: Payment) => {
+    setEditingId(p.id);
+    setEditingNumber(p.payment_number);
+    setPaymentType(p.type as "received" | "made");
+    setPartyType(p.party_type as "customer" | "supplier");
+    setPartyId(p.party_id);
+    setAmount(String(p.amount));
+    setPaymentMethod(p.payment_method);
+    setBankAccountId(p.bank_account_id || "");
+    setChequeNumber(p.cheque_number || "");
+    setChequeDate(p.cheque_date || "");
+    setReference(p.reference || "");
+    setPayDate(p.date);
+    setNotes(p.notes || "");
+    setOpen(true);
+  };
+
   const resetForm = () => {
-    setOpen(false); setPartyId(""); setAmount(""); setPaymentMethod("cash");
+    setOpen(false); setEditingId(null); setEditingNumber("");
+    setPartyId(""); setAmount(""); setPaymentMethod("cash");
     setBankAccountId(""); setChequeNumber(""); setChequeDate(""); setReference(""); setNotes("");
   };
 
@@ -122,7 +166,7 @@ export default function Payments() {
             <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else setOpen(true); }}>
               <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Payment</Button></DialogTrigger>
               <DialogContent className="max-w-lg">
-                <DialogHeader><DialogTitle>Record Payment</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{editingId ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
                 <div className="grid grid-cols-2 gap-3 mt-2">
                   <div>
                     <Label>Type</Label>
@@ -173,7 +217,7 @@ export default function Payments() {
                   <div><Label>Reference</Label><Input value={reference} onChange={e => setReference(e.target.value)} placeholder="Ref / Txn ID" /></div>
                   <div className="col-span-2"><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
                 </div>
-                <Button onClick={handleSave} className="w-full mt-4">Record Payment</Button>
+                <Button onClick={handleSave} className="w-full mt-4">{editingId ? "Update Payment" : "Record Payment"}</Button>
               </DialogContent>
             </Dialog>
           </header>
@@ -201,11 +245,12 @@ export default function Payments() {
                       <TableHead>Payment #</TableHead><TableHead>Type</TableHead><TableHead>Party</TableHead>
                       <TableHead>Method</TableHead><TableHead>Cheque</TableHead><TableHead>Date</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-center w-24">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                         <Wallet className="h-8 w-8 mx-auto mb-2 opacity-40" />No payments recorded.
                       </TableCell></TableRow>
                     ) : filtered.map(p => (
@@ -225,6 +270,16 @@ export default function Payments() {
                         <TableCell className={`text-right font-mono font-medium ${p.type === "received" ? "text-emerald-600" : "text-destructive"}`}>
                           {p.type === "received" ? "+" : "-"}{Number(p.amount).toLocaleString()}
                         </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(p)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(p.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -234,6 +289,21 @@ export default function Payments() {
           </div>
         </main>
       </div>
+
+      <AlertDialog open={!!deleteId} onOpenChange={o => { if (!o) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this payment and reverse all associated balance changes (party balance and bank balance). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }
