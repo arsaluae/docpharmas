@@ -143,8 +143,11 @@ export type Database = {
           address: string | null
           company_name: string | null
           created_at: string
+          default_gst_rate: number
+          default_wht_rate: number
           email: string | null
           fbr_enabled: boolean
+          gst_enabled: boolean
           id: string
           logo_url: string | null
           ntn: string | null
@@ -152,13 +155,17 @@ export type Database = {
           strn: string | null
           updated_at: string
           website: string | null
+          wht_enabled: boolean
         }
         Insert: {
           address?: string | null
           company_name?: string | null
           created_at?: string
+          default_gst_rate?: number
+          default_wht_rate?: number
           email?: string | null
           fbr_enabled?: boolean
+          gst_enabled?: boolean
           id?: string
           logo_url?: string | null
           ntn?: string | null
@@ -166,13 +173,17 @@ export type Database = {
           strn?: string | null
           updated_at?: string
           website?: string | null
+          wht_enabled?: boolean
         }
         Update: {
           address?: string | null
           company_name?: string | null
           created_at?: string
+          default_gst_rate?: number
+          default_wht_rate?: number
           email?: string | null
           fbr_enabled?: boolean
+          gst_enabled?: boolean
           id?: string
           logo_url?: string | null
           ntn?: string | null
@@ -180,6 +191,7 @@ export type Database = {
           strn?: string | null
           updated_at?: string
           website?: string | null
+          wht_enabled?: boolean
         }
         Relationships: []
       }

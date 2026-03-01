@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, Receipt } from "lucide-react";
 import { toast } from "sonner";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 
 const CATEGORIES = [
   "salaries", "rent", "utilities", "transport", "travel", "food",
@@ -30,6 +31,7 @@ interface Expense {
 
 export default function Expenses() {
   const navigate = useNavigate();
+  const { settings } = useCompanySettings();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [search, setSearch] = useState("");
@@ -119,7 +121,7 @@ export default function Expenses() {
                   <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
                   <div className="col-span-2"><Label>Description</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
                   <div><Label>Amount (PKR) *</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} /></div>
-                  <div><Label>GST Amount</Label><Input type="number" value={gstAmount} onChange={e => setGstAmount(e.target.value)} /></div>
+                  {settings?.gst_enabled && <div><Label>GST Amount</Label><Input type="number" value={gstAmount} onChange={e => setGstAmount(e.target.value)} /></div>}
                   <div>
                     <Label>Payment Method</Label>
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -165,12 +167,12 @@ export default function Expenses() {
                     <TableRow>
                       <TableHead>Expense #</TableHead><TableHead>Category</TableHead><TableHead>Description</TableHead>
                       <TableHead>Method</TableHead><TableHead>Date</TableHead>
-                      <TableHead className="text-right">GST</TableHead><TableHead className="text-right">Amount</TableHead>
+                      {settings?.gst_enabled && <TableHead className="text-right">GST</TableHead>}<TableHead className="text-right">Amount</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={settings?.gst_enabled ? 7 : 6} className="text-center py-12 text-muted-foreground">
                         <Receipt className="h-8 w-8 mx-auto mb-2 opacity-40" />No expenses recorded.
                       </TableCell></TableRow>
                     ) : filtered.map(e => (
@@ -180,7 +182,7 @@ export default function Expenses() {
                         <TableCell className="text-muted-foreground">{e.description || "—"}</TableCell>
                         <TableCell className="capitalize text-muted-foreground">{e.payment_method.replace("_", " ")}</TableCell>
                         <TableCell className="text-muted-foreground">{e.date}</TableCell>
-                        <TableCell className="text-right text-muted-foreground font-mono">{Number(e.gst_amount).toLocaleString()}</TableCell>
+                        {settings?.gst_enabled && <TableCell className="text-right text-muted-foreground font-mono">{Number(e.gst_amount).toLocaleString()}</TableCell>}
                         <TableCell className="text-right font-mono font-medium text-destructive">{Number(e.amount).toLocaleString()}</TableCell>
                       </TableRow>
                     ))}

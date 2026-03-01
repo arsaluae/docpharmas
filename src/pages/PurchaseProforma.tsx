@@ -102,7 +102,7 @@ export default function PurchaseProforma() {
 
   const calcTotals = () => {
     const subtotal = items.reduce((s, i) => s + i.amount, 0);
-    const gst = subtotal * 0.17;
+    const gst = settings?.gst_enabled ? subtotal * (Number(settings.default_gst_rate) / 100) : 0;
     return { subtotal, gst, total: subtotal + gst };
   };
 
@@ -249,7 +249,7 @@ export default function PurchaseProforma() {
   const handleEditSave = async () => {
     if (!detailPP) return;
     const subtotal = editItems.reduce((s, i) => s + i.amount, 0);
-    const gst = subtotal * 0.17;
+    const gst = settings?.gst_enabled ? subtotal * (Number(settings.default_gst_rate) / 100) : 0;
     const total = subtotal + gst;
     await supabase.from("purchase_proformas").update({
       supplier_id: editSupplierId || null, date: editDate, validity_days: Number(editValidity),

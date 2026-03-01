@@ -12,6 +12,10 @@ export interface CompanySettings {
   fbr_enabled: boolean;
   ntn: string | null;
   strn: string | null;
+  gst_enabled: boolean;
+  default_gst_rate: number;
+  wht_enabled: boolean;
+  default_wht_rate: number;
 }
 
 export function useCompanySettings() {

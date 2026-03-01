@@ -78,7 +78,8 @@ export default function SalesInvoices() {
   };
 
   const addItem = () => {
-    setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, discount_percent: 0, gst_rate: 17, amount: 0 }]);
+    const defaultGst = settings?.gst_enabled ? Number(settings.default_gst_rate) : 0;
+    setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, discount_percent: 0, gst_rate: defaultGst, amount: 0 }]);
   };
 
   const updateItem = (idx: number, field: string, value: any) => {
@@ -86,14 +87,14 @@ export default function SalesInvoices() {
     (updated[idx] as any)[field] = value;
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
-      if (p) { updated[idx].product_name = p.name; updated[idx].rate = Number(p.selling_price); updated[idx].gst_rate = Number(p.gst_rate); }
+      if (p) { updated[idx].product_name = p.name; updated[idx].rate = Number(p.selling_price); updated[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; }
     }
     const qty = Number(updated[idx].quantity);
     const rate = Number(updated[idx].rate);
     const disc = Number(updated[idx].discount_percent);
     const lineTotal = qty * rate;
     const afterDisc = lineTotal - (lineTotal * disc / 100);
-    const gst = afterDisc * Number(updated[idx].gst_rate) / 100;
+    const gst = settings?.gst_enabled ? (afterDisc * Number(updated[idx].gst_rate) / 100) : 0;
     updated[idx].amount = afterDisc + gst;
     setItems(updated);
   };
@@ -106,11 +107,11 @@ export default function SalesInvoices() {
       const line = Number(i.quantity) * Number(i.rate);
       return s + (line * Number(i.discount_percent) / 100);
     }, 0);
-    const gstAmount = items.reduce((s, i) => {
+    const gstAmount = settings?.gst_enabled ? items.reduce((s, i) => {
       const line = Number(i.quantity) * Number(i.rate);
       const afterDisc = line - (line * Number(i.discount_percent) / 100);
       return s + (afterDisc * Number(i.gst_rate) / 100);
-    }, 0);
+    }, 0) : 0;
     const total = subtotal - discount + gstAmount;
     return { subtotal, discount, gstAmount, total };
   }, [items]);
@@ -121,11 +122,11 @@ export default function SalesInvoices() {
       const line = Number(i.quantity) * Number(i.rate);
       return s + (line * Number(i.discount_percent) / 100);
     }, 0);
-    const gstAmount = editItems.reduce((s, i) => {
+    const gstAmount = settings?.gst_enabled ? editItems.reduce((s, i) => {
       const line = Number(i.quantity) * Number(i.rate);
       const afterDisc = line - (line * Number(i.discount_percent) / 100);
       return s + (afterDisc * Number(i.gst_rate) / 100);
-    }, 0);
+    }, 0) : 0;
     return { subtotal, discount, gstAmount, total: subtotal - discount + gstAmount };
   };
 
@@ -209,12 +210,12 @@ export default function SalesInvoices() {
     (u[idx] as any)[field] = value;
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
-      if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = Number(p.gst_rate); }
+      if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; }
     }
     const qty = Number(u[idx].quantity); const rate = Number(u[idx].rate);
     const disc = Number(u[idx].discount_percent);
     const lineTotal = qty * rate; const afterDisc = lineTotal - (lineTotal * disc / 100);
-    u[idx].amount = afterDisc + (afterDisc * Number(u[idx].gst_rate) / 100);
+    u[idx].amount = afterDisc + (settings?.gst_enabled ? (afterDisc * Number(u[idx].gst_rate) / 100) : 0);
     setEditItems(u);
   };
 
@@ -256,7 +257,7 @@ export default function SalesInvoices() {
       totals: [
         { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
         { label: "Discount", value: `-PKR ${Number(inv.discount).toLocaleString()}` },
-        { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
+        ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` }] : []),
         { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
       ],
       notes: inv.notes || undefined, settings,
@@ -308,7 +309,7 @@ export default function SalesInvoices() {
             <SidebarTrigger />
             <div className="flex-1">
               <h1 className="text-xl font-bold text-foreground font-heading">Sales Invoices</h1>
-              <p className="text-sm text-muted-foreground">Create invoices with GST calculation & FBR QR</p>
+              <p className="text-sm text-muted-foreground">Create invoices{settings?.gst_enabled ? ' with GST calculation' : ''}{settings?.fbr_enabled ? ' & FBR QR' : ''}</p>
             </div>
             <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else setOpen(true); }}>
               <DialogTrigger asChild>
@@ -344,8 +345,8 @@ export default function SalesInvoices() {
                       <div className="col-span-2"><Input type="number" placeholder="Qty" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" /></div>
                       <div className="col-span-2"><Input type="number" placeholder="Rate" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" /></div>
                       <div className="col-span-1"><Input type="number" placeholder="Disc%" value={item.discount_percent} onChange={e => updateItem(idx, "discount_percent", e.target.value)} className="text-xs" /></div>
-                      <div className="col-span-1"><Input type="number" placeholder="GST%" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" /></div>
-                      <div className="col-span-2 text-right text-sm font-mono font-medium pt-2">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                      {settings?.gst_enabled && <div className="col-span-1"><Input type="number" placeholder="GST%" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" /></div>}
+                      <div className={`${settings?.gst_enabled ? 'col-span-2' : 'col-span-3'} text-right text-sm font-mono font-medium pt-2`}>{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                       <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => removeItem(idx)}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
                     </div>
                   ))}
@@ -354,7 +355,7 @@ export default function SalesInvoices() {
                 <div className="mt-4 border-t border-border pt-3 space-y-1 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="font-mono text-destructive">-{discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">GST (17%)</span><span className="font-mono">{gstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                  {settings?.gst_enabled && <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span className="font-mono">{gstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                   <div className="flex justify-between font-bold text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                 </div>
 
@@ -380,7 +381,7 @@ export default function SalesInvoices() {
                       <TableHead>Customer</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="text-right">GST</TableHead>
+                      {settings?.gst_enabled && <TableHead className="text-right">GST</TableHead>}
                       <TableHead className="text-right">Total</TableHead>
                       {settings?.fbr_enabled && <TableHead>FBR</TableHead>}
                       <TableHead>Actions</TableHead>
@@ -398,7 +399,7 @@ export default function SalesInvoices() {
                         <TableCell onClick={() => openDetail(inv)}>{(inv.customers as any)?.name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground" onClick={() => openDetail(inv)}>{inv.date}</TableCell>
                         <TableCell onClick={() => openDetail(inv)}><span className={`status-pill ${statusColor(inv.status)}`}>{inv.status}</span></TableCell>
-                        <TableCell className="text-right font-mono" onClick={() => openDetail(inv)}>{Number(inv.gst_amount).toLocaleString()}</TableCell>
+                        {settings?.gst_enabled && <TableCell className="text-right font-mono" onClick={() => openDetail(inv)}>{Number(inv.gst_amount).toLocaleString()}</TableCell>}
                         <TableCell className="text-right font-mono font-medium" onClick={() => openDetail(inv)}>{Number(inv.total).toLocaleString()}</TableCell>
                         {settings?.fbr_enabled && (
                           <TableCell>
@@ -472,7 +473,7 @@ export default function SalesInvoices() {
                     <TableHeader><TableRow>
                       <TableHead>#</TableHead><TableHead>Product</TableHead><TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Rate</TableHead><TableHead className="text-right">Disc%</TableHead>
-                      <TableHead className="text-right">GST%</TableHead><TableHead className="text-right">Amount</TableHead>
+                      {settings?.gst_enabled && <TableHead className="text-right">GST%</TableHead>}<TableHead className="text-right">Amount</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
                       {detailItems.map((i: any, idx: number) => (
@@ -482,7 +483,7 @@ export default function SalesInvoices() {
                           <TableCell className="text-right">{i.quantity}</TableCell>
                           <TableCell className="text-right font-mono">{Number(i.rate).toLocaleString()}</TableCell>
                           <TableCell className="text-right">{i.discount_percent}%</TableCell>
-                          <TableCell className="text-right">{i.gst_rate}%</TableCell>
+                          {settings?.gst_enabled && <TableCell className="text-right">{i.gst_rate}%</TableCell>}
                           <TableCell className="text-right font-mono">{Number(i.amount).toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
@@ -490,8 +491,8 @@ export default function SalesInvoices() {
                   </Table>
                   <div className="border-t border-border pt-3 space-y-1 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">PKR {Number(detailInv?.subtotal || 0).toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="font-mono text-destructive">-PKR {Number(detailInv?.discount || 0).toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span className="font-mono">PKR {Number(detailInv?.gst_amount || 0).toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="font-mono text-destructive">-PKR {Number(detailInv?.discount || 0).toLocaleString()}</span></div>
+                    {settings?.gst_enabled && <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span className="font-mono">PKR {Number(detailInv?.gst_amount || 0).toLocaleString()}</span></div>}
                     <div className="flex justify-between font-bold"><span>Total</span><span className="font-mono">PKR {Number(detailInv?.total || 0).toLocaleString()}</span></div>
                   </div>
                 </>
@@ -511,7 +512,7 @@ export default function SalesInvoices() {
                   <div className="mt-3">
                     <div className="flex items-center justify-between mb-2">
                       <Label className="text-sm font-semibold">Line Items</Label>
-                      <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, discount_percent: 0, gst_rate: 17, amount: 0 }])}><Plus className="h-3 w-3 mr-1" /> Add</Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, discount_percent: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0 }])}><Plus className="h-3 w-3 mr-1" /> Add</Button>
                     </div>
                     {editItems.map((item, idx) => (
                       <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
@@ -523,9 +524,9 @@ export default function SalesInvoices() {
                         </div>
                         <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="text-xs" /></div>
                         <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs" /></div>
-                        <div className="col-span-1"><Input type="number" value={item.discount_percent} onChange={e => updateEditItem(idx, "discount_percent", e.target.value)} className="text-xs" /></div>
-                        <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateEditItem(idx, "gst_rate", e.target.value)} className="text-xs" /></div>
-                        <div className="col-span-2 text-right text-sm font-mono pt-2">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                         <div className="col-span-1"><Input type="number" value={item.discount_percent} onChange={e => updateEditItem(idx, "discount_percent", e.target.value)} className="text-xs" /></div>
+                        {settings?.gst_enabled && <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateEditItem(idx, "gst_rate", e.target.value)} className="text-xs" /></div>}
+                        <div className={`${settings?.gst_enabled ? 'col-span-2' : 'col-span-3'} text-right text-sm font-mono pt-2`}>{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                         <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
                       </div>
                     ))}
@@ -533,8 +534,8 @@ export default function SalesInvoices() {
                   {(() => { const t = calcEditTotals(); return (
                     <div className="border-t border-border pt-3 space-y-1 text-sm">
                       <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{t.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="font-mono text-destructive">-{t.discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span className="font-mono">{t.gstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                       <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="font-mono text-destructive">-{t.discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                      {settings?.gst_enabled && <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span className="font-mono">{t.gstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                       <div className="flex justify-between font-bold"><span>Total</span><span className="font-mono">PKR {t.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                     </div>
                   ); })()}

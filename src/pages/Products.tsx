@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Plus, Search, Package, Trash2, Upload, ArrowDownUp, DollarSign, AlertTriangle, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 
 const categories = ["tablet", "capsule", "syrup", "injection", "cream", "ointment", "drops", "sachet", "other"] as const;
 const MOVE_TYPES = ["purchase_in", "sale_out", "return_in", "return_out", "adjustment"];
@@ -37,6 +38,7 @@ const emptyForm = {
 
 export default function Products() {
   const navigate = useNavigate();
+  const { settings } = useCompanySettings();
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [search, setSearch] = useState("");
@@ -209,7 +211,7 @@ export default function Products() {
                     <div><Label>DRAP Reg. No.</Label><Input value={form.drap_reg_number} onChange={e => setForm({...form, drap_reg_number: e.target.value})} /></div>
                     <div><Label>Pack Size</Label><Input value={form.pack_size} onChange={e => setForm({...form, pack_size: e.target.value})} placeholder="e.g. 10x10" /></div>
                     <div><Label>Unit</Label><Input value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} /></div>
-                    <div><Label>GST Rate (%)</Label><Input type="number" value={form.gst_rate} onChange={e => setForm({...form, gst_rate: e.target.value})} /></div>
+                    {settings?.gst_enabled && <div><Label>GST Rate (%)</Label><Input type="number" value={form.gst_rate} onChange={e => setForm({...form, gst_rate: e.target.value})} /></div>}
                     <div><Label>Cost Price (PKR)</Label><Input type="number" value={form.cost_price} onChange={e => setForm({...form, cost_price: e.target.value})} /></div>
                     <div><Label>Selling Price (PKR)</Label><Input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} /></div>
                     <div><Label>Stock Quantity</Label><Input type="number" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} /></div>
