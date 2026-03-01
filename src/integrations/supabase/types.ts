@@ -320,6 +320,57 @@ export type Database = {
         }
         Relationships: []
       }
+      document_templates: {
+        Row: {
+          bank_details_text: string | null
+          columns_config: Json
+          created_at: string
+          document_type: string
+          extra_meta_fields: Json
+          footer_text: string | null
+          id: string
+          show_bank_details: boolean
+          show_party_area: boolean
+          show_party_cnic: boolean
+          show_party_license: boolean
+          show_total_in_words: boolean
+          signature_labels: Json
+          title: string
+        }
+        Insert: {
+          bank_details_text?: string | null
+          columns_config?: Json
+          created_at?: string
+          document_type: string
+          extra_meta_fields?: Json
+          footer_text?: string | null
+          id?: string
+          show_bank_details?: boolean
+          show_party_area?: boolean
+          show_party_cnic?: boolean
+          show_party_license?: boolean
+          show_total_in_words?: boolean
+          signature_labels?: Json
+          title: string
+        }
+        Update: {
+          bank_details_text?: string | null
+          columns_config?: Json
+          created_at?: string
+          document_type?: string
+          extra_meta_fields?: Json
+          footer_text?: string | null
+          id?: string
+          show_bank_details?: boolean
+          show_party_area?: boolean
+          show_party_cnic?: boolean
+          show_party_license?: boolean
+          show_total_in_words?: boolean
+          signature_labels?: Json
+          title?: string
+        }
+        Relationships: []
+      }
       drap_registrations: {
         Row: {
           created_at: string

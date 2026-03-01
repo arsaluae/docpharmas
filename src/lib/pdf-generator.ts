@@ -1,4 +1,5 @@
 import type { CompanySettings } from "@/hooks/useCompanySettings";
+import type { DocumentTemplate } from "@/hooks/useDocumentTemplates";
 
 interface PdfColumn { header: string; key: string; align?: "left" | "right" | "center"; }
 interface PdfMeta { label: string; value: string; }
@@ -11,17 +12,65 @@ interface PdfOptions {
   partyAddress?: string;
   partyPhone?: string;
   partyNtn?: string;
+  partyArea?: string;
+  partyLicense?: string;
+  partyCnic?: string;
   meta?: PdfMeta[];
   columns: PdfColumn[];
   rows: Record<string, any>[];
   totals?: PdfMeta[];
+  totalInWords?: string;
   notes?: string;
   settings: CompanySettings | null;
+  template?: DocumentTemplate | null;
+}
+
+function numberToWords(num: number): string {
+  if (num === 0) return "Zero";
+  const ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+  const tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+  const scales = ["","Thousand","Million","Billion"];
+  
+  const convert = (n: number): string => {
+    if (n === 0) return "";
+    if (n < 20) return ones[n] + " ";
+    if (n < 100) return tens[Math.floor(n / 10)] + " " + convert(n % 10);
+    return ones[Math.floor(n / 100)] + " Hundred " + convert(n % 100);
+  };
+  
+  const intPart = Math.floor(Math.abs(num));
+  const decPart = Math.round((Math.abs(num) - intPart) * 100);
+  
+  let result = "";
+  let tempNum = intPart;
+  let scaleIdx = 0;
+  while (tempNum > 0) {
+    const chunk = tempNum % 1000;
+    if (chunk !== 0) {
+      result = convert(chunk) + scales[scaleIdx] + " " + result;
+    }
+    tempNum = Math.floor(tempNum / 1000);
+    scaleIdx++;
+  }
+  
+  result = result.trim() + " Rupees";
+  if (decPart > 0) result += " and " + convert(decPart).trim() + " Paisa";
+  return result + " Only";
 }
 
 export function generatePdf(opts: PdfOptions) {
   const s = opts.settings;
+  const t = opts.template;
   const companyName = s?.company_name || "Company Name";
+
+  // Use template overrides
+  const docTitle = t?.title || opts.title;
+  const columns = t?.columns_config?.length ? t.columns_config : opts.columns;
+  const signatureLabels = t?.signature_labels?.length ? t.signature_labels : ["Prepared By", "Authorized Signature"];
+  const showTotalInWords = t?.show_total_in_words ?? false;
+  const showBankDetails = t?.show_bank_details ?? false;
+  const bankDetailsText = t?.bank_details_text || "";
+  const footerText = t?.footer_text || "";
 
   const logoHtml = s?.logo_url
     ? `<img src="${s.logo_url}" style="max-height:80px;max-width:200px;object-fit:contain;" />`
@@ -35,11 +84,14 @@ export function generatePdf(opts: PdfOptions) {
     s?.strn ? `STRN: ${s.strn}` : null,
   ].filter(Boolean);
 
-  const partyRows = [
+  const partyLines = [
     opts.partyName ? `<div style="font-size:15px;font-weight:700;color:#1a1a2e;">${opts.partyName}</div>` : "",
     opts.partyAddress ? `<div style="font-size:12px;color:#555;margin-top:2px;">${opts.partyAddress}</div>` : "",
-    opts.partyPhone ? `<div style="font-size:12px;color:#555;">${opts.partyPhone}</div>` : "",
+    opts.partyPhone ? `<div style="font-size:12px;color:#555;">Mobile: ${opts.partyPhone}</div>` : "",
     opts.partyNtn ? `<div style="font-size:11px;color:#888;margin-top:2px;">${opts.partyNtn}</div>` : "",
+    t?.show_party_area && opts.partyArea ? `<div style="font-size:11px;color:#888;">Area: ${opts.partyArea}</div>` : "",
+    t?.show_party_license && opts.partyLicense ? `<div style="font-size:11px;color:#888;">License No: ${opts.partyLicense}</div>` : "",
+    t?.show_party_cnic && opts.partyCnic ? `<div style="font-size:11px;color:#888;">CNIC: ${opts.partyCnic}</div>` : "",
   ].filter(Boolean).join("");
 
   const metaItems = [
@@ -50,13 +102,13 @@ export function generatePdf(opts: PdfOptions) {
 
   const thAlign = (c: PdfColumn) => c.align || "left";
 
-  const headerCells = opts.columns.map(c =>
+  const headerCells = columns.map(c =>
     `<th style="padding:10px 8px;text-align:${thAlign(c)};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#fff;border-bottom:2px solid #c9a84c;">${c.header}</th>`
   ).join("");
 
   const bodyRows = opts.rows.map((row, i) => {
     const bg = i % 2 === 0 ? "#fff" : "#f8f7f4";
-    const cells = opts.columns.map(c =>
+    const cells = columns.map(c =>
       `<td style="padding:8px;font-size:12px;text-align:${thAlign(c)};border-bottom:1px solid #e8e6e1;color:#333;">${row[c.key] ?? ""}</td>`
     ).join("");
     return `<tr style="background:${bg};">${cells}</tr>`;
@@ -76,8 +128,42 @@ export function generatePdf(opts: PdfOptions) {
       }).join("")
     : "";
 
+  // Total in words
+  const totalAmount = opts.totals?.length ? parseFloat(opts.totals[opts.totals.length - 1].value.replace(/[^0-9.]/g, "")) : 0;
+  const totalInWordsHtml = showTotalInWords && totalAmount
+    ? `<div style="margin-top:12px;padding:8px 12px;background:#faf9f6;border:1px solid #e8e6e1;border-radius:4px;">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#c9a84c;">Total in Words: </span>
+        <span style="font-size:11px;color:#333;font-style:italic;">${numberToWords(totalAmount)}</span>
+      </div>`
+    : "";
+
+  // Bank details
+  const bankDetailsHtml = showBankDetails && bankDetailsText
+    ? `<div style="margin-top:12px;padding:8px 12px;background:#f0efe8;border-radius:4px;">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#c9a84c;">Bank Details: </span>
+        <span style="font-size:11px;color:#333;">${bankDetailsText}</span>
+      </div>`
+    : "";
+
+  // Custom footer text (certification etc.)
+  const footerTextHtml = footerText
+    ? `<div style="margin-top:16px;padding:12px 16px;background:#faf9f6;border-left:3px solid #c9a84c;border-radius:0 4px 4px 0;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#c9a84c;margin-bottom:4px;">Certification</div>
+        <div style="font-size:10px;color:#555;line-height:1.6;">${footerText}</div>
+      </div>`
+    : "";
+
+  // Signature lines from template
+  const signaturesHtml = signatureLabels.map(label =>
+    `<div style="text-align:center;width:200px;">
+      <div style="border-top:1.5px solid #1a1a2e;padding-top:8px;">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#888;">${label}</div>
+      </div>
+    </div>`
+  ).join("");
+
   const html = `<!DOCTYPE html><html><head>
-<title>${opts.title} - ${opts.documentNumber}</title>
+<title>${docTitle} - ${opts.documentNumber}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -118,13 +204,12 @@ export function generatePdf(opts: PdfOptions) {
   <div style="text-align:center;margin-bottom:20px;">
     <div style="display:inline-block;padding:8px 30px;border:2px solid #1a1a2e;position:relative;">
       <div style="position:absolute;top:-1px;left:20%;right:20%;height:3px;background:#c9a84c;"></div>
-      <div style="font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:#1a1a2e;">${opts.title}</div>
+      <div style="font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:#1a1a2e;">${docTitle}</div>
     </div>
   </div>
 
-  <!-- PARTY INFO + META — Two columns -->
+  <!-- PARTY INFO + META -->
   <div style="display:flex;gap:20px;margin-bottom:24px;">
-    <!-- Left: Document meta -->
     <div style="flex:1;">
       <table style="width:100%;">
         ${metaItems.map(m => `<tr>
@@ -133,10 +218,9 @@ export function generatePdf(opts: PdfOptions) {
         </tr>`).join("")}
       </table>
     </div>
-    <!-- Right: Party details -->
-    ${partyRows ? `<div style="flex:1;border:1px solid #e8e6e1;border-left:3px solid #c9a84c;padding:12px 16px;border-radius:0 4px 4px 0;">
+    ${partyLines ? `<div style="flex:1;border:1px solid #e8e6e1;border-left:3px solid #c9a84c;padding:12px 16px;border-radius:0 4px 4px 0;">
       <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#c9a84c;margin-bottom:6px;">${opts.partyLabel || "Party"}</div>
-      ${partyRows}
+      ${partyLines}
     </div>` : ""}
   </div>
 
@@ -151,24 +235,20 @@ export function generatePdf(opts: PdfOptions) {
   <!-- TOTALS -->
   ${totalsHtml ? `<div style="margin-left:auto;max-width:280px;border:1px solid #e8e6e1;border-radius:4px;overflow:hidden;">${totalsHtml}</div>` : ""}
 
+  ${totalInWordsHtml}
+  ${bankDetailsHtml}
+
   <!-- NOTES -->
   ${opts.notes ? `<div style="margin-top:24px;padding:12px 16px;background:#faf9f6;border-left:3px solid #c9a84c;border-radius:0 4px 4px 0;">
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#c9a84c;margin-bottom:4px;">Notes / Terms</div>
     <div style="font-size:11px;color:#555;line-height:1.5;">${opts.notes}</div>
   </div>` : ""}
 
+  ${footerTextHtml}
+
   <!-- SIGNATURE LINES -->
   <div style="display:flex;justify-content:space-between;margin-top:50px;padding-top:0;">
-    <div style="text-align:center;width:200px;">
-      <div style="border-top:1.5px solid #1a1a2e;padding-top:8px;">
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#888;">Prepared By</div>
-      </div>
-    </div>
-    <div style="text-align:center;width:200px;">
-      <div style="border-top:1.5px solid #1a1a2e;padding-top:8px;">
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#888;">Authorized Signature</div>
-      </div>
-    </div>
+    ${signaturesHtml}
   </div>
 
   <!-- FOOTER -->
