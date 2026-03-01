@@ -53,6 +53,8 @@ export default function PurchaseProforma() {
   const [costDesc, setCostDesc] = useState("");
   const [costAmount, setCostAmount] = useState("");
   const [costVendorId, setCostVendorId] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
 
@@ -193,8 +195,13 @@ export default function PurchaseProforma() {
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
 
-  const handleBulkDelete = async (ids: string[]) => {
-    if (!window.confirm(`Delete ${ids.length} purchase proforma(s)?`)) return;
+  const promptDelete = (ids: string[]) => {
+    setDeleteIds(ids);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = deleteIds;
     for (let i = 0; i < ids.length; i += 200) {
       const chunk = ids.slice(i, i + 200);
       await supabase.from("purchase_proforma_items").delete().in("proforma_id", chunk);
@@ -202,16 +209,16 @@ export default function PurchaseProforma() {
       await supabase.from("purchase_proformas").delete().in("id", chunk);
     }
     toast.success(`${ids.length} deleted`);
-    setSelected(new Set()); load();
+    setSelected(new Set()); setDeleteConfirmOpen(false); setDeleteIds([]); load();
   };
 
   const handleApprove = async (id: string) => {
     await supabase.from("purchase_proformas").update({ status: "approved" }).eq("id", id);
     toast.success("Proforma approved — converting to PO...");
-    await load();
-    // Auto-convert to PO
-    const pp = proformas.find(p => p.id === id) || (await supabase.from("purchase_proformas").select("*, suppliers(name)").eq("id", id).single()).data;
+    // Fetch directly from DB to avoid stale state
+    const { data: pp } = await supabase.from("purchase_proformas").select("*, suppliers(name)").eq("id", id).single();
     if (pp) await convertToPO(pp as any);
+    load();
   };
 
   // Detail/Edit
@@ -416,7 +423,7 @@ export default function PurchaseProforma() {
                           <Button variant="ghost" size="sm" onClick={() => { setSelectedProformaId(pp.id); setCostOpen(true); }} className="text-xs">
                             <DollarSign className="h-3 w-3 mr-1" /> Costs
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleBulkDelete([pp.id])}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => promptDelete([pp.id])}>
                             <Trash2 className="h-3 w-3 text-destructive" />
                           </Button>
                           <Button variant="outline" size="sm" onClick={async () => {
@@ -454,7 +461,7 @@ export default function PurchaseProforma() {
           {selected.size > 0 && (
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-destructive text-destructive-foreground px-6 py-3 rounded-full shadow-lg flex items-center gap-3 z-50">
               <span className="text-sm font-medium">{selected.size} selected</span>
-              <Button size="sm" variant="secondary" onClick={() => handleBulkDelete(Array.from(selected))}>
+              <Button size="sm" variant="secondary" onClick={() => promptDelete(Array.from(selected))}>
                 <Trash2 className="h-3 w-3 mr-1" /> Delete
               </Button>
             </div>
@@ -555,6 +562,18 @@ export default function PurchaseProforma() {
                   </div>
                 </>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete confirmation dialog */}
+          <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>Confirm Delete</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">Delete {deleteIds.length} purchase proforma(s)? This will also remove their items and additional costs.</p>
+              <div className="flex gap-2 mt-4">
+                <Button variant="destructive" onClick={handleBulkDelete} className="flex-1">Delete</Button>
+                <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} className="flex-1">Cancel</Button>
+              </div>
             </DialogContent>
           </Dialog>
 

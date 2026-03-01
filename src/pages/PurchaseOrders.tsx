@@ -91,11 +91,21 @@ export default function PurchaseOrders() {
 
   const handleConfirm = async () => {
     if (!selectedPO) return;
+    let newSubtotal = 0;
     for (const item of confirmItems) {
-      await supabase.from("purchase_order_items").update({ quantity_confirmed: Number(item.quantity_confirmed) }).eq("id", item.id);
+      const amt = Number(item.quantity_confirmed) * Number(item.rate);
+      newSubtotal += amt;
+      await supabase.from("purchase_order_items").update({
+        quantity_confirmed: Number(item.quantity_confirmed),
+        rate: Number(item.rate),
+        amount: amt,
+      }).eq("id", item.id);
     }
-    await supabase.from("purchase_orders").update({ status: "confirmed" }).eq("id", selectedPO.id);
-    toast.success("Quantities confirmed — you can now create a GRN");
+    const gstRate = settings?.gst_enabled ? Number(settings.default_gst_rate) / 100 : 0;
+    const newGst = newSubtotal * gstRate;
+    const newTotal = newSubtotal + newGst;
+    await supabase.from("purchase_orders").update({ status: "confirmed", subtotal: newSubtotal, gst: newGst, total: newTotal }).eq("id", selectedPO.id);
+    toast.success("Quantities & rates confirmed — you can now create a GRN");
     setConfirmOpen(false); load();
   };
 
@@ -193,7 +203,7 @@ export default function PurchaseOrders() {
                               template: getTemplate("purchase_order"),
                             });
                           }} className="text-xs"><Download className="h-3 w-3 mr-1" />PDF</Button>
-                          {(po.status === "confirmed" || po.status === "draft") && (
+                          {po.status === "confirmed" && (
                             <Button variant="outline" size="sm" onClick={() => navigate(`/grn?po=${po.id}`)} className="text-xs">
                               <PackageCheck className="h-3 w-3 mr-1" /> Create GRN
                             </Button>
@@ -211,15 +221,30 @@ export default function PurchaseOrders() {
           <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <DialogContent className="max-w-lg">
               <DialogHeader><DialogTitle>Factory Quantity Confirmation</DialogTitle></DialogHeader>
-              <p className="text-sm text-muted-foreground mb-3">Update confirmed quantities from factory (may differ from ordered).</p>
+              <p className="text-sm text-muted-foreground mb-3">Update confirmed quantities and rates from supplier (may differ from proforma).</p>
               {confirmItems.map((item, idx) => (
-                <div key={item.id} className="flex items-center gap-3 mb-2">
-                  <span className="text-sm flex-1">{(item.products as any)?.name || item.description || "Item"}</span>
-                  <div className="text-xs text-muted-foreground">Ordered: {item.quantity}</div>
-                  <Input type="number" className="w-24 text-xs" value={item.quantity_confirmed}
-                    onChange={e => {
-                      const u = [...confirmItems]; u[idx].quantity_confirmed = e.target.value; setConfirmItems(u);
-                    }} />
+                <div key={item.id} className="space-y-1 mb-3 p-3 border border-border rounded-lg">
+                  <span className="text-sm font-medium">{(item.products as any)?.name || item.description || "Item"}</span>
+                  <div className="text-xs text-muted-foreground">Originally ordered: {item.quantity} × {Number(item.rate).toLocaleString()}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <Label className="text-xs">Confirmed Qty</Label>
+                      <Input type="number" className="text-xs" value={item.quantity_confirmed}
+                        onChange={e => {
+                          const u = [...confirmItems]; u[idx].quantity_confirmed = e.target.value; setConfirmItems(u);
+                        }} />
+                    </div>
+                    <div className="flex-1">
+                      <Label className="text-xs">Confirmed Rate</Label>
+                      <Input type="number" className="text-xs" value={item.rate}
+                        onChange={e => {
+                          const u = [...confirmItems]; u[idx].rate = e.target.value; setConfirmItems(u);
+                        }} />
+                    </div>
+                    <div className="text-right text-xs font-mono pt-4">
+                      {(Number(item.quantity_confirmed) * Number(item.rate)).toLocaleString()}
+                    </div>
+                  </div>
                 </div>
               ))}
               <Button onClick={handleConfirm} className="w-full mt-3">Confirm Quantities</Button>
