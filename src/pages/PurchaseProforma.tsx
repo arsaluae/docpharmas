@@ -171,7 +171,8 @@ export default function PurchaseProforma() {
         );
       }
       await supabase.from("purchase_proformas").update({ status: "ordered", converted_po_id: po.id }).eq("id", pp.id);
-      toast.success(`Converted to ${poNumber}`); load();
+      toast.success(`Converted to ${poNumber} — opening PO with PDF...`);
+      navigate(`/purchase-orders?print=${po.id}`);
     }
   };
 
@@ -206,7 +207,11 @@ export default function PurchaseProforma() {
 
   const handleApprove = async (id: string) => {
     await supabase.from("purchase_proformas").update({ status: "approved" }).eq("id", id);
-    toast.success("Proforma approved"); load();
+    toast.success("Proforma approved — converting to PO...");
+    await load();
+    // Auto-convert to PO
+    const pp = proformas.find(p => p.id === id) || (await supabase.from("purchase_proformas").select("*, suppliers(name)").eq("id", id).single()).data;
+    if (pp) await convertToPO(pp as any);
   };
 
   // Detail/Edit
@@ -400,7 +405,7 @@ export default function PurchaseProforma() {
                         <TableCell className="space-x-1">
                           {pp.status === "draft" && (
                             <Button variant="outline" size="sm" onClick={() => handleApprove(pp.id)} className="text-xs">
-                              <CheckCircle className="h-3 w-3 mr-1" /> Approve
+                              <CheckCircle className="h-3 w-3 mr-1" /> Approve & Create PO
                             </Button>
                           )}
                           {pp.status === "approved" && (

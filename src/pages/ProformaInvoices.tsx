@@ -86,6 +86,11 @@ export default function ProformaInvoices() {
 
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0 }]);
 
+  // Auto-add 1 blank item when dialog opens
+  useEffect(() => {
+    if (open && items.length === 0) addItem();
+  }, [open]);
+
   const updateItem = (idx: number, field: string, value: any) => {
     const u = [...items];
     (u[idx] as any)[field] = value;
@@ -160,7 +165,7 @@ export default function ProformaInvoices() {
     const { data: inv } = await supabase.from("sales_invoices").insert({
       invoice_number: invNumber, customer_id: convertPf.customer_id, date: new Date().toISOString().split("T")[0],
       subtotal: convertPf.subtotal, gst_amount: convertPf.gst, total: convertPf.total, status: "draft",
-    }).select().single();
+    }).select("*, customers(name)").single();
     if (inv) {
       const lineItems = convertItems.map((i: any) => ({
         invoice_id: inv.id, product_id: i.product_id || null,
@@ -178,7 +183,31 @@ export default function ProformaInvoices() {
         }
       }
       await supabase.from("proforma_invoices").update({ status: "invoiced", converted_invoice_id: inv.id }).eq("id", convertPf.id);
-      toast.success(`Converted to ${invNumber}`);
+      toast.success(`Converted to ${invNumber} — downloading PDF...`);
+      
+      // Auto-download invoice PDF
+      const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
+      generatePdf({
+        title: "SALES INVOICE", documentNumber: invNumber, date: inv.date,
+        partyLabel: "Customer", partyName: (inv.customers as any)?.name || (convertPf.customers as any)?.name || "—",
+        columns: [
+          { header: "#", key: "idx" }, { header: "Product", key: "name" }, { header: "Batch", key: "batch_number" },
+          { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+          { header: "Amount", key: "amount", align: "right" },
+        ],
+        rows: (invItems || []).map((i: any, idx: number) => ({
+          idx: idx + 1, name: i.products?.name || "Item", batch_number: i.batch_number || "—",
+          quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+        })),
+        totals: [
+          { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
+          { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
+          { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
+        ],
+        settings,
+        template: getTemplate("sales_invoice"),
+      });
+      
       setConvertOpen(false); load();
     }
   };
@@ -201,7 +230,11 @@ export default function ProformaInvoices() {
 
   const handleApprove = async (id: string) => {
     await supabase.from("proforma_invoices").update({ status: "approved" }).eq("id", id);
-    toast.success("Proforma approved"); load();
+    toast.success("Proforma approved — opening convert dialog...");
+    await load();
+    // Auto-open convert dialog
+    const pf = proformas.find(p => p.id === id) || (await supabase.from("proforma_invoices").select("*, customers(name)").eq("id", id).single()).data;
+    if (pf) await openConvertDialog(pf as any);
   };
 
   // Detail/Edit
@@ -354,7 +387,7 @@ export default function ProformaInvoices() {
                         <TableCell className="space-x-1">
                           {pf.status === "draft" && (
                             <Button variant="outline" size="sm" onClick={() => handleApprove(pf.id)} className="text-xs">
-                              <CheckCircle className="h-3 w-3 mr-1" /> Approve
+                              <CheckCircle className="h-3 w-3 mr-1" /> Approve & Convert
                             </Button>
                           )}
                           {pf.status === "approved" && (

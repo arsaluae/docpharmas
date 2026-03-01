@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +46,8 @@ export default function PurchaseOrders() {
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<POItem[]>([]);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -53,6 +55,42 @@ export default function PurchaseOrders() {
     };
     check(); load();
   }, [navigate]);
+
+  // Auto-print PO PDF from URL param
+  useEffect(() => {
+    const printId = searchParams.get("print");
+    if (printId && orders.length > 0) {
+      const po = orders.find(o => o.id === printId);
+      if (po) {
+        // Auto-download PDF
+        (async () => {
+          const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", po.id);
+          generatePdf({
+            title: "PURCHASE ORDER", documentNumber: po.po_number, date: po.date,
+            partyLabel: "Supplier", partyName: (po.suppliers as any)?.name || "—",
+            columns: [
+              { header: "#", key: "idx" }, { header: "Product", key: "name" },
+              { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+              { header: "Amount", key: "amount", align: "right" },
+            ],
+            rows: (poItems || []).map((i: any, idx: number) => ({
+              idx: idx + 1, name: i.products?.name || i.description || "Item",
+              quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+            })),
+            totals: [
+              { label: "Subtotal", value: `PKR ${Number(po.subtotal).toLocaleString()}` },
+              { label: "GST", value: `PKR ${Number(po.gst).toLocaleString()}` },
+              { label: "Total", value: `PKR ${Number(po.total).toLocaleString()}` },
+            ],
+            settings,
+            template: getTemplate("purchase_order"),
+          });
+          // Clear the print param
+          setSearchParams({}, { replace: true });
+        })();
+      }
+    }
+  }, [orders, searchParams]);
 
   const load = async () => {
     const [po, sup, prod] = await Promise.all([
@@ -66,6 +104,11 @@ export default function PurchaseOrders() {
   };
 
   const addItem = () => setItems([...items, { product_id: "", description: "", quantity: 1, quantity_confirmed: 0, rate: 0, amount: 0 }]);
+
+  // Auto-add 1 blank item when dialog opens
+  useEffect(() => {
+    if (open && items.length === 0) addItem();
+  }, [open]);
 
   const updateItem = (idx: number, field: string, value: any) => {
     const u = [...items];
