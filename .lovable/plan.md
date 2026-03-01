@@ -1,107 +1,68 @@
 
 
-# Artisan PDF Templates + Linked Document Workflow
+# Make Tax Settings (GST, WHT, FBR) Optional and Centrally Controlled
 
-This is a large scope request with two main pillars: (1) a premium PDF template redesign and (2) a fully linked document lifecycle for both sales and purchase flows.
+## Problem
+Currently GST rate is hardcoded at 17% on products, WHT rate is hardcoded at 4.5% on suppliers, and FBR is a simple toggle. These should all be optional -- controlled from one place in Settings, and when disabled, hidden across the entire app.
 
-## Current State Analysis
+## Database Change
 
-**Sales flow gaps:**
-- Proforma converts to Invoice (works), but proforma status becomes "converted" -- not "invoiced"
-- Invoice has a "Create DN" button but doesn't update invoice status to "dispatched"
-- No auto-linking: delivery note creation doesn't update the invoice status
+Add 4 new columns to `company_settings`:
 
-**Purchase flow gaps:**
-- Purchase Proforma converts to PO (works), status becomes "converted"
-- PO has no "Create GRN" flow from it
-- No status chain linking PO -> GRN -> Purchase Invoice
+| Column | Type | Default |
+|--------|------|---------|
+| `gst_enabled` | boolean | `false` |
+| `default_gst_rate` | numeric | `17` |
+| `wht_enabled` | boolean | `false` |
+| `default_wht_rate` | numeric | `4.5` |
 
-**PDF templates:** `generatePdf` already accepts a `template` parameter from `useDocumentTemplates`, but no page actually passes it. The PDF design is good but the template system isn't wired up.
+## Settings UI Update (`Settings.tsx`)
 
----
+Replace the existing "FBR Integration" card with a unified **"Tax Configuration"** card containing:
+- **GST toggle** + default rate input (when enabled)
+- **WHT toggle** + default rate input (when enabled)  
+- **FBR QR toggle** (existing)
 
-## Part 1: Premium PDF Template Design
+All saved together with the company profile.
 
-### `src/lib/pdf-generator.ts`
-- Redesign the HTML template with refined typography:
-  - Use **Georgia/serif** for company name and document title with elegant letter-spacing
-  - Use **Inter** for body text with carefully tuned weights (300 for labels, 600 for values)
-  - Monospaced numbers in a warm charcoal (#2d2d3a) instead of pure black
-- Refined color palette: deep navy (#1a1a2e) headers, warm gold (#c9a84c) accents, ivory (#faf9f6) alternating rows
-- Decorative touches: double-border page frame, gold gradient divider under letterhead, ornamental corners on document title box
-- Table header with navy background, gold bottom border, all-caps tracking
-- Totals section with subtle border radius and last-row emphasis
-- "Total in Words" in italic with gold label prefix
-- Signature lines with fine 1.5px rules and small-caps labels
-- Footer with a gold gradient fade-line and refined "computer-generated" notice
+## `useCompanySettings` Hook Update
 
-### Wire templates to all pages
-- `SalesInvoices.tsx`, `WarrantyInvoices.tsx`, `ProformaInvoices.tsx`, `PurchaseProforma.tsx`, `DeliveryNotes.tsx`, `PurchaseOrders.tsx`, `GoodsReceivedNotes.tsx`
-- Each page imports `useDocumentTemplates`, calls `getTemplate("sales_invoice")` etc., and passes the template to `generatePdf`
+Add `gst_enabled`, `default_gst_rate`, `wht_enabled`, `default_wht_rate` to the `CompanySettings` interface so every page can read these values.
 
----
+## Conditional Display Across All Pages
 
-## Part 2: Linked Document Lifecycle
+When a tax is **disabled**, hide its columns, fields, and calculations:
 
-### Sales Flow: Proforma -> Invoice -> Delivery Note
+| Page | GST off | WHT off | FBR off |
+|------|---------|---------|---------|
+| **Products.tsx** | Hide "GST Rate" field in form, hide column in table | -- | -- |
+| **SalesInvoices.tsx** | Hide GST column in items, skip GST calc, hide GST row in totals | -- | Hide FBR QR button |
+| **PurchaseInvoicesPage.tsx** | Hide GST field | Hide WHT field and calc | -- |
+| **ProformaInvoices.tsx** | Hide GST in items | -- | -- |
+| **PurchaseProforma.tsx** | Hide GST in totals | -- | -- |
+| **WarrantyInvoices.tsx** | Hide GST columns | -- | -- |
+| **Expenses.tsx** | Hide GST Amount field | -- | -- |
+| **Suppliers.tsx** | -- | Hide "WHT Rate" field | -- |
+| **TaxCompliance.tsx** | Hide GST tab when off | Hide WHT tab when off | -- |
+| **PDF generator** | Skip GST row when off | Skip WHT when off | Skip FBR QR when off |
 
-**`ProformaInvoices.tsx` changes:**
-- When "Convert to Invoice" completes, update proforma status to **"invoiced"** (not "converted")
-- Show "invoiced" status pill in teal
-
-**`SalesInvoices.tsx` changes:**
-- When "Create DN" is clicked, after creating the delivery note:
-  - Update invoice status to **"dispatched"**
-  - Show "dispatched" status pill in blue
-- Add a visual indicator showing source proforma number if invoice was created from a proforma
-
-**`DeliveryNotes.tsx` changes:**
-- Show linked invoice number and customer name (join on reference_id)
-- Add "Delivered" status button that updates DN status to "delivered"
-
-### Purchase Flow: Purchase Proforma -> PO -> GRN
-
-**`PurchaseProforma.tsx` changes:**
-- When "Convert to PO" completes, update status to **"ordered"** (not "converted")
-
-**`PurchaseOrders.tsx` changes:**
-- Add a **"Create GRN"** button per PO row
-- When clicked: pre-fill GRN form with PO items (product, qty ordered, rate)
-- After GRN creation, update PO status to **"received"**
-- Link the GRN back to the PO via `po_id`
-
-**`GoodsReceivedNotes.tsx` changes:**
-- Show linked PO number
-- After GRN is saved, auto-update PO status
-
-### Status Mapping Summary
-
-```text
-SALES:
-  Proforma:  draft -> approved -> invoiced
-  Invoice:   draft -> sent -> dispatched -> paid
-  DN:        issued -> delivered
-
-PURCHASE:
-  Proforma:  draft -> approved -> ordered
-  PO:        draft -> confirmed -> received
-  GRN:       (created from PO, links back)
-```
-
----
+When a tax is **enabled**, use `default_gst_rate` / `default_wht_rate` from settings as the pre-filled default (instead of hardcoded 17 / 4.5).
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/lib/pdf-generator.ts` | Premium typography redesign, refined colors, ornamental details |
-| `src/pages/ProformaInvoices.tsx` | Status "invoiced", wire template to PDF |
-| `src/pages/SalesInvoices.tsx` | DN creation updates status to "dispatched", wire template |
-| `src/pages/DeliveryNotes.tsx` | Show linked invoice/customer, "delivered" button, wire template |
-| `src/pages/PurchaseProforma.tsx` | Status "ordered", wire template |
-| `src/pages/PurchaseOrders.tsx` | Add "Create GRN" button, update status to "received", wire template |
-| `src/pages/GoodsReceivedNotes.tsx` | Show linked PO, wire template |
-| `src/pages/WarrantyInvoices.tsx` | Wire template to PDF |
-
-No database changes required -- all status fields are text columns already.
+| New migration | Add 4 columns to `company_settings` |
+| `src/hooks/useCompanySettings.tsx` | Extend interface with new fields |
+| `src/pages/Settings.tsx` | Replace FBR card with Tax Configuration card |
+| `src/pages/Products.tsx` | Conditionally show GST rate field |
+| `src/pages/SalesInvoices.tsx` | Conditionally show GST calc + FBR button |
+| `src/pages/PurchaseInvoicesPage.tsx` | Conditionally show GST + WHT |
+| `src/pages/ProformaInvoices.tsx` | Conditionally show GST |
+| `src/pages/PurchaseProforma.tsx` | Conditionally show GST |
+| `src/pages/WarrantyInvoices.tsx` | Conditionally show GST |
+| `src/pages/Expenses.tsx` | Conditionally show GST Amount field |
+| `src/pages/Suppliers.tsx` | Conditionally show WHT Rate field |
+| `src/pages/reports/TaxCompliance.tsx` | Conditionally show GST/WHT tabs |
+| `src/lib/pdf-generator.ts` | Conditionally render GST/WHT/FBR sections |
 
