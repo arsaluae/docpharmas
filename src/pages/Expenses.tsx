@@ -73,8 +73,8 @@ export default function Expenses() {
 
   const handleSave = async () => {
     if (!amount || Number(amount) <= 0) { toast.error("Amount is required"); return; }
-    const { count } = await supabase.from("expenses").select("id", { count: "exact", head: true });
-    const expNumber = `EXP-${String((count || 0) + 1).padStart(4, "0")}`;
+    const { data: expNumber } = await supabase.rpc("generate_document_number", { p_document_type: "expense" });
+    if (!expNumber) { toast.error("Failed to generate expense number"); return; }
 
     await supabase.from("expenses").insert({
       expense_number: expNumber, category, description: description || null,

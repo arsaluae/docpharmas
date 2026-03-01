@@ -30,18 +30,18 @@ export default function ProfitLoss() {
 
   const load = async () => {
     const [sales, purchases, expenses, sReturns, pReturns] = await Promise.all([
-      supabase.from("sales_invoices").select("total").gte("date", from).lte("date", to),
+      supabase.from("sales_invoices").select("subtotal").gte("date", from).lte("date", to),
       supabase.from("purchase_invoices").select("subtotal").gte("date", from).lte("date", to),
-      supabase.from("expenses").select("amount, category").gte("date", from).lte("date", to),
+      supabase.from("expenses").select("amount, category, expense_type").gte("date", from).lte("date", to),
       supabase.from("sales_returns").select("total").gte("date", from).lte("date", to),
       supabase.from("purchase_returns").select("total").gte("date", from).lte("date", to),
     ]);
-    setRevenue((sales.data || []).reduce((s, i) => s + Number(i.total), 0));
+    setRevenue((sales.data || []).reduce((s, i) => s + Number(i.subtotal), 0));
     setCogs((purchases.data || []).reduce((s, i) => s + Number(i.subtotal), 0));
     setSalesReturns((sReturns.data || []).reduce((s, i) => s + Number(i.total), 0));
     setPurchaseReturns((pReturns.data || []).reduce((s, i) => s + Number(i.total), 0));
     const cats: Record<string, number> = {};
-    (expenses.data || []).forEach(e => { cats[e.category] = (cats[e.category] || 0) + Number(e.amount); });
+    (expenses.data || []).filter(e => e.expense_type === 'business').forEach(e => { cats[e.category] = (cats[e.category] || 0) + Number(e.amount); });
     setExpensesByCategory(cats);
   };
 

@@ -106,8 +106,8 @@ export default function GoodsReceivedNotes() {
     const hasBatch = items.every(i => i.batch_number);
     if (!hasBatch) { toast.error("Batch number required for all items"); return; }
 
-    const { count } = await supabase.from("goods_received_notes").select("id", { count: "exact", head: true });
-    const grnNumber = `GRN-${String((count || 0) + 1).padStart(4, "0")}`;
+    const { data: grnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "goods_received_note" });
+    if (!grnNumber) { toast.error("Failed to generate GRN number"); return; }
     const selectedPO = pos.find(p => p.id === poId);
 
     const { data: grn } = await supabase.from("goods_received_notes").insert({

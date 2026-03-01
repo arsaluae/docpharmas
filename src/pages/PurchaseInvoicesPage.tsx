@@ -76,8 +76,8 @@ export default function PurchaseInvoicesPage() {
     const sub = Number(subtotal);
     if (sub <= 0) { toast.error("Enter subtotal"); return; }
     const { gst, wht, total } = calcTotals();
-    const { count } = await supabase.from("purchase_invoices").select("id", { count: "exact", head: true });
-    const billNumber = `PI-${String((count || 0) + 1).padStart(4, "0")}`;
+    const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
+    if (!billNumber) { toast.error("Failed to generate bill number"); return; }
 
     await supabase.from("purchase_invoices").insert({
       bill_number: billNumber, supplier_id: supplierId, grn_id: grnId || null,
@@ -202,8 +202,8 @@ export default function PurchaseInvoicesPage() {
                             });
                           }} className="text-xs"><Download className="h-3 w-3 mr-1" />PDF</Button>
                           <Button variant="outline" size="sm" onClick={async () => {
-                            const { count } = await supabase.from("delivery_notes").select("id", { count: "exact", head: true });
-                            const dnNumber = `DN-${String((count || 0) + 1).padStart(4, "0")}`;
+                            const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "delivery_note" });
+                            if (!dnNumber) { toast.error("Failed to generate DN number"); return; }
                             await supabase.from("delivery_notes").insert({
                               dn_number: dnNumber, reference_type: "purchase_invoice", reference_id: b.id,
                               supplier_id: b.supplier_id, items: [],

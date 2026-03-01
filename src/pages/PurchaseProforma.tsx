@@ -109,8 +109,8 @@ export default function PurchaseProforma() {
   const handleSave = async () => {
     if (!supplierId || items.length === 0) { toast.error("Supplier and items required"); return; }
     const { subtotal, gst, total } = calcTotals();
-    const { count } = await supabase.from("purchase_proformas").select("id", { count: "exact", head: true });
-    const ppNumber = `PP-${String((count || 0) + 1).padStart(4, "0")}`;
+    const { data: ppNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_proforma" });
+    if (!ppNumber) { toast.error("Failed to generate number"); return; }
 
     const { data: pp } = await supabase.from("purchase_proformas").insert({
       proforma_number: ppNumber, supplier_id: supplierId, date: ppDate,
@@ -145,8 +145,8 @@ export default function PurchaseProforma() {
   };
 
   const convertToPO = async (pp: PurchaseProformaRow) => {
-    const { count } = await supabase.from("purchase_orders").select("id", { count: "exact", head: true });
-    const poNumber = `PO-${String((count || 0) + 1).padStart(4, "0")}`;
+    const { data: poNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_order" });
+    if (!poNumber) { toast.error("Failed to generate PO number"); return; }
     const { data: po } = await supabase.from("purchase_orders").insert({
       po_number: poNumber, supplier_id: pp.supplier_id, date: new Date().toISOString().split("T")[0],
       subtotal: pp.subtotal, gst: pp.gst, total: pp.total, status: "draft", proforma_id: pp.id,
