@@ -1,34 +1,77 @@
 
 
-# Plan: Fix Purchase Workflow — Delete, Approve→PO, Confirm with Rate, GRN Flow
+# Plan: Unified Cross-Workable Purchase & Sales Workflow
 
-## Problems Found
+## Current Issues Found
 
-1. **Delete fails silently**: `window.confirm()` is blocked in the preview iframe — the confirmation never shows, so delete never executes. Fix: replace with a custom Dialog confirmation.
-
-2. **Approve→PO broken (state timing)**: `handleApprove` calls `load()` then immediately does `proformas.find(p => p.id === id)` — but React state hasn't updated yet so it searches the OLD array. The DB fallback query should work, but this is fragile. Fix: fetch the proforma directly from DB instead of relying on state.
-
-3. **PO Confirm dialog too limited**: Currently only allows changing quantity. User needs to also edit **rate** (supplier may confirm different pricing). Fix: add rate input and recalculate amounts/totals on confirm.
-
-4. **PO Confirm should recalculate PO totals**: When rate or quantity changes during confirmation, the PO's subtotal/gst/total should update.
-
-5. **Create GRN button visibility**: Currently shows for both "draft" and "confirmed" status. Should only show after confirmation to enforce the flow.
+1. **Sales Proforma delete uses `window.confirm()`** — blocked in preview iframe, delete silently fails (same bug that was fixed on Purchase side)
+2. **Sales Invoice delete uses `window.confirm()`** — same problem
+3. **Delivery Note delete uses `window.confirm()`** — same problem
+4. **No flow indicators on Delivery Notes page** — user doesn't know DN comes from Sales Invoice
+5. **Purchase side**: Proforma → PO → GRN works, but GRN doesn't auto-trigger Purchase Invoice (Bill) creation
+6. **Sales side**: Proforma → Invoice → DN works, but the Approve flow on sales proforma has a stale-state bug (same as the one fixed on purchase side — it tries `proformas.find()` which may use old state)
+7. **Document columns inconsistent**: Proformas and Invoices should show rate/amount. DN and GRN should show only item name, quantity, batch, expiry. Currently correct but needs enforcement.
+8. **No cross-linking visibility**: PO doesn't show which GRN was created from it. Invoice doesn't show which DN was created from it.
+9. **Purchase Invoice (Bill) page** has no sequential flow enforcement — users can create standalone bills. Should only be created from GRN.
 
 ## Changes
 
-### 1. PurchaseProforma.tsx
-- **Delete**: Replace `window.confirm()` with a state-driven confirmation Dialog (custom `deleteConfirmOpen` state)
-- **Approve flow**: In `handleApprove`, skip `load()` + `proformas.find()` — instead fetch the proforma directly from Supabase by ID, then pass to `convertToPO`
+### 1. Fix all `window.confirm()` → Custom Dialog
+**Files**: `ProformaInvoices.tsx`, `SalesInvoices.tsx`, `DeliveryNotes.tsx`
+- Add `deleteConfirmOpen` + `deleteIds` state pattern (same as PurchaseProforma)
+- Replace all `window.confirm()` calls with custom confirmation Dialog
 
-### 2. PurchaseOrders.tsx
-- **Confirm dialog**: Add editable **Rate** input alongside quantity. Recalculate item amounts and update PO subtotal/gst/total on confirm
-- **Create GRN button**: Only show when `status === "confirmed"` (remove "draft" from the condition)
-- **Row click detail**: Add a detail view showing PO items (read-only) so user can inspect before confirming
+### 2. Fix Sales Proforma Approve stale-state bug
+**File**: `ProformaInvoices.tsx`
+- In `handleApprove`, after updating status, fetch the proforma directly from DB (not from `proformas.find()`) before calling `openConvertDialog`
+
+### 3. Add flow indicators everywhere
+**File**: `DeliveryNotes.tsx`
+- Add flow indicator banner: `① Proforma → ② Sales Invoice → ③ Delivery Note`
+- Add "Go to Sales Invoices" button in header
+- Update empty state message to guide user
+
+### 4. Auto-create Purchase Invoice (Bill) from GRN
+**File**: `GoodsReceivedNotes.tsx`
+- After GRN is saved and stock updated, auto-create a `purchase_invoice` record with the same supplier, items, and totals from the PO
+- Navigate to `/purchase-invoices` after creation with a success toast
+- Update PO status to "received" (already done)
+
+### 5. Enforce sequential flow on Purchase Invoices page
+**File**: `PurchaseInvoicesPage.tsx`
+- Remove standalone "New Bill" button if it exists
+- Add flow indicator: `① Proforma → ② PO → ③ GRN → ④ Purchase Invoice`
+- Add "Go to GRN" button
+- Update empty state message
+
+### 6. Cross-reference visibility
+**File**: `PurchaseOrders.tsx`
+- Show GRN status/number in PO table when a GRN has been created (query `goods_received_notes` by `po_id`)
+
+**File**: `SalesInvoices.tsx`
+- Show DN number in invoice table when a DN has been created (query `delivery_notes` by `reference_id`)
+
+### 7. Sidebar label cleanup
+**File**: `AppSidebar.tsx`
+- Rename "Proforma" → "Sales Orders" and "Purchase Proforma" → "Purchase Orders" for clarity
+- Or keep as-is based on user's pharma terminology (they called them "quotations / unconfirmed orders")
+- Add "Purchase Bills" label clarity
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `PurchaseProforma.tsx` | Replace `window.confirm` with Dialog; fix approve flow to fetch from DB directly |
-| `PurchaseOrders.tsx` | Add rate editing in confirm dialog; recalculate PO totals; restrict GRN to confirmed only |
+| `ProformaInvoices.tsx` | Fix delete (custom Dialog), fix approve stale-state bug |
+| `SalesInvoices.tsx` | Fix delete (custom Dialog), show linked DN number |
+| `DeliveryNotes.tsx` | Fix delete (custom Dialog), add flow indicator + nav button |
+| `GoodsReceivedNotes.tsx` | Auto-create purchase invoice after GRN save |
+| `PurchaseInvoicesPage.tsx` | Remove standalone creation, add flow indicator |
+| `PurchaseOrders.tsx` | Show linked GRN number in table |
+| `AppSidebar.tsx` | Minor label clarity updates |
+
+## Technical Notes
+- Purchase Invoice auto-creation reuses the PO's items (fetched from `purchase_order_items`), with rates from the confirmed PO
+- No database schema changes needed — all tables already exist
+- The `purchase_invoices` table has `grn_id` column for linking back to the GRN
+- All delete confirmations use the same Dialog pattern already proven in PurchaseProforma
 
