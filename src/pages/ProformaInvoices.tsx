@@ -209,6 +209,7 @@ export default function ProformaInvoices() {
       });
       
       setConvertOpen(false); load();
+      navigate("/sales-invoices");
     }
   };
 

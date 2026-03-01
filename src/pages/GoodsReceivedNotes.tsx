@@ -159,11 +159,11 @@ export default function GoodsReceivedNotes() {
         title: "GOODS RECEIVED NOTE", documentNumber: grnNumber, date: grnDate,
         partyLabel: "Supplier", partyName: (selectedPO?.suppliers as any)?.name || "—",
         columns: [
-          { header: "#", key: "idx" }, { header: "Item", key: "item_name" },
-          { header: "Batch", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
-          { header: "Ordered", key: "quantity_ordered", align: "right" },
-          { header: "Received", key: "quantity_received", align: "right" },
-        ],
+              { header: "#", key: "idx" }, { header: "Item", key: "item_name" },
+                          { header: "Batch", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
+                          { header: "Qty Ordered", key: "quantity_ordered", align: "right" },
+                          { header: "Qty Received", key: "quantity_received", align: "right" },
+                        ],
         rows: (gItems || []).map((i: any, idx: number) => ({
           idx: idx + 1, item_name: i.item_name, batch_number: i.batch_number || "—",
           expiry_date: i.expiry_date || "—", quantity_ordered: i.quantity_ordered, quantity_received: i.quantity_received,
@@ -242,8 +242,8 @@ export default function GoodsReceivedNotes() {
                               columns: [
                                 { header: "#", key: "idx" }, { header: "Item", key: "item_name" },
                                 { header: "Batch", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
-                                { header: "Ordered", key: "quantity_ordered", align: "right" },
-                                { header: "Received", key: "quantity_received", align: "right" },
+                                { header: "Qty Ordered", key: "quantity_ordered", align: "right" },
+                                { header: "Qty Received", key: "quantity_received", align: "right" },
                               ],
                               rows: (gItems || []).map((i: any, idx: number) => ({
                                 idx: idx + 1, item_name: i.item_name, batch_number: i.batch_number || "—",
