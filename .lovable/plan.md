@@ -1,49 +1,55 @@
 
-# System Audit — Implementation Status
 
-## ✅ COMPLETED (Phase 1 — Data Integrity)
+# Plan: Edit/Delete for Expenses & Payments + Dashboard Redesign
 
-### 1. ✅ Balance update triggers
-Database triggers auto-update `customers.balance`, `suppliers.balance`, and `bank_accounts.balance` when:
-- Payments are inserted/deleted
-- Sales invoices are inserted/deleted
-- Purchase invoices are inserted/deleted
-- Sales returns are inserted/deleted
-- Purchase returns are inserted/deleted
-- Expenses with bank accounts are inserted/deleted
+## 1. Expenses Page -- Add Edit & Delete
 
-### 2. ✅ Stock update triggers
-- `stock_movements` trigger updates `products.stock_quantity` based on movement type
-- `sales_invoice_items` trigger auto-deducts stock when invoice items are created
+**Edit**: Clicking a row opens the existing dialog pre-filled with the expense data. On save, update the record via `supabase.from("expenses").update(...)`. The database trigger `handle_expense_bank_balance` handles bank balance reversal/re-application automatically on DELETE (but not UPDATE), so for edits we will delete-then-reinsert to let triggers fire correctly. Actually, simpler approach: since the only trigger is on bank_account_id for expenses, we can just do a direct `.update()` and handle bank balance manually only if bank_account_id changed. Even simpler: use delete + re-insert pattern wrapped in the save handler.
 
-### 3. ✅ Document number sequences
-- `document_counters` table with atomic `generate_document_number()` function
-- All 13 document types migrated from count-based to sequence-based numbering
-- Counters synced with existing data counts
+Final approach for **edit**: Direct `.update()` call. Since the expense trigger only fires on INSERT/DELETE (not UPDATE), if the amount or bank_account_id changes we need to delete the old row and insert a new one to let triggers recalculate. We'll use a delete-then-insert approach for edits.
 
-## ✅ COMPLETED (Phase 2 — Code Fixes)
+**Delete**: Add a trash icon button per row. Clicking opens an AlertDialog confirmation. On confirm, `supabase.from("expenses").delete().eq("id", ...)`. The existing `handle_expense_bank_balance` trigger automatically reverses the bank balance on DELETE.
 
-### 4. ✅ P&L uses subtotal for revenue (not total with GST)
-### 5. ✅ P&L filters out personal expenses from operating costs
-### 6. ✅ Customer edit no longer overwrites balance with opening_balance
-### 7. ✅ Supplier edit no longer overwrites balance with opening_balance
-### 8. ✅ calcTotals in SalesInvoices now includes `settings` in dependency array
+**UI changes**:
+- Add an "Actions" column with Edit (pencil) and Delete (trash) icon buttons
+- Reuse the existing dialog for both add and edit modes (track `editingId` state)
+- Add AlertDialog for delete confirmation
 
-## 🔲 REMAINING (Phase 2 — Functional)
+## 2. Payments Page -- Add Edit & Delete
 
-### 9. Add edit/delete for expenses
-### 10. Add edit/delete for payments
-### 11. Add line items to purchase bills
+Same pattern as expenses:
+- **Delete**: AlertDialog confirmation, then `supabase.from("payments").delete().eq("id", ...)`. The `handle_payment_balance` trigger automatically reverses party balance and bank balance on DELETE.
+- **Edit**: Delete-then-insert approach (since triggers only fire on INSERT/DELETE, not UPDATE). Pre-fill dialog with existing data, on save delete old record and insert new one.
+- Add Actions column with edit/delete buttons
 
-## 🔲 REMAINING (Phase 3 — UX)
+## 3. Dashboard Redesign
 
-### 12. Add pagination
-### 13. Add loading skeletons
-### 14. Enhanced dashboard with time-based metrics
-### 15. Date filters on Cash Flow and Balance Sheet
-### 16. Area column for customers (already exists in DB)
+Transform the static dashboard into a more functional and visually appealing layout:
 
-## ⚠️ PRE-EXISTING (Not new to this migration)
+**New data fetched**:
+- Today's sales total (sales_invoices where date = today)
+- This month's sales & expenses totals
+- Recent payments (last 5)
+- Top 5 low-stock products with names
 
-### RLS policies use `USING (true)`
-All tables use permissive RLS (`true`) gated by auth. This is by design — the app requires login, and all authenticated users share data (single-company system).
+**Layout**:
+- **Row 1**: 4 primary KPI cards (Receivables, Payables, Today's Sales, Monthly Revenue) with colored left borders
+- **Row 2**: 4 secondary KPI cards (Inventory Value, Low Stock Alerts, Customers, Suppliers)
+- **Row 3**: Monthly revenue vs expenses bar chart using Recharts (already installed)
+- **Row 4**: 3-column grid -- Recent Invoices, Recent Payments, Low Stock Alerts (with product names and quantities)
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/Expenses.tsx` | Add editingId state, edit/delete buttons per row, AlertDialog for delete, reuse dialog for edit with delete+insert pattern |
+| `src/pages/Payments.tsx` | Same: edit/delete buttons, AlertDialog, edit via delete+insert |
+| `src/pages/Index.tsx` | Full redesign with today's sales, monthly chart (Recharts), recent payments section, low stock product list |
+
+## Technical Notes
+
+- No database changes needed -- existing DELETE triggers handle all balance reversals automatically
+- Edit uses delete-then-insert to ensure triggers fire correctly (triggers only handle INSERT and DELETE, not UPDATE)
+- Recharts is already installed for the dashboard chart
+- AlertDialog component from `@/components/ui/alert-dialog` used for delete confirmations
+
