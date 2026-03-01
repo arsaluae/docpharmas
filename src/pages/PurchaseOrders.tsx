@@ -33,6 +33,9 @@ export default function PurchaseOrders() {
   const { getTemplate } = useDocumentTemplates();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // GRN cross-reference
+  const [grnMap, setGrnMap] = useState<Record<string, string>>({});
+
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -41,7 +44,6 @@ export default function PurchaseOrders() {
     check(); load();
   }, [navigate]);
 
-  // Auto-print PO PDF from URL param
   useEffect(() => {
     const printId = searchParams.get("print");
     if (printId && orders.length > 0) {
@@ -76,8 +78,16 @@ export default function PurchaseOrders() {
   }, [orders, searchParams]);
 
   const load = async () => {
-    const { data } = await supabase.from("purchase_orders").select("*, suppliers(name), purchase_proformas(proforma_number)").order("created_at", { ascending: false });
-    if (data) setOrders(data as any);
+    const [poRes, grnRes] = await Promise.all([
+      supabase.from("purchase_orders").select("*, suppliers(name), purchase_proformas(proforma_number)").order("created_at", { ascending: false }),
+      supabase.from("goods_received_notes").select("po_id, grn_number"),
+    ]);
+    if (poRes.data) setOrders(poRes.data as any);
+    if (grnRes.data) {
+      const map: Record<string, string> = {};
+      grnRes.data.forEach((g: any) => { if (g.po_id) map[g.po_id] = g.grn_number; });
+      setGrnMap(map);
+    }
   };
 
   const openConfirm = async (po: PO) => {
@@ -138,11 +148,13 @@ export default function PurchaseOrders() {
           <div className="p-6">
             {/* Flow indicator */}
             <div className="mb-6 flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-4 py-3 border border-border">
-              <span className="font-semibold text-primary">① Proforma</span>
+              <span className="font-semibold text-muted-foreground">① Proforma</span>
               <ArrowRight className="h-3 w-3" />
               <span className="font-semibold text-primary">② Purchase Order</span>
               <ArrowRight className="h-3 w-3" />
               <span className="font-semibold text-muted-foreground">③ GRN</span>
+              <ArrowRight className="h-3 w-3" />
+              <span className="font-semibold text-muted-foreground">④ Purchase Bill</span>
               <span className="ml-auto italic">All POs originate from an approved Purchase Proforma</span>
             </div>
 
@@ -156,12 +168,12 @@ export default function PurchaseOrders() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>PO #</TableHead><TableHead>From Proforma</TableHead><TableHead>Supplier</TableHead><TableHead>Date</TableHead>
-                      <TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Actions</TableHead>
+                      <TableHead>Status</TableHead><TableHead>GRN #</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                         <ClipboardList className="h-8 w-8 mx-auto mb-2 opacity-40" />
                         <p>No purchase orders yet.</p>
                         <p className="text-xs mt-1">Create a Purchase Proforma first, then approve it to auto-generate a PO.</p>
@@ -173,6 +185,7 @@ export default function PurchaseOrders() {
                         <TableCell>{(po.suppliers as any)?.name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{po.date}</TableCell>
                         <TableCell><span className={`status-pill ${statusColor(po.status)}`}>{po.status}</span></TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">{grnMap[po.id] || "—"}</TableCell>
                         <TableCell className="text-right font-mono font-medium">{Number(po.total).toLocaleString()}</TableCell>
                         <TableCell className="space-x-1">
                           {po.status === "draft" && (

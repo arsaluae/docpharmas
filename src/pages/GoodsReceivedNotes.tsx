@@ -50,7 +50,6 @@ export default function GoodsReceivedNotes() {
     check(); load();
   }, [navigate]);
 
-  // Auto-open GRN form if navigated from PO page
   useEffect(() => {
     const poParam = searchParams.get("po");
     if (poParam && pos.length > 0) {
@@ -151,7 +150,34 @@ export default function GoodsReceivedNotes() {
       }
 
       if (poId) await supabase.from("purchase_orders").update({ status: "received" }).eq("id", poId);
-      toast.success(`GRN ${grnNumber} created with stock updated`);
+
+      // Auto-create Purchase Invoice (Bill) from PO data
+      try {
+        const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
+        if (billNumber) {
+          // Get PO totals
+          const { data: poData } = await supabase.from("purchase_orders").select("subtotal, gst, total, supplier_id").eq("id", poId).single();
+          if (poData) {
+            const supplier = poData.supplier_id ? await supabase.from("suppliers").select("wht_rate").eq("id", poData.supplier_id).single() : null;
+            const whtRate = settings?.wht_enabled && supplier?.data ? Number(supplier.data.wht_rate) : 0;
+            const whtAmount = settings?.wht_enabled ? Number(poData.subtotal) * whtRate / 100 : 0;
+            const netTotal = Number(poData.subtotal) + Number(poData.gst) - whtAmount;
+
+            await supabase.from("purchase_invoices").insert({
+              bill_number: billNumber, supplier_id: poData.supplier_id, grn_id: grn.id,
+              date: grnDate, subtotal: Number(poData.subtotal), gst: Number(poData.gst),
+              wht_amount: whtAmount, total: netTotal, status: "unpaid",
+            });
+            toast.success(`GRN ${grnNumber} created + Purchase Bill ${billNumber} auto-generated`);
+          } else {
+            toast.success(`GRN ${grnNumber} created with stock updated`);
+          }
+        } else {
+          toast.success(`GRN ${grnNumber} created with stock updated`);
+        }
+      } catch {
+        toast.success(`GRN ${grnNumber} created with stock updated`);
+      }
 
       // Auto-download GRN PDF
       const { data: gItems } = await supabase.from("grn_items").select("*").eq("grn_id", grn.id);
@@ -202,7 +228,9 @@ export default function GoodsReceivedNotes() {
               <span className="font-semibold text-muted-foreground">② Purchase Order</span>
               <ArrowRight className="h-3 w-3" />
               <span className="font-semibold text-primary">③ GRN</span>
-              <span className="ml-auto italic">Create GRN from PO page via "Create GRN" button</span>
+              <ArrowRight className="h-3 w-3" />
+              <span className="font-semibold text-muted-foreground">④ Purchase Bill</span>
+              <span className="ml-auto italic">GRN auto-creates a Purchase Bill</span>
             </div>
 
             <div className="mb-4 relative max-w-sm">
@@ -262,7 +290,7 @@ export default function GoodsReceivedNotes() {
             </Card>
           </div>
 
-          {/* GRN Creation Dialog - opened via ?po= param from PO page */}
+          {/* GRN Creation Dialog */}
           <Dialog open={open} onOpenChange={(v) => { if (!v) { setOpen(false); setPoId(""); setItems([]); } else setOpen(true); }}>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>New Goods Received Note</DialogTitle></DialogHeader>

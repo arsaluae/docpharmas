@@ -65,6 +65,10 @@ export default function ProformaInvoices() {
   const [editPaymentInstr, setEditPaymentInstr] = useState("");
   const [editItems, setEditItems] = useState<ProformaItem[]>([]);
 
+  // Delete confirmation dialog
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
+
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -86,7 +90,6 @@ export default function ProformaInvoices() {
 
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0 }]);
 
-  // Auto-add 1 blank item when dialog opens
   useEffect(() => {
     if (open && items.length === 0) addItem();
   }, [open]);
@@ -185,7 +188,6 @@ export default function ProformaInvoices() {
       await supabase.from("proforma_invoices").update({ status: "invoiced", converted_invoice_id: inv.id }).eq("id", convertPf.id);
       toast.success(`Converted to ${invNumber} — downloading PDF...`);
       
-      // Auto-download invoice PDF
       const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
       generatePdf({
         title: "SALES INVOICE", documentNumber: invNumber, date: inv.date,
@@ -219,23 +221,30 @@ export default function ProformaInvoices() {
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
 
-  const handleBulkDelete = async (ids: string[]) => {
-    if (!window.confirm(`Delete ${ids.length} proforma(s)?`)) return;
-    for (let i = 0; i < ids.length; i += 200) {
-      const chunk = ids.slice(i, i + 200);
+  const handleBulkDelete = (ids: string[]) => {
+    setDeleteIds(ids);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    for (let i = 0; i < deleteIds.length; i += 200) {
+      const chunk = deleteIds.slice(i, i + 200);
       await supabase.from("proforma_invoices").delete().in("id", chunk);
     }
-    toast.success(`${ids.length} deleted`);
-    setSelected(new Set()); load();
+    toast.success(`${deleteIds.length} deleted`);
+    setSelected(new Set());
+    setDeleteConfirmOpen(false);
+    setDeleteIds([]);
+    load();
   };
 
   const handleApprove = async (id: string) => {
     await supabase.from("proforma_invoices").update({ status: "approved" }).eq("id", id);
     toast.success("Proforma approved — opening convert dialog...");
-    await load();
-    // Auto-open convert dialog
-    const pf = proformas.find(p => p.id === id) || (await supabase.from("proforma_invoices").select("*, customers(name)").eq("id", id).single()).data;
+    // Fetch directly from DB to avoid stale state
+    const { data: pf } = await supabase.from("proforma_invoices").select("*, customers(name)").eq("id", id).single();
     if (pf) await openConvertDialog(pf as any);
+    load();
   };
 
   // Detail/Edit
@@ -356,6 +365,16 @@ export default function ProformaInvoices() {
           </header>
 
           <div className="p-6">
+            {/* Flow indicator */}
+            <div className="mb-6 flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-4 py-3 border border-border">
+              <span className="font-semibold text-primary">① Sales Proforma</span>
+              <ArrowRight className="h-3 w-3" />
+              <span className="font-semibold text-muted-foreground">② Sales Invoice</span>
+              <ArrowRight className="h-3 w-3" />
+              <span className="font-semibold text-muted-foreground">③ Delivery Note</span>
+              <span className="ml-auto italic">Approve a proforma to auto-create an invoice</span>
+            </div>
+
             <div className="mb-4 relative max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search proformas..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
@@ -436,6 +455,18 @@ export default function ProformaInvoices() {
               </Button>
             </div>
           )}
+
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>Confirm Delete</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete {deleteIds.length} proforma(s)? This cannot be undone.</p>
+              <div className="flex gap-2 mt-4">
+                <Button variant="destructive" onClick={confirmDelete} className="flex-1">Delete</Button>
+                <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} className="flex-1">Cancel</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Detail/Edit Dialog */}
           <Dialog open={detailOpen} onOpenChange={o => { if (!o) { setDetailOpen(false); setEditMode(false); } }}>

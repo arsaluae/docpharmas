@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, FileText, Download, Trash2, Pencil, Plus } from "lucide-react";
+import { Search, FileText, Download, Trash2, Pencil, Plus, ArrowRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -38,6 +38,10 @@ export default function DeliveryNotes() {
   const [editDate, setEditDate] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editItems, setEditItems] = useState<any[]>([]);
+
+  // Delete confirmation dialog
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
 
   useEffect(() => {
     const check = async () => {
@@ -71,14 +75,21 @@ export default function DeliveryNotes() {
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(n => n.id)));
 
-  const handleDelete = async (ids: string[]) => {
-    if (!window.confirm(`Delete ${ids.length} delivery note(s)?`)) return;
-    for (let i = 0; i < ids.length; i += 200) {
-      const chunk = ids.slice(i, i + 200);
+  const handleDelete = (ids: string[]) => {
+    setDeleteIds(ids);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    for (let i = 0; i < deleteIds.length; i += 200) {
+      const chunk = deleteIds.slice(i, i + 200);
       await supabase.from("delivery_notes").delete().in("id", chunk);
     }
-    toast.success(`${ids.length} deleted`);
-    setSelected(new Set()); load();
+    toast.success(`${deleteIds.length} deleted`);
+    setSelected(new Set());
+    setDeleteConfirmOpen(false);
+    setDeleteIds([]);
+    load();
   };
 
   const openDetail = (dn: DeliveryNote) => {
@@ -121,9 +132,22 @@ export default function DeliveryNotes() {
               <h1 className="text-xl font-bold text-foreground font-heading">Delivery Notes</h1>
               <p className="text-sm text-muted-foreground">Track dispatched goods — no pricing, just batch/qty/expiry</p>
             </div>
+            <Button variant="outline" size="sm" onClick={() => navigate("/sales-invoices")}>
+              <ArrowRight className="h-4 w-4 mr-1" /> Go to Sales Invoices
+            </Button>
           </header>
 
           <div className="p-6">
+            {/* Flow indicator */}
+            <div className="mb-6 flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-4 py-3 border border-border">
+              <span className="font-semibold text-muted-foreground">① Proforma</span>
+              <ArrowRight className="h-3 w-3" />
+              <span className="font-semibold text-muted-foreground">② Sales Invoice</span>
+              <ArrowRight className="h-3 w-3" />
+              <span className="font-semibold text-primary">③ Delivery Note</span>
+              <span className="ml-auto italic">Create DN from Sales Invoices via "DN" button</span>
+            </div>
+
             <div className="mb-4 relative max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search delivery notes..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
@@ -141,7 +165,9 @@ export default function DeliveryNotes() {
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                        <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No delivery notes yet.
+                        <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                        <p>No delivery notes yet.</p>
+                        <p className="text-xs mt-1">Go to Sales Invoices and click "DN" to create a Delivery Note.</p>
                       </TableCell></TableRow>
                     ) : filtered.map(dn => (
                       <TableRow key={dn.id} className="cursor-pointer" data-state={selected.has(dn.id) ? "selected" : undefined}>
@@ -182,6 +208,18 @@ export default function DeliveryNotes() {
               </Button>
             </div>
           )}
+
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>Confirm Delete</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete {deleteIds.length} delivery note(s)? This cannot be undone.</p>
+              <div className="flex gap-2 mt-4">
+                <Button variant="destructive" onClick={confirmDelete} className="flex-1">Delete</Button>
+                <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} className="flex-1">Cancel</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Detail/Edit Dialog */}
           <Dialog open={detailOpen} onOpenChange={o => { if (!o) { setDetailOpen(false); setEditMode(false); } }}>
