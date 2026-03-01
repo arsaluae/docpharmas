@@ -332,6 +332,24 @@ export type Database = {
         }
         Relationships: []
       }
+      document_counters: {
+        Row: {
+          current_value: number
+          document_type: string
+          prefix: string
+        }
+        Insert: {
+          current_value?: number
+          document_type: string
+          prefix: string
+        }
+        Update: {
+          current_value?: number
+          document_type?: string
+          prefix?: string
+        }
+        Relationships: []
+      }
       document_templates: {
         Row: {
           bank_details_text: string | null
@@ -1628,6 +1646,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_document_number: {
+        Args: { p_document_type: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

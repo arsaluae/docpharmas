@@ -63,17 +63,17 @@ export default function Customers() {
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Name is required"); return; }
-    const payload = {
+    const basePayload = {
       name: form.name, company: form.company || null, ntn: form.ntn || null, strn: form.strn || null,
       phone: form.phone || null, email: form.email || null, address: form.address || null, city: form.city || null,
       credit_limit: Number(form.credit_limit), credit_days: Number(form.credit_days),
-      opening_balance: Number(form.opening_balance), balance: Number(form.opening_balance),
+      opening_balance: Number(form.opening_balance),
     };
     if (editId) {
-      await supabase.from("customers").update(payload).eq("id", editId);
+      await supabase.from("customers").update(basePayload).eq("id", editId);
       toast.success("Customer updated");
     } else {
-      await supabase.from("customers").insert(payload);
+      await supabase.from("customers").insert({ ...basePayload, balance: Number(form.opening_balance) });
       toast.success("Customer created");
     }
     setOpen(false); setForm(emptyForm); setEditId(null); loadCustomers();

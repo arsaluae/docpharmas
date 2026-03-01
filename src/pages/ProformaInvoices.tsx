@@ -113,8 +113,8 @@ export default function ProformaInvoices() {
   const handleSave = async () => {
     if (!customerId || items.length === 0) { toast.error("Customer and items required"); return; }
     const { subtotal, gst, total } = calcTotals();
-    const { count } = await supabase.from("proforma_invoices").select("id", { count: "exact", head: true });
-    const pfNumber = `PF-${String((count || 0) + 1).padStart(4, "0")}`;
+    const { data: pfNumber } = await supabase.rpc("generate_document_number", { p_document_type: "proforma_invoice" });
+    if (!pfNumber) { toast.error("Failed to generate number"); return; }
 
     await supabase.from("proforma_invoices").insert({
       proforma_number: pfNumber, customer_id: customerId, date: pfDate,
@@ -155,8 +155,8 @@ export default function ProformaInvoices() {
 
   const handleConvert = async () => {
     if (!convertPf) return;
-    const { count } = await supabase.from("sales_invoices").select("id", { count: "exact", head: true });
-    const invNumber = `SI-${String((count || 0) + 1).padStart(4, "0")}`;
+    const { data: invNumber } = await supabase.rpc("generate_document_number", { p_document_type: "sales_invoice" });
+    if (!invNumber) { toast.error("Failed to generate invoice number"); return; }
     const { data: inv } = await supabase.from("sales_invoices").insert({
       invoice_number: invNumber, customer_id: convertPf.customer_id, date: new Date().toISOString().split("T")[0],
       subtotal: convertPf.subtotal, gst_amount: convertPf.gst, total: convertPf.total, status: "draft",

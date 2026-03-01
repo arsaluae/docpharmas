@@ -87,8 +87,8 @@ export default function PurchaseOrders() {
   const handleSave = async () => {
     if (!supplierId || items.length === 0) { toast.error("Supplier and items required"); return; }
     const { subtotal, gst, total } = calcTotals();
-    const { count } = await supabase.from("purchase_orders").select("id", { count: "exact", head: true });
-    const poNumber = `PO-${String((count || 0) + 1).padStart(4, "0")}`;
+    const { data: poNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_order" });
+    if (!poNumber) { toast.error("Failed to generate PO number"); return; }
 
     const { data: po } = await supabase.from("purchase_orders").insert({
       po_number: poNumber, supplier_id: supplierId, date: poDate,

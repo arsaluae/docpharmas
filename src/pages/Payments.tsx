@@ -79,8 +79,8 @@ export default function Payments() {
 
   const handleSave = async () => {
     if (!partyId || !amount || Number(amount) <= 0) { toast.error("Party and amount required"); return; }
-    const { count } = await supabase.from("payments").select("id", { count: "exact", head: true });
-    const paymentNumber = `PAY-${String((count || 0) + 1).padStart(4, "0")}`;
+    const { data: paymentNumber } = await supabase.rpc("generate_document_number", { p_document_type: "payment" });
+    if (!paymentNumber) { toast.error("Failed to generate payment number"); return; }
 
     await supabase.from("payments").insert({
       payment_number: paymentNumber, type: paymentType, party_type: partyType, party_id: partyId,

@@ -49,14 +49,14 @@ export default function Suppliers() {
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Name is required"); return; }
-    const payload = {
+    const basePayload = {
       name: form.name, company: form.company || null, ntn: form.ntn || null, strn: form.strn || null,
       phone: form.phone || null, email: form.email || null, address: form.address || null, city: form.city || null,
       payment_terms_days: Number(form.payment_terms_days), wht_rate: Number(form.wht_rate),
-      opening_balance: Number(form.opening_balance), balance: Number(form.opening_balance),
+      opening_balance: Number(form.opening_balance),
     };
-    if (editId) { await supabase.from("suppliers").update(payload).eq("id", editId); toast.success("Supplier updated"); }
-    else { await supabase.from("suppliers").insert(payload); toast.success("Supplier created"); }
+    if (editId) { await supabase.from("suppliers").update(basePayload).eq("id", editId); toast.success("Supplier updated"); }
+    else { await supabase.from("suppliers").insert({ ...basePayload, balance: Number(form.opening_balance) }); toast.success("Supplier created"); }
     setOpen(false); setForm(emptyForm); setEditId(null); loadSuppliers();
   };
 

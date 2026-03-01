@@ -114,7 +114,7 @@ export default function SalesInvoices() {
     }, 0) : 0;
     const total = subtotal - discount + gstAmount;
     return { subtotal, discount, gstAmount, total };
-  }, [items]);
+  }, [items, settings?.gst_enabled]);
 
   const calcEditTotals = () => {
     const subtotal = editItems.reduce((s, i) => s + (Number(i.quantity) * Number(i.rate)), 0);
@@ -131,8 +131,8 @@ export default function SalesInvoices() {
   };
 
   const generateInvoiceNumber = async () => {
-    const { count } = await supabase.from("sales_invoices").select("id", { count: "exact", head: true });
-    return `SI-${String((count || 0) + 1).padStart(4, "0")}`;
+    const { data } = await supabase.rpc("generate_document_number", { p_document_type: "sales_invoice" });
+    return data || `SI-${Date.now()}`;
   };
 
   const handleSave = async () => {
@@ -267,8 +267,8 @@ export default function SalesInvoices() {
 
   const createDeliveryNote = async (inv: SalesInvoice) => {
     const { data: lineItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
-    const { count } = await supabase.from("delivery_notes").select("id", { count: "exact", head: true });
-    const dnNumber = `DN-${String((count || 0) + 1).padStart(4, "0")}`;
+    const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "delivery_note" });
+    if (!dnNumber) { toast.error("Failed to generate DN number"); return; }
     const dnItems = (lineItems || []).map((i: any) => ({
       product_name: i.products?.name || "Item", batch_number: i.batch_number || "", expiry_date: "", quantity: i.quantity,
     }));
