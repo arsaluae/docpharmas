@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, FileText, Trash2, QrCode, Download, FileOutput, Pencil } from "lucide-react";
+import { Plus, Search, FileText, Trash2, QrCode, Download, FileOutput, Pencil, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
@@ -411,61 +411,22 @@ export default function SalesInvoices() {
               <h1 className="text-xl font-bold text-foreground font-heading">Sales Invoices</h1>
               <p className="text-sm text-muted-foreground">Create invoices{settings?.gst_enabled ? ' with GST calculation' : ''}{settings?.fbr_enabled ? ' & FBR QR' : ''}</p>
             </div>
-            <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else setOpen(true); }}>
-              <DialogTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Invoice</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>New Sales Invoice</DialogTitle></DialogHeader>
-                <div className="grid grid-cols-3 gap-3 mt-2">
-                  <div>
-                    <Label>Customer *</Label>
-                    <Select value={customerId} onValueChange={setCustomerId}>
-                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div><Label>Date</Label><Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} /></div>
-                  <div><Label>Due Date</Label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
-                </div>
-
-                <div className="mt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-sm font-semibold">Line Items</Label>
-                    <Button variant="outline" size="sm" onClick={addItem}><Plus className="h-3 w-3 mr-1" /> Add Item</Button>
-                  </div>
-                  {items.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
-                      <div className="col-span-3">
-                        <Select value={item.product_id} onValueChange={v => updateItem(idx, "product_id", v)}>
-                          <SelectTrigger className="text-xs"><SelectValue placeholder="Product" /></SelectTrigger>
-                          <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                        </Select>
-                      </div>
-                      <div className="col-span-2"><Input type="number" placeholder="Qty" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" /></div>
-                      <div className="col-span-2"><Input type="number" placeholder="Rate" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" /></div>
-                      <div className="col-span-1"><Input type="number" placeholder="Disc%" value={item.discount_percent} onChange={e => updateItem(idx, "discount_percent", e.target.value)} className="text-xs" /></div>
-                      {settings?.gst_enabled && <div className="col-span-1"><Input type="number" placeholder="GST%" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" /></div>}
-                      <div className={`${settings?.gst_enabled ? 'col-span-2' : 'col-span-3'} text-right text-sm font-mono font-medium pt-2`}>{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                      <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => removeItem(idx)}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 border-t border-border pt-3 space-y-1 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="font-mono text-destructive">-{discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                  {settings?.gst_enabled && <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span className="font-mono">{gstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                  <div className="flex justify-between font-bold text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                </div>
-
-                <div className="mt-3"><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes..." /></div>
-                <Button onClick={handleSave} className="w-full mt-4">Create Invoice</Button>
-              </DialogContent>
-            </Dialog>
+            <Button variant="outline" size="sm" onClick={() => navigate("/proforma-invoices")}>
+              <ArrowRight className="h-4 w-4 mr-1" /> Go to Proformas
+            </Button>
           </header>
 
           <div className="p-6">
+            {/* Flow indicator */}
+            <div className="mb-6 flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-4 py-3 border border-border">
+              <span className="font-semibold text-muted-foreground">① Proforma</span>
+              <ArrowRight className="h-3 w-3" />
+              <span className="font-semibold text-primary">② Sales Invoice</span>
+              <ArrowRight className="h-3 w-3" />
+              <span className="font-semibold text-muted-foreground">③ Delivery Note</span>
+              <span className="ml-auto italic">Invoices are created by approving a Sales Proforma</span>
+            </div>
+
             <div className="mb-4 relative max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search invoices..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
@@ -490,7 +451,9 @@ export default function SalesInvoices() {
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow><TableCell colSpan={settings?.fbr_enabled ? 9 : 8} className="text-center py-12 text-muted-foreground">
-                        <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No invoices yet.
+                        <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                        <p>No invoices yet.</p>
+                        <p className="text-xs mt-1">Create a Sales Proforma first, then approve it to auto-generate an Invoice.</p>
                       </TableCell></TableRow>
                     ) : filtered.map(inv => (
                       <TableRow key={inv.id} className="cursor-pointer" data-state={selected.has(inv.id) ? "selected" : undefined}>
