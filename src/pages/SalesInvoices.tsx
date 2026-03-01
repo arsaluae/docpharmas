@@ -58,6 +58,13 @@ export default function SalesInvoices() {
   const [editNotes, setEditNotes] = useState("");
   const [editItems, setEditItems] = useState<InvoiceItem[]>([]);
 
+  // Delete confirmation dialog
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
+
+  // DN cross-reference
+  const [dnMap, setDnMap] = useState<Record<string, string>>({});
+
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -67,14 +74,20 @@ export default function SalesInvoices() {
   }, [navigate]);
 
   const load = async () => {
-    const [inv, cust, prod] = await Promise.all([
+    const [inv, cust, prod, dns] = await Promise.all([
       supabase.from("sales_invoices").select("*, customers(name)").order("created_at", { ascending: false }),
       supabase.from("customers").select("id, name, company"),
       supabase.from("products").select("id, name, selling_price, gst_rate"),
+      supabase.from("delivery_notes").select("reference_id, dn_number").eq("reference_type", "sales_invoice"),
     ]);
     if (inv.data) setInvoices(inv.data as any);
     if (cust.data) setCustomers(cust.data);
     if (prod.data) setProducts(prod.data);
+    if (dns.data) {
+      const map: Record<string, string> = {};
+      dns.data.forEach((d: any) => { if (d.reference_id) map[d.reference_id] = d.dn_number; });
+      setDnMap(map);
+    }
   };
 
   const addItem = () => {
@@ -82,7 +95,6 @@ export default function SalesInvoices() {
     setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, discount_percent: 0, gst_rate: defaultGst, amount: 0 }]);
   };
 
-  // Auto-add 1 blank item when dialog opens
   useEffect(() => {
     if (open && items.length === 0) addItem();
   }, [open]);
@@ -182,15 +194,21 @@ export default function SalesInvoices() {
   const filtered = invoices.filter(i => i.invoice_number.toLowerCase().includes(search.toLowerCase()));
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(i => i.id)));
 
-  const handleBulkDelete = async (ids: string[]) => {
-    if (!window.confirm(`Delete ${ids.length} invoice(s)?`)) return;
-    for (let i = 0; i < ids.length; i += 200) {
-      const chunk = ids.slice(i, i + 200);
+  const handleBulkDelete = (ids: string[]) => {
+    setDeleteIds(ids);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    for (let i = 0; i < deleteIds.length; i += 200) {
+      const chunk = deleteIds.slice(i, i + 200);
       await supabase.from("sales_invoice_items").delete().in("invoice_id", chunk);
       await supabase.from("sales_invoices").delete().in("id", chunk);
     }
-    toast.success(`${ids.length} deleted`);
+    toast.success(`${deleteIds.length} deleted`);
     setSelected(new Set());
+    setDeleteConfirmOpen(false);
+    setDeleteIds([]);
     load();
   };
 
@@ -238,7 +256,6 @@ export default function SalesInvoices() {
       customer_id: editCustomerId || null, date: editDate, due_date: editDueDate || null,
       notes: editNotes || null, subtotal, discount, gst_amount: gstAmount, total,
     }).eq("id", detailInv.id);
-    // Replace line items
     await supabase.from("sales_invoice_items").delete().eq("invoice_id", detailInv.id);
     if (editItems.length > 0) {
       await supabase.from("sales_invoice_items").insert(editItems.map(i => ({
@@ -282,14 +299,12 @@ export default function SalesInvoices() {
     const { data: lineItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
     if (!lineItems || lineItems.length === 0) { toast.error("No items in this invoice"); return; }
     
-    // Get available batches for each product from stock_movements and grn_items for expiry
     const productIds = lineItems.filter((i: any) => i.product_id).map((i: any) => i.product_id);
     const [movementsRes, grnItemsRes] = await Promise.all([
       supabase.from("stock_movements").select("product_id, batch_number, quantity, movement_type").in("product_id", productIds),
       supabase.from("grn_items").select("product_id, batch_number, expiry_date").in("product_id", productIds),
     ]);
     
-    // Calculate available qty per product+batch
     const batchQty: Record<string, number> = {};
     (movementsRes.data || []).forEach((m: any) => {
       const key = `${m.product_id}__${m.batch_number || "no-batch"}`;
@@ -298,7 +313,6 @@ export default function SalesInvoices() {
       else if (["sale_out", "return_out", "adjustment_out", "damage", "expired"].includes(m.movement_type)) batchQty[key] -= Number(m.quantity);
     });
     
-    // Get expiry dates from grn_items
     const expiryMap: Record<string, string> = {};
     (grnItemsRes.data || []).forEach((g: any) => {
       const key = `${g.product_id}__${g.batch_number || "no-batch"}`;
@@ -306,7 +320,6 @@ export default function SalesInvoices() {
     });
     
     const items: DNItemBatch[] = lineItems.map((i: any) => {
-      // Find available batches for this product
       const availBatches: BatchAllocation[] = [];
       for (const [key, qty] of Object.entries(batchQty)) {
         const [pid, batch] = key.split("__");
@@ -314,11 +327,9 @@ export default function SalesInvoices() {
           availBatches.push({ batch_number: batch, expiry_date: expiryMap[key] || "", quantity: 0, available: qty });
         }
       }
-      // If there's only one batch, auto-fill
       if (availBatches.length === 1) {
         availBatches[0].quantity = Math.min(Number(i.quantity), availBatches[0].available);
       }
-      // If no batches at all, add an empty row for manual entry
       if (availBatches.length === 0) {
         availBatches.push({ batch_number: "", expiry_date: "", quantity: Number(i.quantity), available: 0 });
       }
@@ -348,7 +359,6 @@ export default function SalesInvoices() {
 
   const handleCreateDN = async () => {
     if (!dnInvoice) return;
-    // Validate all items
     for (const item of dnItems) {
       const totalQty = item.batches.reduce((s, b) => s + Number(b.quantity), 0);
       if (totalQty !== item.required_quantity) {
@@ -411,7 +421,7 @@ export default function SalesInvoices() {
               <h1 className="text-xl font-bold text-foreground font-heading">Sales Invoices</h1>
               <p className="text-sm text-muted-foreground">Create invoices{settings?.gst_enabled ? ' with GST calculation' : ''}{settings?.fbr_enabled ? ' & FBR QR' : ''}</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => navigate("/proforma-invoices")}>
+            <Button variant="outline" size="sm" onClick={() => navigate("/proforma")}>
               <ArrowRight className="h-4 w-4 mr-1" /> Go to Proformas
             </Button>
           </header>
@@ -442,6 +452,7 @@ export default function SalesInvoices() {
                       <TableHead>Customer</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>DN #</TableHead>
                       {settings?.gst_enabled && <TableHead className="text-right">GST</TableHead>}
                       <TableHead className="text-right">Total</TableHead>
                       {settings?.fbr_enabled && <TableHead>FBR</TableHead>}
@@ -450,7 +461,7 @@ export default function SalesInvoices() {
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={settings?.fbr_enabled ? 9 : 8} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={settings?.fbr_enabled ? 10 : 9} className="text-center py-12 text-muted-foreground">
                         <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
                         <p>No invoices yet.</p>
                         <p className="text-xs mt-1">Create a Sales Proforma first, then approve it to auto-generate an Invoice.</p>
@@ -462,6 +473,7 @@ export default function SalesInvoices() {
                         <TableCell onClick={() => openDetail(inv)}>{(inv.customers as any)?.name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground" onClick={() => openDetail(inv)}>{inv.date}</TableCell>
                         <TableCell onClick={() => openDetail(inv)}><span className={`status-pill ${statusColor(inv.status)}`}>{inv.status}</span></TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">{dnMap[inv.id] || "—"}</TableCell>
                         {settings?.gst_enabled && <TableCell className="text-right font-mono" onClick={() => openDetail(inv)}>{Number(inv.gst_amount).toLocaleString()}</TableCell>}
                         <TableCell className="text-right font-mono font-medium" onClick={() => openDetail(inv)}>{Number(inv.total).toLocaleString()}</TableCell>
                         {settings?.fbr_enabled && (
@@ -498,6 +510,18 @@ export default function SalesInvoices() {
               </Button>
             </div>
           )}
+
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>Confirm Delete</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete {deleteIds.length} invoice(s)? This cannot be undone.</p>
+              <div className="flex gap-2 mt-4">
+                <Button variant="destructive" onClick={confirmDelete} className="flex-1">Delete</Button>
+                <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} className="flex-1">Cancel</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* FBR QR Dialog */}
           <Dialog open={qrOpen} onOpenChange={setQrOpen}>
@@ -624,38 +648,17 @@ export default function SalesInvoices() {
                     <Button variant="outline" size="sm" onClick={() => addBatchRow(itemIdx)} className="text-xs"><Plus className="h-3 w-3 mr-1" /> Add Batch</Button>
                   </div>
                   {item.batches.map((batch, batchIdx) => (
-                    <div key={batchIdx} className="grid grid-cols-12 gap-2 mb-2 items-end">
-                      <div className="col-span-4">
-                        <Label className="text-xs">Batch #</Label>
-                        <Input value={batch.batch_number} onChange={e => updateBatchRow(itemIdx, batchIdx, "batch_number", e.target.value)} className="text-xs" placeholder="Batch number" />
-                      </div>
-                      <div className="col-span-3">
-                        <Label className="text-xs">Expiry</Label>
-                        <Input type="date" value={batch.expiry_date} onChange={e => updateBatchRow(itemIdx, batchIdx, "expiry_date", e.target.value)} className="text-xs" />
-                      </div>
-                      <div className="col-span-2">
-                        <Label className="text-xs">Qty</Label>
-                        <Input type="number" value={batch.quantity} onChange={e => updateBatchRow(itemIdx, batchIdx, "quantity", e.target.value)} className="text-xs" />
-                      </div>
-                      <div className="col-span-2 text-xs text-muted-foreground pt-5">
-                        {batch.available > 0 ? `Avail: ${batch.available}` : ""}
-                      </div>
-                      <div className="col-span-1">
-                        {item.batches.length > 1 && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeBatchRow(itemIdx, batchIdx)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                        )}
-                      </div>
+                    <div key={batchIdx} className="grid grid-cols-12 gap-2 mb-1 items-end">
+                      <div className="col-span-4"><Input className="text-xs" placeholder="Batch #" value={batch.batch_number} onChange={e => updateBatchRow(itemIdx, batchIdx, "batch_number", e.target.value)} /></div>
+                      <div className="col-span-3"><Input className="text-xs" type="date" value={batch.expiry_date} onChange={e => updateBatchRow(itemIdx, batchIdx, "expiry_date", e.target.value)} /></div>
+                      <div className="col-span-2"><Input className="text-xs" type="number" value={batch.quantity} onChange={e => updateBatchRow(itemIdx, batchIdx, "quantity", Number(e.target.value))} /></div>
+                      <div className="col-span-2 text-xs text-muted-foreground pt-2">{batch.available > 0 ? `Avail: ${batch.available}` : ""}</div>
+                      <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => removeBatchRow(itemIdx, batchIdx)}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
                     </div>
                   ))}
-                  {(() => {
-                    const totalAssigned = item.batches.reduce((s, b) => s + Number(b.quantity), 0);
-                    const diff = item.required_quantity - totalAssigned;
-                    return diff !== 0 ? (
-                      <p className="text-xs text-amber-600 mt-1">⚠ {diff > 0 ? `${diff} more needed` : `${Math.abs(diff)} excess`}</p>
-                    ) : (
-                      <p className="text-xs text-emerald-600 mt-1">✓ Fully allocated</p>
-                    );
-                  })()}
+                  <div className="text-xs mt-1 text-muted-foreground">
+                    Allocated: {item.batches.reduce((s, b) => s + Number(b.quantity), 0)} / {item.required_quantity}
+                  </div>
                 </div>
               ))}
               <Button onClick={handleCreateDN} className="w-full mt-3">Create Delivery Note</Button>
