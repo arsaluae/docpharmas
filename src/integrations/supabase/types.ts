@@ -437,6 +437,7 @@ export type Database = {
           date: string
           description: string | null
           expense_number: string
+          expense_type: string
           gst_amount: number
           id: string
           notes: string | null
@@ -451,6 +452,7 @@ export type Database = {
           date?: string
           description?: string | null
           expense_number: string
+          expense_type?: string
           gst_amount?: number
           id?: string
           notes?: string | null
@@ -465,6 +467,7 @@ export type Database = {
           date?: string
           description?: string | null
           expense_number?: string
+          expense_type?: string
           gst_amount?: number
           id?: string
           notes?: string | null

@@ -1,0 +1,1 @@
+ALTER TABLE public.expenses ADD COLUMN expense_type text NOT NULL DEFAULT 'business';
