@@ -84,29 +84,29 @@ export default function ProformaInvoices() {
     if (prod.data) setProducts(prod.data);
   };
 
-  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: 17, amount: 0 }]);
+  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0 }]);
 
   const updateItem = (idx: number, field: string, value: any) => {
     const u = [...items];
     (u[idx] as any)[field] = value;
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
-      if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = Number(p.gst_rate); }
+      if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; }
     }
     const line = Number(u[idx].quantity) * Number(u[idx].rate);
-    u[idx].amount = line + (line * Number(u[idx].gst_rate) / 100);
+    u[idx].amount = line + (settings?.gst_enabled ? (line * Number(u[idx].gst_rate) / 100) : 0);
     setItems(u);
   };
 
   const calcTotals = () => {
     const subtotal = items.reduce((s, i) => s + Number(i.quantity) * Number(i.rate), 0);
-    const gst = items.reduce((s, i) => s + (Number(i.quantity) * Number(i.rate) * Number(i.gst_rate) / 100), 0);
+    const gst = settings?.gst_enabled ? items.reduce((s, i) => s + (Number(i.quantity) * Number(i.rate) * Number(i.gst_rate) / 100), 0) : 0;
     return { subtotal, gst, total: subtotal + gst };
   };
 
   const calcEditTotals = () => {
     const subtotal = editItems.reduce((s, i) => s + Number(i.quantity) * Number(i.rate), 0);
-    const gst = editItems.reduce((s, i) => s + (Number(i.quantity) * Number(i.rate) * Number(i.gst_rate) / 100), 0);
+    const gst = settings?.gst_enabled ? editItems.reduce((s, i) => s + (Number(i.quantity) * Number(i.rate) * Number(i.gst_rate) / 100), 0) : 0;
     return { subtotal, gst, total: subtotal + gst };
   };
 
@@ -227,10 +227,10 @@ export default function ProformaInvoices() {
     (u[idx] as any)[field] = value;
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
-      if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = Number(p.gst_rate); }
+      if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; }
     }
     const line = Number(u[idx].quantity) * Number(u[idx].rate);
-    u[idx].amount = line + (line * Number(u[idx].gst_rate) / 100);
+    u[idx].amount = line + (settings?.gst_enabled ? (line * Number(u[idx].gst_rate) / 100) : 0);
     setEditItems(u);
   };
 
@@ -305,7 +305,7 @@ export default function ProformaInvoices() {
                       </div>
                       <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" /></div>
                       <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" /></div>
-                      <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" /></div>
+                      {settings?.gst_enabled && <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" /></div>}
                       <div className="col-span-2 text-right text-sm font-mono pt-2">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                       <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
                     </div>
@@ -313,7 +313,7 @@ export default function ProformaInvoices() {
                 </div>
                 <div className="mt-4 border-t border-border pt-3 space-y-1 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span className="font-mono">{gst.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                  {settings?.gst_enabled && <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span className="font-mono">{gst.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                   <div className="flex justify-between font-bold"><span>Total</span><span className="font-mono">PKR {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                 </div>
                 <Button onClick={handleSave} className="w-full mt-4">Create Proforma</Button>

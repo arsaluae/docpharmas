@@ -94,7 +94,7 @@ export default function WarrantyInvoices() {
   const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
 
   const subtotal = items.reduce((s, i) => s + i.amount, 0);
-  const gstAmount = Math.round(subtotal * 0.17);
+  const gstAmount = settings?.gst_enabled ? Math.round(subtotal * (Number(settings.default_gst_rate) / 100)) : 0;
   const total = subtotal + gstAmount;
 
   const handleSave = async () => {
@@ -225,7 +225,7 @@ export default function WarrantyInvoices() {
                   {items.length > 0 && (
                     <div className="text-right mt-2 space-y-1 text-sm">
                       <div>Subtotal: <span className="font-mono">{subtotal.toLocaleString()}</span></div>
-                      <div>GST (17%): <span className="font-mono">{gstAmount.toLocaleString()}</span></div>
+                      {settings?.gst_enabled && <div>GST ({settings.default_gst_rate}%): <span className="font-mono">{gstAmount.toLocaleString()}</span></div>}
                       <div className="font-bold">Total: <span className="font-mono">{total.toLocaleString()}</span></div>
                     </div>
                   )}
@@ -289,7 +289,7 @@ export default function WarrantyInvoices() {
                                 })),
                                 totals: [
                                   { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
-                                  { label: "GST (17%)", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
+                                  ...(settings?.gst_enabled ? [{ label: `GST (${settings.default_gst_rate}%)`, value: `PKR ${Number(inv.gst_amount).toLocaleString()}` }] : []),
                                   { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
                                 ],
                                 notes: inv.notes || undefined, settings,

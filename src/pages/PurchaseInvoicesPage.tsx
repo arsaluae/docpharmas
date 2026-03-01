@@ -63,10 +63,10 @@ export default function PurchaseInvoicesPage() {
 
   const calcTotals = () => {
     const sub = Number(subtotal);
-    const gst = sub * 0.17;
+    const gst = settings?.gst_enabled ? sub * (Number(settings.default_gst_rate) / 100) : 0;
     const supplier = suppliers.find(s => s.id === supplierId);
-    const whtRate = supplier ? Number(supplier.wht_rate) : 4.5;
-    const wht = sub * whtRate / 100;
+    const whtRate = settings?.wht_enabled ? (supplier ? Number(supplier.wht_rate) : Number(settings.default_wht_rate)) : 0;
+    const wht = settings?.wht_enabled ? sub * whtRate / 100 : 0;
     const total = sub + gst - wht;
     return { gst, wht, whtRate, total };
   };
@@ -119,7 +119,7 @@ export default function PurchaseInvoicesPage() {
             <SidebarTrigger />
             <div className="flex-1">
               <h1 className="text-xl font-bold text-foreground font-heading">Purchase Bills</h1>
-              <p className="text-sm text-muted-foreground">Supplier invoices with WHT deduction</p>
+              <p className="text-sm text-muted-foreground">Supplier invoices{settings?.wht_enabled ? ' with WHT deduction' : ''}</p>
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Bill</Button></DialogTrigger>
@@ -130,7 +130,7 @@ export default function PurchaseInvoicesPage() {
                     <Label>Supplier *</Label>
                     <Select value={supplierId} onValueChange={setSupplierId}>
                       <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name} (WHT {s.wht_rate}%)</SelectItem>)}</SelectContent>
+                      <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}{settings?.wht_enabled ? ` (WHT ${s.wht_rate}%)` : ''}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div>
@@ -146,8 +146,8 @@ export default function PurchaseInvoicesPage() {
                 </div>
                 <div className="mt-4 border-t border-border pt-3 space-y-1 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{Number(subtotal).toLocaleString()}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">GST 17%</span><span className="font-mono">+{gst.toLocaleString()}</span></div>
-                  <div className="flex justify-between text-amber-700"><span>WHT {whtRate}%</span><span className="font-mono">-{wht.toLocaleString()}</span></div>
+                  {settings?.gst_enabled && <div className="flex justify-between"><span className="text-muted-foreground">GST {settings.default_gst_rate}%</span><span className="font-mono">+{gst.toLocaleString()}</span></div>}
+                  {settings?.wht_enabled && <div className="flex justify-between text-amber-700"><span>WHT {whtRate}%</span><span className="font-mono">-{wht.toLocaleString()}</span></div>}
                   <div className="flex justify-between font-bold text-base"><span>Net Payable</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
                 </div>
                 <Button onClick={handleSave} className="w-full mt-4">Create Bill</Button>
@@ -167,14 +167,14 @@ export default function PurchaseInvoicesPage() {
                     <TableRow>
                       <TableHead><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                       <TableHead>Bill #</TableHead><TableHead>Supplier</TableHead><TableHead>Date</TableHead>
-                      <TableHead className="text-right">Subtotal</TableHead><TableHead className="text-right">WHT</TableHead>
+                      <TableHead className="text-right">Subtotal</TableHead>{settings?.wht_enabled && <TableHead className="text-right">WHT</TableHead>}
                       <TableHead className="text-right">Net Total</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
-                        <Receipt className="h-8 w-8 mx-auto mb-2 opacity-40" />No purchase bills yet.
+                       <Receipt className="h-8 w-8 mx-auto mb-2 opacity-40" />No purchase bills yet.
                       </TableCell></TableRow>
                     ) : filtered.map(b => (
                       <TableRow key={b.id} data-state={selected.has(b.id) ? "selected" : undefined}>
@@ -183,7 +183,7 @@ export default function PurchaseInvoicesPage() {
                         <TableCell>{(b.suppliers as any)?.name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{b.date}</TableCell>
                         <TableCell className="text-right font-mono">{Number(b.subtotal).toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-mono text-amber-700">-{Number(b.wht_amount).toLocaleString()}</TableCell>
+                        {settings?.wht_enabled && <TableCell className="text-right font-mono text-amber-700">-{Number(b.wht_amount).toLocaleString()}</TableCell>}
                         <TableCell className="text-right font-mono font-medium">{Number(b.total).toLocaleString()}</TableCell>
                         <TableCell><span className={`status-pill ${statusColor(b.status)}`}>{b.status}</span></TableCell>
                         <TableCell className="space-x-1">

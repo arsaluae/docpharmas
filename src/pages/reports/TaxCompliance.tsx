@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 
 interface WHTRow { supplier: string; total_wht: number; }
 interface DrapReg {
@@ -25,6 +26,7 @@ interface Product { id: string; name: string; }
 
 export default function TaxCompliance() {
   const navigate = useNavigate();
+  const { settings } = useCompanySettings();
   const [gstOutput, setGstOutput] = useState(0);
   const [gstInput, setGstInput] = useState(0);
   const [whtRows, setWhtRows] = useState<WHTRow[]>([]);
@@ -119,10 +121,10 @@ export default function TaxCompliance() {
             <h1 className="text-xl font-bold text-foreground font-heading">Tax & DRAP Compliance</h1>
           </header>
           <div className="p-6">
-            <Tabs defaultValue="gst">
+            <Tabs defaultValue={settings?.gst_enabled ? "gst" : "drap"}>
               <TabsList>
-                <TabsTrigger value="gst">GST Summary</TabsTrigger>
-                <TabsTrigger value="wht">WHT Certificates</TabsTrigger>
+                {settings?.gst_enabled && <TabsTrigger value="gst">GST Summary</TabsTrigger>}
+                {settings?.wht_enabled && <TabsTrigger value="wht">WHT Certificates</TabsTrigger>}
                 <TabsTrigger value="drap">DRAP Tracker</TabsTrigger>
               </TabsList>
 

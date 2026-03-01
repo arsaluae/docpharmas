@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Truck, BookOpen, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 
 interface Supplier {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
@@ -27,6 +28,7 @@ const emptyForm = {
 
 export default function Suppliers() {
   const navigate = useNavigate();
+  const { settings } = useCompanySettings();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm);
@@ -132,7 +134,7 @@ export default function Suppliers() {
                   <div><Label>Email</Label><Input value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
                   <div className="col-span-2"><Label>Address</Label><Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} /></div>
                   <div><Label>Payment Terms (days)</Label><Input type="number" value={form.payment_terms_days} onChange={e => setForm({...form, payment_terms_days: e.target.value})} /></div>
-                  <div><Label>WHT Rate (%)</Label><Input type="number" step="0.1" value={form.wht_rate} onChange={e => setForm({...form, wht_rate: e.target.value})} /></div>
+                  {settings?.wht_enabled && <div><Label>WHT Rate (%)</Label><Input type="number" step="0.1" value={form.wht_rate} onChange={e => setForm({...form, wht_rate: e.target.value})} /></div>}
                   <div><Label>Opening Balance (PKR)</Label><Input type="number" value={form.opening_balance} onChange={e => setForm({...form, opening_balance: e.target.value})} /></div>
                 </div>
                 <Button onClick={handleSave} className="w-full mt-4">{editId ? "Update" : "Create"} Supplier</Button>
@@ -168,20 +170,20 @@ export default function Suppliers() {
                     <TableRow>
                       <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selectedIds.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                       <TableHead>Name</TableHead><TableHead>Company</TableHead><TableHead>City</TableHead>
-                      <TableHead>WHT %</TableHead><TableHead className="text-right">Balance</TableHead>
+                      {settings?.wht_enabled && <TableHead>WHT %</TableHead>}<TableHead className="text-right">Balance</TableHead>
                       <TableHead>Terms</TableHead><TableHead className="text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground"><Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />No suppliers yet.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={settings?.wht_enabled ? 8 : 7} className="text-center py-12 text-muted-foreground"><Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />No suppliers yet.</TableCell></TableRow>
                     ) : filtered.map(s => (
                       <TableRow key={s.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(s)}>
                         <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selectedIds.has(s.id)} onCheckedChange={() => toggleSelect(s.id)} /></TableCell>
                         <TableCell className="font-medium">{s.name}</TableCell>
                         <TableCell>{s.company || "—"}</TableCell>
                         <TableCell>{s.city || "—"}</TableCell>
-                        <TableCell><span className="status-pill bg-amber-50 text-amber-700">{s.wht_rate}%</span></TableCell>
+                        {settings?.wht_enabled && <TableCell><span className="status-pill bg-amber-50 text-amber-700">{s.wht_rate}%</span></TableCell>}
                         <TableCell className="text-right font-mono">{Number(s.balance).toLocaleString()}</TableCell>
                         <TableCell className="text-muted-foreground">{s.payment_terms_days}d</TableCell>
                         <TableCell className="text-center">

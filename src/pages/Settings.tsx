@@ -33,6 +33,7 @@ export default function Settings() {
   const [form, setForm] = useState({
     company_name: "", address: "", phone: "", email: "", website: "",
     logo_url: "", fbr_enabled: false, ntn: "", strn: "",
+    gst_enabled: false, default_gst_rate: "17", wht_enabled: false, default_wht_rate: "4.5",
   });
 
   const { templates, loading: templatesLoading, updateTemplate } = useDocumentTemplates();
@@ -60,6 +61,10 @@ export default function Settings() {
         fbr_enabled: data.fbr_enabled || false,
         ntn: data.ntn || "",
         strn: data.strn || "",
+        gst_enabled: (data as any).gst_enabled || false,
+        default_gst_rate: String((data as any).default_gst_rate ?? 17),
+        wht_enabled: (data as any).wht_enabled || false,
+        default_wht_rate: String((data as any).default_wht_rate ?? 4.5),
       });
     }
     setLoading(false);
@@ -67,10 +72,17 @@ export default function Settings() {
 
   const handleSave = async () => {
     setSaving(true);
+    const payload = {
+      company_name: form.company_name, address: form.address, phone: form.phone,
+      email: form.email, website: form.website, logo_url: form.logo_url,
+      fbr_enabled: form.fbr_enabled, ntn: form.ntn, strn: form.strn,
+      gst_enabled: form.gst_enabled, default_gst_rate: Number(form.default_gst_rate),
+      wht_enabled: form.wht_enabled, default_wht_rate: Number(form.default_wht_rate),
+    };
     if (settingsId) {
-      await supabase.from("company_settings").update(form as any).eq("id", settingsId);
+      await supabase.from("company_settings").update(payload as any).eq("id", settingsId);
     } else {
-      const { data } = await supabase.from("company_settings").insert(form as any).select().single();
+      const { data } = await supabase.from("company_settings").insert(payload as any).select().single();
       if (data) setSettingsId(data.id);
     }
     toast.success("Settings saved");
@@ -100,7 +112,7 @@ export default function Settings() {
             <SidebarTrigger />
             <div className="flex-1">
               <h1 className="text-xl font-bold text-foreground font-heading">Settings</h1>
-              <p className="text-sm text-muted-foreground">Company profile, templates & FBR integration</p>
+              <p className="text-sm text-muted-foreground">Company profile, tax configuration & templates</p>
             </div>
             <Button size="sm" onClick={handleSave} disabled={saving}>
               <Save className="h-4 w-4 mr-1" /> {saving ? "Saving..." : "Save Settings"}
@@ -145,11 +157,50 @@ export default function Settings() {
                 </Card>
 
                 <Card className="glass-card">
-                  <CardHeader><CardTitle className="text-lg">FBR Integration</CardTitle></CardHeader>
-                  <CardContent>
+                  <CardHeader><CardTitle className="text-lg">Tax Configuration</CardTitle></CardHeader>
+                  <CardContent className="space-y-5">
+                    {/* GST */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm">GST (General Sales Tax)</p>
+                          <p className="text-xs text-muted-foreground">When enabled, GST fields appear on products, invoices, proformas & expenses</p>
+                        </div>
+                        <Switch checked={form.gst_enabled} onCheckedChange={v => setForm({...form, gst_enabled: v})} />
+                      </div>
+                      {form.gst_enabled && (
+                        <div className="ml-4 max-w-xs">
+                          <Label>Default GST Rate (%)</Label>
+                          <Input type="number" step="0.1" value={form.default_gst_rate} onChange={e => setForm({...form, default_gst_rate: e.target.value})} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-border" />
+
+                    {/* WHT */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm">WHT (Withholding Tax)</p>
+                          <p className="text-xs text-muted-foreground">When enabled, WHT rate field appears on suppliers & purchase bills</p>
+                        </div>
+                        <Switch checked={form.wht_enabled} onCheckedChange={v => setForm({...form, wht_enabled: v})} />
+                      </div>
+                      {form.wht_enabled && (
+                        <div className="ml-4 max-w-xs">
+                          <Label>Default WHT Rate (%)</Label>
+                          <Input type="number" step="0.1" value={form.default_wht_rate} onChange={e => setForm({...form, default_wht_rate: e.target.value})} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-border" />
+
+                    {/* FBR */}
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium text-sm">Enable FBR QR Code</p>
+                        <p className="font-medium text-sm">FBR QR Code</p>
                         <p className="text-xs text-muted-foreground">When enabled, FBR QR column appears on sales invoices</p>
                       </div>
                       <Switch checked={form.fbr_enabled} onCheckedChange={v => setForm({...form, fbr_enabled: v})} />
@@ -234,13 +285,10 @@ function TemplateCard({ template, onUpdate }: { template: DocumentTemplate; onUp
         </div>
       </AccordionTrigger>
       <AccordionContent className="pt-4 space-y-6">
-        {/* Title */}
         <div>
           <Label>Document Title (shown on PDF)</Label>
           <Input value={title} onChange={e => setTitle(e.target.value)} className="mt-1 max-w-xs" />
         </div>
-
-        {/* Toggles */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="flex items-center justify-between gap-2 p-3 rounded-lg border border-border">
             <Label className="text-xs">Total in Words</Label>
@@ -263,22 +311,16 @@ function TemplateCard({ template, onUpdate }: { template: DocumentTemplate; onUp
             <Switch checked={showPartyCnic} onCheckedChange={setShowPartyCnic} />
           </div>
         </div>
-
-        {/* Bank Details Text */}
         {showBankDetails && (
           <div>
             <Label>Bank Details Text</Label>
             <Input value={bankDetailsText} onChange={e => setBankDetailsText(e.target.value)} className="mt-1" placeholder="e.g. Meezan Bank: 09020102207667" />
           </div>
         )}
-
-        {/* Footer / Certification Text */}
         <div>
           <Label>Footer / Certification Text</Label>
           <Textarea value={footerText} onChange={e => setFooterText(e.target.value)} className="mt-1" rows={3} placeholder="Leave empty for no footer certification text" />
         </div>
-
-        {/* Columns Config */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <Label>Table Columns</Label>
@@ -289,24 +331,16 @@ function TemplateCard({ template, onUpdate }: { template: DocumentTemplate; onUp
               <div key={i} className="flex items-center gap-2">
                 <Input value={col.header} onChange={e => updateColumn(i, "header", e.target.value)} placeholder="Header" className="flex-1" />
                 <Input value={col.key} onChange={e => updateColumn(i, "key", e.target.value)} placeholder="Key" className="w-36" />
-                <select
-                  value={col.align || "left"}
-                  onChange={e => updateColumn(i, "align", e.target.value)}
-                  className="h-10 rounded-md border border-input bg-background px-2 text-sm"
-                >
+                <select value={col.align || "left"} onChange={e => updateColumn(i, "align", e.target.value)} className="h-10 rounded-md border border-input bg-background px-2 text-sm">
                   <option value="left">Left</option>
                   <option value="center">Center</option>
                   <option value="right">Right</option>
                 </select>
-                <Button size="icon" variant="ghost" onClick={() => removeColumn(i)} className="text-destructive h-8 w-8">
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                <Button size="icon" variant="ghost" onClick={() => removeColumn(i)} className="text-destructive h-8 w-8"><Trash2 className="h-3 w-3" /></Button>
               </div>
             ))}
           </div>
         </div>
-
-        {/* Signature Labels */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <Label>Signature Labels</Label>
@@ -315,20 +349,12 @@ function TemplateCard({ template, onUpdate }: { template: DocumentTemplate; onUp
           <div className="flex flex-wrap gap-2">
             {signatureLabels.map((label, i) => (
               <div key={i} className="flex items-center gap-1">
-                <Input value={label} onChange={e => {
-                  const updated = [...signatureLabels];
-                  updated[i] = e.target.value;
-                  setSignatureLabels(updated);
-                }} className="w-48" />
-                <Button size="icon" variant="ghost" onClick={() => removeSignature(i)} className="text-destructive h-8 w-8">
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                <Input value={label} onChange={e => { const updated = [...signatureLabels]; updated[i] = e.target.value; setSignatureLabels(updated); }} className="w-48" />
+                <Button size="icon" variant="ghost" onClick={() => removeSignature(i)} className="text-destructive h-8 w-8"><Trash2 className="h-3 w-3" /></Button>
               </div>
             ))}
           </div>
         </div>
-
-        {/* Save */}
         <Button onClick={save} disabled={saving} size="sm">
           <Save className="h-4 w-4 mr-1" /> {saving ? "Saving..." : "Save Template"}
         </Button>
