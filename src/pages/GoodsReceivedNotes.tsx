@@ -14,6 +14,8 @@ import { Plus, Search, PackageCheck, Trash2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
+import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
+import { useSearchParams } from "react-router-dom";
 
 interface PO { id: string; po_number: string; supplier_id: string | null; suppliers?: { name: string } | null; }
 interface GRNItemForm { product_id: string; item_name: string; batch_number: string; quantity_ordered: number; quantity_confirmed: number; quantity_received: number; expiry_date: string; rate: number; amount: number; }
@@ -38,6 +40,8 @@ export default function GoodsReceivedNotes() {
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<GRNItemForm[]>([]);
   const { settings } = useCompanySettings();
+  const { getTemplate } = useDocumentTemplates();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const check = async () => {
@@ -46,6 +50,18 @@ export default function GoodsReceivedNotes() {
     };
     check(); load();
   }, [navigate]);
+
+  // Auto-open GRN form if navigated from PO page
+  useEffect(() => {
+    const poParam = searchParams.get("po");
+    if (poParam && pos.length > 0) {
+      const matchPO = pos.find(p => p.id === poParam);
+      if (matchPO) {
+        handlePOSelect(poParam);
+        setOpen(true);
+      }
+    }
+  }, [pos, searchParams]);
 
   const load = async () => {
     const [g, p] = await Promise.all([
@@ -256,6 +272,7 @@ export default function GoodsReceivedNotes() {
                                 expiry_date: i.expiry_date || "—", quantity_ordered: i.quantity_ordered, quantity_received: i.quantity_received,
                               })),
                               settings,
+                              template: getTemplate("grn"),
                             });
                           }} className="text-xs"><Download className="h-3 w-3 mr-1" />PDF</Button>
                         </TableCell>

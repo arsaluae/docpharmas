@@ -14,6 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
+import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
+import { CheckCircle } from "lucide-react";
 
 interface DeliveryNote {
   id: string; dn_number: string; date: string; reference_type: string;
@@ -27,6 +29,7 @@ export default function DeliveryNotes() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { settings } = useCompanySettings();
+  const { getTemplate } = useDocumentTemplates();
 
   // Detail/Edit
   const [detailOpen, setDetailOpen] = useState(false);
@@ -60,6 +63,7 @@ export default function DeliveryNotes() {
       ],
       rows: items.map((i: any, idx: number) => ({ ...i, idx: idx + 1 })),
       notes: dn.notes || undefined, settings,
+      template: getTemplate("delivery_note"),
     });
   };
 
@@ -145,14 +149,22 @@ export default function DeliveryNotes() {
                         <TableCell className="font-medium font-mono" onClick={() => openDetail(dn)}>{dn.dn_number}</TableCell>
                         <TableCell className="text-muted-foreground" onClick={() => openDetail(dn)}>{dn.date}</TableCell>
                         <TableCell className="capitalize" onClick={() => openDetail(dn)}>{dn.reference_type.replace("_", " ")}</TableCell>
-                        <TableCell onClick={() => openDetail(dn)}><span className="status-pill bg-emerald-50 text-emerald-700">{dn.status}</span></TableCell>
+                        <TableCell onClick={() => openDetail(dn)}><span className={`status-pill ${dn.status === "delivered" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"}`}>{dn.status}</span></TableCell>
                         <TableCell className="space-x-1">
                           <Button variant="outline" size="sm" onClick={() => printDN(dn)} className="text-xs">
                             <Download className="h-3 w-3 mr-1" /> PDF
                           </Button>
+                          {dn.status === "issued" && (
+                            <Button variant="outline" size="sm" onClick={async () => {
+                              await supabase.from("delivery_notes").update({ status: "delivered" }).eq("id", dn.id);
+                              toast.success("Marked as delivered"); load();
+                            }} className="text-xs">
+                              <CheckCircle className="h-3 w-3 mr-1" /> Delivered
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete([dn.id])}>
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
+                             <Trash2 className="h-3 w-3 text-destructive" />
+                           </Button>
                         </TableCell>
                       </TableRow>
                     ))}

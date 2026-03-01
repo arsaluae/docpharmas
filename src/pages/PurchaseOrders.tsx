@@ -10,10 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, ClipboardList, Trash2, CheckCircle, Download } from "lucide-react";
+import { Plus, Search, ClipboardList, Trash2, CheckCircle, Download, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
+import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 
 interface Supplier { id: string; name: string; }
 interface Product { id: string; name: string; cost_price: number; }
@@ -37,6 +38,7 @@ export default function PurchaseOrders() {
   const [selectedPO, setSelectedPO] = useState<PO | null>(null);
   const [confirmItems, setConfirmItems] = useState<any[]>([]);
   const { settings } = useCompanySettings();
+  const { getTemplate } = useDocumentTemplates();
 
   const [supplierId, setSupplierId] = useState("");
   const [poDate, setPoDate] = useState(new Date().toISOString().split("T")[0]);
@@ -242,8 +244,14 @@ export default function PurchaseOrders() {
                                 { label: "Total", value: `PKR ${Number(po.total).toLocaleString()}` },
                               ],
                               settings,
+                              template: getTemplate("purchase_order"),
                             });
                           }} className="text-xs"><Download className="h-3 w-3 mr-1" />PDF</Button>
+                          {(po.status === "confirmed" || po.status === "draft") && (
+                            <Button variant="outline" size="sm" onClick={() => navigate(`/grn?po=${po.id}`)} className="text-xs">
+                              <PackageCheck className="h-3 w-3 mr-1" /> Create GRN
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

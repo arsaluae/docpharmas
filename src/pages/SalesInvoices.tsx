@@ -15,6 +15,7 @@ import { Plus, Search, FileText, Trash2, QrCode, Download, FileOutput, Pencil } 
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
+import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 
 interface Customer { id: string; name: string; company: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
@@ -37,6 +38,7 @@ export default function SalesInvoices() {
   const [qrOpen, setQrOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { settings } = useCompanySettings();
+  const { getTemplate } = useDocumentTemplates();
 
   // Form state
   const [customerId, setCustomerId] = useState("");
@@ -258,6 +260,7 @@ export default function SalesInvoices() {
         { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
       ],
       notes: inv.notes || undefined, settings,
+      template: getTemplate("sales_invoice"),
     });
   };
 
@@ -272,7 +275,10 @@ export default function SalesInvoices() {
       dn_number: dnNumber, reference_type: "sales_invoice", reference_id: inv.id,
       customer_id: inv.customer_id, items: dnItems,
     });
-    toast.success(`Delivery Note ${dnNumber} created`);
+    // Update invoice status to dispatched
+    await supabase.from("sales_invoices").update({ status: "dispatched" }).eq("id", inv.id);
+    toast.success(`Delivery Note ${dnNumber} created — Invoice marked as dispatched`);
+    load();
   };
 
   const generateFBR = async (inv: SalesInvoice) => {
@@ -286,6 +292,7 @@ export default function SalesInvoices() {
 
   const statusColor = (s: string) => {
     if (s === "paid") return "bg-emerald-50 text-emerald-700";
+    if (s === "dispatched") return "bg-blue-50 text-blue-700";
     if (s === "sent") return "bg-primary/10 text-primary";
     if (s === "overdue") return "bg-destructive/10 text-destructive";
     if (s === "partial") return "bg-amber-50 text-amber-700";
