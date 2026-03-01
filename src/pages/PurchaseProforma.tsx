@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
+import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 
 interface Supplier { id: string; name: string; }
 interface Product { id: string; name: string; cost_price: number; }
@@ -53,6 +54,7 @@ export default function PurchaseProforma() {
   const [costAmount, setCostAmount] = useState("");
   const [costVendorId, setCostVendorId] = useState("");
   const { settings } = useCompanySettings();
+  const { getTemplate } = useDocumentTemplates();
 
   // Detail/Edit
   const [detailOpen, setDetailOpen] = useState(false);
@@ -168,7 +170,7 @@ export default function PurchaseProforma() {
           }))
         );
       }
-      await supabase.from("purchase_proformas").update({ status: "converted", converted_po_id: po.id }).eq("id", pp.id);
+      await supabase.from("purchase_proformas").update({ status: "ordered", converted_po_id: po.id }).eq("id", pp.id);
       toast.success(`Converted to ${poNumber}`); load();
     }
   };
@@ -266,6 +268,7 @@ export default function PurchaseProforma() {
   };
 
   const statusColor = (s: string) => {
+    if (s === "ordered") return "bg-blue-50 text-blue-700";
     if (s === "converted") return "bg-emerald-50 text-emerald-700";
     if (s === "approved") return "bg-primary/10 text-primary";
     if (s === "confirmed") return "bg-primary/10 text-primary";

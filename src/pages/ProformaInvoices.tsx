@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
+import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 
 interface Customer { id: string; name: string; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
@@ -52,6 +53,7 @@ export default function ProformaInvoices() {
   const [convertItems, setConvertItems] = useState<any[]>([]);
   const [batchOptions, setBatchOptions] = useState<Record<string, BatchOption[]>>({});
   const { settings } = useCompanySettings();
+  const { getTemplate } = useDocumentTemplates();
 
   // Detail/Edit dialog
   const [detailOpen, setDetailOpen] = useState(false);
@@ -175,7 +177,7 @@ export default function ProformaInvoices() {
           });
         }
       }
-      await supabase.from("proforma_invoices").update({ status: "converted", converted_invoice_id: inv.id }).eq("id", convertPf.id);
+      await supabase.from("proforma_invoices").update({ status: "invoiced", converted_invoice_id: inv.id }).eq("id", convertPf.id);
       toast.success(`Converted to ${invNumber}`);
       setConvertOpen(false); load();
     }
@@ -250,6 +252,7 @@ export default function ProformaInvoices() {
   };
 
   const statusColor = (s: string) => {
+    if (s === "invoiced") return "bg-teal-50 text-teal-700";
     if (s === "converted") return "bg-emerald-50 text-emerald-700";
     if (s === "approved") return "bg-primary/10 text-primary";
     if (s === "payment_received") return "bg-primary/10 text-primary";

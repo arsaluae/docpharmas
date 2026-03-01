@@ -16,6 +16,7 @@ import { Plus, Search, ShieldCheck, Trash2, X, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
+import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 
 interface Customer { id: string; name: string; company: string | null; }
 interface Product { id: string; name: string; selling_price: number; }
@@ -49,6 +50,7 @@ export default function WarrantyInvoices() {
   const [items, setItems] = useState<LineItem[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
   const { settings } = useCompanySettings();
+  const { getTemplate } = useDocumentTemplates();
 
   useEffect(() => {
     const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
@@ -291,6 +293,7 @@ export default function WarrantyInvoices() {
                                   { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
                                 ],
                                 notes: inv.notes || undefined, settings,
+                                template: getTemplate("warranty_invoice"),
                               });
                             }}><Download className="h-3.5 w-3.5" /></Button>
                             <AlertDialog>
