@@ -11,12 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FilePlus, ArrowRight, Trash2, Download, CheckCircle, Pencil } from "lucide-react";
+import { Plus, Search, FilePlus, ArrowRight, Trash2, Download, CheckCircle, Pencil, Filter } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 interface Customer { id: string; name: string; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
@@ -38,6 +39,8 @@ export default function ProformaInvoices() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [customerFilter, setCustomerFilter] = useState("");
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -167,7 +170,7 @@ export default function ProformaInvoices() {
     if (!invNumber) { toast.error("Failed to generate invoice number"); return; }
     const { data: inv } = await supabase.from("sales_invoices").insert({
       invoice_number: invNumber, customer_id: convertPf.customer_id, date: new Date().toISOString().split("T")[0],
-      subtotal: convertPf.subtotal, gst_amount: convertPf.gst, total: convertPf.total, status: "draft",
+      subtotal: convertPf.subtotal, gst_amount: convertPf.gst, total: convertPf.total, status: "dispatched",
     }).select("*, customers(name)").single();
     if (inv) {
       const lineItems = convertItems.map((i: any) => ({
@@ -185,8 +188,23 @@ export default function ProformaInvoices() {
           });
         }
       }
+
+      // Auto-create Delivery Note
+      const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "delivery_note" });
+      if (dnNumber) {
+        const dnItems = convertItems.map((i: any) => ({
+          product_name: i.product_name || "Item",
+          batch_number: i.batch_number || null,
+          quantity: Number(i.convert_quantity),
+        }));
+        await supabase.from("delivery_notes").insert({
+          dn_number: dnNumber, reference_type: "sales_invoice", reference_id: inv.id,
+          customer_id: convertPf.customer_id, items: dnItems,
+        });
+      }
+
       await supabase.from("proforma_invoices").update({ status: "invoiced", converted_invoice_id: inv.id }).eq("id", convertPf.id);
-      toast.success(`Converted to ${invNumber} — downloading PDF...`);
+      toast.success(`Converted to ${invNumber} with auto Delivery Note — downloading PDF...`);
       
       const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
       generatePdf({
@@ -216,7 +234,13 @@ export default function ProformaInvoices() {
   };
 
   const { subtotal, gst, total } = calcTotals();
-  const filtered = proformas.filter(p => p.proforma_number.toLowerCase().includes(search.toLowerCase()));
+  const filtered = proformas.filter(p => {
+    const matchSearch = p.proforma_number.toLowerCase().includes(search.toLowerCase()) ||
+      ((p.customers as any)?.name || "").toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || p.status === statusFilter;
+    const matchCustomer = !customerFilter || p.customer_id === customerFilter;
+    return matchSearch && matchStatus && matchCustomer;
+  });
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
@@ -295,13 +319,18 @@ export default function ProformaInvoices() {
   };
 
   const statusColor = (s: string) => {
-    if (s === "invoiced") return "bg-primary/10 text-primary";
-    if (s === "converted") return "bg-primary/10 text-primary";
+    if (s === "invoiced") return "bg-primary/20 text-primary font-semibold";
+    if (s === "converted") return "bg-primary/20 text-primary font-semibold";
     if (s === "approved") return "bg-primary/10 text-primary";
     if (s === "payment_received") return "bg-primary/10 text-primary";
     if (s === "sent") return "bg-warning/10 text-warning";
+    if (s === "draft") return "bg-warning/10 text-warning";
     return "bg-muted text-muted-foreground";
   };
+
+  const STATUS_OPTIONS = ["all", "draft", "approved", "invoiced"];
+  const customerOptions = customers.map(c => ({ value: c.id, label: c.name }));
+  const productOptions = products.map(p => ({ value: p.id, label: p.name }));
 
   return (
     <SidebarProvider>
@@ -321,10 +350,7 @@ export default function ProformaInvoices() {
                 <div className="grid grid-cols-3 gap-3 mt-2">
                   <div>
                     <Label>Customer *</Label>
-                    <Select value={customerId} onValueChange={setCustomerId}>
-                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <SearchableSelect options={customerOptions} value={customerId} onChange={setCustomerId} placeholder="Search customer..." searchPlaceholder="Type to search..." />
                   </div>
                   <div><Label>Date</Label><Input type="date" value={pfDate} onChange={e => setPfDate(e.target.value)} /></div>
                   <div><Label>Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
@@ -341,10 +367,7 @@ export default function ProformaInvoices() {
                   {items.map((item, idx) => (
                     <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
                       <div className="col-span-4">
-                        <Select value={item.product_id} onValueChange={v => updateItem(idx, "product_id", v)}>
-                          <SelectTrigger className="text-xs"><SelectValue placeholder="Product" /></SelectTrigger>
-                          <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                        </Select>
+                        <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" searchPlaceholder="Search product..." triggerClassName="text-xs h-9" />
                       </div>
                       <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" /></div>
                       <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" /></div>
@@ -375,9 +398,22 @@ export default function ProformaInvoices() {
               <span className="ml-auto italic">Approve a proforma to auto-create an invoice</span>
             </div>
 
-            <div className="mb-4 relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search proformas..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <div className="relative max-w-sm flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search proformas or customer..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+              <div className="flex items-center gap-1">
+                {STATUS_OPTIONS.map(s => (
+                  <button key={s} onClick={() => setStatusFilter(s)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all capitalize ${statusFilter === s ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <div className="w-48">
+                <SearchableSelect options={[{ value: "", label: "All Customers" }, ...customerOptions]} value={customerFilter} onChange={setCustomerFilter} placeholder="Filter customer..." searchPlaceholder="Search..." />
+              </div>
             </div>
             <Card className="glass-card">
               <CardContent className="p-0">
@@ -519,10 +555,7 @@ export default function ProformaInvoices() {
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <Label>Customer</Label>
-                      <Select value={editCustomerId} onValueChange={setEditCustomerId}>
-                        <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                        <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                      </Select>
+                     <SearchableSelect options={customerOptions} value={editCustomerId} onChange={setEditCustomerId} placeholder="Search customer..." />
                     </div>
                     <div><Label>Date</Label><Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} /></div>
                     <div><Label>Validity (days)</Label><Input type="number" value={editValidity} onChange={e => setEditValidity(e.target.value)} /></div>
@@ -539,10 +572,7 @@ export default function ProformaInvoices() {
                     {editItems.map((item, idx) => (
                       <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
                         <div className="col-span-4">
-                          <Select value={item.product_id} onValueChange={v => updateEditItem(idx, "product_id", v)}>
-                            <SelectTrigger className="text-xs"><SelectValue placeholder="Product" /></SelectTrigger>
-                            <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                          </Select>
+                          <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
                         </div>
                         <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="text-xs" /></div>
                         <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs" /></div>

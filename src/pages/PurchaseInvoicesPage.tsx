@@ -25,6 +25,7 @@ export default function PurchaseInvoicesPage() {
   const navigate = useNavigate();
   const [bills, setBills] = useState<PurchaseInvoice[]>([]);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { settings } = useCompanySettings();
 
@@ -45,7 +46,14 @@ export default function PurchaseInvoicesPage() {
     if (data) setBills(data as any);
   };
 
-  const filtered = bills.filter(b => b.bill_number.toLowerCase().includes(search.toLowerCase()));
+  const filtered = bills.filter(b => {
+    const matchSearch = b.bill_number.toLowerCase().includes(search.toLowerCase()) ||
+      ((b.suppliers as any)?.name || "").toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || b.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  const STATUS_OPTIONS = ["all", "unpaid", "paid", "partial"];
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(b => b.id)));
@@ -102,9 +110,19 @@ export default function PurchaseInvoicesPage() {
               <span className="ml-auto italic">Bills are auto-created when a GRN is completed</span>
             </div>
 
-            <div className="mb-4 relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search bills..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <div className="relative max-w-sm flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search bills or supplier..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+              <div className="flex items-center gap-1">
+                {STATUS_OPTIONS.map(s => (
+                  <button key={s} onClick={() => setStatusFilter(s)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all capitalize ${statusFilter === s ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
             <Card className="glass-card">
               <CardContent className="p-0">

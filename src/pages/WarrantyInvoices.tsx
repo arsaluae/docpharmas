@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, ShieldCheck, Trash2, X, Download } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdf } from "@/lib/pdf-generator";
@@ -45,6 +46,8 @@ export default function WarrantyInvoices() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [customerFilter, setCustomerFilter] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [items, setItems] = useState<LineItem[]>([]);
@@ -142,11 +145,17 @@ export default function WarrantyInvoices() {
     toast.success("Deleted"); load();
   };
 
-  const filtered = invoices.filter(i =>
-    i.warranty_number.toLowerCase().includes(search.toLowerCase()) ||
-    i.pharmacy_name.toLowerCase().includes(search.toLowerCase()) ||
-    (i.customers?.name || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const customerOptions = customers.map(c => ({ value: c.id, label: c.name + (c.company ? ` — ${c.company}` : "") }));
+  const productOptions = products.map(p => ({ value: p.id, label: p.name }));
+
+  const filtered = invoices.filter(i => {
+    const matchSearch = i.warranty_number.toLowerCase().includes(search.toLowerCase()) ||
+      i.pharmacy_name.toLowerCase().includes(search.toLowerCase()) ||
+      (i.customers?.name || "").toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || i.status === statusFilter;
+    const matchCustomer = !customerFilter || i.customer_id === customerFilter;
+    return matchSearch && matchStatus && matchCustomer;
+  });
 
   return (
     <SidebarProvider>
@@ -169,10 +178,7 @@ export default function WarrantyInvoices() {
                   <div><Label>Date</Label><Input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} /></div>
                   <div>
                     <Label>Customer (who requested)</Label>
-                    <Select value={form.customer_id} onValueChange={v => setForm({...form, customer_id: v})}>
-                      <SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger>
-                      <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}{c.company ? ` — ${c.company}` : ""}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <SearchableSelect options={customerOptions} value={form.customer_id} onChange={v => setForm({...form, customer_id: v})} placeholder="Search customer..." />
                   </div>
                   <div className="col-span-2 border-t pt-3 mt-1">
                     <p className="text-sm font-medium text-muted-foreground mb-2">Pharmacy / Distributor Details (warranty issued to)</p>
@@ -205,10 +211,7 @@ export default function WarrantyInvoices() {
                           {items.map((item, idx) => (
                             <TableRow key={idx}>
                               <TableCell>
-                                <Select value={item.product_id} onValueChange={v => updateItem(idx, "product_id", v)}>
-                                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
-                                  <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                                </Select>
+                                <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Select" triggerClassName="h-8 text-xs" />
                               </TableCell>
                               <TableCell><Input className="h-8 text-xs" value={item.batch_number} onChange={e => updateItem(idx, "batch_number", e.target.value)} /></TableCell>
                               <TableCell><Input className="h-8 text-xs" type="date" value={item.expiry_date} onChange={e => updateItem(idx, "expiry_date", e.target.value)} /></TableCell>
@@ -238,9 +241,22 @@ export default function WarrantyInvoices() {
           </header>
 
           <div className="p-6">
-            <div className="mb-4 relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search warranty invoices..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <div className="relative max-w-sm flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search warranty invoices..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+              <div className="flex items-center gap-1">
+                {["all", "issued", "draft"].map(s => (
+                  <button key={s} onClick={() => setStatusFilter(s)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all capitalize ${statusFilter === s ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <div className="w-48">
+                <SearchableSelect options={[{ value: "", label: "All Customers" }, ...customerOptions]} value={customerFilter} onChange={setCustomerFilter} placeholder="Filter customer..." />
+              </div>
             </div>
             <Card className="glass-card">
               <CardContent className="p-0">
