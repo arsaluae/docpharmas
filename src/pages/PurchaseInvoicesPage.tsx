@@ -68,8 +68,8 @@ export default function PurchaseInvoicesPage() {
   };
 
   const statusColor = (s: string) => {
-    if (s === "paid") return "bg-emerald-50 text-emerald-700";
-    if (s === "partial") return "bg-amber-50 text-amber-700";
+    if (s === "paid") return "bg-primary/10 text-primary";
+    if (s === "partial") return "bg-warning/10 text-warning";
     return "bg-destructive/10 text-destructive";
   };
 
@@ -131,7 +131,7 @@ export default function PurchaseInvoicesPage() {
                         <TableCell>{(b.suppliers as any)?.name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{b.date}</TableCell>
                         <TableCell className="text-right font-mono">{Number(b.subtotal).toLocaleString()}</TableCell>
-                        {settings?.wht_enabled && <TableCell className="text-right font-mono text-amber-700">-{Number(b.wht_amount).toLocaleString()}</TableCell>}
+                        {settings?.wht_enabled && <TableCell className="text-right font-mono text-warning">-{Number(b.wht_amount).toLocaleString()}</TableCell>}
                         <TableCell className="text-right font-mono font-medium">{Number(b.total).toLocaleString()}</TableCell>
                         <TableCell><span className={`status-pill ${statusColor(b.status)}`}>{b.status}</span></TableCell>
                         <TableCell className="space-x-1">

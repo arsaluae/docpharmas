@@ -21,10 +21,10 @@ const bucketLabel = (days: number) => {
 };
 
 const bucketColor = (b: string) => {
-  if (b === "Current") return "bg-emerald-100 text-emerald-700";
-  if (b === "1-30") return "bg-yellow-100 text-yellow-700";
-  if (b === "31-60") return "bg-orange-100 text-orange-700";
-  if (b === "61-90") return "bg-red-100 text-red-700";
+  if (b === "Current") return "bg-primary/10 text-primary";
+  if (b === "1-30") return "bg-warning/10 text-warning";
+  if (b === "31-60") return "bg-warning/20 text-warning";
+  if (b === "61-90") return "bg-destructive/10 text-destructive";
   return "bg-destructive/20 text-destructive";
 };
 

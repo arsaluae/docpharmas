@@ -104,8 +104,8 @@ export default function TaxCompliance() {
   };
 
   const statusBadge = (s: string) => {
-    if (s === "active") return <Badge className="bg-emerald-100 text-emerald-700 border-0">Active</Badge>;
-    if (s === "expiring") return <Badge className="bg-yellow-100 text-yellow-700 border-0">Expiring Soon</Badge>;
+    if (s === "active") return <Badge className="bg-primary/10 text-primary border-0">Active</Badge>;
+    if (s === "expiring") return <Badge className="bg-warning/10 text-warning border-0">Expiring Soon</Badge>;
     return <Badge variant="destructive">Expired</Badge>;
   };
 
@@ -134,9 +134,9 @@ export default function TaxCompliance() {
                     <CardContent><p className="text-xl font-bold font-mono">PKR {gstOutput.toLocaleString()}</p></CardContent></Card>
                   <Card className="glass-card"><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Input Tax (Purchases)</CardTitle></CardHeader>
                     <CardContent><p className="text-xl font-bold font-mono">PKR {gstInput.toLocaleString()}</p></CardContent></Card>
-                  <Card className={`glass-card border-2 ${netGst >= 0 ? "border-destructive/30" : "border-emerald-500/30"}`}>
+                  <Card className={`glass-card border-2 ${netGst >= 0 ? "border-destructive/30" : "border-primary/30"}`}>
                     <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Net {netGst >= 0 ? "Payable" : "Refundable"}</CardTitle></CardHeader>
-                    <CardContent><p className={`text-xl font-bold font-mono ${netGst >= 0 ? "text-destructive" : "text-emerald-600"}`}>PKR {Math.abs(netGst).toLocaleString()}</p></CardContent>
+                    <CardContent><p className={`text-xl font-bold font-mono ${netGst >= 0 ? "text-destructive" : "text-primary"}`}>PKR {Math.abs(netGst).toLocaleString()}</p></CardContent>
                   </Card>
                 </div>
               </TabsContent>

@@ -402,11 +402,11 @@ export default function SalesInvoices() {
   const { subtotal, discount, gstAmount, total } = calcTotals();
 
   const statusColor = (s: string) => {
-    if (s === "paid") return "bg-emerald-50 text-emerald-700";
-    if (s === "dispatched") return "bg-blue-50 text-blue-700";
+    if (s === "paid") return "bg-primary/10 text-primary";
+    if (s === "dispatched") return "bg-primary/10 text-primary";
     if (s === "sent") return "bg-primary/10 text-primary";
     if (s === "overdue") return "bg-destructive/10 text-destructive";
-    if (s === "partial") return "bg-amber-50 text-amber-700";
+    if (s === "partial") return "bg-warning/10 text-warning";
     return "bg-muted text-muted-foreground";
   };
 
@@ -530,7 +530,7 @@ export default function SalesInvoices() {
               <div className="p-4 bg-muted rounded-lg text-center">
                 <QrCode className="h-24 w-24 mx-auto text-primary mb-3" />
                 <p className="text-xs font-mono break-all text-muted-foreground">{qrData}</p>
-                <span className="status-pill bg-emerald-50 text-emerald-700 mt-3 inline-block">✓ FBR Verified</span>
+                <span className="status-pill bg-primary/10 text-primary mt-3 inline-block">✓ FBR Verified</span>
               </div>
             </DialogContent>
           </Dialog>

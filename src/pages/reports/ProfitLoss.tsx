@@ -85,7 +85,7 @@ export default function ProfitLoss() {
               <CardHeader><CardTitle className="text-base">Cost of Goods Sold</CardTitle></CardHeader>
               <CardContent className="space-y-1">
                 <div className="flex justify-between"><span className="text-muted-foreground text-sm">Purchases</span><span className="font-mono text-sm">PKR {cogs.toLocaleString()}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground text-sm">Less: Purchase Returns</span><span className="font-mono text-sm text-emerald-600">({purchaseReturns.toLocaleString()})</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground text-sm">Less: Purchase Returns</span><span className="font-mono text-sm text-primary">({purchaseReturns.toLocaleString()})</span></div>
                 <Separator className="my-1" />
                 <div className="flex justify-between font-medium"><span>Net COGS</span><span className="font-mono text-lg text-destructive">PKR {netCogs.toLocaleString()}</span></div>
               </CardContent>
@@ -97,7 +97,7 @@ export default function ProfitLoss() {
             <Card className="glass-card">
               <CardHeader><CardTitle className="text-base">Gross Profit</CardTitle></CardHeader>
               <CardContent>
-                <p className={`text-2xl font-bold font-mono ${grossProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>PKR {grossProfit.toLocaleString()}</p>
+                <p className={`text-2xl font-bold font-mono ${grossProfit >= 0 ? "text-primary" : "text-destructive"}`}>PKR {grossProfit.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground mt-1">Gross Margin: {grossMargin.toFixed(1)}%</p>
               </CardContent>
             </Card>
@@ -123,10 +123,10 @@ export default function ProfitLoss() {
             <Separator />
 
             {/* Net Profit */}
-            <Card className={`glass-card border-2 ${netProfit >= 0 ? "border-emerald-500/30" : "border-destructive/30"}`}>
+            <Card className={`glass-card border-2 ${netProfit >= 0 ? "border-primary/30" : "border-destructive/30"}`}>
               <CardHeader><CardTitle className="text-base">Net Profit</CardTitle></CardHeader>
               <CardContent>
-                <p className={`text-3xl font-bold font-mono ${netProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>PKR {netProfit.toLocaleString()}</p>
+                <p className={`text-3xl font-bold font-mono ${netProfit >= 0 ? "text-primary" : "text-destructive"}`}>PKR {netProfit.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground mt-1">Net Profit Margin: {netMargin.toFixed(1)}%</p>
               </CardContent>
             </Card>

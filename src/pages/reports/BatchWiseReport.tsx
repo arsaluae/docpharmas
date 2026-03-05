@@ -65,10 +65,10 @@ export default function BatchWiseReport() {
                 <TableBody>
                   {rows.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No batch data.</TableCell></TableRow> :
                     rows.map((r, i) => (
-                      <TableRow key={i} className={isExpired(r.expiry_date) ? "bg-destructive/10" : isNearExpiry(r.expiry_date) ? "bg-amber-50" : ""}>
+                      <TableRow key={i} className={isExpired(r.expiry_date) ? "bg-destructive/10" : isNearExpiry(r.expiry_date) ? "bg-warning/10" : ""}>
                         <TableCell className="font-medium">{r.product_name}</TableCell>
                         <TableCell>{r.batch_number}</TableCell>
-                        <TableCell className={isExpired(r.expiry_date) ? "text-destructive font-semibold" : isNearExpiry(r.expiry_date) ? "text-amber-700 font-semibold" : ""}>{r.expiry_date || "—"}</TableCell>
+                        <TableCell className={isExpired(r.expiry_date) ? "text-destructive font-semibold" : isNearExpiry(r.expiry_date) ? "text-warning font-semibold" : ""}>{r.expiry_date || "—"}</TableCell>
                         <TableCell className="text-right font-mono">{r.qty_received.toLocaleString()}</TableCell>
                         <TableCell className="text-right font-mono">{r.qty_sold.toLocaleString()}</TableCell>
                         <TableCell className="text-right font-mono font-semibold">{r.remaining.toLocaleString()}</TableCell>
