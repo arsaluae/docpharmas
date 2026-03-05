@@ -1,105 +1,79 @@
 
 
-# Plan: Proforma/Invoice UX Overhaul + Filters + Auto Delivery Notes + Searchable Dropdowns
+# Plan: Simplify Entire Sales + Purchase Workflow
 
-## Summary of Changes
+## Problem
+Currently there are too many separate pages and manual steps. The user has to navigate between Proforma, Invoices, Delivery Notes (sales side) and Purchase Proforma, Purchase Orders, GRN, Bills (purchase side). This over-complicates what should be a smooth, linear flow.
 
-This is a major UX upgrade across the sales workflow: better status colors, filters on every listing page, auto-generating delivery notes when invoices are created, removing Delivery Notes from the sidebar, and replacing all customer/product Select dropdowns with searchable Combobox inputs.
+## New Simplified Architecture
 
-## 1. Status Color Differentiation
+### Sales Side: ONE page called "Sales"
+Replaces: Proforma + Sales Invoices + Delivery Notes (3 pages become 1)
 
-**ProformaInvoices.tsx** — Update `statusColor()`:
-- `draft` → `bg-warning/10 text-warning` (Orchid Violet — stands out as "pending action")
-- `approved` → `bg-primary/10 text-primary` (Sapphire — active/ready)
-- `invoiced` → `bg-primary/20 text-primary font-semibold` (stronger sapphire — completed)
+Statuses on a single document:
+- **Draft** = what was previously "Proforma" (unconfirmed quote)
+- **Invoiced** = confirmed/approved, auto-creates the sales_invoice record, deducts stock
+- **Dispatched** = goods sent, auto-creates delivery_note record
 
-**SalesInvoices.tsx** — Update `statusColor()`:
-- `draft` → `bg-warning/10 text-warning`
-- `dispatched` → `bg-primary/10 text-primary`
-- `paid` → `bg-primary/20 text-primary font-semibold`
+User actions: Create draft → click "Confirm" (becomes invoice + DN in one click) → mark Dispatched if needed separately, or auto-dispatch on confirm.
 
-Apply similar pattern to WarrantyInvoices, PurchaseProforma, PurchaseOrders, etc.
+The page shows ALL documents (drafts and invoices) in one unified table with status filters. Print button renders as "Proforma" PDF if draft, "Invoice" PDF if invoiced.
 
-## 2. Filters on Every Listing Page
+### Purchase Side: ONE page called "Purchases"  
+Replaces: Purchase Proforma + Purchase Orders + GRN + Bills (4 pages become 1)
 
-Add filter bar below the search input on these pages: ProformaInvoices, SalesInvoices, WarrantyInvoices, PurchaseProforma, PurchaseOrders, GoodsReceivedNotes, PurchaseInvoicesPage, Payments, Expenses.
+Statuses on a single document:
+- **Draft** = unconfirmed order request
+- **Ordered** = confirmed and sent to supplier (was PO)
+- **Received** = goods arrived, auto-creates GRN + Bill records, adds stock
 
-Each page gets:
-- **Status filter**: Pill-style toggle buttons (All | Draft | Approved | Invoiced, etc.)
-- **Customer/Supplier filter**: Searchable dropdown to filter by party
-- Update the `filtered` variable to apply both search + status + customer filters
+User actions: Create draft → click "Confirm Order" (becomes PO) → click "Mark Received" (creates GRN + Bill in one click)
 
-Implementation pattern (same for all pages):
-```tsx
-const [statusFilter, setStatusFilter] = useState("all");
-const [customerFilter, setCustomerFilter] = useState("");
+### Sidebar Simplification
+**Sales section**: Customers, Sales, Warranty Invoices, Returns
+**Purchases section**: Suppliers, Purchases, Returns
 
-const filtered = proformas.filter(p => {
-  const matchSearch = p.proforma_number.toLowerCase().includes(search.toLowerCase()) 
-    || (p.customers?.name || "").toLowerCase().includes(search.toLowerCase());
-  const matchStatus = statusFilter === "all" || p.status === statusFilter;
-  const matchCustomer = !customerFilter || p.customer_id === customerFilter;
-  return matchSearch && matchStatus && matchCustomer;
-});
-```
+6 fewer sidebar items. Much cleaner.
 
-Filter UI: A row of glass-pill buttons for status, plus a small searchable customer dropdown.
+### Warranty Invoices
+Stays as separate page (different purpose: MRP pricing for distributor/pharmacy). No changes needed.
 
-## 3. Auto Delivery Note on Invoice Creation
+### Payments
+Stay as-is. "Payment from Customer" and "Payment to Supplier" on the same page.
 
-When a proforma is converted to an invoice (`handleConvert` in ProformaInvoices.tsx), automatically create a Delivery Note from the invoice items right after creating the invoice. This eliminates the need for a separate DN creation step.
+## Technical Approach
 
-Changes in `handleConvert()`:
-- After inserting sales_invoice and sales_invoice_items, auto-generate a DN number via `generate_document_number("delivery_note")`
-- Insert a delivery_note with the invoice items (product_name, batch_number, quantity)
-- Update invoice status to "dispatched" instead of "draft"
-- Remove the DN button from SalesInvoices action column (keep PDF only)
-- Remove the DN batch selection dialog from SalesInvoices.tsx (simplify the file significantly)
+### Sales Page (new unified)
+- Query both `proforma_invoices` (status=draft) and `sales_invoices` in one view
+- Or simpler: use `proforma_invoices` as the single source of truth, with status progression (draft → invoiced → dispatched)
+- When status changes to "invoiced", the existing `handleConvert` logic runs behind the scenes (creates sales_invoice record, sales_invoice_items, stock_movements, delivery_note)
+- The confirm action is a single button click, no batch selection dialog (use FIFO auto-batch or skip batch requirement for simplicity)
+- Show unified table: Doc #, Customer, Date, Status, Total, Actions
 
-## 4. Remove Delivery Notes from Sidebar
+### Purchase Page (new unified)
+- Use `purchase_proformas` as single source of truth with status progression (draft → ordered → received → billed)
+- "Confirm Order" = creates purchase_order record automatically (existing logic)
+- "Mark Received" = creates GRN + purchase_invoice automatically (existing logic from GRN page)
+- Single table, single page
 
-**AppSidebar.tsx**: Remove the `{ title: "Delivery Notes", url: "/delivery-notes", icon: FileOutput }` entry from the Sales section. The route `/delivery-notes` still exists for direct access but is no longer in the main nav since DNs are auto-generated.
-
-## 5. Searchable Customer & Product Dropdowns (Combobox)
-
-Replace all `<Select>` dropdowns for customer and product selection with a searchable Combobox pattern using the existing `cmdk` (Command) component.
-
-Create a reusable `SearchableSelect` component:
-```tsx
-// src/components/SearchableSelect.tsx
-// Uses Popover + Command (cmdk) for type-to-search
-// Props: options[], value, onChange, placeholder
-```
-
-Replace in these files:
-- **ProformaInvoices.tsx**: Customer select in create dialog, product select in item rows
-- **SalesInvoices.tsx**: Customer select in create/edit dialogs, product select in item rows
-- **WarrantyInvoices.tsx**: Customer select, product select
-- **PurchaseProforma.tsx**: Supplier select, product select
-- **PurchaseOrders.tsx**: Supplier select, product select
-- **Payments.tsx**: Party select
-- **Expenses.tsx**: Bank account select
-
-## 6. Premium UI Polish
-
-- All filter bars get glass-card styling with backdrop blur
-- Status pills use refined color palette with subtle gradients
-- Combobox dropdowns have smooth animations and premium spacing
-- Search inputs have refined focus states
+### What stays the same
+- All underlying database tables remain (no schema changes needed)
+- All triggers and balance logic remain
+- PDF generation remains
+- Returns pages remain separate (they reference invoices)
 
 ## Files Changed
 
-| File | Changes |
-|------|---------|
-| `src/components/SearchableSelect.tsx` | **NEW** — Reusable searchable dropdown using Popover + Command |
-| `src/pages/ProformaInvoices.tsx` | Status colors, filters (status + customer), searchable selects, auto-DN on convert |
-| `src/pages/SalesInvoices.tsx` | Status colors, filters, searchable selects, remove DN dialog/button (auto-created now) |
-| `src/pages/WarrantyInvoices.tsx` | Filters, searchable selects |
-| `src/pages/PurchaseProforma.tsx` | Filters, searchable selects |
-| `src/pages/PurchaseOrders.tsx` | Filters, searchable selects |
-| `src/pages/GoodsReceivedNotes.tsx` | Filters |
-| `src/pages/PurchaseInvoicesPage.tsx` | Filters |
-| `src/pages/Payments.tsx` | Filters, searchable selects |
-| `src/pages/Expenses.tsx` | Filters |
-| `src/components/AppSidebar.tsx` | Remove Delivery Notes from nav |
+| File | Change |
+|------|--------|
+| `src/pages/ProformaInvoices.tsx` | Major rewrite: becomes unified "Sales" page with draft/invoiced/dispatched flow, one-click confirm |
+| `src/pages/PurchaseProforma.tsx` | Major rewrite: becomes unified "Purchases" page with draft/ordered/received flow, one-click actions |
+| `src/components/AppSidebar.tsx` | Remove Invoices, Purchase Orders, GRN, Bills from nav. Rename Proforma→Sales, Purchase Proforma→Purchases |
+| `src/App.tsx` | Keep all routes (backward compat), add redirects from old URLs to new unified pages |
+| `src/pages/SalesInvoices.tsx` | Redirect to /proforma (or keep as read-only archive) |
+| `src/pages/PurchaseOrders.tsx` | Redirect to /purchase-proforma |
+| `src/pages/GoodsReceivedNotes.tsx` | Redirect to /purchase-proforma |
+| `src/pages/PurchaseInvoicesPage.tsx` | Redirect to /purchase-proforma |
+
+No database migrations needed. All existing data remains accessible.
 
