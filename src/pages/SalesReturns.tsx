@@ -151,7 +151,7 @@ export default function SalesReturns() {
                         <TableCell>{r.customers?.name || "—"}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{r.reason || "—"}</TableCell>
                         <TableCell className="text-right font-mono">{Number(r.total).toLocaleString()}</TableCell>
-                        <TableCell><span className="status-pill bg-amber-50 text-amber-700">{r.status}</span></TableCell>
+                        <TableCell><span className="status-pill bg-warning/10 text-warning">{r.status}</span></TableCell>
                       </TableRow>
                     ))}
                 </TableBody>

@@ -10,30 +10,30 @@ const reportSections = [
   {
     label: "Financial",
     items: [
-      { title: "Profit & Loss", desc: "Revenue, costs & net income", url: "/reports/pl", icon: TrendingUp, color: "text-emerald-600" },
+      { title: "Profit & Loss", desc: "Revenue, costs & net income", url: "/reports/pl", icon: TrendingUp, color: "text-primary" },
       { title: "Balance Sheet", desc: "Assets, liabilities & equity", url: "/reports/balance-sheet", icon: Scale, color: "text-primary" },
-      { title: "Cash Flow", desc: "Cash inflows & outflows", url: "/reports/cash-flow", icon: BarChart3, color: "text-violet-600" },
+      { title: "Cash Flow", desc: "Cash inflows & outflows", url: "/reports/cash-flow", icon: BarChart3, color: "text-warning" },
     ],
   },
   {
     label: "Receivables & Payables",
     items: [
-      { title: "Receivables Aging", desc: "Outstanding customer balances", url: "/reports/receivables", icon: Clock, color: "text-amber-600" },
+      { title: "Receivables Aging", desc: "Outstanding customer balances", url: "/reports/receivables", icon: Clock, color: "text-warning" },
       { title: "Payables Aging", desc: "Outstanding supplier balances", url: "/reports/payables", icon: DollarSign, color: "text-destructive" },
     ],
   },
   {
     label: "Inventory",
     items: [
-      { title: "Product Costing", desc: "Cost analysis & margins", url: "/reports/product-costing", icon: Package, color: "text-violet-600" },
+      { title: "Product Costing", desc: "Cost analysis & margins", url: "/reports/product-costing", icon: Package, color: "text-warning" },
       { title: "Item-wise Report", desc: "Sales & purchase by item", url: "/reports/item-wise", icon: Layers, color: "text-primary" },
-      { title: "Batch-wise Report", desc: "Batch tracking & expiry", url: "/reports/batch-wise", icon: Boxes, color: "text-amber-600" },
+      { title: "Batch-wise Report", desc: "Batch tracking & expiry", url: "/reports/batch-wise", icon: Boxes, color: "text-warning" },
     ],
   },
   {
     label: "Party Reports",
     items: [
-      { title: "Customer-wise", desc: "Sales & balance by customer", url: "/reports/customer-wise", icon: UserCheck, color: "text-emerald-600" },
+      { title: "Customer-wise", desc: "Sales & balance by customer", url: "/reports/customer-wise", icon: UserCheck, color: "text-primary" },
       { title: "Supplier-wise", desc: "Purchases & balance by supplier", url: "/reports/supplier-wise", icon: Truck, color: "text-primary" },
     ],
   },

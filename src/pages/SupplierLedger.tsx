@@ -65,8 +65,8 @@ export default function SupplierLedger() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {[
                 { label: "Total Purchases", value: totalPurchases, color: "text-primary" },
-                { label: "Total Paid", value: totalPaid, color: "text-emerald-600" },
-                { label: "Outstanding", value: outstanding, color: outstanding > 0 ? "text-destructive" : "text-emerald-600" },
+                { label: "Total Paid", value: totalPaid, color: "text-primary" },
+                { label: "Outstanding", value: outstanding, color: outstanding > 0 ? "text-destructive" : "text-primary" },
               ].map(c => (
                 <Card key={c.label} className="glass-card"><CardContent className="p-4"><p className="text-xs text-muted-foreground">{c.label}</p><p className={`text-lg font-bold font-mono ${c.color}`}>{c.value.toLocaleString()}</p></CardContent></Card>
               ))}

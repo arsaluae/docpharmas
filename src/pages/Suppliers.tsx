@@ -183,7 +183,7 @@ export default function Suppliers() {
                         <TableCell className="font-medium">{s.name}</TableCell>
                         <TableCell>{s.company || "—"}</TableCell>
                         <TableCell>{s.city || "—"}</TableCell>
-                        {settings?.wht_enabled && <TableCell><span className="status-pill bg-amber-50 text-amber-700">{s.wht_rate}%</span></TableCell>}
+                        {settings?.wht_enabled && <TableCell><span className="status-pill bg-warning/10 text-warning">{s.wht_rate}%</span></TableCell>}
                         <TableCell className="text-right font-mono">{Number(s.balance).toLocaleString()}</TableCell>
                         <TableCell className="text-muted-foreground">{s.payment_terms_days}d</TableCell>
                         <TableCell className="text-center">
