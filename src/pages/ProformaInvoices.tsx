@@ -295,11 +295,11 @@ export default function ProformaInvoices() {
   };
 
   const statusColor = (s: string) => {
-    if (s === "invoiced") return "bg-teal-50 text-teal-700";
-    if (s === "converted") return "bg-emerald-50 text-emerald-700";
+    if (s === "invoiced") return "bg-primary/10 text-primary";
+    if (s === "converted") return "bg-primary/10 text-primary";
     if (s === "approved") return "bg-primary/10 text-primary";
     if (s === "payment_received") return "bg-primary/10 text-primary";
-    if (s === "sent") return "bg-amber-50 text-amber-700";
+    if (s === "sent") return "bg-warning/10 text-warning";
     return "bg-muted text-muted-foreground";
   };
 

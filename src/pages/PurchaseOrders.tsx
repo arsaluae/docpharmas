@@ -122,9 +122,9 @@ export default function PurchaseOrders() {
   const filtered = orders.filter(o => o.po_number.toLowerCase().includes(search.toLowerCase()));
 
   const statusColor = (s: string) => {
-    if (s === "received") return "bg-emerald-50 text-emerald-700";
+    if (s === "received") return "bg-primary/10 text-primary";
     if (s === "confirmed") return "bg-primary/10 text-primary";
-    if (s === "sent") return "bg-amber-50 text-amber-700";
+    if (s === "sent") return "bg-warning/10 text-warning";
     if (s === "cancelled") return "bg-destructive/10 text-destructive";
     return "bg-muted text-muted-foreground";
   };

@@ -175,7 +175,7 @@ export default function DeliveryNotes() {
                         <TableCell className="font-medium font-mono" onClick={() => openDetail(dn)}>{dn.dn_number}</TableCell>
                         <TableCell className="text-muted-foreground" onClick={() => openDetail(dn)}>{dn.date}</TableCell>
                         <TableCell className="capitalize" onClick={() => openDetail(dn)}>{dn.reference_type.replace("_", " ")}</TableCell>
-                        <TableCell onClick={() => openDetail(dn)}><span className={`status-pill ${dn.status === "delivered" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"}`}>{dn.status}</span></TableCell>
+                        <TableCell onClick={() => openDetail(dn)}><span className={`status-pill ${dn.status === "delivered" ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"}`}>{dn.status}</span></TableCell>
                         <TableCell className="space-x-1">
                           <Button variant="outline" size="sm" onClick={() => printDN(dn)} className="text-xs">
                             <Download className="h-3 w-3 mr-1" /> PDF
@@ -236,7 +236,7 @@ export default function DeliveryNotes() {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div><span className="text-muted-foreground">Date:</span> {detailDN?.date}</div>
                     <div><span className="text-muted-foreground">Type:</span> <span className="capitalize">{detailDN?.reference_type.replace("_", " ")}</span></div>
-                    <div><span className="text-muted-foreground">Status:</span> <span className="status-pill bg-emerald-50 text-emerald-700">{detailDN?.status}</span></div>
+                    <div><span className="text-muted-foreground">Status:</span> <span className="status-pill bg-primary/10 text-primary">{detailDN?.status}</span></div>
                   </div>
                   {detailDN?.notes && <p className="text-sm text-muted-foreground mt-2">Notes: {detailDN.notes}</p>}
                   <Table>

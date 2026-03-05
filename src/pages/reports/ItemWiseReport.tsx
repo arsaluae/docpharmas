@@ -54,7 +54,7 @@ export default function ItemWiseReport() {
                         <TableCell className="text-right font-mono">{Number(r.stock_quantity).toLocaleString()}</TableCell>
                         <TableCell className="text-right font-mono">{r.total_cost.toLocaleString()}</TableCell>
                         <TableCell className="text-right font-mono">{r.total_revenue.toLocaleString()}</TableCell>
-                        <TableCell className={`text-right font-mono font-semibold ${r.total_revenue - r.total_cost >= 0 ? "text-emerald-600" : "text-destructive"}`}>{(r.total_revenue - r.total_cost).toLocaleString()}</TableCell>
+                        <TableCell className={`text-right font-mono font-semibold ${r.total_revenue - r.total_cost >= 0 ? "text-primary" : "text-destructive"}`}>{(r.total_revenue - r.total_cost).toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
                 </TableBody>

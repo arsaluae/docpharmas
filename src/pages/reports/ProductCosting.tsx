@@ -86,7 +86,7 @@ export default function ProductCosting() {
                         <TableCell className="capitalize text-muted-foreground">{p.category}</TableCell>
                         <TableCell className="text-right font-mono">{p.cost.toLocaleString()}</TableCell>
                         <TableCell className="text-right font-mono">{p.sell.toLocaleString()}</TableCell>
-                        <TableCell className={`text-right font-mono font-medium ${p.marginPct >= 20 ? "text-emerald-600" : p.marginPct >= 0 ? "text-foreground" : "text-destructive"}`}>{p.marginPct.toFixed(1)}%</TableCell>
+                        <TableCell className={`text-right font-mono font-medium ${p.marginPct >= 20 ? "text-primary" : p.marginPct >= 0 ? "text-foreground" : "text-destructive"}`}>{p.marginPct.toFixed(1)}%</TableCell>
                         <TableCell className="text-right font-mono text-muted-foreground">{p.markupPct.toFixed(1)}%</TableCell>
                       </TableRow>
                     ))}

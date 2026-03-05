@@ -61,11 +61,11 @@ export default function CashFlow() {
           <div className="p-6 space-y-6">
             <div className="grid grid-cols-3 gap-4">
               <Card className="glass-card"><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Total Inflows</CardTitle></CardHeader>
-                <CardContent><p className="text-xl font-bold font-mono text-emerald-600">PKR {totalIn.toLocaleString()}</p></CardContent></Card>
+                <CardContent><p className="text-xl font-bold font-mono text-primary">PKR {totalIn.toLocaleString()}</p></CardContent></Card>
               <Card className="glass-card"><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Total Outflows</CardTitle></CardHeader>
                 <CardContent><p className="text-xl font-bold font-mono text-destructive">PKR {totalOut.toLocaleString()}</p></CardContent></Card>
               <Card className="glass-card"><CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Net Cash Flow</CardTitle></CardHeader>
-                <CardContent><p className={`text-xl font-bold font-mono ${totalIn - totalOut >= 0 ? "text-emerald-600" : "text-destructive"}`}>PKR {(totalIn - totalOut).toLocaleString()}</p></CardContent></Card>
+                <CardContent><p className={`text-xl font-bold font-mono ${totalIn - totalOut >= 0 ? "text-primary" : "text-destructive"}`}>PKR {(totalIn - totalOut).toLocaleString()}</p></CardContent></Card>
             </div>
             <Card className="glass-card">
               <CardContent className="pt-6">

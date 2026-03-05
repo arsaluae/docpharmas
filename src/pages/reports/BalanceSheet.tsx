@@ -80,10 +80,10 @@ export default function BalanceSheet() {
                 <Row label="Total Liabilities" value={totalLiabilities} bold />
               </CardContent>
             </Card>
-            <Card className={`glass-card border-2 ${equity >= 0 ? "border-emerald-500/30" : "border-destructive/30"}`}>
+            <Card className={`glass-card border-2 ${equity >= 0 ? "border-primary/30" : "border-destructive/30"}`}>
               <CardHeader><CardTitle className="text-base">Equity</CardTitle></CardHeader>
               <CardContent>
-                <p className={`text-3xl font-bold font-mono ${equity >= 0 ? "text-emerald-600" : "text-destructive"}`}>PKR {equity.toLocaleString()}</p>
+                <p className={`text-3xl font-bold font-mono ${equity >= 0 ? "text-primary" : "text-destructive"}`}>PKR {equity.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground mt-1">Assets − Liabilities</p>
               </CardContent>
             </Card>
