@@ -202,7 +202,9 @@ export default function GoodsReceivedNotes() {
     }
   };
 
-  const filtered = grns.filter(g => g.grn_number.toLowerCase().includes(search.toLowerCase()));
+  const filtered = grns.filter(g => g.grn_number.toLowerCase().includes(search.toLowerCase()) ||
+    ((g.suppliers as any)?.name || "").toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <SidebarProvider>

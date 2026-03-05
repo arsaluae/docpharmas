@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, Truck, Package, LogOut, Pill, FileText,
   ClipboardList, Receipt, Wallet, CreditCard, Landmark,
-  BarChart3, RotateCcw, Upload, Settings, PackageCheck, FilePlus, FileOutput,
+  BarChart3, RotateCcw, Upload, Settings, PackageCheck, FilePlus,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -18,7 +18,7 @@ const sections = [
     { title: "Proforma", url: "/proforma", icon: FilePlus },
     { title: "Invoices", url: "/sales-invoices", icon: FileText },
     { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList },
-    { title: "Delivery Notes", url: "/delivery-notes", icon: FileOutput },
+    
     { title: "Returns", url: "/sales-returns", icon: RotateCcw },
   ]},
   { label: "Purchases", items: [

@@ -26,6 +26,7 @@ export default function PurchaseOrders() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<PO[]>([]);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState<PO | null>(null);
   const [confirmItems, setConfirmItems] = useState<any[]>([]);
@@ -119,7 +120,14 @@ export default function PurchaseOrders() {
     setConfirmOpen(false); load();
   };
 
-  const filtered = orders.filter(o => o.po_number.toLowerCase().includes(search.toLowerCase()));
+  const filtered = orders.filter(o => {
+    const matchSearch = o.po_number.toLowerCase().includes(search.toLowerCase()) ||
+      ((o.suppliers as any)?.name || "").toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || o.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  const STATUS_OPTIONS = ["all", "draft", "confirmed", "received"];
 
   const statusColor = (s: string) => {
     if (s === "received") return "bg-primary/10 text-primary";
@@ -158,9 +166,19 @@ export default function PurchaseOrders() {
               <span className="ml-auto italic">All POs originate from an approved Purchase Proforma</span>
             </div>
 
-            <div className="mb-4 relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search POs..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <div className="relative max-w-sm flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search POs or supplier..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+              <div className="flex items-center gap-1">
+                {STATUS_OPTIONS.map(s => (
+                  <button key={s} onClick={() => setStatusFilter(s)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all capitalize ${statusFilter === s ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
             <Card className="glass-card">
               <CardContent className="p-0">

@@ -16,6 +16,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Search, Wallet, ArrowDownLeft, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 
 interface Customer { id: string; name: string; }
@@ -143,6 +144,7 @@ export default function Payments() {
   };
 
   const parties = partyType === "customer" ? customers : suppliers;
+  const partyOptions = parties.map(p => ({ value: p.id, label: p.name }));
 
   const filtered = payments.filter(p => {
     const matchSearch = p.payment_number.toLowerCase().includes(search.toLowerCase()) ||
@@ -178,12 +180,9 @@ export default function Payments() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
+                   <div>
                     <Label>{partyType === "customer" ? "Customer" : "Supplier"} *</Label>
-                    <Select value={partyId} onValueChange={setPartyId}>
-                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>{parties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <SearchableSelect options={partyOptions} value={partyId} onChange={setPartyId} placeholder="Search..." />
                   </div>
                   <div><Label>Amount (PKR) *</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} /></div>
                   <div><Label>Date</Label><Input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} /></div>
