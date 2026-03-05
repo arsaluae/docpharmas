@@ -142,15 +142,15 @@ export default function Products() {
   });
 
   const typeBadge = (t: string) => {
-    if (t.includes("in")) return <Badge variant="default" className="bg-emerald-100 text-emerald-700 border-0">{t.replace("_", " ")}</Badge>;
+    if (t.includes("in")) return <Badge variant="default" className="bg-primary/10 text-primary border-0">{t.replace("_", " ")}</Badge>;
     if (t.includes("out")) return <Badge variant="destructive">{t.replace("_", " ")}</Badge>;
     return <Badge variant="secondary">{t}</Badge>;
   };
 
   const stockStatus = (p: Product) => {
     if (Number(p.stock_quantity) <= 0) return <Badge variant="destructive">Out</Badge>;
-    if (Number(p.stock_quantity) <= Number(p.reorder_level)) return <Badge className="bg-amber-100 text-amber-700 border-0">Low</Badge>;
-    return <Badge className="bg-emerald-100 text-emerald-700 border-0">OK</Badge>;
+    if (Number(p.stock_quantity) <= Number(p.reorder_level)) return <Badge className="bg-warning/10 text-warning border-0">Low</Badge>;
+    return <Badge className="bg-primary/10 text-primary border-0">OK</Badge>;
   };
 
   return (
@@ -259,7 +259,7 @@ export default function Products() {
                             <TableCell className="text-xs">{p.drap_reg_number || "—"}</TableCell>
                             <TableCell className="text-right font-mono">{Number(p.cost_price).toLocaleString()}</TableCell>
                             <TableCell className="text-right font-mono">{Number(p.selling_price).toLocaleString()}</TableCell>
-                            <TableCell className="text-right font-mono text-emerald-600">{margin(p)}</TableCell>
+                            <TableCell className="text-right font-mono text-primary">{margin(p)}</TableCell>
                             <TableCell className="text-right">
                               <span className={Number(p.stock_quantity) <= Number(p.reorder_level) ? "text-destructive font-semibold" : ""}>{Number(p.stock_quantity).toLocaleString()}</span>
                             </TableCell>
@@ -294,8 +294,8 @@ export default function Products() {
                     <p className="text-xl font-bold font-heading text-foreground">PKR {totalRetailValue.toLocaleString()}</p>
                   </CardContent></Card>
                   <Card className="glass-card"><CardContent className="p-4">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-amber-500" /> Low Stock</p>
-                    <p className="text-xl font-bold font-heading text-amber-600">{lowStockCount}</p>
+                     <p className="text-xs text-muted-foreground flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-warning" /> Low Stock</p>
+                     <p className="text-xl font-bold font-heading text-warning">{lowStockCount}</p>
                   </CardContent></Card>
                   <Card className="glass-card"><CardContent className="p-4">
                     <p className="text-xs text-muted-foreground">Out of Stock</p>
@@ -328,13 +328,13 @@ export default function Products() {
                           const isOut = qty <= 0;
                           const isLow = qty > 0 && qty <= Number(p.reorder_level);
                           return (
-                            <TableRow key={p.id} className={isOut ? "bg-destructive/5" : isLow ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}>
+                            <TableRow key={p.id} className={isOut ? "bg-destructive/5" : isLow ? "bg-warning/5" : ""}>
                               <TableCell className="font-medium">{p.name}</TableCell>
                               <TableCell className="text-right font-mono">{qty.toLocaleString()}</TableCell>
                               <TableCell className="text-right font-mono">{cost.toLocaleString()}</TableCell>
                               <TableCell className="text-right font-mono">{sell.toLocaleString()}</TableCell>
                               <TableCell className="text-right font-mono font-semibold">{(qty * cost).toLocaleString()}</TableCell>
-                              <TableCell className="text-right font-mono text-emerald-600">{margin(p)}</TableCell>
+                              <TableCell className="text-right font-mono text-primary">{margin(p)}</TableCell>
                               <TableCell className="text-right font-mono text-muted-foreground">{Number(p.reorder_level)}</TableCell>
                               <TableCell className="text-center">{stockStatus(p)}</TableCell>
                             </TableRow>

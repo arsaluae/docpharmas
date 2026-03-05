@@ -258,7 +258,7 @@ export default function Payments() {
                         <TableCell className="font-medium font-mono">{p.payment_number}</TableCell>
                         <TableCell>
                           {p.type === "received" ? (
-                            <span className="status-pill bg-emerald-50 text-emerald-700"><ArrowDownLeft className="h-3 w-3 mr-1 inline" />Received</span>
+                            <span className="status-pill bg-primary/10 text-primary"><ArrowDownLeft className="h-3 w-3 mr-1 inline" />Received</span>
                           ) : (
                             <span className="status-pill bg-destructive/10 text-destructive"><ArrowUpRight className="h-3 w-3 mr-1 inline" />Made</span>
                           )}
@@ -267,7 +267,7 @@ export default function Payments() {
                         <TableCell className="capitalize text-muted-foreground">{p.payment_method.replace("_", " ")}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{p.cheque_number || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{p.date}</TableCell>
-                        <TableCell className={`text-right font-mono font-medium ${p.type === "received" ? "text-emerald-600" : "text-destructive"}`}>
+                        <TableCell className={`text-right font-mono font-medium ${p.type === "received" ? "text-primary" : "text-destructive"}`}>
                           {p.type === "received" ? "+" : "-"}{Number(p.amount).toLocaleString()}
                         </TableCell>
                         <TableCell className="text-center">

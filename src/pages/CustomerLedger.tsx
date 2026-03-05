@@ -81,9 +81,9 @@ export default function CustomerLedger() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { label: "Total Sales", value: totalSales, icon: FileText, color: "text-primary" },
-                { label: "Received", value: totalReceived, icon: Wallet, color: "text-emerald-600" },
-                { label: "Returns", value: totalReturns, icon: RotateCcw, color: "text-amber-600" },
-                { label: "Outstanding", value: outstanding, icon: FileText, color: outstanding > 0 ? "text-destructive" : "text-emerald-600" },
+                { label: "Received", value: totalReceived, icon: Wallet, color: "text-primary" },
+                { label: "Returns", value: totalReturns, icon: RotateCcw, color: "text-warning" },
+                { label: "Outstanding", value: outstanding, icon: FileText, color: outstanding > 0 ? "text-destructive" : "text-primary" },
               ].map(c => (
                 <Card key={c.label} className="glass-card">
                   <CardContent className="p-4">

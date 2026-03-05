@@ -79,7 +79,7 @@ export default function StockMovements() {
   });
 
   const typeBadge = (t: string) => {
-    if (t.includes("in")) return <Badge variant="default" className="bg-emerald-100 text-emerald-700 border-0">{t.replace("_", " ")}</Badge>;
+    if (t.includes("in")) return <Badge variant="default" className="bg-primary/10 text-primary border-0">{t.replace("_", " ")}</Badge>;
     if (t.includes("out")) return <Badge variant="destructive">{t.replace("_", " ")}</Badge>;
     return <Badge variant="secondary">{t}</Badge>;
   };

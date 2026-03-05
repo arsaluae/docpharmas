@@ -135,7 +135,7 @@ export default function BankAccounts() {
                           <TableCell className="capitalize">{p.type}</TableCell>
                           <TableCell className="capitalize text-muted-foreground">{p.payment_method.replace("_", " ")}</TableCell>
                           <TableCell className="text-muted-foreground">{p.date}</TableCell>
-                          <TableCell className={`text-right font-mono font-medium ${p.type === "received" ? "text-emerald-600" : "text-destructive"}`}>
+                          <TableCell className={`text-right font-mono font-medium ${p.type === "received" ? "text-primary" : "text-destructive"}`}>
                             {p.type === "received" ? "+" : "-"}{Number(p.amount).toLocaleString()}
                           </TableCell>
                         </TableRow>
