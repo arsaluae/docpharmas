@@ -660,7 +660,7 @@ export default function PurchaseProforma() {
                   </button>
                 ))}
               </div>
-              </div>
+            </div>
             </div>
             <Card className="glass-card">
               <CardContent className="p-0">
