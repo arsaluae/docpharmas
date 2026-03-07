@@ -26,6 +26,7 @@ const sections = [
   ]},
   { label: "Inventory", items: [
     { title: "Products & Stock", url: "/products", icon: Package },
+    { title: "Stock Movements", url: "/stock", icon: RotateCcw },
   ]},
   { label: "Printing", items: [
     { title: "Printers", url: "/printers", icon: Printer },
