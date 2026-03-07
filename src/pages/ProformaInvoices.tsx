@@ -150,6 +150,7 @@ export default function ProformaInvoices() {
     setDocs(combined);
     if (cust.data) setCustomers(cust.data);
     if (prod.data) setProducts(prod.data);
+    setLoading(false);
   };
 
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0 }]);
