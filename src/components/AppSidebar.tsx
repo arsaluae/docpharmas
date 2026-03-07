@@ -15,7 +15,7 @@ const sections = [
   { label: "Overview", items: [{ title: "Dashboard", url: "/", icon: LayoutDashboard }] },
   { label: "Sales", items: [
     { title: "Customers", url: "/customers", icon: Users },
-    { title: "Sales", url: "/proforma", icon: FileText },
+    { title: "Sales Orders", url: "/proforma", icon: FileText },
     { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList },
     { title: "Returns", url: "/sales-returns", icon: RotateCcw },
   ]},
