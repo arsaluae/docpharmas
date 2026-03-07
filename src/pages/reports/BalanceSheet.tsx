@@ -12,6 +12,7 @@ export default function BalanceSheet() {
   const [receivables, setReceivables] = useState(0);
   const [inventory, setInventory] = useState(0);
   const [payables, setPayables] = useState(0);
+  const [printerPayables, setPrinterPayables] = useState(0);
   const [taxPayable, setTaxPayable] = useState(0);
 
   useEffect(() => {
