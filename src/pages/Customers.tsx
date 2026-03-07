@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,7 +42,6 @@ export default function Customers() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  // License state
   const [licenseOpen, setLicenseOpen] = useState(false);
   const [licenseCustomer, setLicenseCustomer] = useState<Customer | null>(null);
   const [licenses, setLicenses] = useState<License[]>([]);
@@ -51,10 +49,7 @@ export default function Customers() {
   const [editLicenseId, setEditLicenseId] = useState<string | null>(null);
   const [showLicenseForm, setShowLicenseForm] = useState(false);
 
-  useEffect(() => {
-    const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
-    check(); loadCustomers();
-  }, [navigate]);
+  useEffect(() => { loadCustomers(); }, []);
 
   const loadCustomers = async () => {
     const { data } = await supabase.from("customers").select("*").order("created_at", { ascending: false });
@@ -126,7 +121,6 @@ export default function Customers() {
     else setSelectedIds(new Set(filtered.map(c => c.id)));
   };
 
-  // License functions
   const openLicenses = async (c: Customer, e: React.MouseEvent) => {
     e.stopPropagation();
     setLicenseCustomer(c); setLicenseOpen(true); setShowLicenseForm(false); setEditLicenseId(null); setLicenseForm(emptyLicenseForm);
@@ -167,184 +161,173 @@ export default function Customers() {
     (c.city || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading">Customers</h1>
-              <p className="text-sm text-muted-foreground">Manage customer accounts, credit terms & ledgers</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => navigate("/import?tab=customers")}><Upload className="h-4 w-4 mr-1" /> Import CSV</Button>
-            <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditId(null); setForm(emptyForm); } }}>
-              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Customer</Button></DialogTrigger>
-              <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Customer</DialogTitle></DialogHeader>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <div className="col-span-2"><Label>Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
-                  <div><Label>Company</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} /></div>
-                  <div><Label>City</Label><Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} /></div>
-                  <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} placeholder="National Tax Number" /></div>
-                  <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} placeholder="Sales Tax Reg." /></div>
-                  <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
-                  <div><Label>Email</Label><Input value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
-                  <div className="col-span-2"><Label>Address</Label><Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} /></div>
-                  <div><Label>Credit Limit (PKR)</Label><Input type="number" value={form.credit_limit} onChange={e => setForm({...form, credit_limit: e.target.value})} /></div>
-                  <div><Label>Credit Days</Label><Input type="number" value={form.credit_days} onChange={e => setForm({...form, credit_days: e.target.value})} /></div>
-                  <div><Label>Opening Balance (PKR)</Label><Input type="number" value={form.opening_balance} onChange={e => setForm({...form, opening_balance: e.target.value})} /></div>
-                </div>
-                <Button onClick={handleSave} className="w-full mt-4">{editId ? "Update" : "Create"} Customer</Button>
-              </DialogContent>
-            </Dialog>
-          </header>
-
-          <div className="p-6">
-            <div className="mb-4 relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search customers..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
-
-            {/* Bulk action bar */}
-            {selectedIds.size > 0 && (
-              <div className="mb-4 flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <span className="text-sm font-medium">{selectedIds.size} selected</span>
-                <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm"><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Selected</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete {selectedIds.size} customer(s)?</AlertDialogTitle>
-                      <AlertDialogDescription>This will permanently delete the selected customers and their licenses. Customers with linked invoices cannot be deleted.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleBulkDelete}>Delete All</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Clear</Button>
-              </div>
-            )}
-
-            <Card className="glass-card">
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10">
-                        <Checkbox checked={filtered.length > 0 && selectedIds.size === filtered.length} onCheckedChange={toggleAll} />
-                      </TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Company</TableHead>
-                      <TableHead>City</TableHead>
-                      <TableHead>NTN</TableHead>
-                      <TableHead className="text-right">Balance</TableHead>
-                      <TableHead className="text-right">Credit Limit</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                          <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />No customers yet.
-                        </TableCell>
-                      </TableRow>
-                    ) : filtered.map(c => (
-                      <TableRow key={c.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(c)}>
-                        <TableCell onClick={e => e.stopPropagation()}>
-                          <Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
-                        </TableCell>
-                        <TableCell className="font-medium">{c.name}</TableCell>
-                        <TableCell>{c.company || "—"}</TableCell>
-                        <TableCell>{c.city || "—"}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{c.ntn || "—"}</TableCell>
-                        <TableCell className="text-right font-mono">{Number(c.balance).toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-mono text-muted-foreground">{Number(c.credit_limit).toLocaleString()}</TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/customers/${c.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => openLicenses(c, e)} title="Medical Licenses"><Award className="h-3.5 w-3.5" /></Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader><AlertDialogTitle>Delete {c.name}?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this customer and their licenses.</AlertDialogDescription></AlertDialogHeader>
-                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => handleDelete(c.id, e)}>Delete</AlertDialogAction></AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+  const headerActions = (
+    <>
+      <Button variant="outline" size="sm" onClick={() => navigate("/import?tab=customers")}><Upload className="h-4 w-4 mr-1" /> Import CSV</Button>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditId(null); setForm(emptyForm); } }}>
+        <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Customer</Button></DialogTrigger>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Customer</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            <div className="col-span-2"><Label>Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
+            <div><Label>Company</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} /></div>
+            <div><Label>City</Label><Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} /></div>
+            <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} placeholder="National Tax Number" /></div>
+            <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} placeholder="Sales Tax Reg." /></div>
+            <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
+            <div><Label>Email</Label><Input value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
+            <div className="col-span-2"><Label>Address</Label><Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} /></div>
+            <div><Label>Credit Limit (PKR)</Label><Input type="number" value={form.credit_limit} onChange={e => setForm({...form, credit_limit: e.target.value})} /></div>
+            <div><Label>Credit Days</Label><Input type="number" value={form.credit_days} onChange={e => setForm({...form, credit_days: e.target.value})} /></div>
+            <div><Label>Opening Balance (PKR)</Label><Input type="number" value={form.opening_balance} onChange={e => setForm({...form, opening_balance: e.target.value})} /></div>
           </div>
+          <Button onClick={handleSave} className="w-full mt-4">{editId ? "Update" : "Create"} Customer</Button>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 
-          {/* Licenses Dialog */}
-          <Dialog open={licenseOpen} onOpenChange={(o) => { setLicenseOpen(o); if (!o) { setLicenseCustomer(null); setLicenses([]); setShowLicenseForm(false); } }}>
-            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-              <DialogHeader><DialogTitle>Medical Licenses — {licenseCustomer?.name}</DialogTitle></DialogHeader>
-              {!showLicenseForm && (
-                <Button size="sm" variant="outline" onClick={() => { setShowLicenseForm(true); setEditLicenseId(null); setLicenseForm(emptyLicenseForm); }}><Plus className="h-3 w-3 mr-1" /> Add License</Button>
-              )}
-              {showLicenseForm && (
-                <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm font-medium">{editLicenseId ? "Edit" : "New"} License</p>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setShowLicenseForm(false); setEditLicenseId(null); }}><X className="h-3 w-3" /></Button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><Label className="text-xs">License Number *</Label><Input className="h-8 text-sm" value={licenseForm.license_number} onChange={e => setLicenseForm({...licenseForm, license_number: e.target.value})} /></div>
-                    <div>
-                      <Label className="text-xs">Type</Label>
-                      <Select value={licenseForm.license_type} onValueChange={v => setLicenseForm({...licenseForm, license_type: v})}>
-                        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="drug_license">Drug License</SelectItem>
-                          <SelectItem value="retail_license">Retail License</SelectItem>
-                          <SelectItem value="wholesale_license">Wholesale License</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div><Label className="text-xs">Expiry Date</Label><Input className="h-8 text-sm" type="date" value={licenseForm.expiry_date} onChange={e => setLicenseForm({...licenseForm, expiry_date: e.target.value})} /></div>
-                    <div><Label className="text-xs">Address</Label><Input className="h-8 text-sm" value={licenseForm.address} onChange={e => setLicenseForm({...licenseForm, address: e.target.value})} /></div>
-                    <div className="col-span-2"><Label className="text-xs">Notes</Label><Input className="h-8 text-sm" value={licenseForm.notes} onChange={e => setLicenseForm({...licenseForm, notes: e.target.value})} /></div>
-                  </div>
-                  <Button size="sm" onClick={handleSaveLicense}>{editLicenseId ? "Update" : "Add"} License</Button>
-                </div>
-              )}
-              {licenses.length === 0 && !showLicenseForm ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No licenses recorded for this customer.</p>
-              ) : (
-                <div className="space-y-2 mt-2">
-                  {licenses.map(l => (
-                    <div key={l.id} className="border rounded-lg p-3 flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm">{l.license_number}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{l.license_type.replace("_", " ")}</p>
-                        {l.expiry_date && <p className="text-xs text-muted-foreground">Expires: {l.expiry_date}</p>}
-                        {l.address && <p className="text-xs text-muted-foreground">{l.address}</p>}
-                        {l.notes && <p className="text-xs text-muted-foreground italic">{l.notes}</p>}
-                      </div>
-                      <div className="flex gap-1 shrink-0">
-                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleEditLicense(l)}>Edit</Button>
-                        <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => handleDeleteLicense(l.id)}>Delete</Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
-        </main>
+  return (
+    <AppLayout title="Customers" subtitle="Manage customer accounts, credit terms & ledgers" headerActions={headerActions}>
+      <div className="mb-4 relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Search customers..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
-    </SidebarProvider>
+
+      {selectedIds.size > 0 && (
+        <div className="mb-4 flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm"><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Selected</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete {selectedIds.size} customer(s)?</AlertDialogTitle>
+                <AlertDialogDescription>This will permanently delete the selected customers and their licenses. Customers with linked invoices cannot be deleted.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleBulkDelete}>Delete All</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+        </div>
+      )}
+
+      <Card className="glass-card">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox checked={filtered.length > 0 && selectedIds.size === filtered.length} onCheckedChange={toggleAll} />
+                </TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Company</TableHead>
+                <TableHead>City</TableHead>
+                <TableHead>NTN</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
+                <TableHead className="text-right">Credit Limit</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                    <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />No customers yet.
+                  </TableCell>
+                </TableRow>
+              ) : filtered.map(c => (
+                <TableRow key={c.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(c)}>
+                  <TableCell onClick={e => e.stopPropagation()}>
+                    <Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
+                  </TableCell>
+                  <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell>{c.company || "—"}</TableCell>
+                  <TableCell>{c.city || "—"}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{c.ntn || "—"}</TableCell>
+                  <TableCell className="text-right font-mono">{Number(c.balance).toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono text-muted-foreground">{Number(c.credit_limit).toLocaleString()}</TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/customers/${c.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => openLicenses(c, e)} title="Medical Licenses"><Award className="h-3.5 w-3.5" /></Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader><AlertDialogTitle>Delete {c.name}?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this customer and their licenses.</AlertDialogDescription></AlertDialogHeader>
+                          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => handleDelete(c.id, e)}>Delete</AlertDialogAction></AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Licenses Dialog */}
+      <Dialog open={licenseOpen} onOpenChange={(o) => { setLicenseOpen(o); if (!o) { setLicenseCustomer(null); setLicenses([]); setShowLicenseForm(false); } }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Medical Licenses — {licenseCustomer?.name}</DialogTitle></DialogHeader>
+          {!showLicenseForm && (
+            <Button size="sm" variant="outline" onClick={() => { setShowLicenseForm(true); setEditLicenseId(null); setLicenseForm(emptyLicenseForm); }}><Plus className="h-3 w-3 mr-1" /> Add License</Button>
+          )}
+          {showLicenseForm && (
+            <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+              <div className="flex justify-between items-center">
+                <p className="text-sm font-medium">{editLicenseId ? "Edit" : "New"} License</p>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setShowLicenseForm(false); setEditLicenseId(null); }}><X className="h-3 w-3" /></Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label className="text-xs">License Number *</Label><Input className="text-xs" value={licenseForm.license_number} onChange={e => setLicenseForm({...licenseForm, license_number: e.target.value})} /></div>
+                <div>
+                  <Label className="text-xs">Type</Label>
+                  <Select value={licenseForm.license_type} onValueChange={v => setLicenseForm({...licenseForm, license_type: v})}>
+                    <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="drug_license">Drug License</SelectItem>
+                      <SelectItem value="pharmacy_license">Pharmacy License</SelectItem>
+                      <SelectItem value="wholesale_license">Wholesale License</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label className="text-xs">Expiry Date</Label><Input type="date" className="text-xs" value={licenseForm.expiry_date} onChange={e => setLicenseForm({...licenseForm, expiry_date: e.target.value})} /></div>
+                <div><Label className="text-xs">Address</Label><Input className="text-xs" value={licenseForm.address} onChange={e => setLicenseForm({...licenseForm, address: e.target.value})} /></div>
+                <div className="col-span-2"><Label className="text-xs">Notes</Label><Input className="text-xs" value={licenseForm.notes} onChange={e => setLicenseForm({...licenseForm, notes: e.target.value})} /></div>
+              </div>
+              <Button size="sm" onClick={handleSaveLicense} className="w-full">{editLicenseId ? "Update" : "Add"} License</Button>
+            </div>
+          )}
+          {licenses.length > 0 && (
+            <Table>
+              <TableHeader><TableRow><TableHead>License #</TableHead><TableHead>Type</TableHead><TableHead>Expiry</TableHead><TableHead className="w-16"></TableHead></TableRow></TableHeader>
+              <TableBody>
+                {licenses.map(l => (
+                  <TableRow key={l.id}>
+                    <TableCell className="text-xs font-mono">{l.license_number}</TableCell>
+                    <TableCell className="text-xs capitalize">{l.license_type.replace("_", " ")}</TableCell>
+                    <TableCell className="text-xs">{l.expiry_date || "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEditLicense(l)}><Award className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteLicense(l.id)}><Trash2 className="h-3 w-3" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+      </Dialog>
+    </AppLayout>
   );
 }
+

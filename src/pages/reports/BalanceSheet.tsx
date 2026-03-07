@@ -1,13 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export default function BalanceSheet() {
-  const navigate = useNavigate();
   const [bankTotal, setBankTotal] = useState(0);
   const [receivables, setReceivables] = useState(0);
   const [inventory, setInventory] = useState(0);
@@ -15,13 +12,7 @@ export default function BalanceSheet() {
   const [printerPayables, setPrinterPayables] = useState(0);
   const [taxPayable, setTaxPayable] = useState(0);
 
-  useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate("/auth");
-    };
-    check(); load();
-  }, [navigate]);
+  useEffect(() => { load(); }, []);
 
   const load = async () => {
     const [banks, custs, prods, sups, printers, salesInv, purchInv] = await Promise.all([
@@ -55,45 +46,36 @@ export default function BalanceSheet() {
   );
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <h1 className="text-xl font-bold text-foreground font-heading">Balance Sheet</h1>
-          </header>
-          <div className="p-6 max-w-2xl mx-auto space-y-4">
-            <Card className="glass-card">
-              <CardHeader><CardTitle className="text-base">Assets</CardTitle></CardHeader>
-              <CardContent>
-                <Row label="Cash & Bank Balances" value={bankTotal} />
-                <Row label="Accounts Receivable" value={receivables} />
-                <Row label="Inventory (at cost)" value={inventory} />
-                <Separator className="my-2" />
-                <Row label="Total Assets" value={totalAssets} bold />
-              </CardContent>
-            </Card>
-            <Card className="glass-card">
-              <CardHeader><CardTitle className="text-base">Liabilities</CardTitle></CardHeader>
-              <CardContent>
-                <Row label="Accounts Payable (Suppliers)" value={payables} />
-                <Row label="Accounts Payable (Printers)" value={printerPayables} />
-                <Row label="GST Payable (net)" value={Math.max(taxPayable, 0)} />
-                <Separator className="my-2" />
-                <Row label="Total Liabilities" value={totalLiabilities} bold />
-              </CardContent>
-            </Card>
-            <Card className={`glass-card border-2 ${equity >= 0 ? "border-primary/30" : "border-destructive/30"}`}>
-              <CardHeader><CardTitle className="text-base">Equity</CardTitle></CardHeader>
-              <CardContent>
-                <p className={`text-3xl font-bold font-mono ${equity >= 0 ? "text-primary" : "text-destructive"}`}>PKR {equity.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground mt-1">Assets − Liabilities</p>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+    <AppLayout title="Balance Sheet">
+      <div className="max-w-2xl mx-auto space-y-4">
+        <Card className="glass-card">
+          <CardHeader><CardTitle className="text-base">Assets</CardTitle></CardHeader>
+          <CardContent>
+            <Row label="Cash & Bank Balances" value={bankTotal} />
+            <Row label="Accounts Receivable" value={receivables} />
+            <Row label="Inventory (at cost)" value={inventory} />
+            <Separator className="my-2" />
+            <Row label="Total Assets" value={totalAssets} bold />
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardHeader><CardTitle className="text-base">Liabilities</CardTitle></CardHeader>
+          <CardContent>
+            <Row label="Accounts Payable (Suppliers)" value={payables} />
+            <Row label="Accounts Payable (Printers)" value={printerPayables} />
+            <Row label="GST Payable (net)" value={Math.max(taxPayable, 0)} />
+            <Separator className="my-2" />
+            <Row label="Total Liabilities" value={totalLiabilities} bold />
+          </CardContent>
+        </Card>
+        <Card className={`glass-card border-2 ${equity >= 0 ? "border-primary/30" : "border-destructive/30"}`}>
+          <CardHeader><CardTitle className="text-base">Equity</CardTitle></CardHeader>
+          <CardContent>
+            <p className={`text-3xl font-bold font-mono ${equity >= 0 ? "text-primary" : "text-destructive"}`}>PKR {equity.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mt-1">Assets − Liabilities</p>
+          </CardContent>
+        </Card>
       </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }
