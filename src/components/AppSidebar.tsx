@@ -27,6 +27,10 @@ const sections = [
   { label: "Inventory", items: [
     { title: "Products & Stock", url: "/products", icon: Package },
   ]},
+  { label: "Printing", items: [
+    { title: "Printers", url: "/printers", icon: Printer },
+    { title: "Print Jobs", url: "/print-jobs", icon: ClipboardList },
+  ]},
   { label: "Finance", items: [
     { title: "Payments", url: "/payments", icon: Wallet },
     { title: "Expenses", url: "/expenses", icon: CreditCard },

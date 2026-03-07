@@ -46,7 +46,8 @@ export default function Payments() {
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
 
   const [paymentType, setPaymentType] = useState<"received" | "made">("received");
-  const [partyType, setPartyType] = useState<"customer" | "supplier">("customer");
+  const [printersList, setPrintersList] = useState<{ id: string; name: string }[]>([]);
+  const [partyType, setPartyType] = useState<"customer" | "supplier" | "printer">("customer");
   const [partyId, setPartyId] = useState("");
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");

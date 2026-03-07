@@ -72,6 +72,9 @@ const App = () => (
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/bank" element={<BankAccounts />} />
           <Route path="/stock" element={<StockMovements />} />
+          <Route path="/printers" element={<Printers />} />
+          <Route path="/printers/:id/ledger" element={<PrinterLedger />} />
+          <Route path="/print-jobs" element={<PrintJobs />} />
           <Route path="/import" element={<DataImport />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/delivery-notes" element={<DeliveryNotes />} />
