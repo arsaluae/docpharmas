@@ -90,6 +90,7 @@ export default function ProformaInvoices() {
   }, [navigate]);
 
   const load = async () => {
+    setLoading(true);
     const [pf, inv, cust, prod] = await Promise.all([
       supabase.from("proforma_invoices").select("*, customers(name)").order("created_at", { ascending: false }),
       supabase.from("sales_invoices").select("*, customers(name)").order("created_at", { ascending: false }),
