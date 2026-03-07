@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, FileText } from "lucide-react";
+import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, FileText, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -47,7 +48,9 @@ export default function ProformaInvoices() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [customerFilter, setCustomerFilter] = useState("");
+  const [dateRange, setDateRange] = useState("all");
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const [customerId, setCustomerId] = useState("");
@@ -88,6 +91,7 @@ export default function ProformaInvoices() {
   }, [navigate]);
 
   const load = async () => {
+    setLoading(true);
     const [pf, inv, cust, prod] = await Promise.all([
       supabase.from("proforma_invoices").select("*, customers(name)").order("created_at", { ascending: false }),
       supabase.from("sales_invoices").select("*, customers(name)").order("created_at", { ascending: false }),
@@ -147,6 +151,7 @@ export default function ProformaInvoices() {
     setDocs(combined);
     if (cust.data) setCustomers(cust.data);
     if (prod.data) setProducts(prod.data);
+    setLoading(false);
   };
 
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0 }]);
@@ -292,14 +297,38 @@ export default function ProformaInvoices() {
   };
 
   const { subtotal, gst, total } = calcTotals();
+  const getDateFilter = () => {
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    if (dateRange === "today") return todayStr;
+    if (dateRange === "week") {
+      const d = new Date(now); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      return d.toISOString().split("T")[0];
+    }
+    if (dateRange === "month") return todayStr.slice(0, 7) + "-01";
+    return null;
+  };
+
   const filtered = docs.filter(p => {
     const matchSearch = p.doc_number.toLowerCase().includes(search.toLowerCase()) ||
       ((p.customers as any)?.name || "").toLowerCase().includes(search.toLowerCase()) ||
       (p.invoice_number || "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
     const matchCustomer = !customerFilter || p.customer_id === customerFilter;
-    return matchSearch && matchStatus && matchCustomer;
+    const dateStart = getDateFilter();
+    const matchDate = !dateStart || p.date >= dateStart;
+    return matchSearch && matchStatus && matchCustomer && matchDate;
   });
+
+  // Summary stats
+  const statsByStatus = (status: string) => {
+    const items = docs.filter(d => d.status === status);
+    return { count: items.length, value: items.reduce((s, d) => s + Number(d.total), 0) };
+  };
+  const draftStats = statsByStatus("draft");
+  const invoicedStats = statsByStatus("invoiced");
+  const dispatchedStats = statsByStatus("dispatched");
+  const paidStats = statsByStatus("paid");
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
@@ -504,14 +533,30 @@ export default function ProformaInvoices() {
           </header>
 
           <div className="p-6">
+            {/* Summary Stats Strip */}
+            <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: "Drafts", ...draftStats, color: "bg-warning/10 text-warning", onClick: () => setStatusFilter("draft") },
+                { label: "Invoiced", ...invoicedStats, color: "bg-primary/20 text-primary", onClick: () => setStatusFilter("invoiced") },
+                { label: "Dispatched", ...dispatchedStats, color: "bg-primary/20 text-primary", onClick: () => setStatusFilter("dispatched") },
+                { label: "Paid", ...paidStats, color: "bg-chart-2/20 text-chart-2", onClick: () => setStatusFilter("paid") },
+              ].map(s => (
+                <button key={s.label} onClick={s.onClick} className="text-left p-3 rounded-lg border border-border hover:bg-accent/50 transition-all">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{s.label}</p>
+                  <p className="text-lg font-bold font-heading text-foreground">{s.count}</p>
+                  <p className="text-xs font-mono text-muted-foreground">PKR {s.value.toLocaleString()}</p>
+                </button>
+              ))}
+            </div>
+
             {/* Status flow indicator */}
-            <div className="mb-6 flex items-center gap-3 text-xs text-muted-foreground bg-muted/50 rounded-lg px-4 py-3 border border-border">
+            <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground bg-muted/50 rounded-lg px-4 py-2.5 border border-border">
               <span className="px-2 py-1 rounded bg-warning/10 text-warning font-semibold">Draft</span>
               <span>→</span>
               <span className="px-2 py-1 rounded bg-primary/20 text-primary font-semibold">Invoiced + DN</span>
               <span>→</span>
               <span className="px-2 py-1 rounded bg-chart-2/20 text-chart-2 font-semibold">Paid</span>
-              <span className="ml-auto italic">One click confirms → creates Invoice + Delivery Note automatically</span>
+              <span className="ml-auto italic">One click confirms → creates Invoice + Delivery Note</span>
             </div>
 
             <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -529,6 +574,14 @@ export default function ProformaInvoices() {
               </div>
               <div className="w-48">
                 <SearchableSelect options={[{ value: "", label: "All Customers" }, ...customerOptions]} value={customerFilter} onChange={setCustomerFilter} placeholder="Filter customer..." searchPlaceholder="Search..." />
+              </div>
+              <div className="flex items-center gap-1">
+                {[{ label: "All", value: "all" }, { label: "Today", value: "today" }, { label: "Week", value: "week" }, { label: "Month", value: "month" }].map(d => (
+                  <button key={d.value} onClick={() => setDateRange(d.value)}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${dateRange === d.value ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}>
+                    {d.label}
+                  </button>
+                ))}
               </div>
             </div>
             <Card className="glass-card">
