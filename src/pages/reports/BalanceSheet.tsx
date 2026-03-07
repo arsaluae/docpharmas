@@ -77,7 +77,8 @@ export default function BalanceSheet() {
             <Card className="glass-card">
               <CardHeader><CardTitle className="text-base">Liabilities</CardTitle></CardHeader>
               <CardContent>
-                <Row label="Accounts Payable" value={payables} />
+                <Row label="Accounts Payable (Suppliers)" value={payables} />
+                <Row label="Accounts Payable (Printers)" value={printerPayables} />
                 <Row label="GST Payable (net)" value={Math.max(taxPayable, 0)} />
                 <Separator className="my-2" />
                 <Row label="Total Liabilities" value={totalLiabilities} bold />

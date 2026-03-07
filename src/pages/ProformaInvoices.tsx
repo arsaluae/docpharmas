@@ -225,10 +225,11 @@ export default function ProformaInvoices() {
     if (!previewOrder) return;
     setSaving(true);
     const { subtotal, gst, total } = calcTotals(editItems);
-    await supabase.from("proforma_invoices").update({
+    const { error } = await supabase.from("proforma_invoices").update({
       customer_id: editCustomerId || null, date: editDate, validity_days: Number(editValidity),
       payment_instructions: editPaymentInstr || null, items: JSON.stringify(editItems), subtotal, gst, total,
     }).eq("id", previewOrder.id);
+    if (error) { toast.error("Failed to update: " + error.message); setSaving(false); return; }
     toast.success("Order updated");
     setPreviewOpen(false); setEditMode(false); setSaving(false); load();
   };
