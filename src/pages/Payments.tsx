@@ -67,20 +67,23 @@ export default function Payments() {
   }, [navigate]);
 
   const load = async () => {
-    const [pay, cust, sup, banks] = await Promise.all([
+    const [pay, cust, sup, banks, prnt] = await Promise.all([
       supabase.from("payments").select("*").order("created_at", { ascending: false }),
       supabase.from("customers").select("id, name"),
       supabase.from("suppliers").select("id, name"),
       supabase.from("bank_accounts").select("id, name, bank_name"),
+      supabase.from("printers").select("id, name"),
     ]);
     if (pay.data) setPayments(pay.data);
     if (cust.data) setCustomers(cust.data);
     if (sup.data) setSuppliers(sup.data);
     if (banks.data) setBankAccounts(banks.data);
+    if (prnt.data) setPrintersList(prnt.data);
 
     const names: Record<string, string> = {};
     cust.data?.forEach(c => { names[c.id] = c.name; });
     sup.data?.forEach(s => { names[s.id] = s.name; });
+    prnt.data?.forEach(p => { names[p.id] = p.name; });
     setPartyNames(names);
   };
 
