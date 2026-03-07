@@ -362,16 +362,18 @@ export default function ProformaInvoices() {
         quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
         amount: i.amount, batch_number: i.batch_number || null,
       }));
-      await supabase.from("sales_invoice_items").insert(lineItems);
+      const { error: itemsErr } = await supabase.from("sales_invoice_items").insert(lineItems);
+      if (itemsErr) { toast.error("Failed to save invoice items: " + itemsErr.message); setSubmitting(false); return; }
 
-      // Stock movements
+      // Stock movements (single source of truth for inventory — no duplicate trigger)
       for (const item of submitItems) {
         if (item.product_id && Number(item.convert_quantity) > 0) {
-          await supabase.from("stock_movements").insert({
+          const { error: smErr } = await supabase.from("stock_movements").insert({
             product_id: item.product_id, quantity: Number(item.convert_quantity),
             movement_type: "sale", batch_number: item.batch_number || null,
             reference_type: "sales_invoice", reference_id: inv.id, notes: `Invoice ${invNumber}`,
           });
+          if (smErr) { toast.error("Stock movement failed: " + smErr.message); }
         }
       }
 
