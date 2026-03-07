@@ -10,13 +10,10 @@ import CustomerLedger from "./pages/CustomerLedger";
 import Suppliers from "./pages/Suppliers";
 import SupplierLedger from "./pages/SupplierLedger";
 import Products from "./pages/Products";
-import SalesInvoices from "./pages/SalesInvoices";
+import ProformaInvoices from "./pages/ProformaInvoices";
 import SalesReturns from "./pages/SalesReturns";
 import WarrantyInvoices from "./pages/WarrantyInvoices";
 import PurchaseProforma from "./pages/PurchaseProforma";
-import PurchaseOrders from "./pages/PurchaseOrders";
-import GoodsReceivedNotes from "./pages/GoodsReceivedNotes";
-import PurchaseInvoicesPage from "./pages/PurchaseInvoicesPage";
 import PurchaseReturns from "./pages/PurchaseReturns";
 import Payments from "./pages/Payments";
 import Expenses from "./pages/Expenses";
@@ -58,14 +55,10 @@ const App = () => (
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/suppliers/:id/ledger" element={<SupplierLedger />} />
           <Route path="/products" element={<Products />} />
-          <Route path="/sales-invoices" element={<SalesInvoices />} />
-          <Route path="/sales-returns" element={<SalesReturns />} />
           <Route path="/proforma" element={<ProformaInvoices />} />
+          <Route path="/sales-returns" element={<SalesReturns />} />
           <Route path="/warranty-invoices" element={<WarrantyInvoices />} />
           <Route path="/purchase-proforma" element={<PurchaseProforma />} />
-          <Route path="/purchase-orders" element={<PurchaseOrders />} />
-          <Route path="/grn" element={<GoodsReceivedNotes />} />
-          <Route path="/purchase-invoices" element={<PurchaseInvoicesPage />} />
           <Route path="/purchase-returns" element={<PurchaseReturns />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/expenses" element={<Expenses />} />
