@@ -175,11 +175,12 @@ export default function ProformaInvoices() {
     const { subtotal, gst, total } = calcTotals(items);
     const { data: pfNumber } = await supabase.rpc("generate_document_number", { p_document_type: "proforma_invoice" });
     if (!pfNumber) { toast.error("Failed to generate number"); setSaving(false); return; }
-    await supabase.from("proforma_invoices").insert({
+    const { error } = await supabase.from("proforma_invoices").insert({
       proforma_number: pfNumber, customer_id: customerId, date: pfDate,
       validity_days: Number(validityDays), items: JSON.stringify(items), subtotal, gst, total,
       status: "draft", payment_instructions: paymentInstructions || null,
     });
+    if (error) { toast.error("Failed to create order: " + error.message); setSaving(false); return; }
     toast.success(`Sales Order ${pfNumber} created`);
     setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); setSaving(false); load();
   };
