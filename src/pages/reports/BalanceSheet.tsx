@@ -44,7 +44,7 @@ export default function BalanceSheet() {
   };
 
   const totalAssets = bankTotal + receivables + inventory;
-  const totalLiabilities = payables + Math.max(taxPayable, 0);
+  const totalLiabilities = payables + printerPayables + Math.max(taxPayable, 0);
   const equity = totalAssets - totalLiabilities;
 
   const Row = ({ label, value, bold }: { label: string; value: number; bold?: boolean }) => (
