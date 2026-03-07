@@ -190,17 +190,16 @@ export default function PurchaseProforma() {
       validity_days: Number(validityDays), subtotal, gst, total, status: "draft", notes: notes || null,
     }).select().single();
     if (ppErr || !pp) { toast.error("Failed to create order: " + (ppErr?.message || "Unknown error")); setSaving(false); return; }
-      await supabase.from("purchase_proforma_items").insert(
-        items.map(i => ({ proforma_id: pp.id, product_id: i.product_id || null, quantity_requested: Number(i.quantity_requested), rate: Number(i.rate), amount: i.amount }))
+    await supabase.from("purchase_proforma_items").insert(
+      items.map(i => ({ proforma_id: pp.id, product_id: i.product_id || null, quantity_requested: Number(i.quantity_requested), rate: Number(i.rate), amount: i.amount }))
+    );
+    if (costs.length > 0) {
+      await supabase.from("additional_costs").insert(
+        costs.map(c => ({ reference_type: "purchase_proforma", reference_id: pp.id, cost_type: c.cost_type, description: c.description, amount: Number(c.amount), vendor_id: c.vendor_id || null }))
       );
-      if (costs.length > 0) {
-        await supabase.from("additional_costs").insert(
-          costs.map(c => ({ reference_type: "purchase_proforma", reference_id: pp.id, cost_type: c.cost_type, description: c.description, amount: Number(c.amount), vendor_id: c.vendor_id || null }))
-        );
-      }
-      toast.success(`Purchase Order ${ppNumber} created`);
-      setCreateOpen(false); setSupplierId(""); setItems([]); setNotes(""); setCosts([]); setSaving(false); load();
-    } else { setSaving(false); }
+    }
+    toast.success(`Purchase Order ${ppNumber} created`);
+    setCreateOpen(false); setSupplierId(""); setItems([]); setNotes(""); setCosts([]); setSaving(false); load();
   };
 
   const addCostLine = () => {

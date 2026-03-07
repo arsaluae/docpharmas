@@ -12,7 +12,6 @@ import SupplierLedger from "./pages/SupplierLedger";
 import Products from "./pages/Products";
 import SalesInvoices from "./pages/SalesInvoices";
 import SalesReturns from "./pages/SalesReturns";
-import ProformaInvoices from "./pages/ProformaInvoices";
 import WarrantyInvoices from "./pages/WarrantyInvoices";
 import PurchaseProforma from "./pages/PurchaseProforma";
 import PurchaseOrders from "./pages/PurchaseOrders";
