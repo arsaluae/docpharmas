@@ -583,7 +583,6 @@ export default function ProformaInvoices() {
                   </button>
                 ))}
               </div>
-              </div>
             </div>
             <Card className="glass-card">
               <CardContent className="p-0">
