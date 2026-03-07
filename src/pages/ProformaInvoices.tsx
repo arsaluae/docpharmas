@@ -533,14 +533,30 @@ export default function ProformaInvoices() {
           </header>
 
           <div className="p-6">
+            {/* Summary Stats Strip */}
+            <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: "Drafts", ...draftStats, color: "bg-warning/10 text-warning", onClick: () => setStatusFilter("draft") },
+                { label: "Invoiced", ...invoicedStats, color: "bg-primary/20 text-primary", onClick: () => setStatusFilter("invoiced") },
+                { label: "Dispatched", ...dispatchedStats, color: "bg-primary/20 text-primary", onClick: () => setStatusFilter("dispatched") },
+                { label: "Paid", ...paidStats, color: "bg-chart-2/20 text-chart-2", onClick: () => setStatusFilter("paid") },
+              ].map(s => (
+                <button key={s.label} onClick={s.onClick} className="text-left p-3 rounded-lg border border-border hover:bg-accent/50 transition-all">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{s.label}</p>
+                  <p className="text-lg font-bold font-heading text-foreground">{s.count}</p>
+                  <p className="text-xs font-mono text-muted-foreground">PKR {s.value.toLocaleString()}</p>
+                </button>
+              ))}
+            </div>
+
             {/* Status flow indicator */}
-            <div className="mb-6 flex items-center gap-3 text-xs text-muted-foreground bg-muted/50 rounded-lg px-4 py-3 border border-border">
+            <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground bg-muted/50 rounded-lg px-4 py-2.5 border border-border">
               <span className="px-2 py-1 rounded bg-warning/10 text-warning font-semibold">Draft</span>
               <span>→</span>
               <span className="px-2 py-1 rounded bg-primary/20 text-primary font-semibold">Invoiced + DN</span>
               <span>→</span>
               <span className="px-2 py-1 rounded bg-chart-2/20 text-chart-2 font-semibold">Paid</span>
-              <span className="ml-auto italic">One click confirms → creates Invoice + Delivery Note automatically</span>
+              <span className="ml-auto italic">One click confirms → creates Invoice + Delivery Note</span>
             </div>
 
             <div className="mb-4 flex flex-wrap items-center gap-3">
