@@ -147,7 +147,7 @@ export default function Payments() {
     setBankAccountId(""); setChequeNumber(""); setChequeDate(""); setReference(""); setNotes("");
   };
 
-  const parties = partyType === "customer" ? customers : suppliers;
+  const parties = partyType === "customer" ? customers : partyType === "supplier" ? suppliers : printersList;
   const partyOptions = parties.map(p => ({ value: p.id, label: p.name }));
 
   const filtered = payments.filter(p => {
