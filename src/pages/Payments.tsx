@@ -46,7 +46,8 @@ export default function Payments() {
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
 
   const [paymentType, setPaymentType] = useState<"received" | "made">("received");
-  const [partyType, setPartyType] = useState<"customer" | "supplier">("customer");
+  const [printersList, setPrintersList] = useState<{ id: string; name: string }[]>([]);
+  const [partyType, setPartyType] = useState<"customer" | "supplier" | "printer">("customer");
   const [partyId, setPartyId] = useState("");
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -66,20 +67,23 @@ export default function Payments() {
   }, [navigate]);
 
   const load = async () => {
-    const [pay, cust, sup, banks] = await Promise.all([
+    const [pay, cust, sup, banks, prnt] = await Promise.all([
       supabase.from("payments").select("*").order("created_at", { ascending: false }),
       supabase.from("customers").select("id, name"),
       supabase.from("suppliers").select("id, name"),
       supabase.from("bank_accounts").select("id, name, bank_name"),
+      supabase.from("printers").select("id, name"),
     ]);
     if (pay.data) setPayments(pay.data);
     if (cust.data) setCustomers(cust.data);
     if (sup.data) setSuppliers(sup.data);
     if (banks.data) setBankAccounts(banks.data);
+    if (prnt.data) setPrintersList(prnt.data);
 
     const names: Record<string, string> = {};
     cust.data?.forEach(c => { names[c.id] = c.name; });
     sup.data?.forEach(s => { names[s.id] = s.name; });
+    prnt.data?.forEach(p => { names[p.id] = p.name; });
     setPartyNames(names);
   };
 
@@ -143,7 +147,7 @@ export default function Payments() {
     setBankAccountId(""); setChequeNumber(""); setChequeDate(""); setReference(""); setNotes("");
   };
 
-  const parties = partyType === "customer" ? customers : suppliers;
+  const parties = partyType === "customer" ? customers : partyType === "supplier" ? suppliers : printersList;
   const partyOptions = parties.map(p => ({ value: p.id, label: p.name }));
 
   const filtered = payments.filter(p => {
@@ -180,6 +184,18 @@ export default function Payments() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {paymentType === "made" && (
+                    <div>
+                      <Label>Party Type</Label>
+                      <Select value={partyType} onValueChange={(v: "supplier" | "printer") => { setPartyType(v); setPartyId(""); }}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="supplier">Supplier</SelectItem>
+                          <SelectItem value="printer">Printer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                    <div>
                     <Label>{partyType === "customer" ? "Customer" : "Supplier"} *</Label>
                     <SearchableSelect options={partyOptions} value={partyId} onChange={setPartyId} placeholder="Search..." />

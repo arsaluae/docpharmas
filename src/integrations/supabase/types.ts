@@ -744,6 +744,126 @@ export type Database = {
           },
         ]
       }
+      print_jobs: {
+        Row: {
+          cost_per_unit: number
+          created_at: string
+          date: string
+          id: string
+          job_number: string
+          notes: string | null
+          our_share_amount: number
+          printer_id: string | null
+          printer_share_amount: number
+          printer_share_percent: number
+          product_id: string | null
+          quantity_delivered: number
+          quantity_ordered: number
+          quantity_rejected: number
+          rejection_reason: string | null
+          status: string
+          total_cost: number
+        }
+        Insert: {
+          cost_per_unit?: number
+          created_at?: string
+          date?: string
+          id?: string
+          job_number: string
+          notes?: string | null
+          our_share_amount?: number
+          printer_id?: string | null
+          printer_share_amount?: number
+          printer_share_percent?: number
+          product_id?: string | null
+          quantity_delivered?: number
+          quantity_ordered?: number
+          quantity_rejected?: number
+          rejection_reason?: string | null
+          status?: string
+          total_cost?: number
+        }
+        Update: {
+          cost_per_unit?: number
+          created_at?: string
+          date?: string
+          id?: string
+          job_number?: string
+          notes?: string | null
+          our_share_amount?: number
+          printer_id?: string | null
+          printer_share_amount?: number
+          printer_share_percent?: number
+          product_id?: string | null
+          quantity_delivered?: number
+          quantity_ordered?: number
+          quantity_rejected?: number
+          rejection_reason?: string | null
+          status?: string
+          total_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_jobs_printer_id_fkey"
+            columns: ["printer_id"]
+            isOneToOne: false
+            referencedRelation: "printers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      printers: {
+        Row: {
+          address: string | null
+          balance: number
+          city: string | null
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          ntn: string | null
+          opening_balance: number
+          payment_terms_days: number
+          phone: string | null
+        }
+        Insert: {
+          address?: string | null
+          balance?: number
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          ntn?: string | null
+          opening_balance?: number
+          payment_terms_days?: number
+          phone?: string | null
+        }
+        Update: {
+          address?: string | null
+          balance?: number
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          ntn?: string | null
+          opening_balance?: number
+          payment_terms_days?: number
+          phone?: string | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string

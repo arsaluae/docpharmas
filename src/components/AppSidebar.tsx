@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, Truck, Package, LogOut, Pill, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
-  BarChart3, RotateCcw, Upload, Settings,
+  BarChart3, RotateCcw, Upload, Settings, Printer,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -26,6 +26,10 @@ const sections = [
   ]},
   { label: "Inventory", items: [
     { title: "Products & Stock", url: "/products", icon: Package },
+  ]},
+  { label: "Printing", items: [
+    { title: "Printers", url: "/printers", icon: Printer },
+    { title: "Print Jobs", url: "/print-jobs", icon: ClipboardList },
   ]},
   { label: "Finance", items: [
     { title: "Payments", url: "/payments", icon: Wallet },
