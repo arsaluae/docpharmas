@@ -575,6 +575,15 @@ export default function ProformaInvoices() {
               <div className="w-48">
                 <SearchableSelect options={[{ value: "", label: "All Customers" }, ...customerOptions]} value={customerFilter} onChange={setCustomerFilter} placeholder="Filter customer..." searchPlaceholder="Search..." />
               </div>
+              <div className="flex items-center gap-1">
+                {[{ label: "All", value: "all" }, { label: "Today", value: "today" }, { label: "Week", value: "week" }, { label: "Month", value: "month" }].map(d => (
+                  <button key={d.value} onClick={() => setDateRange(d.value)}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${dateRange === d.value ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}>
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+              </div>
             </div>
             <Card className="glass-card">
               <CardContent className="p-0">
