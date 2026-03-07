@@ -296,14 +296,38 @@ export default function ProformaInvoices() {
   };
 
   const { subtotal, gst, total } = calcTotals();
+  const getDateFilter = () => {
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    if (dateRange === "today") return todayStr;
+    if (dateRange === "week") {
+      const d = new Date(now); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      return d.toISOString().split("T")[0];
+    }
+    if (dateRange === "month") return todayStr.slice(0, 7) + "-01";
+    return null;
+  };
+
   const filtered = docs.filter(p => {
     const matchSearch = p.doc_number.toLowerCase().includes(search.toLowerCase()) ||
       ((p.customers as any)?.name || "").toLowerCase().includes(search.toLowerCase()) ||
       (p.invoice_number || "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
     const matchCustomer = !customerFilter || p.customer_id === customerFilter;
-    return matchSearch && matchStatus && matchCustomer;
+    const dateStart = getDateFilter();
+    const matchDate = !dateStart || p.date >= dateStart;
+    return matchSearch && matchStatus && matchCustomer && matchDate;
   });
+
+  // Summary stats
+  const statsByStatus = (status: string) => {
+    const items = docs.filter(d => d.status === status);
+    return { count: items.length, value: items.reduce((s, d) => s + Number(d.total), 0) };
+  };
+  const draftStats = statsByStatus("draft");
+  const invoicedStats = statsByStatus("invoiced");
+  const dispatchedStats = statsByStatus("dispatched");
+  const paidStats = statsByStatus("paid");
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
