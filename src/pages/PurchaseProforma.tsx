@@ -374,7 +374,12 @@ export default function PurchaseProforma() {
               date: grn.date, subtotal: Number(poData.subtotal), gst: Number(poData.gst),
               wht_amount: whtAmount, total: netTotal, status: "unpaid",
             });
-            toast.success(`GRN ${grnNumber} + Bill ${billNumber} created`);
+            toast.success(`GRN ${grnNumber} + Bill ${billNumber} created`, {
+              action: {
+                label: "Create Print Job",
+                onClick: () => navigate(`/print-jobs?from_grn=1`),
+              },
+            });
           }
         }
       } catch {
