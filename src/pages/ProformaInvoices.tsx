@@ -175,11 +175,12 @@ export default function ProformaInvoices() {
     const { subtotal, gst, total } = calcTotals(items);
     const { data: pfNumber } = await supabase.rpc("generate_document_number", { p_document_type: "proforma_invoice" });
     if (!pfNumber) { toast.error("Failed to generate number"); setSaving(false); return; }
-    await supabase.from("proforma_invoices").insert({
+    const { error } = await supabase.from("proforma_invoices").insert({
       proforma_number: pfNumber, customer_id: customerId, date: pfDate,
       validity_days: Number(validityDays), items: JSON.stringify(items), subtotal, gst, total,
       status: "draft", payment_instructions: paymentInstructions || null,
     });
+    if (error) { toast.error("Failed to create order: " + error.message); setSaving(false); return; }
     toast.success(`Sales Order ${pfNumber} created`);
     setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); setSaving(false); load();
   };
@@ -224,10 +225,11 @@ export default function ProformaInvoices() {
     if (!previewOrder) return;
     setSaving(true);
     const { subtotal, gst, total } = calcTotals(editItems);
-    await supabase.from("proforma_invoices").update({
+    const { error } = await supabase.from("proforma_invoices").update({
       customer_id: editCustomerId || null, date: editDate, validity_days: Number(editValidity),
       payment_instructions: editPaymentInstr || null, items: JSON.stringify(editItems), subtotal, gst, total,
     }).eq("id", previewOrder.id);
+    if (error) { toast.error("Failed to update: " + error.message); setSaving(false); return; }
     toast.success("Order updated");
     setPreviewOpen(false); setEditMode(false); setSaving(false); load();
   };
@@ -362,16 +364,18 @@ export default function ProformaInvoices() {
         quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
         amount: i.amount, batch_number: i.batch_number || null,
       }));
-      await supabase.from("sales_invoice_items").insert(lineItems);
+      const { error: itemsErr } = await supabase.from("sales_invoice_items").insert(lineItems);
+      if (itemsErr) { toast.error("Failed to save invoice items: " + itemsErr.message); setSubmitting(false); return; }
 
-      // Stock movements
+      // Stock movements (single source of truth for inventory — no duplicate trigger)
       for (const item of submitItems) {
         if (item.product_id && Number(item.convert_quantity) > 0) {
-          await supabase.from("stock_movements").insert({
+          const { error: smErr } = await supabase.from("stock_movements").insert({
             product_id: item.product_id, quantity: Number(item.convert_quantity),
             movement_type: "sale", batch_number: item.batch_number || null,
             reference_type: "sales_invoice", reference_id: inv.id, notes: `Invoice ${invNumber}`,
           });
+          if (smErr) { toast.error("Stock movement failed: " + smErr.message); }
         }
       }
 
