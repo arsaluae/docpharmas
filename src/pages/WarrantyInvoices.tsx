@@ -71,11 +71,7 @@ export default function WarrantyInvoices() {
     if (prod.data) setProducts(prod.data);
   };
 
-  const getNextNumber = () => {
-    const nums = invoices.map(i => parseInt(i.warranty_number.replace("WI-", "")) || 0);
-    const next = Math.max(0, ...nums) + 1;
-    return `WI-${String(next).padStart(4, "0")}`;
-  };
+  // Removed client-side getNextNumber — using atomic RPC instead
 
   const addItem = () => {
     setItems([...items, { product_id: "", product_name: "", batch_number: "", expiry_date: "", quantity: 1, mrp_rate: 0, amount: 0 }]);
