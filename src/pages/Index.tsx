@@ -163,22 +163,24 @@ export default function Index() {
   };
 
   const loadMonthlyChart = async () => {
-    const months: MonthlyData[] = [];
     const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const startDate = sixMonthsAgo.toISOString().split("T")[0];
+    const endDate = now.toISOString().split("T")[0];
+
+    const [rev, exp] = await Promise.all([
+      supabase.from("sales_invoices").select("subtotal, date").gte("date", startDate).lte("date", endDate),
+      supabase.from("expenses").select("amount, date").eq("expense_type", "business").gte("date", startDate).lte("date", endDate),
+    ]);
+
+    const months: MonthlyData[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const start = d.toISOString().split("T")[0];
-      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split("T")[0];
+      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const label = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-      const [rev, exp] = await Promise.all([
-        supabase.from("sales_invoices").select("subtotal").gte("date", start).lte("date", end),
-        supabase.from("expenses").select("amount").eq("expense_type", "business").gte("date", start).lte("date", end),
-      ]);
-      months.push({
-        month: label,
-        revenue: (rev.data || []).reduce((s, r) => s + Number(r.subtotal), 0),
-        expenses: (exp.data || []).reduce((s, e) => s + Number(e.amount), 0),
-      });
+      const revenue = (rev.data || []).filter(r => r.date.startsWith(monthStr)).reduce((s, r) => s + Number(r.subtotal), 0);
+      const expenses = (exp.data || []).filter(e => e.date.startsWith(monthStr)).reduce((s, e) => s + Number(e.amount), 0);
+      months.push({ month: label, revenue, expenses });
     }
     setMonthlyData(months);
   };
