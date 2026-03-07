@@ -100,8 +100,15 @@ export default function WarrantyInvoices() {
     if (!form.pharmacy_name.trim()) { toast.error("Pharmacy name is required"); return; }
     if (items.length === 0) { toast.error("Add at least one item"); return; }
 
+    let warrantyNumber: string | undefined;
+    if (!editId) {
+      const { data: num } = await supabase.rpc("generate_document_number", { p_document_type: "warranty_invoice" });
+      if (!num) { toast.error("Failed to generate number"); return; }
+      warrantyNumber = num;
+    }
+
     const payload = {
-      warranty_number: editId ? undefined : getNextNumber(),
+      warranty_number: editId ? undefined : warrantyNumber,
       date: form.date,
       customer_id: form.customer_id || null,
       pharmacy_name: form.pharmacy_name,
