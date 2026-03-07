@@ -198,7 +198,7 @@ export default function Payments() {
                     </div>
                   )}
                    <div>
-                    <Label>{partyType === "customer" ? "Customer" : "Supplier"} *</Label>
+                    <Label>{partyType === "customer" ? "Customer" : partyType === "printer" ? "Printer" : "Supplier"} *</Label>
                     <SearchableSelect options={partyOptions} value={partyId} onChange={setPartyId} placeholder="Search..." />
                   </div>
                   <div><Label>Amount (PKR) *</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} /></div>
