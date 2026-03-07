@@ -47,7 +47,9 @@ export default function ProformaInvoices() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [customerFilter, setCustomerFilter] = useState("");
+  const [dateRange, setDateRange] = useState("all");
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const [customerId, setCustomerId] = useState("");
