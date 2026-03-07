@@ -24,11 +24,12 @@ export default function BalanceSheet() {
   }, [navigate]);
 
   const load = async () => {
-    const [banks, custs, prods, sups, salesInv, purchInv] = await Promise.all([
+    const [banks, custs, prods, sups, printers, salesInv, purchInv] = await Promise.all([
       supabase.from("bank_accounts").select("balance"),
       supabase.from("customers").select("balance"),
       supabase.from("products").select("cost_price, stock_quantity"),
       supabase.from("suppliers").select("balance"),
+      supabase.from("printers").select("balance"),
       supabase.from("sales_invoices").select("gst_amount").in("status", ["unpaid", "partial"]),
       supabase.from("purchase_invoices").select("gst, wht_amount").in("status", ["unpaid", "partial"]),
     ]);
@@ -36,6 +37,7 @@ export default function BalanceSheet() {
     setReceivables((custs.data || []).reduce((s, c) => s + Number(c.balance), 0));
     setInventory((prods.data || []).reduce((s, p) => s + Number(p.cost_price) * Number(p.stock_quantity), 0));
     setPayables((sups.data || []).reduce((s, su) => s + Number(su.balance), 0));
+    setPrinterPayables((printers.data || []).reduce((s, pr) => s + Number(pr.balance), 0));
     const gstOut = (salesInv.data || []).reduce((s, i) => s + Number(i.gst_amount), 0);
     const gstIn = (purchInv.data || []).reduce((s, i) => s + Number(i.gst), 0);
     setTaxPayable(gstOut - gstIn);
