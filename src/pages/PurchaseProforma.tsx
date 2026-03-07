@@ -634,7 +634,6 @@ export default function PurchaseProforma() {
               <span className="px-2 py-1 rounded bg-chart-2/20 text-chart-2 font-semibold">Received (GRN + Bill)</span>
               <span className="ml-auto italic">One click at each step</span>
             </div>
-            </div>
 
             <div className="mb-4 flex flex-wrap items-center gap-3">
               <div className="relative max-w-sm flex-1">
@@ -660,7 +659,6 @@ export default function PurchaseProforma() {
                   </button>
                 ))}
               </div>
-            </div>
             </div>
             <Card className="glass-card">
               <CardContent className="p-0">
