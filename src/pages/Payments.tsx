@@ -184,6 +184,18 @@ export default function Payments() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {paymentType === "made" && (
+                    <div>
+                      <Label>Party Type</Label>
+                      <Select value={partyType} onValueChange={(v: "supplier" | "printer") => { setPartyType(v); setPartyId(""); }}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="supplier">Supplier</SelectItem>
+                          <SelectItem value="printer">Printer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                    <div>
                     <Label>{partyType === "customer" ? "Customer" : "Supplier"} *</Label>
                     <SearchableSelect options={partyOptions} value={partyId} onChange={setPartyId} placeholder="Search..." />
