@@ -105,12 +105,13 @@ export default function Payments() {
     } else {
       const { data: paymentNumber } = await supabase.rpc("generate_document_number", { p_document_type: "payment" });
       if (!paymentNumber) { toast.error("Failed to generate payment number"); return; }
-      await supabase.from("payments").insert({
+      const { error } = await supabase.from("payments").insert({
         payment_number: paymentNumber, type: paymentType, party_type: partyType, party_id: partyId,
         amount: Number(amount), payment_method: paymentMethod,
         bank_account_id: bankAccountId || null, cheque_number: chequeNumber || null,
         cheque_date: chequeDate || null, reference: reference || null, date: payDate, notes: notes || null,
       });
+      if (error) { toast.error("Failed to record payment: " + error.message); return; }
       toast.success(`Payment ${paymentNumber} recorded`);
     }
     resetForm(); load();
@@ -197,7 +198,7 @@ export default function Payments() {
                     </div>
                   )}
                    <div>
-                    <Label>{partyType === "customer" ? "Customer" : "Supplier"} *</Label>
+                    <Label>{partyType === "customer" ? "Customer" : partyType === "printer" ? "Printer" : "Supplier"} *</Label>
                     <SearchableSelect options={partyOptions} value={partyId} onChange={setPartyId} placeholder="Search..." />
                   </div>
                   <div><Label>Amount (PKR) *</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} /></div>
