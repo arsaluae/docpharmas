@@ -3,8 +3,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
+import Index from "./pages/Index";
+import AdminPanel from "./pages/AdminPanel";
 import Customers from "./pages/Customers";
 import CustomerLedger from "./pages/CustomerLedger";
 import Suppliers from "./pages/Suppliers";
@@ -48,40 +52,49 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          {/* Public routes */}
+          <Route path="/landing" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/customers/:id/ledger" element={<CustomerLedger />} />
-          <Route path="/suppliers" element={<Suppliers />} />
-          <Route path="/suppliers/:id/ledger" element={<SupplierLedger />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/proforma" element={<ProformaInvoices />} />
-          <Route path="/sales-returns" element={<SalesReturns />} />
-          <Route path="/warranty-invoices" element={<WarrantyInvoices />} />
-          <Route path="/purchase-proforma" element={<PurchaseProforma />} />
-          <Route path="/purchase-returns" element={<PurchaseReturns />} />
-          <Route path="/payments" element={<Payments />} />
-          <Route path="/expenses" element={<Expenses />} />
-          <Route path="/bank" element={<BankAccounts />} />
-          <Route path="/stock" element={<StockMovements />} />
-          <Route path="/printers" element={<Printers />} />
-          <Route path="/printers/:id/ledger" element={<PrinterLedger />} />
-          <Route path="/print-jobs" element={<PrintJobs />} />
-          <Route path="/import" element={<DataImport />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/delivery-notes" element={<DeliveryNotes />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/reports/pl" element={<ProfitLoss />} />
-          <Route path="/reports/balance-sheet" element={<BalanceSheet />} />
-          <Route path="/reports/cash-flow" element={<CashFlow />} />
-          <Route path="/reports/receivables" element={<ReceivablesAging />} />
-          <Route path="/reports/payables" element={<PayablesAging />} />
-          <Route path="/reports/product-costing" element={<ProductCosting />} />
-          <Route path="/reports/tax" element={<TaxCompliance />} />
-          <Route path="/reports/item-wise" element={<ItemWiseReport />} />
-          <Route path="/reports/batch-wise" element={<BatchWiseReport />} />
-          <Route path="/reports/customer-wise" element={<CustomerWiseReport />} />
-          <Route path="/reports/supplier-wise" element={<SupplierWiseReport />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+
+          {/* Protected routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<Index />} />
+            <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/customers/:id/ledger" element={<CustomerLedger />} />
+            <Route path="/suppliers" element={<Suppliers />} />
+            <Route path="/suppliers/:id/ledger" element={<SupplierLedger />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/proforma" element={<ProformaInvoices />} />
+            <Route path="/sales-returns" element={<SalesReturns />} />
+            <Route path="/warranty-invoices" element={<WarrantyInvoices />} />
+            <Route path="/purchase-proforma" element={<PurchaseProforma />} />
+            <Route path="/purchase-returns" element={<PurchaseReturns />} />
+            <Route path="/payments" element={<Payments />} />
+            <Route path="/expenses" element={<Expenses />} />
+            <Route path="/bank" element={<BankAccounts />} />
+            <Route path="/stock" element={<StockMovements />} />
+            <Route path="/printers" element={<Printers />} />
+            <Route path="/printers/:id/ledger" element={<PrinterLedger />} />
+            <Route path="/print-jobs" element={<PrintJobs />} />
+            <Route path="/import" element={<DataImport />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/delivery-notes" element={<DeliveryNotes />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/reports/pl" element={<ProfitLoss />} />
+            <Route path="/reports/balance-sheet" element={<BalanceSheet />} />
+            <Route path="/reports/cash-flow" element={<CashFlow />} />
+            <Route path="/reports/receivables" element={<ReceivablesAging />} />
+            <Route path="/reports/payables" element={<PayablesAging />} />
+            <Route path="/reports/product-costing" element={<ProductCosting />} />
+            <Route path="/reports/tax" element={<TaxCompliance />} />
+            <Route path="/reports/item-wise" element={<ItemWiseReport />} />
+            <Route path="/reports/batch-wise" element={<BatchWiseReport />} />
+            <Route path="/reports/customer-wise" element={<CustomerWiseReport />} />
+            <Route path="/reports/supplier-wise" element={<SupplierWiseReport />} />
+          </Route>
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

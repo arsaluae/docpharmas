@@ -2,47 +2,48 @@ import { useState } from "react";
 import {
   LayoutDashboard, Users, Truck, Package, LogOut, Pill, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
-  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown,
+  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown, Shield,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/hooks/useTenant";
 import {
   Sidebar, SidebarContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-const sections = [
-  { label: "Sales", icon: FileText, items: [
+const allSections = [
+  { label: "Sales", icon: FileText, staffVisible: true, items: [
     { title: "Customers", url: "/customers", icon: Users },
     { title: "Sales Orders", url: "/proforma", icon: FileText },
     { title: "Delivery Notes", url: "/delivery-notes", icon: ClipboardList },
     { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList },
     { title: "Returns", url: "/sales-returns", icon: RotateCcw },
   ]},
-  { label: "Purchase", icon: Truck, items: [
+  { label: "Purchase", icon: Truck, staffVisible: false, items: [
     { title: "Suppliers", url: "/suppliers", icon: Truck },
     { title: "Purchase Orders", url: "/purchase-proforma", icon: FileText },
     { title: "Returns", url: "/purchase-returns", icon: RotateCcw },
   ]},
-  { label: "Inventory", icon: Package, items: [
+  { label: "Inventory", icon: Package, staffVisible: false, items: [
     { title: "Products & Stock", url: "/products", icon: Package },
     { title: "Stock Movements", url: "/stock", icon: RotateCcw },
   ]},
-  { label: "Printing", icon: Printer, items: [
+  { label: "Printing", icon: Printer, staffVisible: false, items: [
     { title: "Printers", url: "/printers", icon: Printer },
     { title: "Print Jobs", url: "/print-jobs", icon: ClipboardList },
   ]},
-  { label: "Finance", icon: Wallet, items: [
+  { label: "Finance", icon: Wallet, staffVisible: false, items: [
     { title: "Payments", url: "/payments", icon: Wallet },
     { title: "Expenses", url: "/expenses", icon: CreditCard },
     { title: "Bank Accounts", url: "/bank", icon: Landmark },
   ]},
-  { label: "Reports", icon: BarChart3, items: [
+  { label: "Reports", icon: BarChart3, staffVisible: false, items: [
     { title: "Reports", url: "/reports", icon: BarChart3 },
   ]},
-  { label: "Settings", icon: Settings, items: [
+  { label: "Settings", icon: Settings, staffVisible: false, items: [
     { title: "Company Settings", url: "/settings", icon: Settings },
     { title: "Data Import", url: "/import", icon: Upload },
   ]},
@@ -53,8 +54,13 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
+  const { tenantRole, isAdmin, tenantName } = useTenant();
 
-  // Determine which section is active to auto-open it
+  // Filter sections based on role
+  const sections = tenantRole === "staff" && !isAdmin
+    ? allSections.filter(s => s.staffVisible)
+    : allSections;
+
   const activeSectionIdx = sections.findIndex(s =>
     s.items.some(i => location.pathname === i.url || (i.url !== "/" && location.pathname.startsWith(i.url)))
   );
@@ -77,10 +83,15 @@ export function AppSidebar() {
         <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
           <Pill className="h-4 w-4 text-primary" />
         </div>
-        {!collapsed && <span className="font-heading font-bold text-foreground text-lg tracking-tight">PharmBooks</span>}
+        {!collapsed && (
+          <div className="flex-1 min-w-0">
+            <span className="font-heading font-bold text-foreground text-lg tracking-tight block">PharmaZen</span>
+            {tenantName && <span className="text-[10px] text-muted-foreground truncate block">{tenantName}</span>}
+          </div>
+        )}
       </div>
       <SidebarContent className="mt-2 px-2">
-        {/* Dashboard - direct link */}
+        {/* Dashboard */}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
@@ -94,13 +105,28 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
 
+        {/* Admin link */}
+        {isAdmin && (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <NavLink to="/admin"
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${location.pathname === "/admin" ? "bg-primary/10 text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
+                  activeClassName="bg-primary/10 text-primary">
+                  <Shield className={`h-4 w-4 ${location.pathname === "/admin" ? "text-primary" : ""}`} />
+                  {!collapsed && <span>Admin Panel</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
+
         {/* Collapsible Sections */}
         {sections.map((section, idx) => {
           const isOpen = openSections[idx] || false;
           const sectionActive = section.items.some(i => location.pathname === i.url || (i.url !== "/" && location.pathname.startsWith(i.url)));
 
           if (collapsed) {
-            // In collapsed mode, just show icons for items
             return (
               <SidebarMenu key={section.label}>
                 {section.items.map((item) => {
@@ -153,6 +179,13 @@ export function AppSidebar() {
         })}
       </SidebarContent>
       <SidebarFooter className="p-3">
+        {tenantRole && !collapsed && (
+          <div className="px-3 py-1.5 mb-1">
+            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+              {tenantRole === "owner" ? "Admin Account" : "Staff Account"}
+            </span>
+          </div>
+        )}
         <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-all w-full">
           <LogOut className="h-4 w-4" />{!collapsed && <span>Logout</span>}
         </button>

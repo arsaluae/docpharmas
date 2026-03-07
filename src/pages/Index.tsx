@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,14 +19,6 @@ export default function Index() {
   const [recentStock, setRecentStock] = useState<{ name: string; quantity: number; date: string }[]>([]);
   const [topSelling, setTopSelling] = useState<{ name: string; qty: number }[]>([]);
   const [topCustomers, setTopCustomers] = useState<{ name: string; monthSale: number; yearlySale: number }[]>([]);
-
-  useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate("/auth");
-    };
-    check();
-  }, [navigate]);
 
   useEffect(() => { loadDashboard(); }, []);
 
@@ -57,16 +48,12 @@ export default function Index() {
     const custMap: Record<string, string> = {};
     (customers.data || []).forEach(c => { custMap[c.id] = c.name; });
 
-    // Week & month sales
     const ws = (weekInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0);
     const ms = (monthInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0);
     setWeekSales(ws);
     setMonthSales(ms);
 
-    // Gross margin: month revenue - cost of goods sold
-    // We need month invoice IDs to filter items
     const monthInvoiceIds = new Set<string>();
-    // Get month invoices with IDs
     const { data: monthInvIds } = await supabase.from("sales_invoices").select("id").gte("date", monthStart).lte("date", todayStr);
     (monthInvIds || []).forEach(inv => monthInvoiceIds.add(inv.id));
 
@@ -81,14 +68,12 @@ export default function Index() {
     });
     setGrossMargin(ms - totalCost);
 
-    // Top 5 selling items this month by qty
     const topSell = Object.entries(prodQtyMonth)
       .map(([id, qty]) => ({ name: prodMap[id]?.name || "Unknown", qty }))
       .sort((a, b) => b.qty - a.qty)
       .slice(0, 5);
     setTopSelling(topSell);
 
-    // Recent stock in
     const rs = (recentMovements.data || []).map(m => ({
       name: prodMap[m.product_id]?.name || "Unknown",
       quantity: Number(m.quantity),
@@ -96,7 +81,6 @@ export default function Index() {
     }));
     setRecentStock(rs);
 
-    // Top customers: month sale + yearly sale
     const monthCust: Record<string, number> = {};
     (monthInv.data || []).forEach(inv => {
       if (inv.customer_id) monthCust[inv.customer_id] = (monthCust[inv.customer_id] || 0) + Number(inv.subtotal);
@@ -121,185 +105,151 @@ export default function Index() {
   ];
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading">Dashboard</h1>
-              <p className="text-sm text-muted-foreground">Business overview</p>
-            </div>
-            <Badge variant="outline" className="text-xs font-mono">
-              <CalendarDays className="h-3 w-3 mr-1" />
-              {new Date().toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}
-            </Badge>
-          </header>
+    <AppLayout title="Dashboard" subtitle="Business overview">
+      <div className="space-y-6">
+        {/* Sales Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="border-l-4 border-l-primary hover:shadow-md transition-all">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">This Week Sale</p>
+                  <p className="text-2xl font-bold text-foreground mt-1 font-heading">PKR {weekSales.toLocaleString()}</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-primary/10"><CalendarDays className="h-5 w-5 text-primary" /></div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-emerald-500 hover:shadow-md transition-all">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">This Month Sale</p>
+                  <p className="text-2xl font-bold text-foreground mt-1 font-heading">PKR {monthSales.toLocaleString()}</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-emerald-500/10"><ShoppingCart className="h-5 w-5 text-emerald-500" /></div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className={`border-l-4 hover:shadow-md transition-all ${grossMargin >= 0 ? "border-l-primary" : "border-l-destructive"}`}>
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Gross Margin (Month)</p>
+                  <p className={`text-2xl font-bold mt-1 font-heading ${grossMargin >= 0 ? "text-primary" : "text-destructive"}`}>
+                    PKR {Math.abs(grossMargin).toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Sale − Cost Price</p>
+                </div>
+                <div className={`p-2.5 rounded-xl ${grossMargin >= 0 ? "bg-primary/10" : "bg-destructive/10"}`}>
+                  {grossMargin >= 0 ? <TrendingUp className="h-5 w-5 text-primary" /> : <TrendingDown className="h-5 w-5 text-destructive" />}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-          <div className="p-6 space-y-6">
-            {/* ROW 1: Sales Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="border-l-4 border-l-primary hover:shadow-md transition-all">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">This Week Sale</p>
-                      <p className="text-2xl font-bold text-foreground mt-1 font-heading">PKR {weekSales.toLocaleString()}</p>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-primary/10">
-                      <CalendarDays className="h-5 w-5 text-primary" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {quickActions.map((action) => (
+            <button key={action.label} onClick={() => navigate(action.path)}
+              className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${action.gradient} p-5 text-white shadow-lg ${action.shadow} hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200`}>
+              <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-200" />
+              <div className="relative flex flex-col items-center gap-3">
+                <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm"><action.icon className="h-6 w-6" /></div>
+                <span className="font-semibold text-sm tracking-wide">{action.label}</span>
+              </div>
+            </button>
+          ))}
+        </div>
 
-              <Card className="border-l-4 border-l-emerald-500 hover:shadow-md transition-all">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">This Month Sale</p>
-                      <p className="text-2xl font-bold text-foreground mt-1 font-heading">PKR {monthSales.toLocaleString()}</p>
+        {/* Panels */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-5">
+              <CardTitle className="text-sm font-heading flex items-center gap-2">
+                <PackageCheck className="h-4 w-4 text-primary" /> New Stock In
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-5 pb-4">
+              {recentStock.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">No recent stock received</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {recentStock.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50">
+                      <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{item.name}</span>
+                      <div className="flex items-center gap-3">
+                        <Badge variant="secondary" className="font-mono text-xs">{item.quantity} units</Badge>
+                        <span className="text-[10px] text-muted-foreground">{item.date}</span>
+                      </div>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-emerald-500/10">
-                      <ShoppingCart className="h-5 w-5 text-emerald-500" />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-5">
+              <CardTitle className="text-sm font-heading flex items-center gap-2">
+                <Flame className="h-4 w-4 text-destructive" /> Top Selling Items (This Month)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-5 pb-4">
+              {topSelling.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">No sales data this month</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {topSelling.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-2.5">
+                        <span className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white ${idx === 0 ? "bg-amber-500" : idx === 1 ? "bg-slate-400" : idx === 2 ? "bg-amber-700" : "bg-muted-foreground/30"}`}>
+                          {idx + 1}
+                        </span>
+                        <span className="text-sm font-medium text-foreground truncate max-w-[50%]">{item.name}</span>
+                      </div>
+                      <Badge variant="outline" className="font-mono text-xs">{item.qty} sold</Badge>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-              <Card className={`border-l-4 hover:shadow-md transition-all ${grossMargin >= 0 ? "border-l-primary" : "border-l-destructive"}`}>
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Gross Margin (Month)</p>
-                      <p className={`text-2xl font-bold mt-1 font-heading ${grossMargin >= 0 ? "text-primary" : "text-destructive"}`}>
-                        PKR {Math.abs(grossMargin).toLocaleString()}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Sale − Cost Price</p>
-                    </div>
-                    <div className={`p-2.5 rounded-xl ${grossMargin >= 0 ? "bg-primary/10" : "bg-destructive/10"}`}>
-                      {grossMargin >= 0 ? <TrendingUp className="h-5 w-5 text-primary" /> : <TrendingDown className="h-5 w-5 text-destructive" />}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* ROW 2: Quick Action Buttons */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {quickActions.map((action) => (
-                <button
-                  key={action.label}
-                  onClick={() => navigate(action.path)}
-                  className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${action.gradient} p-5 text-white shadow-lg ${action.shadow} hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200`}
-                >
-                  <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-200" />
-                  <div className="relative flex flex-col items-center gap-3">
-                    <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
-                      <action.icon className="h-6 w-6" />
-                    </div>
-                    <span className="font-semibold text-sm tracking-wide">{action.label}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            {/* ROW 3: Two Side-by-Side Panels */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {/* LEFT: Recent Stock In */}
-              <Card>
-                <CardHeader className="pb-2 pt-4 px-5">
-                  <CardTitle className="text-sm font-heading flex items-center gap-2">
-                    <PackageCheck className="h-4 w-4 text-primary" />
-                    New Stock In
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-5 pb-4">
-                  {recentStock.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4 text-center">No recent stock received</p>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {recentStock.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50">
-                          <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{item.name}</span>
-                          <div className="flex items-center gap-3">
-                            <Badge variant="secondary" className="font-mono text-xs">{item.quantity} units</Badge>
-                            <span className="text-[10px] text-muted-foreground">{item.date}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* RIGHT: Top Selling Items */}
-              <Card>
-                <CardHeader className="pb-2 pt-4 px-5">
-                  <CardTitle className="text-sm font-heading flex items-center gap-2">
-                    <Flame className="h-4 w-4 text-destructive" />
-                    Top Selling Items (This Month)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-5 pb-4">
-                  {topSelling.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4 text-center">No sales data this month</p>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {topSelling.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50">
-                          <div className="flex items-center gap-2.5">
-                            <span className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white ${idx === 0 ? "bg-amber-500" : idx === 1 ? "bg-slate-400" : idx === 2 ? "bg-amber-700" : "bg-muted-foreground/30"}`}>
-                              {idx + 1}
-                            </span>
-                            <span className="text-sm font-medium text-foreground truncate max-w-[50%]">{item.name}</span>
-                          </div>
-                          <Badge variant="outline" className="font-mono text-xs">{item.qty} sold</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* ROW 4: Top Customers */}
-            <Card>
-              <CardHeader className="pb-2 pt-4 px-5">
-                <CardTitle className="text-sm font-heading flex items-center gap-2">
-                  <Users className="h-4 w-4 text-primary" />
-                  Top Customers
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-2 pb-4">
-                {topCustomers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No customer data yet</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Customer</TableHead>
-                        <TableHead className="text-right">This Month</TableHead>
-                        <TableHead className="text-right">This Year</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {topCustomers.map((c, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell className="font-medium text-sm">{c.name}</TableCell>
-                          <TableCell className="text-right font-mono text-sm">PKR {c.monthSale.toLocaleString()}</TableCell>
-                          <TableCell className="text-right font-mono text-sm">PKR {c.yearlySale.toLocaleString()}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+        {/* Top Customers */}
+        <Card>
+          <CardHeader className="pb-2 pt-4 px-5">
+            <CardTitle className="text-sm font-heading flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" /> Top Customers
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-2 pb-4">
+            {topCustomers.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No customer data yet</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="text-right">This Month</TableHead>
+                    <TableHead className="text-right">This Year</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topCustomers.map((c, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell className="font-medium text-sm">{c.name}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">PKR {c.monthSale.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">PKR {c.yearlySale.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }
