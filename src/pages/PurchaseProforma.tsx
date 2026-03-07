@@ -167,6 +167,7 @@ export default function PurchaseProforma() {
     setDocs(combined);
     if (sup.data) setSuppliers(sup.data as any);
     if (prod.data) setProducts(prod.data);
+    setLoading(false);
   };
 
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }]);
