@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, Truck, Package, LogOut, Pill, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
-  BarChart3, RotateCcw, Upload, Settings,
+  BarChart3, RotateCcw, Upload, Settings, Printer,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
