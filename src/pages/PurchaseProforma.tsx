@@ -43,7 +43,9 @@ export default function PurchaseProforma() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [supplierFilter, setSupplierFilter] = useState("");
+  const [dateRange, setDateRange] = useState("all");
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [costOpen, setCostOpen] = useState(false);
   const [selectedProformaId, setSelectedProformaId] = useState("");
