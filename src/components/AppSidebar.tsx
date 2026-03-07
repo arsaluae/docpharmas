@@ -1,47 +1,48 @@
+import { useState } from "react";
 import {
   LayoutDashboard, Users, Truck, Package, LogOut, Pill, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
-  BarChart3, RotateCcw, Upload, Settings, Printer,
+  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarGroupContent,
-  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, useSidebar,
+  Sidebar, SidebarContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
+  SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const sections = [
-  { label: "Overview", items: [{ title: "Dashboard", url: "/", icon: LayoutDashboard }] },
-  { label: "Sales", items: [
+  { label: "Sales", icon: FileText, items: [
     { title: "Customers", url: "/customers", icon: Users },
     { title: "Sales Orders", url: "/proforma", icon: FileText },
     { title: "Delivery Notes", url: "/delivery-notes", icon: ClipboardList },
     { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList },
     { title: "Returns", url: "/sales-returns", icon: RotateCcw },
   ]},
-  { label: "Purchases", items: [
+  { label: "Purchase", icon: Truck, items: [
     { title: "Suppliers", url: "/suppliers", icon: Truck },
     { title: "Purchase Orders", url: "/purchase-proforma", icon: FileText },
     { title: "Returns", url: "/purchase-returns", icon: RotateCcw },
   ]},
-  { label: "Inventory", items: [
+  { label: "Inventory", icon: Package, items: [
     { title: "Products & Stock", url: "/products", icon: Package },
     { title: "Stock Movements", url: "/stock", icon: RotateCcw },
   ]},
-  { label: "Printing", items: [
+  { label: "Printing", icon: Printer, items: [
     { title: "Printers", url: "/printers", icon: Printer },
     { title: "Print Jobs", url: "/print-jobs", icon: ClipboardList },
   ]},
-  { label: "Finance", items: [
+  { label: "Finance", icon: Wallet, items: [
     { title: "Payments", url: "/payments", icon: Wallet },
     { title: "Expenses", url: "/expenses", icon: CreditCard },
     { title: "Bank Accounts", url: "/bank", icon: Landmark },
   ]},
-  { label: "Reports", items: [
+  { label: "Reports", icon: BarChart3, items: [
     { title: "Reports", url: "/reports", icon: BarChart3 },
   ]},
-  { label: "Settings", items: [
+  { label: "Settings", icon: Settings, items: [
     { title: "Company Settings", url: "/settings", icon: Settings },
     { title: "Data Import", url: "/import", icon: Upload },
   ]},
@@ -53,42 +54,103 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Determine which section is active to auto-open it
+  const activeSectionIdx = sections.findIndex(s =>
+    s.items.some(i => location.pathname === i.url || (i.url !== "/" && location.pathname.startsWith(i.url)))
+  );
+
+  const [openSections, setOpenSections] = useState<Record<number, boolean>>(() => {
+    const initial: Record<number, boolean> = {};
+    if (activeSectionIdx >= 0) initial[activeSectionIdx] = true;
+    return initial;
+  });
+
+  const toggleSection = (idx: number) => {
+    setOpenSections(prev => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
   const handleLogout = async () => { await supabase.auth.signOut(); navigate("/auth"); };
 
   return (
     <Sidebar collapsible="icon" className="border-r-0 bg-sidebar">
       <div className="p-4 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center glow-primary">
+        <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
           <Pill className="h-4 w-4 text-primary" />
         </div>
         {!collapsed && <span className="font-heading font-bold text-foreground text-lg tracking-tight">PharmBooks</span>}
       </div>
-      <SidebarContent className="mt-2">
-        {sections.map((section) => (
-          <SidebarGroup key={section.label}>
-            {!collapsed && <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/60 px-3">{section.label}</SidebarGroupLabel>}
-            <SidebarGroupContent>
-              <SidebarMenu>
+      <SidebarContent className="mt-2 px-2">
+        {/* Dashboard - direct link */}
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <NavLink to="/" end
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${location.pathname === "/" ? "bg-primary/10 text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
+                activeClassName="bg-primary/10 text-primary">
+                <LayoutDashboard className={`h-4 w-4 ${location.pathname === "/" ? "text-primary" : ""}`} />
+                {!collapsed && <span>Dashboard</span>}
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+
+        {/* Collapsible Sections */}
+        {sections.map((section, idx) => {
+          const isOpen = openSections[idx] || false;
+          const sectionActive = section.items.some(i => location.pathname === i.url || (i.url !== "/" && location.pathname.startsWith(i.url)));
+
+          if (collapsed) {
+            // In collapsed mode, just show icons for items
+            return (
+              <SidebarMenu key={section.label}>
                 {section.items.map((item) => {
                   const isActive = location.pathname === item.url || (item.url !== "/" && location.pathname.startsWith(item.url));
                   return (
-                    <SidebarMenuItem key={item.title + item.url}>
+                    <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton asChild>
-                        <NavLink to={item.url} end={item.url === "/"}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${isActive ? "bg-primary/10 text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
+                        <NavLink to={item.url}
+                          className={`flex items-center justify-center px-2 py-2 rounded-lg transition-all ${isActive ? "bg-primary/10 text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent"}`}
                           activeClassName="bg-primary/10 text-primary">
                           <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
-                          {!collapsed && <span>{item.title}</span>}
-                          {isActive && !collapsed && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
                 })}
               </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+            );
+          }
+
+          return (
+            <Collapsible key={section.label} open={isOpen} onOpenChange={() => toggleSection(idx)}>
+              <CollapsibleTrigger className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer select-none ${sectionActive ? "text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}>
+                <section.icon className={`h-4 w-4 ${sectionActive ? "text-primary" : ""}`} />
+                <span className="flex-1 text-left text-xs uppercase tracking-widest">{section.label}</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarMenu className="ml-3 mt-0.5 border-l border-border/50 pl-2">
+                  {section.items.map((item) => {
+                    const isActive = location.pathname === item.url || (item.url !== "/" && location.pathname.startsWith(item.url));
+                    return (
+                      <SidebarMenuItem key={item.url}>
+                        <SidebarMenuButton asChild>
+                          <NavLink to={item.url}
+                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] transition-all ${isActive ? "bg-primary/10 text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
+                            activeClassName="bg-primary/10 text-primary font-medium">
+                            <item.icon className={`h-3.5 w-3.5 ${isActive ? "text-primary" : ""}`} />
+                            <span>{item.title}</span>
+                            {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </CollapsibleContent>
+            </Collapsible>
+          );
+        })}
       </SidebarContent>
       <SidebarFooter className="p-3">
         <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-all w-full">
