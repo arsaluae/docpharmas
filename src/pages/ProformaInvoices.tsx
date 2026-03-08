@@ -393,7 +393,7 @@ export default function ProformaInvoices() {
         if (item.product_id && Number(item.convert_quantity) > 0) {
           const { error: smErr } = await supabase.from("stock_movements").insert({
             product_id: item.product_id, quantity: Number(item.convert_quantity),
-            movement_type: "sale", batch_number: item.batch_number || null,
+            movement_type: "sale_out", batch_number: item.batch_number || null,
             reference_type: "sales_invoice", reference_id: inv.id, notes: `Invoice ${invNumber}`,
           });
           if (smErr) { toast.error("Stock movement failed: " + smErr.message); }

@@ -1,36 +1,34 @@
 
 
-# Fix: Stock Movement Constraint, PDF Preview Size, and Product Name Visibility
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## Issues Found
+## Two Changes
 
-### 1. Stock movement fails on sales invoice creation
-The database `stock_movements_movement_type_check` constraint only allows: `purchase_in, sale_out, return_in, return_out, adjustment`.
-But the code inserts:
-- `"sale"` (ProformaInvoices.tsx line 396) — should be `"sale_out"`
-- `"adjustment_in"` (PurchaseProforma.tsx line 401) — not in constraint
-- `"adjustment_out"` (PurchaseProforma.tsx line 408) — not in constraint
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-The `handle_stock_movement` trigger already handles all these types, but the CHECK constraint blocks them.
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-**Fix**: Update the CHECK constraint to include all types the trigger supports: `purchase_in, sale_out, return_in, return_out, adjustment, adjustment_in, adjustment_out, opening, damage, expired`. Also change `"sale"` to `"sale_out"` in ProformaInvoices.tsx for consistency.
+## Files Changed
 
-### 2. PDF preview opens as a popup requiring "Open in Tab"
-The `PdfPreviewDialog` uses an iframe inside a dialog. The dialog is `max-w-4xl w-[90vw] h-[85vh]` which should be large enough, but the iframe content may have large margins and the page-frame styling inside the generated HTML may not scale to fit.
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
 
-**Fix**: Make the PdfPreviewDialog truly full-screen (`w-[98vw] h-[95vh] max-w-none`) and inject CSS into the iframe to scale the document to fit the viewport width so the entire invoice is visible at a glance without scrolling horizontally.
-
-### 3. Product names truncated/hidden in purchase draft and invoice tables
-The items grid in the create/edit dialog uses `col-span-4` out of 12 columns for the product select, but the SearchableSelect trigger text gets cut off. The PDF document rows also may truncate product names.
-
-**Fix**: Give the product column more space in the items grid (increase from `col-span-4` to `col-span-5`) and ensure the SearchableSelect doesn't truncate text.
-
-## Changes
-
-| File | Change |
-|------|--------|
-| Migration SQL | Expand `stock_movements_movement_type_check` to include all valid types |
-| `src/pages/ProformaInvoices.tsx` | Change `movement_type: "sale"` to `"sale_out"` |
-| `src/components/PdfPreviewDialog.tsx` | Make dialog full-screen, inject fit-to-width CSS into iframe |
-| `src/pages/PurchaseProforma.tsx` | Widen product column in items grid |
+No other files change. The template system and all callers remain the same.
 

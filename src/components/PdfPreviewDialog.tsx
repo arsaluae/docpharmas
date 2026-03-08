@@ -20,26 +20,27 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title }: PdfPreview
     }
   };
 
-  const handleOpenTab = () => {
-    const win = window.open("", "_blank");
-    if (win) {
-      win.document.write(html);
-      win.document.close();
-    }
-  };
-
-  // Strip toolbar from embedded view since we have our own controls
+  // Strip toolbar from embedded view and inject fit-to-width CSS
   const embeddedHtml = html.replace(
     /<div class="toolbar">[\s\S]*?<\/div>\s*(?=\s*<div class="page-frame")/,
     ""
   ).replace(
-    /margin:80px auto 40px/,
-    "margin:20px auto"
+    /<\/head>/,
+    `<style>
+      body { margin: 0 !important; padding: 8px !important; }
+      .page-frame { 
+        margin: 0 auto !important; 
+        width: 100% !important; 
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        box-shadow: none !important;
+      }
+    </style></head>`
   );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[90vw] h-[85vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-none w-[98vw] h-[95vh] p-0 gap-0 overflow-hidden">
         <DialogTitle className="sr-only">{title || "Document Preview"}</DialogTitle>
         <DialogDescription className="sr-only">Preview of {title || "document"}</DialogDescription>
         {/* Header bar */}
@@ -48,9 +49,6 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title }: PdfPreview
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handlePrint}>
               <Download className="h-3.5 w-3.5" /> Download / Print
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5" onClick={handleOpenTab}>
-              Open in Tab
             </Button>
           </div>
         </div>
