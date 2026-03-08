@@ -285,7 +285,7 @@ export default function PurchaseProforma() {
       // Auto-download PO PDF
       const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", po.id);
       generatePdf({
-        title: "PURCHASE ORDER", documentNumber: poNumber, date: po.date,
+        title: "PURCHASE ORDER", documentNumber: poNumber, date: po.date, statusTheme: "confirmed" as const,
         partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
         columns: [
           { header: "#", key: "idx" }, { header: "Product", key: "name" },
