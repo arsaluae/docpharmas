@@ -380,7 +380,6 @@ export default function ProformaInvoices() {
     }).select("*, customers(name)").single();
 
     if (invErr || !inv) { toast.error("Failed to create invoice: " + (invErr?.message || "Unknown error")); setSubmitting(false); return; }
-    {
       const lineItems = submitItems.map((i: any) => ({
         invoice_id: inv.id, product_id: i.product_id || null,
         quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
