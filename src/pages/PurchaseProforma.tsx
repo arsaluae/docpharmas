@@ -113,7 +113,7 @@ export default function PurchaseProforma() {
       supabase.from("purchase_proformas").select("*, suppliers(name, company, phone, address)").order("created_at", { ascending: false }),
       supabase.from("purchase_orders").select("id, po_number, status, proforma_id").order("created_at", { ascending: false }),
       supabase.from("goods_received_notes").select("id, grn_number, po_id").order("created_at", { ascending: false }),
-      supabase.from("purchase_invoices").select("id, bill_number, grn_id").order("created_at", { ascending: false }),
+      supabase.from("purchase_invoices").select("id, bill_number, grn_id, status").order("created_at", { ascending: false }),
       supabase.from("suppliers").select("id, name, wht_rate, company, phone, address"),
       supabase.from("products").select("id, name, cost_price"),
     ]);
