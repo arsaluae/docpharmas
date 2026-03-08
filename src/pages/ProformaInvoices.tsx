@@ -190,9 +190,24 @@ export default function ProformaInvoices() {
 
   // ── PREVIEW ──
   const openPreview = (order: SalesOrder) => {
+    // Open PDF preview dialog directly instead of side sheet
+    printOrder(order);
+  };
+
+  const openEditSheet = (order: SalesOrder) => {
     setPreviewOrder(order);
     setEditMode(false);
     setPreviewOpen(true);
+    // Immediately enter edit mode
+    setTimeout(() => {
+      setEditCustomerId(order.customer_id || "");
+      setEditDate(order.date);
+      setEditValidity(String(order.validity_days));
+      setEditPaymentInstr(order.payment_instructions || "");
+      const pfItems = getPfItems(order);
+      setEditItems(pfItems.map(i => ({ ...i })));
+      setEditMode(true);
+    }, 0);
   };
 
   const getPfItems = (order: SalesOrder | null): ProformaItem[] => {
