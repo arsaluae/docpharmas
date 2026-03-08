@@ -212,7 +212,6 @@ export default function PurchaseProforma() {
 
   // ── PREVIEW ──
   const openPreview = async (order: PurchaseOrder) => {
-    // Load items first for PDF generation, then open PDF preview
     const [itemsRes, costsRes] = await Promise.all([
       supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id),
       supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", order.id),
@@ -220,30 +219,8 @@ export default function PurchaseProforma() {
     setPreviewItems(itemsRes.data || []);
     setPreviewCosts(costsRes.data || []);
     setPreviewOrder(order);
-    // Generate and show PDF preview directly
-    const html = generatePdfHtml({
-      title: "PURCHASE ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
-      partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
-      partyAddress: (order.suppliers as any)?.address || undefined,
-      partyPhone: (order.suppliers as any)?.phone || undefined,
-      columns: [
-        { header: "#", key: "idx" }, { header: "Product", key: "name" },
-        { header: "Qty", key: "quantity_requested", align: "right" }, { header: "Rate", key: "rate", align: "right" },
-        { header: "Amount", key: "amount", align: "right" },
-      ],
-      rows: (itemsRes.data || []).map((i: any, idx: number) => ({
-        idx: idx + 1, name: i.products?.name || "Item",
-        quantity_requested: i.quantity_requested, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
-      })),
-      totals: [
-        { label: "Subtotal", value: `PKR ${Number(order.subtotal).toLocaleString()}` },
-        ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(order.gst).toLocaleString()}` }] : []),
-        { label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` },
-      ],
-      notes: order.notes || undefined, settings,
-      template: getTemplate("purchase_proforma"),
-    });
-    setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
+    setEditMode(false);
+    setPreviewOpen(true);
   };
 
   const openEditSheet = async (order: PurchaseOrder) => {
