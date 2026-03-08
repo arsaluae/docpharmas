@@ -556,7 +556,7 @@ export default function ProformaInvoices() {
       }
     >
 
-          <div className="p-6 space-y-4">
+      <div className="space-y-4">
             {/* STATS */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
