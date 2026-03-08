@@ -29,7 +29,6 @@ interface Payment {
 }
 
 export default function Payments() {
-  const navigate = useNavigate();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
