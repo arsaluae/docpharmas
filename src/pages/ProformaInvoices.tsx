@@ -618,7 +618,6 @@ export default function ProformaInvoices() {
                       <TableRow className="bg-muted/30">
                         <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                         <TableHead className="font-semibold">Order #</TableHead>
-                        <TableHead className="font-semibold">Invoice #</TableHead>
                         <TableHead className="font-semibold">Customer</TableHead>
                         <TableHead className="font-semibold">Date</TableHead>
                         <TableHead className="font-semibold">Status</TableHead>
