@@ -113,7 +113,7 @@ export default function PurchaseProforma() {
       supabase.from("purchase_proformas").select("*, suppliers(name, company, phone, address)").order("created_at", { ascending: false }),
       supabase.from("purchase_orders").select("id, po_number, status, proforma_id").order("created_at", { ascending: false }),
       supabase.from("goods_received_notes").select("id, grn_number, po_id").order("created_at", { ascending: false }),
-      supabase.from("purchase_invoices").select("id, bill_number, grn_id").order("created_at", { ascending: false }),
+      supabase.from("purchase_invoices").select("id, bill_number, grn_id, status").order("created_at", { ascending: false }),
       supabase.from("suppliers").select("id, name, wht_rate, company, phone, address"),
       supabase.from("products").select("id, name, cost_price"),
     ]);
@@ -138,7 +138,10 @@ export default function PurchaseProforma() {
               if (linkedGRN) {
                 grnNum = linkedGRN.grn_number;
                 const linkedBill = bills.data?.find((b: any) => b.grn_id === linkedGRN.id);
-                if (linkedBill) billNum = linkedBill.bill_number;
+                if (linkedBill) {
+                  billNum = linkedBill.bill_number;
+                  if (linkedBill.status === "paid") status = "paid";
+                }
               }
             }
           }
@@ -572,13 +575,14 @@ export default function PurchaseProforma() {
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
 
   const statusColor = (s: string) => {
+    if (s === "paid") return "bg-green-500/15 text-green-700 border-green-500/20";
     if (s === "received") return "bg-emerald-500/15 text-emerald-600 border-emerald-500/20";
     if (s === "confirmed") return "bg-violet-500/15 text-violet-600 border-violet-500/20";
     if (s === "ordered") return "bg-blue-500/15 text-blue-600 border-blue-500/20";
     if (s === "draft") return "bg-amber-500/15 text-amber-600 border-amber-500/20";
     return "bg-muted text-muted-foreground";
   };
-  const statusLabel = (s: string) => ({ draft: "Draft", ordered: "Ordered", confirmed: "Confirmed", received: "Received" }[s] || s);
+  const statusLabel = (s: string) => ({ draft: "Draft", ordered: "Ordered", confirmed: "Confirmed", received: "Received", paid: "Paid" }[s] || s);
   const allStats = { count: orders.length, value: orders.reduce((s, d) => s + Number(d.total), 0) };
 
   return (
