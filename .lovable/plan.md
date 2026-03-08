@@ -1,34 +1,31 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Fix PDF Preview to Show Full Invoice Without Margins
 
-## Two Changes
+## Problem
+The PDF preview dialog shows the invoice with a grey background and excess margins/padding around the white document area, making it look like the invoice is "hidden" behind whitespace. Users have to scroll past empty space.
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+## Root Cause
+The `page-frame` CSS in `pdf-generator.ts` has:
+- `body { background: #e2e8f0 }` (grey background)
+- `.page-frame { max-width: 800px; margin: 80px auto 40px; padding: 44px 48px }`
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+The `PdfPreviewDialog` injects override CSS but doesn't fully neutralize these — especially the body background color and page-frame internal padding/margin.
 
-## Files Changed
+## Fix
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+### `src/components/PdfPreviewDialog.tsx`
+Update the injected CSS to:
+- Set `body { background: #fff }` (white, not grey)
+- Remove the 80px top margin from `.page-frame`
+- Set `.page-frame { margin: 0 auto; padding: 28px 32px }` (tight but readable)
+- Hide corner ornaments and the `::before` inner border in embedded mode
+- Remove box-shadow
 
-No other files change. The template system and all callers remain the same.
+This single change fixes the preview for ALL document types (sales invoice, delivery note, purchase order, etc.) since they all use the same `PdfPreviewDialog`.
+
+## Files
+| File | Change |
+|------|--------|
+| `src/components/PdfPreviewDialog.tsx` | Improve injected CSS to eliminate grey margins and make document fill the window |
 
