@@ -462,6 +462,12 @@ export default function PurchaseProforma() {
         toast.success(`GRN ${grnNumber} created`);
       }
 
+      // Show variance summary if any
+      if (varianceItems.length > 0) {
+        const summary = varianceItems.map(v => `${v.name}: ordered ${v.ordered}, received ${v.received} (${v.diff > 0 ? "+" : ""}${v.diff})`).join("; ");
+        toast.warning(`Stock variance detected: ${summary}`, { duration: 8000 });
+      }
+
       const grnHtml = generatePdfHtml({
         title: "GOODS RECEIVED NOTE", documentNumber: grnNumber, date: grn.date, statusTheme: "received" as const,
         partyLabel: "Supplier", partyName: (receivePO.suppliers as any)?.name || "—",
