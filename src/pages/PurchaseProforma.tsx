@@ -233,7 +233,7 @@ export default function PurchaseProforma() {
 
   // ── PDF ──
   const printOrder = (order: PurchaseOrder) => {
-    generatePdf({
+    const html = generatePdfHtml({
       title: "PURCHASE ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
       partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
       partyAddress: (order.suppliers as any)?.address || undefined,
@@ -255,7 +255,7 @@ export default function PurchaseProforma() {
       notes: order.notes || undefined, settings,
       template: getTemplate("purchase_proforma"),
     });
-  };
+    setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
 
   // ── CONFIRM ORDER (Create PO) ──
   const handleConfirmOrder = async (order: PurchaseOrder) => {
