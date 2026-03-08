@@ -22,7 +22,6 @@ const DATE_RANGES = [
 ];
 
 export default function SalesReturns() {
-  const navigate = useNavigate();
   const [returns, setReturns] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
