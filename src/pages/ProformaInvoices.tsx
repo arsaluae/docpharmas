@@ -190,8 +190,9 @@ export default function ProformaInvoices() {
 
   // ── PREVIEW ──
   const openPreview = (order: SalesOrder) => {
-    // Open PDF preview dialog directly instead of side sheet
-    printOrder(order);
+    setPreviewOrder(order);
+    setEditMode(false);
+    setPreviewOpen(true);
   };
 
   const openEditSheet = (order: SalesOrder) => {
