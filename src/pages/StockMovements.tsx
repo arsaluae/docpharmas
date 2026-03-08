@@ -35,13 +35,7 @@ export default function StockMovements() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
-  useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate("/auth");
-    };
-    check(); load();
-  }, [navigate]);
+  useEffect(() => { load(); }, []);
 
   const load = async () => {
     const [mv, prod] = await Promise.all([
