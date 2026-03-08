@@ -250,7 +250,7 @@ export default function ProformaInvoices() {
     const custAddress = (order.customers as any)?.address || undefined;
     const custPhone = (order.customers as any)?.phone || undefined;
     const custArea = (order.customers as any)?.area || undefined;
-    generatePdf({
+    const html = generatePdfHtml({
       title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
       partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
       meta: [{ label: "Validity", value: `${order.validity_days} days` }],
