@@ -50,6 +50,9 @@ export default function WarrantyInvoices() {
   const [form, setForm] = useState(emptyForm);
   const [items, setItems] = useState<LineItem[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
+  const [pdfHtml, setPdfHtml] = useState("");
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
 
