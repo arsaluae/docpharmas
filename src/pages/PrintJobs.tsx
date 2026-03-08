@@ -61,7 +61,6 @@ export default function PrintJobs() {
   const [productNames, setProductNames] = useState<Record<string, string>>({});
 
   useEffect(() => { load(); }, []);
-  }, [navigate]);
 
   const load = async () => {
     const [j, pr, prod] = await Promise.all([
