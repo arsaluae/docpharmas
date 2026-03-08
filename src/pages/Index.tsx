@@ -146,6 +146,7 @@ export default function Index() {
   return (
     <AppLayout title="Dashboard" subtitle="Business overview">
       <div className="space-y-6">
+        <TrialBanner />
         {/* Sales Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="border-l-4 border-l-primary hover:shadow-md transition-all">

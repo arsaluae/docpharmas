@@ -47,6 +47,7 @@ const allSections = [
   { label: "Settings", icon: Settings, staffVisible: false, items: [
     { title: "Company Settings", url: "/settings", icon: Settings },
     { title: "Data Import", url: "/import", icon: Upload },
+    { title: "Subscription", url: "/subscription", icon: SubIcon },
   ]},
 ];
 
