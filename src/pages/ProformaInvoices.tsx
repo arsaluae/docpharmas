@@ -276,7 +276,7 @@ export default function ProformaInvoices() {
     const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", order.converted_invoice_id);
     if (inv) {
       generatePdf({
-        title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date,
+        title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
         partyLabel: "Customer", partyName: (inv.customers as any)?.name || "—",
         columns: [
           { header: "#", key: "idx" }, { header: "Product", key: "name" }, { header: "Batch", key: "batch_number" },
