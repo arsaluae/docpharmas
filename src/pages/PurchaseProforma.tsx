@@ -231,7 +231,7 @@ export default function PurchaseProforma() {
   // ── PDF ──
   const printOrder = (order: PurchaseOrder) => {
     generatePdf({
-      title: "PURCHASE ORDER", documentNumber: order.proforma_number, date: order.date,
+      title: "PURCHASE ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
       partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
       partyAddress: (order.suppliers as any)?.address || undefined,
       partyPhone: (order.suppliers as any)?.phone || undefined,
