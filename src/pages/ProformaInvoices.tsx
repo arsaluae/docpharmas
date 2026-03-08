@@ -499,7 +499,7 @@ export default function ProformaInvoices() {
   };
   const statusLabel = (s: string) => ({ draft: "Draft", invoiced: "Invoiced", dispatched: "Dispatched", paid: "Paid" }[s] || s);
 
-  const STATUS_OPTIONS = ["all", "draft", "invoiced", "dispatched", "paid"];
+  const allStats = { count: orders.length, value: orders.reduce((s, d) => s + Number(d.total), 0) };
   const customerOptions = customers.map(c => ({ value: c.id, label: c.name }));
   const productOptions = products.map(p => ({ value: p.id, label: p.name }));
 
