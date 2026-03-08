@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   TrendingUp, TrendingDown, CalendarDays, ShoppingCart,
   FileText, CreditCard, Shield, Wallet,
-  PackageCheck, Flame, Users, AlertTriangle, MessageCircle, Brain, UserX,
+  PackageCheck, Flame, Users, AlertTriangle, MessageCircle, Brain,
+  Package, Printer, Receipt, Landmark, ArrowRightLeft, RotateCcw,
 } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { toast } from "sonner";
@@ -24,10 +25,9 @@ export default function Index() {
   const [topSelling, setTopSelling] = useState<{ name: string; qty: number }[]>([]);
   const [topCustomers, setTopCustomers] = useState<{ name: string; monthSale: number; yearlySale: number }[]>([]);
   const [reorderAlerts, setReorderAlerts] = useState<any[]>([]);
-  const [inactiveCustomers, setInactiveCustomers] = useState<{ name: string; phone: string | null; last_order: string; days_inactive: number }[]>([]);
   const [loadingReorder, setLoadingReorder] = useState(false);
 
-  useEffect(() => { loadDashboard(); loadReorderAlerts(); loadInactiveCustomers(); }, []);
+  useEffect(() => { loadDashboard(); loadReorderAlerts(); }, []);
 
   const loadDashboard = async () => {
     const today = new Date();
@@ -129,42 +129,63 @@ export default function Index() {
     setLoadingReorder(false);
   };
 
-  const loadInactiveCustomers = async () => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
-
-    const { data: customers } = await supabase.from("customers").select("id, name, phone");
-    const { data: recentInvoices } = await supabase.from("sales_invoices").select("customer_id, date").gte("date", dateStr);
-    
-    if (!customers) return;
-    const activeIds = new Set((recentInvoices || []).map(i => i.customer_id).filter(Boolean));
-    
-    // Get last order date for inactive customers
-    const { data: allInvoices } = await supabase.from("sales_invoices").select("customer_id, date").order("date", { ascending: false });
-    const lastOrderMap: Record<string, string> = {};
-    (allInvoices || []).forEach(inv => {
-      if (inv.customer_id && !lastOrderMap[inv.customer_id]) lastOrderMap[inv.customer_id] = inv.date;
-    });
-
-    const inactive = customers
-      .filter(c => !activeIds.has(c.id) && lastOrderMap[c.id])
-      .map(c => {
-        const lastOrder = lastOrderMap[c.id];
-        const daysInactive = Math.floor((Date.now() - new Date(lastOrder).getTime()) / (1000 * 60 * 60 * 24));
-        return { name: c.name, phone: c.phone, last_order: lastOrder, days_inactive: daysInactive };
-      })
-      .sort((a, b) => b.days_inactive - a.days_inactive)
-      .slice(0, 5);
-    
-    setInactiveCustomers(inactive);
-  };
-
-  const quickActions = [
-    { label: "Sales Order", icon: FileText, path: "/proforma", gradient: "from-blue-600 to-indigo-700", shadow: "shadow-blue-500/25" },
-    { label: "Sales Invoice", icon: ShoppingCart, path: "/proforma", gradient: "from-emerald-500 to-teal-600", shadow: "shadow-emerald-500/25" },
-    { label: "Warranty Invoice", icon: Shield, path: "/warranty-invoices", gradient: "from-violet-500 to-purple-600", shadow: "shadow-violet-500/25" },
-    { label: "Payment", icon: Wallet, path: "/payments", gradient: "from-amber-500 to-orange-600", shadow: "shadow-amber-500/25" },
+  const actionHubs = [
+    {
+      title: "Sales",
+      icon: ShoppingCart,
+      borderColor: "border-l-blue-500",
+      iconBg: "bg-blue-500/10",
+      iconColor: "text-blue-600",
+      actions: [
+        { label: "Sales Order", path: "/proforma", icon: FileText },
+        { label: "Sales Invoice", path: "/proforma", icon: ShoppingCart },
+        { label: "Warranty", path: "/warranty-invoices", icon: Shield },
+        { label: "Payment In", path: "/payments", icon: Wallet },
+      ],
+    },
+    {
+      title: "Purchase",
+      icon: Package,
+      borderColor: "border-l-emerald-500",
+      iconBg: "bg-emerald-500/10",
+      iconColor: "text-emerald-600",
+      actions: [
+        { label: "Purchase Order", path: "/purchase-proforma", icon: FileText },
+        { label: "Purchase Return", path: "/purchase-returns", icon: RotateCcw },
+      ],
+    },
+    {
+      title: "Inventory",
+      icon: PackageCheck,
+      borderColor: "border-l-amber-500",
+      iconBg: "bg-amber-500/10",
+      iconColor: "text-amber-600",
+      actions: [
+        { label: "Products", path: "/products", icon: Package },
+        { label: "Stock Movements", path: "/stock-movements", icon: ArrowRightLeft },
+      ],
+    },
+    {
+      title: "Printing",
+      icon: Printer,
+      borderColor: "border-l-violet-500",
+      iconBg: "bg-violet-500/10",
+      iconColor: "text-violet-600",
+      actions: [
+        { label: "Print Jobs", path: "/print-jobs", icon: Printer },
+      ],
+    },
+    {
+      title: "Finance",
+      icon: Landmark,
+      borderColor: "border-l-rose-500",
+      iconBg: "bg-rose-500/10",
+      iconColor: "text-rose-600",
+      actions: [
+        { label: "Expenses", path: "/expenses", icon: Receipt },
+        { label: "Bank Accounts", path: "/bank-accounts", icon: Landmark },
+      ],
+    },
   ];
 
   return (
@@ -212,106 +233,34 @@ export default function Index() {
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {quickActions.map((action) => (
-            <button key={action.label} onClick={() => navigate(action.path)}
-              className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${action.gradient} p-5 text-white shadow-lg ${action.shadow} hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200`}>
-              <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-200" />
-              <div className="relative flex flex-col items-center gap-3">
-                <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm"><action.icon className="h-6 w-6" /></div>
-                <span className="font-semibold text-sm tracking-wide">{action.label}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {/* Reorder Alerts + Inactive Customers */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Reorder Alerts */}
-          <Card className="border-destructive/20">
-            <CardHeader className="pb-2 pt-4 px-5">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-heading flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-destructive" /> Smart Reorder Alerts
+        {/* Grouped Action Hubs */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          {actionHubs.map((hub) => (
+            <Card key={hub.title} className={`border-l-4 ${hub.borderColor} hover:shadow-md transition-all`}>
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-xs font-heading flex items-center gap-2 uppercase tracking-widest text-muted-foreground">
+                  <div className={`p-1.5 rounded-lg ${hub.iconBg}`}>
+                    <hub.icon className={`h-3.5 w-3.5 ${hub.iconColor}`} />
+                  </div>
+                  {hub.title}
                 </CardTitle>
-                <Button size="sm" variant="outline" onClick={generateReorderAlerts} disabled={loadingReorder} className="text-xs h-7">
-                  {loadingReorder ? "Analyzing..." : "Refresh"}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="px-5 pb-4">
-              {reorderAlerts.length === 0 ? (
-                <div className="text-center py-6">
-                  <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
-                  <p className="text-sm text-muted-foreground">No reorder alerts</p>
-                  <p className="text-xs text-muted-foreground mt-1">Click Refresh to analyze stock levels</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {reorderAlerts.map((alert, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-muted/50 border border-border/50">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${alert.severity === "critical" ? "bg-destructive animate-pulse" : alert.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} />
-                          <span className="text-sm font-medium text-foreground truncate">{alert.product_name}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground ml-4">
-                          Stock: {alert.current_stock} • {alert.days_until_stockout}d left
-                        </p>
-                      </div>
-                      <Badge variant="outline" className={`text-[10px] ${
-                        alert.severity === "critical" ? "border-destructive/30 text-destructive" :
-                        alert.severity === "warning" ? "border-amber-500/30 text-amber-600" :
-                        "border-blue-500/30 text-blue-600"
-                      }`}>
-                        {alert.severity}
-                      </Badge>
-                    </div>
-                  ))}
-                  {settings?.whatsapp_number && (
-                    <Button size="sm" variant="outline" className="w-full mt-2 text-xs gap-1.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/5" onClick={generateReorderAlerts}>
-                      <MessageCircle className="h-3.5 w-3.5" /> Send WhatsApp Alert
-                    </Button>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Inactive Customers */}
-          <Card className="border-amber-500/20">
-            <CardHeader className="pb-2 pt-4 px-5">
-              <CardTitle className="text-sm font-heading flex items-center gap-2">
-                <UserX className="h-4 w-4 text-amber-500" /> Inactive Customers (30+ days)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-4">
-              {inactiveCustomers.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">All customers active — great!</p>
-              ) : (
-                <div className="space-y-2">
-                  {inactiveCustomers.map((c, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-muted/50">
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm font-medium text-foreground truncate block">{c.name}</span>
-                        <span className="text-xs text-muted-foreground">{c.days_inactive} days since last order</span>
-                      </div>
-                      {c.phone && (
-                        <Button size="sm" variant="ghost" className="text-xs h-7 gap-1 text-emerald-600" onClick={() => {
-                          const msg = `Hi ${c.name}, we noticed it's been a while since your last order. Would you like to place a new order? We have fresh stock available!`;
-                          const num = c.phone!.replace(/[^0-9]/g, "");
-                          window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, "_blank");
-                        }}>
-                          <MessageCircle className="h-3 w-3" /> Reach Out
-                        </Button>
-                      )}
-                    </div>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 pt-1">
+                <div className="flex flex-col gap-1.5">
+                  {hub.actions.map((action) => (
+                    <button
+                      key={action.label}
+                      onClick={() => navigate(action.path)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-accent/50 transition-colors text-left"
+                    >
+                      <action.icon className={`h-3.5 w-3.5 ${hub.iconColor}`} />
+                      {action.label}
+                    </button>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Panels */}
@@ -397,6 +346,57 @@ export default function Index() {
                   ))}
                 </TableBody>
               </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Smart Reorder Alerts */}
+        <Card className="border-destructive/20">
+          <CardHeader className="pb-2 pt-4 px-5">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-heading flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" /> Smart Reorder Alerts
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={generateReorderAlerts} disabled={loadingReorder} className="text-xs h-7">
+                {loadingReorder ? "Analyzing..." : "Refresh"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="px-5 pb-4">
+            {reorderAlerts.length === 0 ? (
+              <div className="text-center py-6">
+                <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">No reorder alerts</p>
+                <p className="text-xs text-muted-foreground mt-1">Click Refresh to analyze stock levels</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {reorderAlerts.map((alert, idx) => (
+                  <div key={idx} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-muted/50 border border-border/50">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${alert.severity === "critical" ? "bg-destructive animate-pulse" : alert.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} />
+                        <span className="text-sm font-medium text-foreground truncate">{alert.product_name}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground ml-4">
+                        Stock: {alert.current_stock} • {alert.days_until_stockout}d left
+                      </p>
+                    </div>
+                    <Badge variant="outline" className={`text-[10px] ${
+                      alert.severity === "critical" ? "border-destructive/30 text-destructive" :
+                      alert.severity === "warning" ? "border-amber-500/30 text-amber-600" :
+                      "border-blue-500/30 text-blue-600"
+                    }`}>
+                      {alert.severity}
+                    </Badge>
+                  </div>
+                ))}
+                {settings?.whatsapp_number && (
+                  <Button size="sm" variant="outline" className="w-full mt-2 text-xs gap-1.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/5" onClick={generateReorderAlerts}>
+                    <MessageCircle className="h-3.5 w-3.5" /> Send WhatsApp Alert
+                  </Button>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
