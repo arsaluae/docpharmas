@@ -75,47 +75,38 @@ export default function StockMovements() {
     return <Badge variant="secondary">{t}</Badge>;
   };
 
-  return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading">Stock Movements</h1>
-              <p className="text-sm text-muted-foreground">Track inventory adjustments with batch numbers</p>
-            </div>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Movement</Button></DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Record Stock Movement</DialogTitle></DialogHeader>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <div className="col-span-2">
-                    <Label>Product *</Label>
-                    <Select value={productId} onValueChange={setProductId}>
-                      <SelectTrigger><SelectValue placeholder="Select product..." /></SelectTrigger>
-                      <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name} (Stock: {p.stock_quantity})</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Type</Label>
-                    <Select value={moveType} onValueChange={setMoveType}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{MOVE_TYPES.map(t => <SelectItem key={t} value={t} className="capitalize">{t.replace("_", " ")}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div><Label>Quantity *</Label><Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} /></div>
-                  <div><Label>Batch #</Label><Input value={batchNumber} onChange={e => setBatchNumber(e.target.value)} /></div>
-                  <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-                  <div className="col-span-2"><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
-                </div>
-                <Button onClick={handleSave} className="w-full mt-4">Save</Button>
-              </DialogContent>
-            </Dialog>
-          </header>
+  const headerActions = (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Movement</Button></DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Record Stock Movement</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3 mt-2">
+          <div className="col-span-2">
+            <Label>Product *</Label>
+            <Select value={productId} onValueChange={setProductId}>
+              <SelectTrigger><SelectValue placeholder="Select product..." /></SelectTrigger>
+              <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name} (Stock: {p.stock_quantity})</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Type</Label>
+            <Select value={moveType} onValueChange={setMoveType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{MOVE_TYPES.map(t => <SelectItem key={t} value={t} className="capitalize">{t.replace("_", " ")}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div><Label>Quantity *</Label><Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} /></div>
+          <div><Label>Batch #</Label><Input value={batchNumber} onChange={e => setBatchNumber(e.target.value)} /></div>
+          <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
+          <div className="col-span-2"><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
+        </div>
+        <Button onClick={handleSave} className="w-full mt-4">Save</Button>
+      </DialogContent>
+    </Dialog>
+  );
 
-          <div className="p-6">
+  return (
+    <AppLayout title="Stock Movements" subtitle="Track inventory adjustments with batch numbers" headerActions={headerActions}>
             <div className="flex items-center gap-4 mb-4">
               <div className="relative max-w-sm flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
