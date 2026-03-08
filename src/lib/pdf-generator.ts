@@ -94,6 +94,7 @@ function getColors(theme?: StatusTheme) {
 }
 
 export function generatePdf(opts: PdfOptions) {
+  const C = getColors(opts.statusTheme);
   const s = opts.settings;
   const t = opts.template;
   const companyName = s?.company_name || "Company Name";
