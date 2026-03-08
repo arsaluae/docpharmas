@@ -654,20 +654,10 @@ export default function DataImport() {
   const ignoredCount = mappedColumns.filter(m => !m).length;
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          {/* Premium Header */}
-          <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-xl px-8 py-5">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger />
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-foreground font-heading tracking-tight">Data Import</h1>
-                <p className="text-sm text-muted-foreground mt-0.5">Smart merge from 20+ software formats with duplicate detection</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-primary animate-pulse-glow" />
+    <AppLayout title="Data Import" subtitle="Smart merge from 20+ software formats with duplicate detection">
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                 <span className="text-xs text-muted-foreground font-medium">Ready</span>
               </div>
             </div>
