@@ -2325,6 +2325,14 @@ export type Database = {
         Returns: boolean
       }
       is_authenticated: { Args: never; Returns: boolean }
+      recalc_customer_invoice_status: {
+        Args: { p_customer_id: string }
+        Returns: undefined
+      }
+      recalc_supplier_invoice_status: {
+        Args: { p_supplier_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
