@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { toast } from "sonner";
+import { TrialBanner } from "@/components/TrialBanner";
 
 export default function Index() {
   const navigate = useNavigate();
