@@ -1,34 +1,48 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# System Audit — Round 2 Findings
 
-## Two Changes
+All previous critical constraint issues (proforma status, payment party_type, expense categories, sales return status, stock movement types) have been successfully fixed. The database constraints now match the application code.
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+## Remaining Issues Found
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+### 1. Products page has outdated `MOVE_TYPES` filter (MODERATE)
+`src/pages/Products.tsx` line 20 still uses the old limited list:
+```
+const MOVE_TYPES = ["purchase_in", "sale_out", "return_in", "return_out", "adjustment"];
+```
+Missing: `purchase`, `sale`, `adjustment_in`, `adjustment_out`, `opening`, `damage`, `expired`. Users filtering stock movements from the Products tab won't see all movement types.
 
-## Files Changed
+**Fix**: Update to match the full list already used in `StockMovements.tsx`.
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+### 2. Delivery Note PDF doesn't show customer name (MODERATE)
+`DeliveryNotes.tsx` line 53 generates the PDF without `partyLabel` / `partyName`. The delivery note has `customer_id` stored but the `load()` function only does `select("*")` — it doesn't join with `customers`. So neither the list view nor the PDF shows which customer the delivery is for.
 
-No other files change. The template system and all callers remain the same.
+**Fix**: Join `customers(name)` in the delivery notes query and pass `partyLabel: "Customer"` / `partyName` to `generatePdfHtml`.
+
+### 3. Print Jobs delivery doesn't create stock movements (MODERATE)
+When a print job is marked "delivered" (`PrintJobs.tsx` line 100), the delivered quantity is recorded but no `purchase_in` stock movement is created. The printed goods are not added to inventory.
+
+**Fix**: Insert a `purchase_in` stock movement when a print job is delivered.
+
+### 4. Payment edit uses delete-then-insert pattern (LOW)
+Both `Payments.tsx` and `Expenses.tsx` use delete + re-insert for edits. This causes:
+- Balance triggers fire twice (reversal + new insert)
+- Original record ID is lost
+- Invoice status recalculation runs twice
+
+This works but is inefficient and can cause momentary balance inconsistencies. Leaving as-is for now since fixing requires changing to proper UPDATE logic which is more complex.
+
+### 5. Customer/Supplier "area" field not shown in Delivery Note (LOW)
+The delivery note stored items don't include the customer area, which could be useful for dispatch routing. This is a minor enhancement, not a bug.
+
+## Implementation Plan
+
+| File | Change |
+|------|--------|
+| `src/pages/Products.tsx` | Update `MOVE_TYPES` to full list |
+| `src/pages/DeliveryNotes.tsx` | Join `customers(name)` in query; show customer name in table and PDF |
+| `src/pages/PrintJobs.tsx` | Add `purchase_in` stock movement on delivery |
+
+These are the only remaining actionable issues. The previous constraint fixes and stock movement additions are all verified as deployed correctly.
 
