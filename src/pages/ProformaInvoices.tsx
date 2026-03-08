@@ -638,7 +638,6 @@ export default function ProformaInvoices() {
                         <TableRow key={order.id} className="group cursor-pointer hover:bg-muted/30 transition-colors" data-state={selected.has(order.id) ? "selected" : undefined}>
                           <TableCell><Checkbox checked={selected.has(order.id)} onCheckedChange={() => toggleSelect(order.id)} /></TableCell>
                           <TableCell className="font-mono font-semibold text-sm" onClick={() => openPreview(order)}>{order.proforma_number}</TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground" onClick={() => openPreview(order)}>{order.invoice_number || "—"}</TableCell>
                           <TableCell className="text-sm" onClick={() => openPreview(order)}>{(order.customers as any)?.name || "—"}</TableCell>
                           <TableCell className="text-sm text-muted-foreground" onClick={() => openPreview(order)}>{order.date}</TableCell>
                           <TableCell onClick={() => openPreview(order)}>
