@@ -398,6 +398,8 @@ export default function PurchaseProforma() {
         }))
       );
 
+      // Stock movements for received quantities
+      const varianceItems: { name: string; ordered: number; received: number; diff: number }[] = [];
       for (const item of receiveItems) {
         if (item.product_id) {
           await supabase.from("stock_movements").insert({
@@ -405,6 +407,30 @@ export default function PurchaseProforma() {
             movement_type: "purchase_in", batch_number: item.batch_number || null,
             reference_type: "grn", reference_id: grn.id, date: grn.date, notes: `GRN ${grnNumber}`,
           });
+
+          // Stock variance check
+          const ordered = Number(item.quantity_confirmed) || Number(item.quantity);
+          const received = Number(item.quantity_received);
+          if (ordered !== received) {
+            const diff = received - ordered;
+            varianceItems.push({ name: item.item_name, ordered, received, diff });
+            // Create adjustment movement for variance
+            if (diff > 0) {
+              await supabase.from("stock_movements").insert({
+                product_id: item.product_id, quantity: Math.abs(diff),
+                movement_type: "adjustment_in", batch_number: item.batch_number || null,
+                reference_type: "grn", reference_id: grn.id, date: grn.date,
+                notes: `Stock variance: received ${received} vs ordered ${ordered} (over by ${Math.abs(diff)})`,
+              });
+            } else {
+              await supabase.from("stock_movements").insert({
+                product_id: item.product_id, quantity: Math.abs(diff),
+                movement_type: "adjustment_out", batch_number: item.batch_number || null,
+                reference_type: "grn", reference_id: grn.id, date: grn.date,
+                notes: `Stock variance: received ${received} vs ordered ${ordered} (short by ${Math.abs(diff)})`,
+              });
+            }
+          }
         }
       }
 
