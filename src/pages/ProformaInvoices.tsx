@@ -628,7 +628,7 @@ export default function ProformaInvoices() {
                     <TableBody>
                       {filtered.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-16">
+                          <TableCell colSpan={7} className="text-center py-16">
                             <FilePlus className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
                             <p className="text-muted-foreground font-medium">No sales orders yet</p>
                             <p className="text-xs text-muted-foreground mt-1">Click "New Order" to create your first sales order</p>
