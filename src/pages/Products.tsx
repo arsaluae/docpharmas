@@ -380,9 +380,6 @@ export default function Products() {
                 </Card>
               </TabsContent>
             </Tabs>
-          </div>
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }

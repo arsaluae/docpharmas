@@ -284,9 +284,6 @@ export default function Payments() {
                 </Table>
               </CardContent>
             </Card>
-          </div>
-        </main>
-      </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={o => { if (!o) setDeleteId(null); }}>
         <AlertDialogContent>
