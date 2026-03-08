@@ -927,6 +927,7 @@ export default function PurchaseProforma() {
               </Button>
             </DialogContent>
           </Dialog>
+      <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );
 }

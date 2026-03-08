@@ -285,7 +285,7 @@ export default function WarrantyInvoices() {
                       <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                         <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => {
                           const wiItems = Array.isArray(inv.items) ? inv.items : [];
-                          generatePdf({
+                          const wiHtml = generatePdfHtml({
                             title: "WARRANTY INVOICE", documentNumber: inv.warranty_number, date: inv.date,
                             partyLabel: "Pharmacy", partyName: inv.pharmacy_name,
                             partyAddress: inv.pharmacy_address || undefined,
@@ -306,6 +306,7 @@ export default function WarrantyInvoices() {
                             ],
                             notes: inv.notes || undefined, settings, template: getTemplate("warranty_invoice"),
                           });
+                          setPdfHtml(wiHtml); setPdfTitle(`Warranty Invoice — ${inv.warranty_number}`); setPdfOpen(true);
                         }}>
                           <Download className="h-3 w-3" /> PDF
                         </Button>
