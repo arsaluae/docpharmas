@@ -889,8 +889,6 @@ export default function ProformaInvoices() {
               </Button>
             </DialogContent>
           </Dialog>
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }
