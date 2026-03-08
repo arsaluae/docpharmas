@@ -419,7 +419,7 @@ export default function ProformaInvoices() {
       // Auto-download invoice PDF
       const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
       generatePdf({
-        title: "SALES INVOICE", documentNumber: invNumber, date: inv.date,
+        title: "SALES INVOICE", documentNumber: invNumber, date: inv.date, statusTheme: "dispatched" as const,
         partyLabel: "Customer", partyName: (inv.customers as any)?.name || (submitOrder.customers as any)?.name || "—",
         columns: [
           { header: "#", key: "idx" }, { header: "Product", key: "name" }, { header: "Batch", key: "batch_number" },

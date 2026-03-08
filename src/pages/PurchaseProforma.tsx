@@ -488,14 +488,14 @@ export default function PurchaseProforma() {
   };
 
   const filtered = orders.filter(p => {
-    const matchSearch = p.proforma_number.toLowerCase().includes(search.toLowerCase()) ||
-      ((p.suppliers as any)?.name || "").toLowerCase().includes(search.toLowerCase()) ||
-      (p.po_number || "").toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
+      ((p.suppliers as any)?.name || "").toLowerCase().includes(q) ||
+      (p.po_number || "").toLowerCase().includes(q);
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
-    const matchSupplier = !supplierFilter || p.supplier_id === supplierFilter;
     const dateStart = getDateFilter();
     const matchDate = !dateStart || p.date >= dateStart;
-    return matchSearch && matchStatus && matchSupplier && matchDate;
+    return matchSearch && matchStatus && matchDate;
   });
 
   const statsByStatus = (status: string) => {
