@@ -300,8 +300,6 @@ export default function Expenses() {
               </CardContent>
             </Card>
           </div>
-        </main>
-      </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={o => { if (!o) setDeleteId(null); }}>
         <AlertDialogContent>
@@ -317,6 +315,6 @@ export default function Expenses() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </SidebarProvider>
+    </AppLayout>
   );
 }

@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
 
 interface LedgerEntry { date: string; type: string; reference: string; debit: number; credit: number; balance: number; }
 
@@ -42,8 +43,24 @@ export default function SupplierLedger() {
   const totalPaid = entries.filter(e => e.type === "Payment Made").reduce((s, e) => s + e.debit, 0);
   const outstanding = entries.length > 0 ? entries[entries.length - 1].balance : 0;
 
+  const shareViaWhatsApp = () => {
+    if (!supplier?.phone) { toast.error("No phone number on record for this supplier"); return; }
+    const msg = `📊 *Ledger Summary — ${supplier.name}*\n\n` +
+      `Total Purchases: PKR ${totalPurchases.toLocaleString()}\n` +
+      `Total Paid: PKR ${totalPaid.toLocaleString()}\n` +
+      `*Outstanding Balance: PKR ${outstanding.toLocaleString()}*\n\n` +
+      `As of ${new Date().toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}`;
+    const num = supplier.phone.replace(/[^0-9]/g, "");
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
   const headerActions = (
-    <Button variant="ghost" size="icon" asChild><Link to="/suppliers"><ArrowLeft className="h-4 w-4" /></Link></Button>
+    <div className="flex items-center gap-2">
+      <Button variant="outline" size="sm" className="text-xs gap-1.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/5" onClick={shareViaWhatsApp}>
+        <MessageCircle className="h-3.5 w-3.5" /> Share via WhatsApp
+      </Button>
+      <Button variant="ghost" size="icon" asChild><Link to="/suppliers"><ArrowLeft className="h-4 w-4" /></Link></Button>
+    </div>
   );
 
   return (

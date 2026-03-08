@@ -77,57 +77,60 @@ export default function BankAccounts() {
 
   return (
     <AppLayout title="Bank Accounts" subtitle={`Total Balance: PKR ${totalBalance.toLocaleString()}`} headerActions={headerActions}>
-            {accounts.length === 0 ? (
-              <div className="col-span-full text-center py-12 text-muted-foreground">
-                <Landmark className="h-8 w-8 mx-auto mb-2 opacity-40" />No bank accounts yet.
-              </div>
-            ) : accounts.map(a => (
-              <Card key={a.id} className={`glass-card cursor-pointer transition-all ${selectedId === a.id ? "ring-2 ring-primary" : ""}`} onClick={() => viewReconciliation(a.id)}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{a.name}</CardTitle>
-                  <p className="text-xs text-muted-foreground">{a.bank_name} {a.branch ? `• ${a.branch}` : ""}</p>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground">Acc: {a.account_number || "—"}</p>
-                  <p className="text-2xl font-bold font-mono mt-1">PKR {Number(a.balance).toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Opening: PKR {Number(a.opening_balance).toLocaleString()}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {selectedId && (
-            <div className="px-6 pb-6">
-              <h2 className="text-lg font-semibold mb-2">Linked Payments</h2>
-              <Card className="glass-card">
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Payment #</TableHead><TableHead>Type</TableHead><TableHead>Method</TableHead>
-                        <TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {linkedPayments.length === 0 ? (
-                        <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No payments linked.</TableCell></TableRow>
-                      ) : linkedPayments.map(p => (
-                        <TableRow key={p.id}>
-                          <TableCell className="font-mono">{p.payment_number}</TableCell>
-                          <TableCell className="capitalize">{p.type}</TableCell>
-                          <TableCell className="capitalize text-muted-foreground">{p.payment_method.replace("_", " ")}</TableCell>
-                          <TableCell className="text-muted-foreground">{p.date}</TableCell>
-                          <TableCell className={`text-right font-mono font-medium ${p.type === "received" ? "text-primary" : "text-destructive"}`}>
-                            {p.type === "received" ? "+" : "-"}{Number(p.amount).toLocaleString()}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {accounts.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-muted-foreground">
+              <Landmark className="h-8 w-8 mx-auto mb-2 opacity-40" />No bank accounts yet.
             </div>
-          )}
+          ) : accounts.map(a => (
+            <Card key={a.id} className={`glass-card cursor-pointer transition-all ${selectedId === a.id ? "ring-2 ring-primary" : ""}`} onClick={() => viewReconciliation(a.id)}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">{a.name}</CardTitle>
+                <p className="text-xs text-muted-foreground">{a.bank_name} {a.branch ? `• ${a.branch}` : ""}</p>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">Acc: {a.account_number || "—"}</p>
+                <p className="text-2xl font-bold font-mono mt-1">PKR {Number(a.balance).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Opening: PKR {Number(a.opening_balance).toLocaleString()}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {selectedId && (
+          <div>
+            <h2 className="text-lg font-semibold mb-2">Linked Payments</h2>
+            <Card className="glass-card">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Payment #</TableHead><TableHead>Type</TableHead><TableHead>Method</TableHead>
+                      <TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {linkedPayments.length === 0 ? (
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No payments linked.</TableCell></TableRow>
+                    ) : linkedPayments.map(p => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-mono">{p.payment_number}</TableCell>
+                        <TableCell className="capitalize">{p.type}</TableCell>
+                        <TableCell className="capitalize text-muted-foreground">{p.payment_method.replace("_", " ")}</TableCell>
+                        <TableCell className="text-muted-foreground">{p.date}</TableCell>
+                        <TableCell className={`text-right font-mono font-medium ${p.type === "received" ? "text-primary" : "text-destructive"}`}>
+                          {p.type === "received" ? "+" : "-"}{Number(p.amount).toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
     </AppLayout>
   );
 }

@@ -270,8 +270,6 @@ export default function PrintJobs() {
               </CardContent>
             </Card>
           </div>
-        </main>
-      </div>
 
       {/* Deliver Dialog */}
       <Dialog open={!!deliverJob} onOpenChange={o => { if (!o) setDeliverJob(null); }}>
