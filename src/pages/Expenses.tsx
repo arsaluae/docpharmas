@@ -37,7 +37,6 @@ interface Expense {
 }
 
 export default function Expenses() {
-  const navigate = useNavigate();
   const { settings } = useCompanySettings();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
