@@ -12,7 +12,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { generatePdf } from "@/lib/pdf-generator";
+import { generatePdfHtml } from "@/lib/pdf-generator";
+import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 
 interface DeliveryNote {

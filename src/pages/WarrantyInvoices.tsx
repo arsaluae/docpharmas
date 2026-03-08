@@ -14,7 +14,8 @@ import { Plus, Search, ShieldCheck, Trash2, X, Download } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { generatePdf } from "@/lib/pdf-generator";
+import { generatePdfHtml } from "@/lib/pdf-generator";
+import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 
 interface Customer { id: string; name: string; company: string | null; }
