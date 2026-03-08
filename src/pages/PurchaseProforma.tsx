@@ -138,7 +138,10 @@ export default function PurchaseProforma() {
               if (linkedGRN) {
                 grnNum = linkedGRN.grn_number;
                 const linkedBill = bills.data?.find((b: any) => b.grn_id === linkedGRN.id);
-                if (linkedBill) billNum = linkedBill.bill_number;
+                if (linkedBill) {
+                  billNum = linkedBill.bill_number;
+                  if (linkedBill.status === "paid") status = "paid";
+                }
               }
             }
           }
