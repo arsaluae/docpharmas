@@ -657,9 +657,9 @@ export default function ProformaInvoices() {
                             {Number(order.total).toLocaleString()}
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1">
                               {order.status === "draft" && (
-                                <Button variant="default" size="sm" onClick={() => openSubmitDialog(order)} className="h-7 text-xs gap-1 shadow-sm">
+                                <Button size="sm" onClick={() => openSubmitDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-sm">
                                   <CheckCircle className="h-3 w-3" /> Submit
                                 </Button>
                               )}
