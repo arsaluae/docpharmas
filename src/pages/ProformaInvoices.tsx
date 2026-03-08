@@ -250,7 +250,7 @@ export default function ProformaInvoices() {
     const custPhone = (order.customers as any)?.phone || undefined;
     const custArea = (order.customers as any)?.area || undefined;
     generatePdf({
-      title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date,
+      title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
       partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
       meta: [{ label: "Validity", value: `${order.validity_days} days` }],
       columns: [
@@ -276,7 +276,7 @@ export default function ProformaInvoices() {
     const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", order.converted_invoice_id);
     if (inv) {
       generatePdf({
-        title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date,
+        title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
         partyLabel: "Customer", partyName: (inv.customers as any)?.name || "—",
         columns: [
           { header: "#", key: "idx" }, { header: "Product", key: "name" }, { header: "Batch", key: "batch_number" },
@@ -419,7 +419,7 @@ export default function ProformaInvoices() {
       // Auto-download invoice PDF
       const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
       generatePdf({
-        title: "SALES INVOICE", documentNumber: invNumber, date: inv.date,
+        title: "SALES INVOICE", documentNumber: invNumber, date: inv.date, statusTheme: "dispatched" as const,
         partyLabel: "Customer", partyName: (inv.customers as any)?.name || (submitOrder.customers as any)?.name || "—",
         columns: [
           { header: "#", key: "idx" }, { header: "Product", key: "name" }, { header: "Batch", key: "batch_number" },
@@ -468,14 +468,14 @@ export default function ProformaInvoices() {
   };
 
   const filtered = orders.filter(p => {
-    const matchSearch = p.proforma_number.toLowerCase().includes(search.toLowerCase()) ||
-      ((p.customers as any)?.name || "").toLowerCase().includes(search.toLowerCase()) ||
-      (p.invoice_number || "").toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
+      ((p.customers as any)?.name || "").toLowerCase().includes(q) ||
+      (p.invoice_number || "").toLowerCase().includes(q);
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
-    const matchCustomer = !customerFilter || p.customer_id === customerFilter;
     const dateStart = getDateFilter();
     const matchDate = !dateStart || p.date >= dateStart;
-    return matchSearch && matchStatus && matchCustomer && matchDate;
+    return matchSearch && matchStatus && matchDate;
   });
 
   const statsByStatus = (status: string) => {
@@ -499,7 +499,7 @@ export default function ProformaInvoices() {
   };
   const statusLabel = (s: string) => ({ draft: "Draft", invoiced: "Invoiced", dispatched: "Dispatched", paid: "Paid" }[s] || s);
 
-  const STATUS_OPTIONS = ["all", "draft", "invoiced", "dispatched", "paid"];
+  const allStats = { count: orders.length, value: orders.reduce((s, d) => s + Number(d.total), 0) };
   const customerOptions = customers.map(c => ({ value: c.id, label: c.name }));
   const productOptions = products.map(p => ({ value: p.id, label: p.name }));
 
@@ -559,8 +559,9 @@ export default function ProformaInvoices() {
 
       <div className="space-y-4">
             {/* PREMIUM STATUS BUTTONS */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-5 gap-3">
               {[
+                { label: "All", ...allStats, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
                 { label: "Draft", ...draftStats, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
                 { label: "Invoiced", ...invoicedStats, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "invoiced" },
                 { label: "Dispatched", ...dispatchedStats, icon: Truck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "dispatched" },
@@ -580,25 +581,14 @@ export default function ProformaInvoices() {
 
             {/* FILTERS */}
             <div className="flex flex-wrap items-center gap-3">
-              <div className="relative max-w-xs flex-1">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search orders..." className="pl-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
+                <Input placeholder="Search orders & customers..." className="pl-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
               </div>
-              <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">
-                {STATUS_OPTIONS.map(s => (
-                  <button key={s} onClick={() => setStatusFilter(s)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all capitalize ${statusFilter === s ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-              <div className="w-44">
-                <SearchableSelect options={[{ value: "", label: "All Customers" }, ...customerOptions]} value={customerFilter} onChange={setCustomerFilter} placeholder="Customer..." />
-              </div>
-              <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">
+              <div className="flex items-center gap-1 rounded-xl bg-muted/40 backdrop-blur-sm p-1 border border-border/30">
                 {[{ label: "All", value: "all" }, { label: "Today", value: "today" }, { label: "Week", value: "week" }, { label: "Month", value: "month" }].map(d => (
                   <button key={d.value} onClick={() => setDateRange(d.value)}
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all ${dateRange === d.value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${dateRange === d.value ? "bg-gradient-to-br from-primary/10 to-primary/5 text-primary shadow-sm border border-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
                     {d.label}
                   </button>
                 ))}
