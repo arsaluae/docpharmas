@@ -129,137 +129,38 @@ export default function Index() {
     setLoadingReorder(false);
   };
 
-  const actionHubs = [
-    {
-      title: "Sales",
-      icon: ShoppingCart,
-      borderColor: "border-l-blue-500",
-      iconBg: "bg-blue-500/10",
-      iconColor: "text-blue-600",
-      actions: [
-        { label: "Sales Order", path: "/proforma", icon: FileText },
-        { label: "Sales Invoice", path: "/proforma", icon: ShoppingCart },
-        { label: "Warranty", path: "/warranty-invoices", icon: Shield },
-        { label: "Payment In", path: "/payments", icon: Wallet },
-      ],
-    },
-    {
-      title: "Purchase",
-      icon: Package,
-      borderColor: "border-l-emerald-500",
-      iconBg: "bg-emerald-500/10",
-      iconColor: "text-emerald-600",
-      actions: [
-        { label: "Purchase Order", path: "/purchase-proforma", icon: FileText },
-        { label: "Purchase Return", path: "/purchase-returns", icon: RotateCcw },
-      ],
-    },
-    {
-      title: "Inventory",
-      icon: PackageCheck,
-      borderColor: "border-l-amber-500",
-      iconBg: "bg-amber-500/10",
-      iconColor: "text-amber-600",
-      actions: [
-        { label: "Products", path: "/products", icon: Package },
-        { label: "Stock Movements", path: "/stock-movements", icon: ArrowRightLeft },
-      ],
-    },
-    {
-      title: "Printing",
-      icon: Printer,
-      borderColor: "border-l-violet-500",
-      iconBg: "bg-violet-500/10",
-      iconColor: "text-violet-600",
-      actions: [
-        { label: "Print Jobs", path: "/print-jobs", icon: Printer },
-      ],
-    },
-    {
-      title: "Finance",
-      icon: Landmark,
-      borderColor: "border-l-rose-500",
-      iconBg: "bg-rose-500/10",
-      iconColor: "text-rose-600",
-      actions: [
-        { label: "Expenses", path: "/expenses", icon: Receipt },
-        { label: "Bank Accounts", path: "/bank-accounts", icon: Landmark },
-      ],
-    },
+  const quickActions = [
+    // Row 1 — Sales
+    { label: "Sales Order", path: "/proforma", icon: FileText, gradient: "from-indigo-500/8 to-indigo-600/18", iconBg: "from-indigo-500 to-indigo-600", accent: "from-indigo-500 to-indigo-400", shadow: "shadow-indigo-500/20" },
+    { label: "Sales Invoice", path: "/proforma", icon: ShoppingCart, gradient: "from-blue-500/8 to-blue-600/18", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-500 to-blue-400", shadow: "shadow-blue-500/20" },
+    { label: "Warranty Invoice", path: "/warranty-invoices", icon: Shield, gradient: "from-violet-500/8 to-violet-600/18", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-500 to-violet-400", shadow: "shadow-violet-500/20" },
+    { label: "Payment In", path: "/payments", icon: Wallet, gradient: "from-cyan-500/8 to-teal-600/18", iconBg: "from-cyan-500 to-teal-600", accent: "from-cyan-500 to-teal-400", shadow: "shadow-cyan-500/20" },
+    // Row 2 — Operations
+    { label: "Inventory", path: "/products", icon: Package, gradient: "from-amber-500/8 to-orange-600/18", iconBg: "from-amber-500 to-orange-600", accent: "from-amber-500 to-orange-400", shadow: "shadow-amber-500/20" },
+    { label: "Purchase Order", path: "/purchase-proforma", icon: FileText, gradient: "from-emerald-500/8 to-emerald-600/18", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-500 to-emerald-400", shadow: "shadow-emerald-500/20" },
+    { label: "Print Jobs", path: "/print-jobs", icon: Printer, gradient: "from-fuchsia-500/8 to-purple-600/18", iconBg: "from-fuchsia-500 to-purple-600", accent: "from-fuchsia-500 to-purple-400", shadow: "shadow-fuchsia-500/20" },
+    { label: "Expenses", path: "/expenses", icon: Receipt, gradient: "from-rose-500/8 to-rose-600/18", iconBg: "from-rose-500 to-rose-600", accent: "from-rose-500 to-rose-400", shadow: "shadow-rose-500/20" },
   ];
 
-  return (
-    <AppLayout title="Dashboard" subtitle="Business overview">
-      <div className="space-y-6">
-        {/* Sales Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-l-4 border-l-primary hover:shadow-md transition-all">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">This Week Sale</p>
-                  <p className="text-2xl font-bold text-foreground mt-1 font-heading">PKR {weekSales.toLocaleString()}</p>
-                </div>
-                <div className="p-2.5 rounded-xl bg-primary/10"><CalendarDays className="h-5 w-5 text-primary" /></div>
+        {/* Premium Action Buttons */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {quickActions.map((action) => (
+            <button
+              key={action.label}
+              onClick={() => navigate(action.path)}
+              className={`group relative flex flex-col items-center justify-center gap-3 h-[120px] rounded-2xl bg-gradient-to-br ${action.gradient} border border-border/50 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-lg ${action.shadow} overflow-hidden`}
+            >
+              {/* Icon circle */}
+              <div className={`flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${action.iconBg} shadow-md transition-transform duration-300 group-hover:scale-110`}>
+                <action.icon className="h-6 w-6 text-white" />
               </div>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-emerald-500 hover:shadow-md transition-all">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">This Month Sale</p>
-                  <p className="text-2xl font-bold text-foreground mt-1 font-heading">PKR {monthSales.toLocaleString()}</p>
-                </div>
-                <div className="p-2.5 rounded-xl bg-emerald-500/10"><ShoppingCart className="h-5 w-5 text-emerald-500" /></div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className={`border-l-4 hover:shadow-md transition-all ${grossMargin >= 0 ? "border-l-primary" : "border-l-destructive"}`}>
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Gross Margin (Month)</p>
-                  <p className={`text-2xl font-bold mt-1 font-heading ${grossMargin >= 0 ? "text-primary" : "text-destructive"}`}>
-                    PKR {Math.abs(grossMargin).toLocaleString()}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Sale − Cost Price</p>
-                </div>
-                <div className={`p-2.5 rounded-xl ${grossMargin >= 0 ? "bg-primary/10" : "bg-destructive/10"}`}>
-                  {grossMargin >= 0 ? <TrendingUp className="h-5 w-5 text-primary" /> : <TrendingDown className="h-5 w-5 text-destructive" />}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Grouped Action Hubs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          {actionHubs.map((hub) => (
-            <Card key={hub.title} className={`border-l-4 ${hub.borderColor} hover:shadow-md transition-all`}>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-xs font-heading flex items-center gap-2 uppercase tracking-widest text-muted-foreground">
-                  <div className={`p-1.5 rounded-lg ${hub.iconBg}`}>
-                    <hub.icon className={`h-3.5 w-3.5 ${hub.iconColor}`} />
-                  </div>
-                  {hub.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 pt-1">
-                <div className="flex flex-col gap-1.5">
-                  {hub.actions.map((action) => (
-                    <button
-                      key={action.label}
-                      onClick={() => navigate(action.path)}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-accent/50 transition-colors text-left"
-                    >
-                      <action.icon className={`h-3.5 w-3.5 ${hub.iconColor}`} />
-                      {action.label}
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+              {/* Label */}
+              <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-foreground/80 font-heading group-hover:text-foreground transition-colors">
+                {action.label}
+              </span>
+              {/* Bottom accent bar */}
+              <div className={`absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r ${action.accent} opacity-60 group-hover:opacity-100 transition-opacity`} />
+            </button>
           ))}
         </div>
 
