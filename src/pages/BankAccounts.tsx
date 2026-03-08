@@ -31,13 +31,7 @@ export default function BankAccounts() {
   const [branch, setBranch] = useState("");
   const [openingBalance, setOpeningBalance] = useState("");
 
-  useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate("/auth");
-    };
-    check(); load();
-  }, [navigate]);
+  useEffect(() => { load(); }, []);
 
   const load = async () => {
     const { data } = await supabase.from("bank_accounts").select("*").order("created_at", { ascending: false });

@@ -60,9 +60,7 @@ export default function PrintJobs() {
   const [printerNames, setPrinterNames] = useState<Record<string, string>>({});
   const [productNames, setProductNames] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
-    check(); load();
+  useEffect(() => { load(); }, []);
   }, [navigate]);
 
   const load = async () => {

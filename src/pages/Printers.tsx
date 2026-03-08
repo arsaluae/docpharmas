@@ -34,10 +34,7 @@ export default function Printers() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  useEffect(() => {
-    const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
-    check(); loadPrinters();
-  }, [navigate]);
+  useEffect(() => { loadPrinters(); }, []);
 
   const loadPrinters = async () => {
     const { data } = await supabase.from("printers").select("*").order("created_at", { ascending: false });

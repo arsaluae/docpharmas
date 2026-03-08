@@ -36,10 +36,7 @@ export default function PurchaseReturns() {
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState("all");
 
-  useEffect(() => {
-    const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
-    check(); loadData();
-  }, [navigate]);
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     setLoading(true);

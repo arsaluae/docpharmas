@@ -248,10 +248,7 @@ export default function DataImport() {
   const [errorsOpen, setErrorsOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
-    check();
-  }, [navigate]);
+  // No auth check needed - handled by ProtectedRoute
 
   const processRows = (rawHeaders: string[], rawRows: string[][]) => {
     const cols = TAB_COLUMNS[tab];
