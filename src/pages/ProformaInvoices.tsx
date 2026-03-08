@@ -468,14 +468,14 @@ export default function ProformaInvoices() {
   };
 
   const filtered = orders.filter(p => {
-    const matchSearch = p.proforma_number.toLowerCase().includes(search.toLowerCase()) ||
-      ((p.customers as any)?.name || "").toLowerCase().includes(search.toLowerCase()) ||
-      (p.invoice_number || "").toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
+      ((p.customers as any)?.name || "").toLowerCase().includes(q) ||
+      (p.invoice_number || "").toLowerCase().includes(q);
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
-    const matchCustomer = !customerFilter || p.customer_id === customerFilter;
     const dateStart = getDateFilter();
     const matchDate = !dateStart || p.date >= dateStart;
-    return matchSearch && matchStatus && matchCustomer && matchDate;
+    return matchSearch && matchStatus && matchDate;
   });
 
   const statsByStatus = (status: string) => {
