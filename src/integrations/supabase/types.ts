@@ -845,6 +845,53 @@ export type Database = {
           },
         ]
       }
+      payment_submissions: {
+        Row: {
+          admin_notes: string | null
+          amount: number
+          created_at: string
+          id: string
+          plan: string
+          reviewed_at: string | null
+          screenshot_url: string
+          status: string
+          submitted_by: string
+          tenant_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount?: number
+          created_at?: string
+          id?: string
+          plan?: string
+          reviewed_at?: string | null
+          screenshot_url: string
+          status?: string
+          submitted_by: string
+          tenant_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          amount?: number
+          created_at?: string
+          id?: string
+          plan?: string
+          reviewed_at?: string | null
+          screenshot_url?: string
+          status?: string
+          submitted_by?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_submissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -2138,6 +2185,9 @@ export type Database = {
           phone: string | null
           plan: string | null
           setup_paid: boolean | null
+          subscription_ends_at: string | null
+          subscription_status: string | null
+          trial_starts_at: string | null
         }
         Insert: {
           company_name: string
@@ -2149,6 +2199,9 @@ export type Database = {
           phone?: string | null
           plan?: string | null
           setup_paid?: boolean | null
+          subscription_ends_at?: string | null
+          subscription_status?: string | null
+          trial_starts_at?: string | null
         }
         Update: {
           company_name?: string
@@ -2160,6 +2213,9 @@ export type Database = {
           phone?: string | null
           plan?: string | null
           setup_paid?: boolean | null
+          subscription_ends_at?: string | null
+          subscription_status?: string | null
+          trial_starts_at?: string | null
         }
         Relationships: []
       }
