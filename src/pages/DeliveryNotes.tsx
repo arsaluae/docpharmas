@@ -50,8 +50,11 @@ export default function DeliveryNotes() {
 
   const printDN = (dn: DeliveryNote) => {
     const items = typeof dn.items === "string" ? JSON.parse(dn.items) : dn.items;
+    const customerName = (dn as any).customers?.name || undefined;
     const html = generatePdfHtml({
       title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date,
+      partyLabel: dn.customer_id ? "Customer" : dn.supplier_id ? "Supplier" : undefined,
+      partyName: customerName,
       columns: [
         { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
         { header: "Batch #", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
