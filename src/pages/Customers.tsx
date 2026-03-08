@@ -265,7 +265,7 @@ export default function Customers() {
                     </div>
                   </TableCell>
                 </TableRow>
-              )))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
