@@ -1,51 +1,34 @@
 
 
-# Plan: Ultra-Premium Status Filters + Streamlined Tables for Sales & Purchase Orders
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## Changes
+## Two Changes
 
-### 1. Sales Orders (`ProformaInvoices.tsx`)
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-**Replace stat cards with premium gradient clickable status buttons** (matching dashboard style):
-- Draft: Amber gradient, amber icon circle, bottom accent bar
-- Invoiced: Blue gradient  
-- Dispatched: Violet gradient
-- Paid: Emerald gradient
-- Each ~80px tall, centered icon + count + value, `hover:scale-[1.03]`, active state shows ring/border
-- Clicking filters by that status (already works, just restyling)
-
-**Remove the flow indicator bar** (lines 577-587) — redundant visual noise.
-
-**Reduce table columns**: Remove "Invoice #" column (available in preview sheet). Keep: Checkbox, Order #, Customer, Date, Status, Total, Actions.
-
-**Status badge colors in table** get matching gradient backgrounds:
-- Draft → amber bg
-- Invoiced → blue bg  
-- Dispatched → violet bg
-- Paid → emerald bg
-
-### 2. Purchase Orders (`PurchaseProforma.tsx`)
-
-**Refactor to AppLayout** — currently still uses SidebarProvider boilerplate.
-
-**Same premium gradient status buttons**:
-- Draft: Amber
-- Ordered: Blue
-- Confirmed: Violet  
-- Received: Emerald
-
-**Remove flow indicator bar** (lines 620-628).
-
-**Remove table columns**: Drop "PO #" and "GRN" columns (available in preview). Keep: Checkbox, Order #, Supplier, Date, Status, Total, Actions.
-
-**Fix actions always visible** — remove `opacity-0 group-hover:opacity-100`.
-
-**Status badge colors** match the gradient theme per status.
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
 ## Files Changed
 
-| File | Action |
-|------|--------|
-| `src/pages/ProformaInvoices.tsx` | Premium status buttons, remove flow bar, streamline table, colored badges |
-| `src/pages/PurchaseProforma.tsx` | AppLayout refactor, premium status buttons, remove flow bar, streamline table, colored badges |
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+
+No other files change. The template system and all callers remain the same.
 

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Search, FileText, Trash2, Download, CheckCircle, Pencil, PackageCheck, MessageCircle, DollarSign, Eye, Loader2 } from "lucide-react";
+import { Plus, Search, FileText, Trash2, Download, CheckCircle, Pencil, PackageCheck, MessageCircle, DollarSign, Eye, Loader2, FileEdit, ShoppingCart, BadgeCheck, PackageOpen } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -513,7 +512,8 @@ export default function PurchaseProforma() {
 
   const statusColor = (s: string) => {
     if (s === "received") return "bg-emerald-500/15 text-emerald-600 border-emerald-500/20";
-    if (s === "ordered" || s === "confirmed") return "bg-primary/15 text-primary border-primary/20";
+    if (s === "confirmed") return "bg-violet-500/15 text-violet-600 border-violet-500/20";
+    if (s === "ordered") return "bg-blue-500/15 text-blue-600 border-blue-500/20";
     if (s === "draft") return "bg-amber-500/15 text-amber-600 border-amber-500/20";
     return "bg-muted text-muted-foreground";
   };
@@ -521,110 +521,95 @@ export default function PurchaseProforma() {
   const STATUS_OPTIONS = ["all", "draft", "ordered", "confirmed", "received"];
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading tracking-tight">Purchase Orders</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Draft → confirm order → receive with batch + expiry → auto GRN + bill</p>
+    <AppLayout title="Purchase Orders" subtitle="Draft → confirm order → receive with batch + expiry → auto GRN + bill"
+      headerActions={
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild><Button className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:scale-[1.02] transition-all"><Plus className="h-4 w-4" /> New Order</Button></DialogTrigger>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader><DialogTitle className="font-heading">Create Purchase Order</DialogTitle></DialogHeader>
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Supplier *</Label>
+                <SearchableSelect options={supplierOptions} value={supplierId} onChange={setSupplierId} placeholder="Select supplier..." />
+              </div>
+              <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={ppDate} onChange={e => setPpDate(e.target.value)} /></div>
+              <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
             </div>
-            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-              <DialogTrigger asChild><Button className="gap-2 shadow-sm"><Plus className="h-4 w-4" /> New Order</Button></DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader><DialogTitle className="font-heading">Create Purchase Order</DialogTitle></DialogHeader>
-                <div className="grid grid-cols-3 gap-3 mt-3">
-                  <div>
-                    <Label className="text-xs font-medium text-muted-foreground">Supplier *</Label>
-                    <SearchableSelect options={supplierOptions} value={supplierId} onChange={setSupplierId} placeholder="Select supplier..." />
-                  </div>
-                  <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={ppDate} onChange={e => setPpDate(e.target.value)} /></div>
-                  <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
+            <Separator className="my-4" />
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-sm font-semibold">Items</Label>
+              <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
+            </div>
+            {items.map((item, idx) => (
+              <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
+                <div className="col-span-4"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
+                <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateItem(idx, "quantity_requested", e.target.value)} className="text-xs" placeholder="Qty" /></div>
+                <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" /></div>
+                <div className="col-span-3 text-right text-sm font-mono pt-2 text-foreground">{item.amount.toLocaleString()}</div>
+                <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
+              </div>
+            ))}
+            <Separator className="my-3" />
+            <div>
+              <Label className="text-sm font-semibold">Additional Costs</Label>
+              {costs.map((c, idx) => (
+                <div key={idx} className="flex items-center gap-2 mb-1 text-xs mt-1">
+                  <Badge variant="outline" className="capitalize text-[10px]">{c.cost_type}</Badge>
+                  <span className="flex-1 text-muted-foreground">{c.description}</span>
+                  <span className="font-mono">PKR {Number(c.amount).toLocaleString()}</span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCosts(costs.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                 </div>
-                <Separator className="my-4" />
-                <div className="flex items-center justify-between mb-3">
-                  <Label className="text-sm font-semibold">Items</Label>
-                  <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
+              ))}
+              <div className="grid grid-cols-12 gap-2 mt-2 items-end">
+                <div className="col-span-2">
+                  <Select value={costType} onValueChange={setCostType}>
+                    <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="printing">Printing</SelectItem><SelectItem value="packaging">Packaging</SelectItem>
+                      <SelectItem value="freight_in">Freight In</SelectItem><SelectItem value="freight_out">Freight Out</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                {items.map((item, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
-                    <div className="col-span-4"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
-                    <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateItem(idx, "quantity_requested", e.target.value)} className="text-xs" placeholder="Qty" /></div>
-                    <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" /></div>
-                    <div className="col-span-3 text-right text-sm font-mono pt-2 text-foreground">{item.amount.toLocaleString()}</div>
-                    <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
-                  </div>
-                ))}
-                <Separator className="my-3" />
-                <div>
-                  <Label className="text-sm font-semibold">Additional Costs</Label>
-                  {costs.map((c, idx) => (
-                    <div key={idx} className="flex items-center gap-2 mb-1 text-xs mt-1">
-                      <Badge variant="outline" className="capitalize text-[10px]">{c.cost_type}</Badge>
-                      <span className="flex-1 text-muted-foreground">{c.description}</span>
-                      <span className="font-mono">PKR {Number(c.amount).toLocaleString()}</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCosts(costs.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                    </div>
-                  ))}
-                  <div className="grid grid-cols-12 gap-2 mt-2 items-end">
-                    <div className="col-span-2">
-                      <Select value={costType} onValueChange={setCostType}>
-                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="printing">Printing</SelectItem><SelectItem value="packaging">Packaging</SelectItem>
-                          <SelectItem value="freight_in">Freight In</SelectItem><SelectItem value="freight_out">Freight Out</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="col-span-3"><Input className="text-xs" placeholder="Description" value={costDesc} onChange={e => setCostDesc(e.target.value)} /></div>
-                    <div className="col-span-2"><Input className="text-xs" type="number" placeholder="Amount" value={costAmount} onChange={e => setCostAmount(e.target.value)} /></div>
-                    <div className="col-span-3"><SearchableSelect options={supplierOptions} value={costVendorId} onChange={setCostVendorId} placeholder="Vendor" triggerClassName="text-xs h-9" /></div>
-                    <div className="col-span-2"><Button variant="outline" size="sm" onClick={addCostLine} className="text-xs w-full">+ Add</Button></div>
-                  </div>
-                </div>
-                <Separator className="my-3" />
-                <div className="space-y-1.5 text-sm">
-                  <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
-                  {settings?.gst_enabled && <div className="flex justify-between text-muted-foreground"><span>GST</span><span className="font-mono">{gst.toLocaleString()}</span></div>}
-                  <div className="flex justify-between font-bold text-foreground text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
-                </div>
-                <div className="mt-3"><Label className="text-xs font-medium text-muted-foreground">Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
-                <Button onClick={handleSave} disabled={saving} className="w-full mt-4 h-11 text-sm font-semibold">
-                  {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Purchase Order
-                </Button>
-              </DialogContent>
-            </Dialog>
-          </header>
-
-          <div className="p-6 space-y-4">
-            {/* STATS */}
+                <div className="col-span-3"><Input className="text-xs" placeholder="Description" value={costDesc} onChange={e => setCostDesc(e.target.value)} /></div>
+                <div className="col-span-2"><Input className="text-xs" type="number" placeholder="Amount" value={costAmount} onChange={e => setCostAmount(e.target.value)} /></div>
+                <div className="col-span-3"><SearchableSelect options={supplierOptions} value={costVendorId} onChange={setCostVendorId} placeholder="Vendor" triggerClassName="text-xs h-9" /></div>
+                <div className="col-span-2"><Button variant="outline" size="sm" onClick={addCostLine} className="text-xs w-full">+ Add</Button></div>
+              </div>
+            </div>
+            <Separator className="my-3" />
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
+              {settings?.gst_enabled && <div className="flex justify-between text-muted-foreground"><span>GST</span><span className="font-mono">{gst.toLocaleString()}</span></div>}
+              <div className="flex justify-between font-bold text-foreground text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
+            </div>
+            <div className="mt-3"><Label className="text-xs font-medium text-muted-foreground">Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
+            <Button onClick={handleSave} disabled={saving} className="w-full mt-4 h-11 text-sm font-semibold">
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Purchase Order
+            </Button>
+          </DialogContent>
+        </Dialog>
+      }
+    >
+      <div className="space-y-4">
+            {/* PREMIUM STATUS BUTTONS */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Drafts", ...draftStats, gradient: "from-amber-500/10 to-amber-600/5", textColor: "text-amber-600" },
-                { label: "Ordered", ...orderedStats, gradient: "from-primary/10 to-primary/5", textColor: "text-primary" },
-                { label: "Confirmed", ...confirmedStats, gradient: "from-primary/10 to-primary/5", textColor: "text-primary" },
-                { label: "Received", ...receivedStats, gradient: "from-emerald-500/10 to-emerald-600/5", textColor: "text-emerald-600" },
+                { label: "Draft", ...draftStats, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
+                { label: "Ordered", ...orderedStats, icon: ShoppingCart, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "ordered" },
+                { label: "Confirmed", ...confirmedStats, icon: BadgeCheck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "confirmed" },
+                { label: "Received", ...receivedStats, icon: PackageOpen, gradient: "from-emerald-500/8 to-emerald-600/15", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-400 to-emerald-600", textColor: "text-emerald-600", statusKey: "received" },
               ].map(s => (
-                <button key={s.label} onClick={() => setStatusFilter(s.label.toLowerCase())}
-                  className={`text-left p-4 rounded-xl border border-border bg-gradient-to-br ${s.gradient} hover:shadow-md transition-all duration-200`}>
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.15em]">{s.label}</p>
-                  <p className={`text-2xl font-bold font-heading ${s.textColor} mt-1`}>{s.count}</p>
-                  <p className="text-xs font-mono text-muted-foreground mt-0.5">PKR {s.value.toLocaleString()}</p>
+                <button key={s.label} onClick={() => setStatusFilter(s.statusKey)}
+                  className={`group relative flex flex-col items-center justify-center h-[100px] rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
+                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300`}>
+                    <s.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <span className={`text-lg font-bold font-heading ${s.textColor}`}>{s.count}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{s.label}</span>
+                  <div className={`absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r ${s.accent} opacity-50 group-hover:opacity-100 transition-opacity`} />
                 </button>
               ))}
-            </div>
-
-            {/* FLOW */}
-            <div className="flex items-center gap-2 text-xs bg-muted/40 rounded-xl px-4 py-3 border border-border/60">
-              <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-600 font-semibold">Draft</span>
-              <span className="text-muted-foreground">→</span>
-              <span className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-semibold">Confirm (PO)</span>
-              <span className="text-muted-foreground">→</span>
-              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 font-semibold">Received (GRN + Bill)</span>
-              <span className="ml-auto text-muted-foreground italic hidden sm:inline">Receiving requires batch + expiry</span>
             </div>
 
             {/* FILTERS */}
@@ -665,18 +650,16 @@ export default function PurchaseProforma() {
                       <TableRow className="bg-muted/30">
                         <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                         <TableHead className="font-semibold">Order #</TableHead>
-                        <TableHead className="font-semibold">PO #</TableHead>
                         <TableHead className="font-semibold">Supplier</TableHead>
                         <TableHead className="font-semibold">Date</TableHead>
                         <TableHead className="font-semibold">Status</TableHead>
-                        <TableHead className="font-semibold">GRN</TableHead>
                         <TableHead className="text-right font-semibold">Total</TableHead>
                         <TableHead className="font-semibold">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filtered.length === 0 ? (
-                        <TableRow><TableCell colSpan={9} className="text-center py-16">
+                        <TableRow><TableCell colSpan={7} className="text-center py-16">
                           <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
                           <p className="text-muted-foreground font-medium">No purchase orders yet</p>
                           <p className="text-xs text-muted-foreground mt-1">Click "New Order" to start</p>
@@ -685,16 +668,14 @@ export default function PurchaseProforma() {
                         <TableRow key={order.id} className="group cursor-pointer hover:bg-muted/30 transition-colors" data-state={selected.has(order.id) ? "selected" : undefined}>
                           <TableCell><Checkbox checked={selected.has(order.id)} onCheckedChange={() => toggleSelect(order.id)} /></TableCell>
                           <TableCell className="font-mono font-semibold text-sm" onClick={() => openPreview(order)}>{order.proforma_number}</TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground" onClick={() => openPreview(order)}>{order.po_number || "—"}</TableCell>
                           <TableCell className="text-sm" onClick={() => openPreview(order)}>{(order.suppliers as any)?.name || "—"}</TableCell>
                           <TableCell className="text-sm text-muted-foreground" onClick={() => openPreview(order)}>{order.date}</TableCell>
                           <TableCell onClick={() => openPreview(order)}>
                             <Badge variant="outline" className={`text-[10px] font-semibold ${statusColor(order.status)}`}>{statusLabel(order.status)}</Badge>
                           </TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">{order.grn_number || "—"}</TableCell>
                           <TableCell className="text-right font-mono font-semibold text-sm" onClick={() => openPreview(order)}>{Number(order.total).toLocaleString()}</TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1">
                               {order.status === "draft" && (
                                 <Button variant="default" size="sm" onClick={() => handleConfirmOrder(order)} className="h-7 text-xs gap-1 shadow-sm">
                                   <CheckCircle className="h-3 w-3" /> Confirm
@@ -950,8 +931,6 @@ export default function PurchaseProforma() {
               </Button>
             </DialogContent>
           </Dialog>
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }
