@@ -93,7 +93,7 @@ function getColors(theme?: StatusTheme) {
   return { ...BASE_C, ...STATUS_THEMES[theme] };
 }
 
-export function generatePdf(opts: PdfOptions) {
+function buildPdfHtml(opts: PdfOptions): string {
   const C = getColors(opts.statusTheme);
   const s = opts.settings;
   const t = opts.template;
@@ -195,7 +195,7 @@ export function generatePdf(opts: PdfOptions) {
     </div>`
   ).join("");
 
-  const html = `<!DOCTYPE html><html><head>
+  return `<!DOCTYPE html><html><head>
 <title>${docTitle} — ${opts.documentNumber}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -345,7 +345,16 @@ export function generatePdf(opts: PdfOptions) {
 
 </div>
 </body></html>`;
+}
 
+/** Returns the full HTML string for in-app preview */
+export function generatePdfHtml(opts: PdfOptions): string {
+  return buildPdfHtml(opts);
+}
+
+/** Opens PDF in a new tab (legacy) */
+export function generatePdf(opts: PdfOptions) {
+  const html = buildPdfHtml(opts);
   const win = window.open("", "_blank");
   if (win) {
     win.document.write(html);
