@@ -44,7 +44,7 @@ export default function DeliveryNotes() {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const { data } = await supabase.from("delivery_notes").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.from("delivery_notes").select("*, customers(name)").order("created_at", { ascending: false });
     if (data) setNotes(data as any);
   };
 
