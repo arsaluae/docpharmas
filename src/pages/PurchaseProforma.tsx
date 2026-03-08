@@ -212,15 +212,61 @@ export default function PurchaseProforma() {
 
   // ── PREVIEW ──
   const openPreview = async (order: PurchaseOrder) => {
-    setPreviewOrder(order);
-    setEditMode(false);
+    // Load items first for PDF generation, then open PDF preview
     const [itemsRes, costsRes] = await Promise.all([
       supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id),
       supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", order.id),
     ]);
     setPreviewItems(itemsRes.data || []);
     setPreviewCosts(costsRes.data || []);
+    setPreviewOrder(order);
+    // Generate and show PDF preview directly
+    const html = generatePdfHtml({
+      title: "PURCHASE ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
+      partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
+      partyAddress: (order.suppliers as any)?.address || undefined,
+      partyPhone: (order.suppliers as any)?.phone || undefined,
+      columns: [
+        { header: "#", key: "idx" }, { header: "Product", key: "name" },
+        { header: "Qty", key: "quantity_requested", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+        { header: "Amount", key: "amount", align: "right" },
+      ],
+      rows: (itemsRes.data || []).map((i: any, idx: number) => ({
+        idx: idx + 1, name: i.products?.name || "Item",
+        quantity_requested: i.quantity_requested, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+      })),
+      totals: [
+        { label: "Subtotal", value: `PKR ${Number(order.subtotal).toLocaleString()}` },
+        ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(order.gst).toLocaleString()}` }] : []),
+        { label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` },
+      ],
+      notes: order.notes || undefined, settings,
+      template: getTemplate("purchase_proforma"),
+    });
+    setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
+  };
+
+  const openEditSheet = async (order: PurchaseOrder) => {
+    const [itemsRes, costsRes] = await Promise.all([
+      supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id),
+      supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", order.id),
+    ]);
+    setPreviewItems(itemsRes.data || []);
+    setPreviewCosts(costsRes.data || []);
+    setPreviewOrder(order);
+    setEditMode(false);
     setPreviewOpen(true);
+    setTimeout(() => {
+      setEditSupplierId(order.supplier_id || "");
+      setEditDate(order.date);
+      setEditValidity(String(order.validity_days));
+      setEditNotes(order.notes || "");
+      setEditItems((itemsRes.data || []).map((i: any) => ({
+        product_id: i.product_id || "", product_name: i.products?.name || "Item",
+        quantity_requested: i.quantity_requested, rate: Number(i.rate), amount: Number(i.amount),
+      })));
+      setEditMode(true);
+    }, 0);
   };
 
   // ── WHATSAPP ──
@@ -352,6 +398,8 @@ export default function PurchaseProforma() {
         }))
       );
 
+      // Stock movements for received quantities
+      const varianceItems: { name: string; ordered: number; received: number; diff: number }[] = [];
       for (const item of receiveItems) {
         if (item.product_id) {
           await supabase.from("stock_movements").insert({
@@ -359,6 +407,30 @@ export default function PurchaseProforma() {
             movement_type: "purchase_in", batch_number: item.batch_number || null,
             reference_type: "grn", reference_id: grn.id, date: grn.date, notes: `GRN ${grnNumber}`,
           });
+
+          // Stock variance check
+          const ordered = Number(item.quantity_confirmed) || Number(item.quantity);
+          const received = Number(item.quantity_received);
+          if (ordered !== received) {
+            const diff = received - ordered;
+            varianceItems.push({ name: item.item_name, ordered, received, diff });
+            // Create adjustment movement for variance
+            if (diff > 0) {
+              await supabase.from("stock_movements").insert({
+                product_id: item.product_id, quantity: Math.abs(diff),
+                movement_type: "adjustment_in", batch_number: item.batch_number || null,
+                reference_type: "grn", reference_id: grn.id, date: grn.date,
+                notes: `Stock variance: received ${received} vs ordered ${ordered} (over by ${Math.abs(diff)})`,
+              });
+            } else {
+              await supabase.from("stock_movements").insert({
+                product_id: item.product_id, quantity: Math.abs(diff),
+                movement_type: "adjustment_out", batch_number: item.batch_number || null,
+                reference_type: "grn", reference_id: grn.id, date: grn.date,
+                notes: `Stock variance: received ${received} vs ordered ${ordered} (short by ${Math.abs(diff)})`,
+              });
+            }
+          }
         }
       }
 
@@ -388,6 +460,12 @@ export default function PurchaseProforma() {
         }
       } catch {
         toast.success(`GRN ${grnNumber} created`);
+      }
+
+      // Show variance summary if any
+      if (varianceItems.length > 0) {
+        const summary = varianceItems.map(v => `${v.name}: ordered ${v.ordered}, received ${v.received} (${v.diff > 0 ? "+" : ""}${v.diff})`).join("; ");
+        toast.warning(`Stock variance detected: ${summary}`, { duration: 8000 });
       }
 
       const grnHtml = generatePdfHtml({
@@ -682,8 +760,13 @@ export default function PurchaseProforma() {
                                   <PackageCheck className="h-3 w-3" /> Receive
                                 </Button>
                               )}
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(order)}>
-                                <Eye className="h-3.5 w-3.5" />
+                              {order.status === "draft" && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSheet(order)} title="Edit">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(order)} title="Download PDF">
+                                <Download className="h-3.5 w-3.5" />
                               </Button>
                               {order.status === "draft" && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => promptDelete([order.id])}>

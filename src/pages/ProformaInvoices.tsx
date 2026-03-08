@@ -190,9 +190,24 @@ export default function ProformaInvoices() {
 
   // ── PREVIEW ──
   const openPreview = (order: SalesOrder) => {
+    // Open PDF preview dialog directly instead of side sheet
+    printOrder(order);
+  };
+
+  const openEditSheet = (order: SalesOrder) => {
     setPreviewOrder(order);
     setEditMode(false);
     setPreviewOpen(true);
+    // Immediately enter edit mode
+    setTimeout(() => {
+      setEditCustomerId(order.customer_id || "");
+      setEditDate(order.date);
+      setEditValidity(String(order.validity_days));
+      setEditPaymentInstr(order.payment_instructions || "");
+      const pfItems = getPfItems(order);
+      setEditItems(pfItems.map(i => ({ ...i })));
+      setEditMode(true);
+    }, 0);
   };
 
   const getPfItems = (order: SalesOrder | null): ProformaItem[] => {
@@ -649,9 +664,19 @@ export default function ProformaInvoices() {
                                   <CheckCircle className="h-3 w-3" /> Submit
                                 </Button>
                               )}
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(order)}>
-                                <Eye className="h-3.5 w-3.5" />
+                              {order.status === "draft" && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSheet(order)} title="Edit">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printOrder(order)} title="Download PDF">
+                                <Download className="h-3.5 w-3.5" />
                               </Button>
+                              {order.converted_invoice_id && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printInvoice(order)} title="Invoice PDF">
+                                  <FileText className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               {order.status === "draft" && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => promptDelete([order.id])}>
                                   <Trash2 className="h-3.5 w-3.5 text-destructive" />

@@ -1,6 +1,6 @@
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, X } from "lucide-react";
+import { Download } from "lucide-react";
 import { useRef } from "react";
 
 interface PdfPreviewDialogProps {
@@ -40,6 +40,8 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title }: PdfPreview
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl w-[90vw] h-[85vh] p-0 gap-0 overflow-hidden">
+        <DialogTitle className="sr-only">{title || "Document Preview"}</DialogTitle>
+        <DialogDescription className="sr-only">Preview of {title || "document"}</DialogDescription>
         {/* Header bar */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
           <span className="text-sm font-semibold truncate">{title || "Document Preview"}</span>
