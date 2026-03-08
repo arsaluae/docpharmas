@@ -1,8 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { useSearchParams } from "react-router-dom";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
