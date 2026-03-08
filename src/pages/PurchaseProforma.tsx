@@ -938,4 +938,3 @@ export default function PurchaseProforma() {
     </AppLayout>
   );
 }
-}
