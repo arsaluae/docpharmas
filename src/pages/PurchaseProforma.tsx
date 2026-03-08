@@ -294,7 +294,6 @@ export default function PurchaseProforma() {
       subtotal: order.subtotal, gst: order.gst, total: order.total, status: "confirmed", proforma_id: order.id,
     }).select().single();
     if (poErr || !po) { toast.error("Failed to create PO: " + (poErr?.message || "Unknown error")); setSaving(false); return; }
-    {
       const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*").eq("proforma_id", order.id);
       if (ppItems?.length) {
         await supabase.from("purchase_order_items").insert(
