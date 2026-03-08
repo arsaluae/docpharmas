@@ -58,34 +58,25 @@ export default function BankAccounts() {
 
   const totalBalance = accounts.reduce((s, a) => s + Number(a.balance), 0);
 
-  return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading">Bank Accounts</h1>
-              <p className="text-sm text-muted-foreground">Total Balance: PKR {totalBalance.toLocaleString()}</p>
-            </div>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Account</Button></DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Add Bank Account</DialogTitle></DialogHeader>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <div><Label>Account Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
-                  <div><Label>Bank Name *</Label><Input value={bankName} onChange={e => setBankName(e.target.value)} /></div>
-                  <div><Label>Account Number</Label><Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} /></div>
-                  <div><Label>Branch</Label><Input value={branch} onChange={e => setBranch(e.target.value)} /></div>
-                  <div><Label>Opening Balance</Label><Input type="number" value={openingBalance} onChange={e => setOpeningBalance(e.target.value)} /></div>
-                </div>
-                <Button onClick={handleSave} className="w-full mt-4">Save</Button>
-              </DialogContent>
-            </Dialog>
-          </header>
+  const headerActions = (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Account</Button></DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Add Bank Account</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3 mt-2">
+          <div><Label>Account Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+          <div><Label>Bank Name *</Label><Input value={bankName} onChange={e => setBankName(e.target.value)} /></div>
+          <div><Label>Account Number</Label><Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} /></div>
+          <div><Label>Branch</Label><Input value={branch} onChange={e => setBranch(e.target.value)} /></div>
+          <div><Label>Opening Balance</Label><Input type="number" value={openingBalance} onChange={e => setOpeningBalance(e.target.value)} /></div>
+        </div>
+        <Button onClick={handleSave} className="w-full mt-4">Save</Button>
+      </DialogContent>
+    </Dialog>
+  );
 
-          <div className="p-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+  return (
+    <AppLayout title="Bank Accounts" subtitle={`Total Balance: PKR ${totalBalance.toLocaleString()}`} headerActions={headerActions}>
             {accounts.length === 0 ? (
               <div className="col-span-full text-center py-12 text-muted-foreground">
                 <Landmark className="h-8 w-8 mx-auto mb-2 opacity-40" />No bank accounts yet.
