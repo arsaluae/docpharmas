@@ -102,6 +102,17 @@ export default function PrintJobs() {
       rejection_reason: rejectionReason || null, status: "delivered",
     }).eq("id", deliverJob.id);
     if (error) { toast.error("Failed to update job"); return; }
+    // Add delivered goods to inventory as stock movement
+    if (deliverJob.product_id && delivered > 0) {
+      await supabase.from("stock_movements").insert({
+        product_id: deliverJob.product_id,
+        movement_type: "purchase_in",
+        quantity: delivered,
+        date: new Date().toISOString().split("T")[0],
+        reference_type: "print_job",
+        notes: `Print job ${deliverJob.job_number} delivery`,
+      });
+    }
     toast.success("Delivery recorded");
     setDeliverJob(null); setQtyDelivered(""); setQtyRejected(""); setRejectionReason(""); load();
   };

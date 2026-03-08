@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 
 const categories = ["tablet", "capsule", "syrup", "injection", "cream", "ointment", "drops", "sachet", "other"] as const;
-const MOVE_TYPES = ["purchase_in", "sale_out", "return_in", "return_out", "adjustment"];
+const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", "return_out", "adjustment", "adjustment_in", "adjustment_out", "opening", "damage", "expired"];
 
 interface Product {
   id: string; name: string; sku: string | null; category: string; drap_reg_number: string | null;

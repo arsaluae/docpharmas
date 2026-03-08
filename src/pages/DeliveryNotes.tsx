@@ -44,14 +44,17 @@ export default function DeliveryNotes() {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const { data } = await supabase.from("delivery_notes").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.from("delivery_notes").select("*, customers(name)").order("created_at", { ascending: false });
     if (data) setNotes(data as any);
   };
 
   const printDN = (dn: DeliveryNote) => {
     const items = typeof dn.items === "string" ? JSON.parse(dn.items) : dn.items;
+    const customerName = (dn as any).customers?.name || undefined;
     const html = generatePdfHtml({
       title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date,
+      partyLabel: dn.customer_id ? "Customer" : dn.supplier_id ? "Supplier" : undefined,
+      partyName: customerName,
       columns: [
         { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
         { header: "Batch #", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
@@ -135,13 +138,13 @@ export default function DeliveryNotes() {
               <TableHeader>
                 <TableRow>
                   <TableHead><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                  <TableHead>DN #</TableHead><TableHead>Date</TableHead><TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead><TableHead>Actions</TableHead>
+                   <TableHead>DN #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Type</TableHead>
+                   <TableHead>Status</TableHead><TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                  <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                     <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
                     <p>No delivery notes yet.</p>
                     <p className="text-xs mt-1">Submit a Sales Order to auto-generate delivery notes.</p>
@@ -151,6 +154,7 @@ export default function DeliveryNotes() {
                     <TableCell><Checkbox checked={selected.has(dn.id)} onCheckedChange={() => toggleSelect(dn.id)} /></TableCell>
                     <TableCell className="font-medium font-mono" onClick={() => openDetail(dn)}>{dn.dn_number}</TableCell>
                     <TableCell className="text-muted-foreground" onClick={() => openDetail(dn)}>{dn.date}</TableCell>
+                    <TableCell className="text-muted-foreground" onClick={() => openDetail(dn)}>{(dn as any).customers?.name || "—"}</TableCell>
                     <TableCell className="capitalize" onClick={() => openDetail(dn)}>{dn.reference_type.replace("_", " ")}</TableCell>
                     <TableCell onClick={() => openDetail(dn)}>
                       <Badge variant="outline" className={`text-[10px] font-semibold ${dn.status === "delivered" ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20" : "bg-amber-500/15 text-amber-600 border-amber-500/20"}`}>
