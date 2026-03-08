@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,10 +60,7 @@ export default function PrintJobs() {
   const [printerNames, setPrinterNames] = useState<Record<string, string>>({});
   const [productNames, setProductNames] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
-    check(); load();
-  }, [navigate]);
+  useEffect(() => { load(); }, []);
 
   const load = async () => {
     const [j, pr, prod] = await Promise.all([
@@ -155,42 +151,28 @@ export default function PrintJobs() {
     return <Badge className="bg-primary/15 text-primary border-primary/30">Settled</Badge>;
   };
 
-  return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading">Print Jobs</h1>
-              <p className="text-sm text-muted-foreground">Track printing orders, delivery, rejections & cost splitting</p>
-            </div>
-            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Print Job</Button></DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader><DialogTitle>Create Print Job</DialogTitle></DialogHeader>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <div>
-                    <Label>Printer *</Label>
-                    <SearchableSelect options={printers.map(p => ({ value: p.id, label: p.name }))} value={printerId} onChange={setPrinterId} placeholder="Select printer..." />
-                  </div>
-                  <div>
-                    <Label>Product *</Label>
-                    <SearchableSelect options={products.map(p => ({ value: p.id, label: p.name }))} value={productId} onChange={setProductId} placeholder="Select product..." />
-                  </div>
-                  <div><Label>Quantity Ordered *</Label><Input type="number" value={qtyOrdered} onChange={e => setQtyOrdered(e.target.value)} /></div>
-                  <div><Label>Cost per Unit (PKR) *</Label><Input type="number" step="0.01" value={costPerUnit} onChange={e => setCostPerUnit(e.target.value)} /></div>
-                  <div><Label>Date</Label><Input type="date" value={jobDate} onChange={e => setJobDate(e.target.value)} /></div>
-                  <div><Label>Total Cost</Label><Input disabled value={qtyOrdered && costPerUnit ? (Number(qtyOrdered) * Number(costPerUnit)).toLocaleString() : "0"} /></div>
-                  <div className="col-span-2"><Label>Notes</Label><Textarea value={jobNotes} onChange={e => setJobNotes(e.target.value)} rows={2} /></div>
-                </div>
-                <Button onClick={handleCreate} className="w-full mt-4">Create Print Job</Button>
-              </DialogContent>
-            </Dialog>
-          </header>
+  const headerActions = (
+    <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Print Job</Button></DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Create Print Job</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3 mt-2">
+          <div><Label>Printer *</Label><SearchableSelect options={printers.map(p => ({ value: p.id, label: p.name }))} value={printerId} onChange={setPrinterId} placeholder="Select printer..." /></div>
+          <div><Label>Product *</Label><SearchableSelect options={products.map(p => ({ value: p.id, label: p.name }))} value={productId} onChange={setProductId} placeholder="Select product..." /></div>
+          <div><Label>Quantity Ordered *</Label><Input type="number" value={qtyOrdered} onChange={e => setQtyOrdered(e.target.value)} /></div>
+          <div><Label>Cost per Unit (PKR) *</Label><Input type="number" step="0.01" value={costPerUnit} onChange={e => setCostPerUnit(e.target.value)} /></div>
+          <div><Label>Date</Label><Input type="date" value={jobDate} onChange={e => setJobDate(e.target.value)} /></div>
+          <div><Label>Total Cost</Label><Input disabled value={qtyOrdered && costPerUnit ? (Number(qtyOrdered) * Number(costPerUnit)).toLocaleString() : "0"} /></div>
+          <div className="col-span-2"><Label>Notes</Label><Textarea value={jobNotes} onChange={e => setJobNotes(e.target.value)} rows={2} /></div>
+        </div>
+        <Button onClick={handleCreate} className="w-full mt-4">Create Print Job</Button>
+      </DialogContent>
+    </Dialog>
+  );
 
-          <div className="p-6 space-y-4">
+  return (
+    <AppLayout title="Print Jobs" subtitle="Track printing orders, delivery, rejections & cost splitting" headerActions={headerActions}>
+      <div className="space-y-4">
             {/* Stats strip */}
             <div className="grid grid-cols-3 gap-4">
               <Card className="glass-card bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
@@ -358,6 +340,6 @@ export default function PrintJobs() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </SidebarProvider>
+    </AppLayout>
   );
 }

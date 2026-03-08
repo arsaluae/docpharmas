@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,10 +36,7 @@ export default function Suppliers() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  useEffect(() => {
-    const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
-    check(); loadSuppliers();
-  }, [navigate]);
+  useEffect(() => { loadSuppliers(); }, []);
 
   const loadSuppliers = async () => {
     const { data } = await supabase.from("suppliers").select("*").order("created_at", { ascending: false });
@@ -108,105 +104,96 @@ export default function Suppliers() {
     s.name.toLowerCase().includes(search.toLowerCase()) || (s.company || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading">Suppliers</h1>
-              <p className="text-sm text-muted-foreground">RM & packing material suppliers with WHT tracking</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => navigate("/import?tab=suppliers")}><Upload className="h-4 w-4 mr-1" /> Import CSV</Button>
-            <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditId(null); setForm(emptyForm); } }}>
-              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Supplier</Button></DialogTrigger>
-              <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Supplier</DialogTitle></DialogHeader>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <div className="col-span-2"><Label>Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
-                  <div><Label>Company</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} /></div>
-                  <div><Label>City</Label><Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} /></div>
-                  <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} /></div>
-                  <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} /></div>
-                  <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
-                  <div><Label>Email</Label><Input value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
-                  <div className="col-span-2"><Label>Address</Label><Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} /></div>
-                  <div><Label>Payment Terms (days)</Label><Input type="number" value={form.payment_terms_days} onChange={e => setForm({...form, payment_terms_days: e.target.value})} /></div>
-                  {settings?.wht_enabled && <div><Label>WHT Rate (%)</Label><Input type="number" step="0.1" value={form.wht_rate} onChange={e => setForm({...form, wht_rate: e.target.value})} /></div>}
-                  <div><Label>Opening Balance (PKR)</Label><Input type="number" value={form.opening_balance} onChange={e => setForm({...form, opening_balance: e.target.value})} /></div>
-                </div>
-                <Button onClick={handleSave} className="w-full mt-4">{editId ? "Update" : "Create"} Supplier</Button>
-              </DialogContent>
-            </Dialog>
-          </header>
-          <div className="p-6">
-            <div className="mb-4 relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search suppliers..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
-
-            {selectedIds.size > 0 && (
-              <div className="mb-4 flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <span className="text-sm font-medium">{selectedIds.size} selected</span>
-                <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm"><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Selected</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Delete {selectedIds.size} supplier(s)?</AlertDialogTitle><AlertDialogDescription>Suppliers with linked records cannot be deleted.</AlertDialogDescription></AlertDialogHeader>
-                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleBulkDelete}>Delete All</AlertDialogAction></AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Clear</Button>
-              </div>
-            )}
-
-            <Card className="glass-card">
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selectedIds.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                      <TableHead>Name</TableHead><TableHead>Company</TableHead><TableHead>City</TableHead>
-                      {settings?.wht_enabled && <TableHead>WHT %</TableHead>}<TableHead className="text-right">Balance</TableHead>
-                      <TableHead>Terms</TableHead><TableHead className="text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={settings?.wht_enabled ? 8 : 7} className="text-center py-12 text-muted-foreground"><Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />No suppliers yet.</TableCell></TableRow>
-                    ) : filtered.map(s => (
-                      <TableRow key={s.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(s)}>
-                        <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selectedIds.has(s.id)} onCheckedChange={() => toggleSelect(s.id)} /></TableCell>
-                        <TableCell className="font-medium">{s.name}</TableCell>
-                        <TableCell>{s.company || "—"}</TableCell>
-                        <TableCell>{s.city || "—"}</TableCell>
-                        {settings?.wht_enabled && <TableCell><span className="status-pill bg-warning/10 text-warning">{s.wht_rate}%</span></TableCell>}
-                        <TableCell className="text-right font-mono">{Number(s.balance).toLocaleString()}</TableCell>
-                        <TableCell className="text-muted-foreground">{s.payment_terms_days}d</TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/suppliers/${s.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader><AlertDialogTitle>Delete {s.name}?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this supplier.</AlertDialogDescription></AlertDialogHeader>
-                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => handleDelete(s.id, e)}>Delete</AlertDialogAction></AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+  const headerActions = (
+    <>
+      <Button variant="outline" size="sm" onClick={() => navigate("/import?tab=suppliers")}><Upload className="h-4 w-4 mr-1" /> Import CSV</Button>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditId(null); setForm(emptyForm); } }}>
+        <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Supplier</Button></DialogTrigger>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Supplier</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            <div className="col-span-2"><Label>Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
+            <div><Label>Company</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} /></div>
+            <div><Label>City</Label><Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} /></div>
+            <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} /></div>
+            <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} /></div>
+            <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
+            <div><Label>Email</Label><Input value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
+            <div className="col-span-2"><Label>Address</Label><Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} /></div>
+            <div><Label>Payment Terms (days)</Label><Input type="number" value={form.payment_terms_days} onChange={e => setForm({...form, payment_terms_days: e.target.value})} /></div>
+            {settings?.wht_enabled && <div><Label>WHT Rate (%)</Label><Input type="number" step="0.1" value={form.wht_rate} onChange={e => setForm({...form, wht_rate: e.target.value})} /></div>}
+            <div><Label>Opening Balance (PKR)</Label><Input type="number" value={form.opening_balance} onChange={e => setForm({...form, opening_balance: e.target.value})} /></div>
           </div>
-        </main>
+          <Button onClick={handleSave} className="w-full mt-4">{editId ? "Update" : "Create"} Supplier</Button>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+
+  return (
+    <AppLayout title="Suppliers" subtitle="RM & packing material suppliers with WHT tracking" headerActions={headerActions}>
+      <div className="mb-4 relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Search suppliers..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
-    </SidebarProvider>
+
+      {selectedIds.size > 0 && (
+        <div className="mb-4 flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm"><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Selected</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader><AlertDialogTitle>Delete {selectedIds.size} supplier(s)?</AlertDialogTitle><AlertDialogDescription>Suppliers with linked records cannot be deleted.</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleBulkDelete}>Delete All</AlertDialogAction></AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+        </div>
+      )}
+
+      <Card className="glass-card">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selectedIds.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
+                <TableHead>Name</TableHead><TableHead>Company</TableHead><TableHead>City</TableHead>
+                {settings?.wht_enabled && <TableHead>WHT %</TableHead>}<TableHead className="text-right">Balance</TableHead>
+                <TableHead>Terms</TableHead><TableHead className="text-center">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.length === 0 ? (
+                <TableRow><TableCell colSpan={settings?.wht_enabled ? 8 : 7} className="text-center py-12 text-muted-foreground"><Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />No suppliers yet.</TableCell></TableRow>
+              ) : filtered.map(s => (
+                <TableRow key={s.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(s)}>
+                  <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selectedIds.has(s.id)} onCheckedChange={() => toggleSelect(s.id)} /></TableCell>
+                  <TableCell className="font-medium">{s.name}</TableCell>
+                  <TableCell>{s.company || "—"}</TableCell>
+                  <TableCell>{s.city || "—"}</TableCell>
+                  {settings?.wht_enabled && <TableCell><span className="status-pill bg-warning/10 text-warning">{s.wht_rate}%</span></TableCell>}
+                  <TableCell className="text-right font-mono">{Number(s.balance).toLocaleString()}</TableCell>
+                  <TableCell className="text-muted-foreground">{s.payment_terms_days}d</TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/suppliers/${s.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader><AlertDialogTitle>Delete {s.name}?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this supplier.</AlertDialogDescription></AlertDialogHeader>
+                          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => handleDelete(s.id, e)}>Delete</AlertDialogAction></AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </AppLayout>
   );
 }

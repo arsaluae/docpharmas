@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,10 +56,7 @@ export default function Products() {
   const [moveNotes, setMoveNotes] = useState("");
   const [moveTypeFilter, setMoveTypeFilter] = useState("all");
 
-  useEffect(() => {
-    const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
-    check(); loadAll();
-  }, [navigate]);
+  useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     const [prodRes, moveRes] = await Promise.all([
@@ -153,78 +149,71 @@ export default function Products() {
     return <Badge className="bg-primary/10 text-primary border-0">OK</Badge>;
   };
 
-  return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading">Products & Stock</h1>
-              <p className="text-sm text-muted-foreground">Catalog, stock overview & movements</p>
+  const headerActions = (
+    <>
+      <Button variant="outline" size="sm" onClick={() => navigate("/import?tab=products")}><Upload className="h-4 w-4 mr-1" /> Import</Button>
+      {activeTab === "movements" ? (
+        <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
+          <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Movement</Button></DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Record Stock Movement</DialogTitle></DialogHeader>
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <div className="col-span-2">
+                <Label>Product *</Label>
+                <Select value={moveProductId} onValueChange={setMoveProductId}>
+                  <SelectTrigger><SelectValue placeholder="Select product..." /></SelectTrigger>
+                  <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name} (Stock: {p.stock_quantity})</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Type</Label>
+                <Select value={moveType} onValueChange={setMoveType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{MOVE_TYPES.map(t => <SelectItem key={t} value={t} className="capitalize">{t.replace("_", " ")}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Quantity *</Label><Input type="number" value={moveQty} onChange={e => setMoveQty(e.target.value)} /></div>
+              <div><Label>Batch #</Label><Input value={moveBatch} onChange={e => setMoveBatch(e.target.value)} /></div>
+              <div><Label>Date</Label><Input type="date" value={moveDate} onChange={e => setMoveDate(e.target.value)} /></div>
+              <div className="col-span-2"><Label>Notes</Label><Input value={moveNotes} onChange={e => setMoveNotes(e.target.value)} /></div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => navigate("/import?tab=products")}><Upload className="h-4 w-4 mr-1" /> Import</Button>
-            {activeTab === "movements" ? (
-              <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-                <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Movement</Button></DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Record Stock Movement</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-2 gap-3 mt-2">
-                    <div className="col-span-2">
-                      <Label>Product *</Label>
-                      <Select value={moveProductId} onValueChange={setMoveProductId}>
-                        <SelectTrigger><SelectValue placeholder="Select product..." /></SelectTrigger>
-                        <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name} (Stock: {p.stock_quantity})</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Type</Label>
-                      <Select value={moveType} onValueChange={setMoveType}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>{MOVE_TYPES.map(t => <SelectItem key={t} value={t} className="capitalize">{t.replace("_", " ")}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                    <div><Label>Quantity *</Label><Input type="number" value={moveQty} onChange={e => setMoveQty(e.target.value)} /></div>
-                    <div><Label>Batch #</Label><Input value={moveBatch} onChange={e => setMoveBatch(e.target.value)} /></div>
-                    <div><Label>Date</Label><Input type="date" value={moveDate} onChange={e => setMoveDate(e.target.value)} /></div>
-                    <div className="col-span-2"><Label>Notes</Label><Input value={moveNotes} onChange={e => setMoveNotes(e.target.value)} /></div>
-                  </div>
-                  <Button onClick={handleSaveMovement} className="w-full mt-4">Save</Button>
-                </DialogContent>
-              </Dialog>
-            ) : (
-              <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditId(null); setForm(emptyForm); } }}>
-                <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Product</Button></DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Product</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-2 gap-3 mt-2">
-                    <div className="col-span-2"><Label>Product Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
-                    <div><Label>SKU</Label><Input value={form.sku} onChange={e => setForm({...form, sku: e.target.value})} /></div>
-                    <div>
-                      <Label>Category</Label>
-                      <Select value={form.category} onValueChange={v => setForm({...form, category: v})}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>{categories.map(c => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                    <div><Label>DRAP Reg. No.</Label><Input value={form.drap_reg_number} onChange={e => setForm({...form, drap_reg_number: e.target.value})} /></div>
-                    <div><Label>Pack Size</Label><Input value={form.pack_size} onChange={e => setForm({...form, pack_size: e.target.value})} placeholder="e.g. 10x10" /></div>
-                    <div><Label>Unit</Label><Input value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} /></div>
-                    {settings?.gst_enabled && <div><Label>GST Rate (%)</Label><Input type="number" value={form.gst_rate} onChange={e => setForm({...form, gst_rate: e.target.value})} /></div>}
-                    <div><Label>Cost Price (PKR)</Label><Input type="number" value={form.cost_price} onChange={e => setForm({...form, cost_price: e.target.value})} /></div>
-                    <div><Label>Selling Price (PKR)</Label><Input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} /></div>
-                    <div><Label>Stock Quantity</Label><Input type="number" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} /></div>
-                    <div><Label>Reorder Level</Label><Input type="number" value={form.reorder_level} onChange={e => setForm({...form, reorder_level: e.target.value})} /></div>
-                  </div>
-                  <Button onClick={handleSave} className="w-full mt-4">{editId ? "Update" : "Create"} Product</Button>
-                </DialogContent>
-              </Dialog>
-            )}
-          </header>
+            <Button onClick={handleSaveMovement} className="w-full mt-4">Save</Button>
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditId(null); setForm(emptyForm); } }}>
+          <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Product</Button></DialogTrigger>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+            <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Product</DialogTitle></DialogHeader>
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <div className="col-span-2"><Label>Product Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
+              <div><Label>SKU</Label><Input value={form.sku} onChange={e => setForm({...form, sku: e.target.value})} /></div>
+              <div>
+                <Label>Category</Label>
+                <Select value={form.category} onValueChange={v => setForm({...form, category: v})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{categories.map(c => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>DRAP Reg. No.</Label><Input value={form.drap_reg_number} onChange={e => setForm({...form, drap_reg_number: e.target.value})} /></div>
+              <div><Label>Pack Size</Label><Input value={form.pack_size} onChange={e => setForm({...form, pack_size: e.target.value})} placeholder="e.g. 10x10" /></div>
+              <div><Label>Unit</Label><Input value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} /></div>
+              {settings?.gst_enabled && <div><Label>GST Rate (%)</Label><Input type="number" value={form.gst_rate} onChange={e => setForm({...form, gst_rate: e.target.value})} /></div>}
+              <div><Label>Cost Price (PKR)</Label><Input type="number" value={form.cost_price} onChange={e => setForm({...form, cost_price: e.target.value})} /></div>
+              <div><Label>Selling Price (PKR)</Label><Input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} /></div>
+              <div><Label>Stock Quantity</Label><Input type="number" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} /></div>
+              <div><Label>Reorder Level</Label><Input type="number" value={form.reorder_level} onChange={e => setForm({...form, reorder_level: e.target.value})} /></div>
+            </div>
+            <Button onClick={handleSave} className="w-full mt-4">{editId ? "Update" : "Create"} Product</Button>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
 
-          <div className="p-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
+  return (
+    <AppLayout title="Products & Stock" subtitle="Catalog, stock overview & movements" headerActions={headerActions}>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-4">
                 <TabsTrigger value="catalog">Catalog</TabsTrigger>
                 <TabsTrigger value="stock">Stock Overview</TabsTrigger>
@@ -391,9 +380,6 @@ export default function Products() {
                 </Card>
               </TabsContent>
             </Tabs>
-          </div>
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }

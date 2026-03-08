@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +22,6 @@ const DATE_RANGES = [
 ];
 
 export default function PurchaseReturns() {
-  const navigate = useNavigate();
   const [returns, setReturns] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [pInvoices, setPInvoices] = useState<any[]>([]);
@@ -39,10 +36,7 @@ export default function PurchaseReturns() {
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState("all");
 
-  useEffect(() => {
-    const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
-    check(); loadData();
-  }, [navigate]);
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -122,54 +116,39 @@ export default function PurchaseReturns() {
 
   const totalValue = filtered.reduce((s, r) => s + Number(r.total), 0);
 
-  return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading">Purchase Returns</h1>
-              <p className="text-sm text-muted-foreground">Returns to suppliers with item-level detail</p>
+  const headerActions = (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Return</Button></DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>New Purchase Return</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3 mt-2">
+          <div><Label>Supplier *</Label><SearchableSelect options={supplierOptions} value={supplierId} onChange={setSupplierId} placeholder="Search supplier..." /></div>
+          <div><Label>Purchase Invoice (optional)</Label><SearchableSelect options={invoiceOptions} value={invoiceId} onChange={setInvoiceId} placeholder="Link invoice..." /></div>
+          <div className="col-span-2"><Label>Reason</Label><Input value={reason} onChange={e => setReason(e.target.value)} /></div>
+        </div>
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between"><Label className="text-sm font-semibold">Return Items</Label><Button variant="outline" size="sm" onClick={addItem}><Plus className="h-3 w-3 mr-1" /> Add</Button></div>
+          {items.map((item, idx) => (
+            <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+              <div className="col-span-4"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="h-8 text-xs" /></div>
+              <div className="col-span-2"><Input placeholder="Batch" className="text-xs h-8" value={item.batch_number} onChange={e => updateItem(idx, "batch_number", e.target.value)} /></div>
+              <div className="col-span-2"><Input type="number" className="text-xs h-8" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} /></div>
+              <div className="col-span-2"><Input type="number" className="text-xs h-8" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} /></div>
+              <div className="col-span-1 text-right text-xs font-mono pt-2">{(Number(item.quantity) * Number(item.rate)).toLocaleString()}</div>
+              <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItem(idx)}><Trash2 className="h-3 w-3" /></Button></div>
             </div>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Return</Button></DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>New Purchase Return</DialogTitle></DialogHeader>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <div>
-                    <Label>Supplier *</Label>
-                    <SearchableSelect options={supplierOptions} value={supplierId} onChange={setSupplierId} placeholder="Search supplier..." />
-                  </div>
-                  <div>
-                    <Label>Purchase Invoice (optional)</Label>
-                    <SearchableSelect options={invoiceOptions} value={invoiceId} onChange={setInvoiceId} placeholder="Link invoice..." />
-                  </div>
-                  <div className="col-span-2"><Label>Reason</Label><Input value={reason} onChange={e => setReason(e.target.value)} /></div>
-                </div>
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between"><Label className="text-sm font-semibold">Return Items</Label><Button variant="outline" size="sm" onClick={addItem}><Plus className="h-3 w-3 mr-1" /> Add</Button></div>
-                  {items.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-4">
-                        <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="h-8 text-xs" />
-                      </div>
-                      <div className="col-span-2"><Input placeholder="Batch" className="text-xs h-8" value={item.batch_number} onChange={e => updateItem(idx, "batch_number", e.target.value)} /></div>
-                      <div className="col-span-2"><Input type="number" className="text-xs h-8" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} /></div>
-                      <div className="col-span-2"><Input type="number" className="text-xs h-8" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} /></div>
-                      <div className="col-span-1 text-right text-xs font-mono pt-2">{(Number(item.quantity) * Number(item.rate)).toLocaleString()}</div>
-                      <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItem(idx)}><Trash2 className="h-3 w-3" /></Button></div>
-                    </div>
-                  ))}
-                </div>
-                <Button onClick={handleSave} disabled={saving} className="w-full mt-4">
-                  {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Create Purchase Return
-                </Button>
-              </DialogContent>
-            </Dialog>
-          </header>
+          ))}
+        </div>
+        <Button onClick={handleSave} disabled={saving} className="w-full mt-4">
+          {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          Create Purchase Return
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+
+  return (
+    <AppLayout title="Purchase Returns" subtitle="Returns to suppliers with item-level detail" headerActions={headerActions}>
           <div className="p-6">
             <div className="mb-4 flex flex-wrap items-center gap-3">
               <div className="relative max-w-sm flex-1">
@@ -210,8 +189,6 @@ export default function PurchaseReturns() {
               </Table>
             </CardContent></Card>
           </div>
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }

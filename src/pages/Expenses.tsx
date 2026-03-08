@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,7 +37,6 @@ interface Expense {
 }
 
 export default function Expenses() {
-  const navigate = useNavigate();
   const { settings } = useCompanySettings();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -61,13 +58,7 @@ export default function Expenses() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
-  useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate("/auth");
-    };
-    check(); load();
-  }, [navigate]);
+  useEffect(() => { load(); }, []);
 
   const load = async () => {
     const [exp, banks] = await Promise.all([
@@ -161,78 +152,40 @@ export default function Expenses() {
 
   const formatCategory = (c: string) => c.replace(/_/g, " ");
 
-  return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading">Expenses</h1>
-            </div>
-            <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else handleOpenDialog(); }}>
-              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Expense</Button></DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader><DialogTitle>{editingId ? "Edit Expense" : "Record Expense"}</DialogTitle></DialogHeader>
-                <div className="space-y-4 mt-2">
-                  <div>
-                    <Label className="mb-2 block">Expense Type</Label>
-                    <RadioGroup value={expenseType} onValueChange={(v) => {
-                      setExpenseType(v);
-                      setCategory(v === "personal" ? "personal" : "other");
-                    }} className="flex gap-4">
-                      <div className="flex items-center gap-2">
-                        <RadioGroupItem value="business" id="type-business" />
-                        <Label htmlFor="type-business" className="flex items-center gap-1 cursor-pointer">
-                          <Briefcase className="h-3.5 w-3.5" /> Business
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <RadioGroupItem value="personal" id="type-personal" />
-                        <Label htmlFor="type-personal" className="flex items-center gap-1 cursor-pointer">
-                          <User className="h-3.5 w-3.5" /> Personal
-                        </Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Category</Label>
-                      <Select value={category} onValueChange={setCategory}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>{currentCategories.map(c => <SelectItem key={c} value={c} className="capitalize">{formatCategory(c)}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                    <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-                    <div className="col-span-2"><Label>Description</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
-                    <div><Label>Amount (PKR) *</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} /></div>
-                    {settings?.gst_enabled && <div><Label>GST Amount</Label><Input type="number" value={gstAmount} onChange={e => setGstAmount(e.target.value)} /></div>}
-                    <div>
-                      <Label>Payment Method</Label>
-                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>{METHODS.map(m => <SelectItem key={m} value={m} className="capitalize">{m.replace("_", " ")}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                    {(paymentMethod === "bank_transfer" || paymentMethod === "cheque") && bankAccounts.length > 0 && (
-                      <div>
-                        <Label>Bank Account</Label>
-                        <Select value={bankAccountId} onValueChange={setBankAccountId}>
-                          <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                          <SelectContent>{bankAccounts.map(b => <SelectItem key={b.id} value={b.id}>{b.name} — {b.bank_name}</SelectItem>)}</SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    <div className="col-span-2"><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
-                  </div>
-                </div>
-                <Button onClick={handleSave} className="w-full mt-4">{editingId ? "Update Expense" : "Save Expense"}</Button>
-              </DialogContent>
-            </Dialog>
-          </header>
+  const headerActions = (
+    <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else handleOpenDialog(); }}>
+      <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Expense</Button></DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>{editingId ? "Edit Expense" : "Record Expense"}</DialogTitle></DialogHeader>
+        <div className="space-y-4 mt-2">
+          <div>
+            <Label className="mb-2 block">Expense Type</Label>
+            <RadioGroup value={expenseType} onValueChange={(v) => { setExpenseType(v); setCategory(v === "personal" ? "personal" : "other"); }} className="flex gap-4">
+              <div className="flex items-center gap-2"><RadioGroupItem value="business" id="type-business" /><Label htmlFor="type-business" className="flex items-center gap-1 cursor-pointer"><Briefcase className="h-3.5 w-3.5" /> Business</Label></div>
+              <div className="flex items-center gap-2"><RadioGroupItem value="personal" id="type-personal" /><Label htmlFor="type-personal" className="flex items-center gap-1 cursor-pointer"><User className="h-3.5 w-3.5" /> Personal</Label></div>
+            </RadioGroup>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Category</Label><Select value={category} onValueChange={setCategory}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{currentCategories.map(c => <SelectItem key={c} value={c} className="capitalize">{formatCategory(c)}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
+            <div className="col-span-2"><Label>Description</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
+            <div><Label>Amount (PKR) *</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} /></div>
+            {settings?.gst_enabled && <div><Label>GST Amount</Label><Input type="number" value={gstAmount} onChange={e => setGstAmount(e.target.value)} /></div>}
+            <div><Label>Payment Method</Label><Select value={paymentMethod} onValueChange={setPaymentMethod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{METHODS.map(m => <SelectItem key={m} value={m} className="capitalize">{m.replace("_", " ")}</SelectItem>)}</SelectContent></Select></div>
+            {(paymentMethod === "bank_transfer" || paymentMethod === "cheque") && bankAccounts.length > 0 && (
+              <div><Label>Bank Account</Label><Select value={bankAccountId} onValueChange={setBankAccountId}><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger><SelectContent>{bankAccounts.map(b => <SelectItem key={b.id} value={b.id}>{b.name} — {b.bank_name}</SelectItem>)}</SelectContent></Select></div>
+            )}
+            <div className="col-span-2"><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
+          </div>
+        </div>
+        <Button onClick={handleSave} className="w-full mt-4">{editingId ? "Update Expense" : "Save Expense"}</Button>
+      </DialogContent>
+    </Dialog>
+  );
 
-          <div className="p-6 space-y-4">
+  return (
+    <AppLayout title="Expenses" headerActions={headerActions}>
+      <div className="space-y-4">
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card className="glass-card">

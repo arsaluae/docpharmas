@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,7 +29,6 @@ interface Payment {
 }
 
 export default function Payments() {
-  const navigate = useNavigate();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -58,13 +55,7 @@ export default function Payments() {
   const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
-  useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate("/auth");
-    };
-    check(); load();
-  }, [navigate]);
+  useEffect(() => { load(); }, []);
 
   const load = async () => {
     const [pay, cust, sup, banks, prnt] = await Promise.all([
@@ -159,86 +150,77 @@ export default function Payments() {
     return matchSearch;
   });
 
-  return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading">Payments</h1>
-              <p className="text-sm text-muted-foreground">Record payments received & made with cheque tracking</p>
+  const headerActions = (
+    <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else setOpen(true); }}>
+      <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Payment</Button></DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>{editingId ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3 mt-2">
+          <div>
+            <Label>Type</Label>
+            <Select value={paymentType} onValueChange={(v: "received" | "made") => { setPaymentType(v); setPartyType(v === "received" ? "customer" : "supplier"); setPartyId(""); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="received">Payment Received</SelectItem>
+                <SelectItem value="made">Payment Made</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {paymentType === "made" && (
+            <div>
+              <Label>Party Type</Label>
+              <Select value={partyType} onValueChange={(v: "supplier" | "printer") => { setPartyType(v); setPartyId(""); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="supplier">Supplier</SelectItem>
+                  <SelectItem value="printer">Printer</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else setOpen(true); }}>
-              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Payment</Button></DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader><DialogTitle>{editingId ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <div>
-                    <Label>Type</Label>
-                    <Select value={paymentType} onValueChange={(v: "received" | "made") => { setPaymentType(v); setPartyType(v === "received" ? "customer" : "supplier"); setPartyId(""); }}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="received">Payment Received</SelectItem>
-                        <SelectItem value="made">Payment Made</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {paymentType === "made" && (
-                    <div>
-                      <Label>Party Type</Label>
-                      <Select value={partyType} onValueChange={(v: "supplier" | "printer") => { setPartyType(v); setPartyId(""); }}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="supplier">Supplier</SelectItem>
-                          <SelectItem value="printer">Printer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                   <div>
-                    <Label>{partyType === "customer" ? "Customer" : partyType === "printer" ? "Printer" : "Supplier"} *</Label>
-                    <SearchableSelect options={partyOptions} value={partyId} onChange={setPartyId} placeholder="Search..." />
-                  </div>
-                  <div><Label>Amount (PKR) *</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} /></div>
-                  <div><Label>Date</Label><Input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} /></div>
-                  <div>
-                    <Label>Method</Label>
-                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="cheque">Cheque</SelectItem>
-                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                        <SelectItem value="online">Online</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {bankAccounts.length > 0 && (paymentMethod === "bank_transfer" || paymentMethod === "cheque") && (
-                    <div>
-                      <Label>Bank Account</Label>
-                      <Select value={bankAccountId} onValueChange={setBankAccountId}>
-                        <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                        <SelectContent>{bankAccounts.map(b => <SelectItem key={b.id} value={b.id}>{b.name} — {b.bank_name}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  {paymentMethod === "cheque" && (
-                    <>
-                      <div><Label>Cheque #</Label><Input value={chequeNumber} onChange={e => setChequeNumber(e.target.value)} /></div>
-                      <div><Label>Cheque Date</Label><Input type="date" value={chequeDate} onChange={e => setChequeDate(e.target.value)} /></div>
-                    </>
-                  )}
-                  <div><Label>Reference</Label><Input value={reference} onChange={e => setReference(e.target.value)} placeholder="Ref / Txn ID" /></div>
-                  <div className="col-span-2"><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
-                </div>
-                <Button onClick={handleSave} className="w-full mt-4">{editingId ? "Update Payment" : "Record Payment"}</Button>
-              </DialogContent>
-            </Dialog>
-          </header>
+          )}
+           <div>
+            <Label>{partyType === "customer" ? "Customer" : partyType === "printer" ? "Printer" : "Supplier"} *</Label>
+            <SearchableSelect options={partyOptions} value={partyId} onChange={setPartyId} placeholder="Search..." />
+          </div>
+          <div><Label>Amount (PKR) *</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} /></div>
+          <div><Label>Date</Label><Input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} /></div>
+          <div>
+            <Label>Method</Label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="cheque">Cheque</SelectItem>
+                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                <SelectItem value="online">Online</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {bankAccounts.length > 0 && (paymentMethod === "bank_transfer" || paymentMethod === "cheque") && (
+            <div>
+              <Label>Bank Account</Label>
+              <Select value={bankAccountId} onValueChange={setBankAccountId}>
+                <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectContent>{bankAccounts.map(b => <SelectItem key={b.id} value={b.id}>{b.name} — {b.bank_name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          )}
+          {paymentMethod === "cheque" && (
+            <>
+              <div><Label>Cheque #</Label><Input value={chequeNumber} onChange={e => setChequeNumber(e.target.value)} /></div>
+              <div><Label>Cheque Date</Label><Input type="date" value={chequeDate} onChange={e => setChequeDate(e.target.value)} /></div>
+            </>
+          )}
+          <div><Label>Reference</Label><Input value={reference} onChange={e => setReference(e.target.value)} placeholder="Ref / Txn ID" /></div>
+          <div className="col-span-2"><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
+        </div>
+        <Button onClick={handleSave} className="w-full mt-4">{editingId ? "Update Payment" : "Record Payment"}</Button>
+      </DialogContent>
+    </Dialog>
+  );
 
-          <div className="p-6">
+  return (
+    <AppLayout title="Payments" subtitle="Record payments received & made with cheque tracking" headerActions={headerActions}>
             <div className="flex items-center gap-4 mb-4">
               <div className="relative max-w-sm flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -302,9 +284,6 @@ export default function Payments() {
                 </Table>
               </CardContent>
             </Card>
-          </div>
-        </main>
-      </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={o => { if (!o) setDeleteId(null); }}>
         <AlertDialogContent>
@@ -320,6 +299,6 @@ export default function Payments() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </SidebarProvider>
+    </AppLayout>
   );
 }

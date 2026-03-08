@@ -1,8 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { useSearchParams } from "react-router-dom";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -233,7 +232,6 @@ function isEmptyValue(v: any): boolean {
 }
 
 export default function DataImport() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const defaultTab = (searchParams.get("tab") as TabType) || "customers";
   const [tab, setTab] = useState<TabType>(defaultTab);
@@ -250,10 +248,7 @@ export default function DataImport() {
   const [errorsOpen, setErrorsOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
-    check();
-  }, [navigate]);
+  // No auth check needed - handled by ProtectedRoute
 
   const processRows = (rawHeaders: string[], rawRows: string[][]) => {
     const cols = TAB_COLUMNS[tab];
