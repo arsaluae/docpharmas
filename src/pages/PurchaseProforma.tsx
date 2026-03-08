@@ -935,8 +935,7 @@ export default function PurchaseProforma() {
               </Button>
             </DialogContent>
           </Dialog>
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
+}
 }
