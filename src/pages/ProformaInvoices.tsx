@@ -439,6 +439,7 @@ export default function ProformaInvoices() {
         ],
         settings, template: getTemplate("sales_invoice"),
       });
+      setPdfHtml(autoHtml); setPdfTitle(`Sales Invoice — ${invNumber}`); setPdfOpen(true);
 
       setSubmitOpen(false); setPreviewOpen(false); setSubmitting(false); load();
     } else {
