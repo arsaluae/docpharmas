@@ -41,6 +41,7 @@ import BatchWiseReport from "./pages/reports/BatchWiseReport";
 import CustomerWiseReport from "./pages/reports/CustomerWiseReport";
 import SupplierWiseReport from "./pages/reports/SupplierWiseReport";
 import Reports from "./pages/Reports";
+import AIInsights from "./pages/AIInsights";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -93,6 +94,7 @@ const App = () => (
             <Route path="/reports/batch-wise" element={<BatchWiseReport />} />
             <Route path="/reports/customer-wise" element={<CustomerWiseReport />} />
             <Route path="/reports/supplier-wise" element={<SupplierWiseReport />} />
+            <Route path="/insights" element={<AIInsights />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

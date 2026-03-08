@@ -1,83 +1,34 @@
 
 
-# Plan: AI-Powered Insights Dashboard
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## Overview
+## Two Changes
 
-Create a new **AI Insights** page and an edge function that uses Lovable AI (Gemini) to analyze historical sales data and produce actionable forecasts and business intelligence. Also add a dedicated insights panel on the main dashboard.
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-## Architecture
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-```text
-Dashboard (Index.tsx)
-  └─ "AI Insights" card → links to /insights
+## Files Changed
 
-/insights (new page)
-  └─ Fetches last 6 months of sales data client-side
-  └─ Sends aggregated data to edge function
-  └─ Edge function calls Lovable AI with structured tool calling
-  └─ Returns: demand forecast, slow movers, reorder alerts, customer trends, margin analysis
-  └─ Renders results in cards with charts
-```
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
 
-## 1. Edge Function: `supabase/functions/ai-insights/index.ts`
-
-- Accepts aggregated sales data (product-level monthly quantities, customer totals, stock levels, cost/selling prices)
-- Constructs a pharma-specific system prompt asking for structured analysis
-- Uses **tool calling** (not raw JSON) to extract structured output with these categories:
-  - `demand_forecast`: Top 10 products predicted to sell most next month with estimated quantities and confidence
-  - `slow_movers`: Products with declining sales trend (candidates for discounting/returns)
-  - `reorder_alerts`: Products where current stock will run out before next month based on consumption rate
-  - `customer_insights`: Customers with growing/declining purchase patterns
-  - `margin_warnings`: Products where margin is below 10% or negative
-- Model: `google/gemini-3-flash-preview` (fast, cost-effective)
-- Add to `config.toml`: `[functions.ai-insights]` with `verify_jwt = false`
-
-## 2. New Page: `src/pages/AIInsights.tsx`
-
-**Layout** (using AppLayout):
-- **Generate button** at top — user clicks to run analysis (not automatic, to control AI costs)
-- **Loading state** with skeleton cards while AI processes
-- **5 insight panels** rendered after response:
-
-| Panel | Content |
-|-------|---------|
-| Demand Forecast | Table: Product, Last Month Qty, Predicted Next Month, Confidence % |
-| Reorder Alerts | Cards with red/amber badges: Product, Current Stock, Days Until Stockout |
-| Slow Movers | List of declining products with trend arrows and suggested actions |
-| Customer Trends | Growing vs declining customers with percentage change |
-| Margin Warnings | Products with thin/negative margins highlighted |
-
-- Each panel is a Card with appropriate icons (Brain, AlertTriangle, TrendingDown, Users, DollarSign)
-- Results cached in `useState` so re-navigation doesn't re-trigger
-
-## 3. Dashboard Integration (`src/pages/Index.tsx`)
-
-Add a new card at the bottom of the dashboard:
-- "AI Business Insights" card with a Brain icon and gradient background
-- Shows a brief summary if insights were recently generated (stored in localStorage with timestamp)
-- "View Insights" button navigating to `/insights`
-
-## 4. Data Aggregation (Client-Side)
-
-The insights page fetches and aggregates before sending to the edge function:
-- Last 6 months of `sales_invoice_items` joined with `sales_invoices` (for dates) and `products` (for names, costs, stock)
-- Group by product_id + month → monthly quantity sold per product
-- Current stock levels from `products.stock_quantity`
-- Customer monthly totals from `sales_invoices`
-- This keeps the AI payload small (~2-5KB) rather than sending raw rows
-
-## 5. Route Addition (`src/App.tsx`)
-
-Add `/insights` as a protected route pointing to `AIInsights`
-
-## Files
-
-| File | Action |
-|------|--------|
-| `supabase/functions/ai-insights/index.ts` | Create — Edge function with Lovable AI |
-| `supabase/config.toml` | Update — Add function config |
-| `src/pages/AIInsights.tsx` | Create — Full insights page |
-| `src/pages/Index.tsx` | Modify — Add AI insights card |
-| `src/App.tsx` | Modify — Add route |
+No other files change. The template system and all callers remain the same.
 
