@@ -21,7 +21,6 @@ interface StockMovement {
 }
 
 export default function StockMovements() {
-  const navigate = useNavigate();
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [productNames, setProductNames] = useState<Record<string, string>>({});
