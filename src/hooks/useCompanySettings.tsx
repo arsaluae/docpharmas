@@ -16,6 +16,7 @@ export interface CompanySettings {
   default_gst_rate: number;
   wht_enabled: boolean;
   default_wht_rate: number;
+  whatsapp_number: string | null;
 }
 
 export function useCompanySettings() {

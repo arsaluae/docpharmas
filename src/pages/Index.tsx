@@ -4,23 +4,30 @@ import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   TrendingUp, TrendingDown, CalendarDays, ShoppingCart,
   FileText, CreditCard, Shield, Wallet,
-  PackageCheck, Flame, Users,
+  PackageCheck, Flame, Users, AlertTriangle, MessageCircle, Brain, UserX,
 } from "lucide-react";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { toast } from "sonner";
 
 export default function Index() {
   const navigate = useNavigate();
+  const { settings } = useCompanySettings();
   const [weekSales, setWeekSales] = useState(0);
   const [monthSales, setMonthSales] = useState(0);
   const [grossMargin, setGrossMargin] = useState(0);
   const [recentStock, setRecentStock] = useState<{ name: string; quantity: number; date: string }[]>([]);
   const [topSelling, setTopSelling] = useState<{ name: string; qty: number }[]>([]);
   const [topCustomers, setTopCustomers] = useState<{ name: string; monthSale: number; yearlySale: number }[]>([]);
+  const [reorderAlerts, setReorderAlerts] = useState<any[]>([]);
+  const [inactiveCustomers, setInactiveCustomers] = useState<{ name: string; phone: string | null; last_order: string; days_inactive: number }[]>([]);
+  const [loadingReorder, setLoadingReorder] = useState(false);
 
-  useEffect(() => { loadDashboard(); }, []);
+  useEffect(() => { loadDashboard(); loadReorderAlerts(); loadInactiveCustomers(); }, []);
 
   const loadDashboard = async () => {
     const today = new Date();
@@ -97,6 +104,62 @@ export default function Index() {
     setTopCustomers(tc);
   };
 
+  const loadReorderAlerts = async () => {
+    const { data } = await supabase.from("reorder_alerts").select("*").order("days_until_stockout", { ascending: true }).limit(5);
+    if (data) setReorderAlerts(data as any);
+  };
+
+  const generateReorderAlerts = async () => {
+    setLoadingReorder(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("reorder-alerts", {
+        body: { whatsapp_number: settings?.whatsapp_number },
+      });
+      if (error) throw error;
+      if (data?.alerts) {
+        setReorderAlerts(data.alerts.slice(0, 5));
+        toast.success(`${data.alerts.length} reorder alerts generated`);
+        if (data.whatsapp_url) {
+          window.open(data.whatsapp_url, "_blank");
+        }
+      }
+    } catch (e: any) {
+      toast.error("Failed to generate alerts: " + (e.message || "Unknown error"));
+    }
+    setLoadingReorder(false);
+  };
+
+  const loadInactiveCustomers = async () => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
+
+    const { data: customers } = await supabase.from("customers").select("id, name, phone");
+    const { data: recentInvoices } = await supabase.from("sales_invoices").select("customer_id, date").gte("date", dateStr);
+    
+    if (!customers) return;
+    const activeIds = new Set((recentInvoices || []).map(i => i.customer_id).filter(Boolean));
+    
+    // Get last order date for inactive customers
+    const { data: allInvoices } = await supabase.from("sales_invoices").select("customer_id, date").order("date", { ascending: false });
+    const lastOrderMap: Record<string, string> = {};
+    (allInvoices || []).forEach(inv => {
+      if (inv.customer_id && !lastOrderMap[inv.customer_id]) lastOrderMap[inv.customer_id] = inv.date;
+    });
+
+    const inactive = customers
+      .filter(c => !activeIds.has(c.id) && lastOrderMap[c.id])
+      .map(c => {
+        const lastOrder = lastOrderMap[c.id];
+        const daysInactive = Math.floor((Date.now() - new Date(lastOrder).getTime()) / (1000 * 60 * 60 * 24));
+        return { name: c.name, phone: c.phone, last_order: lastOrder, days_inactive: daysInactive };
+      })
+      .sort((a, b) => b.days_inactive - a.days_inactive)
+      .slice(0, 5);
+    
+    setInactiveCustomers(inactive);
+  };
+
   const quickActions = [
     { label: "Sales Order", icon: FileText, path: "/proforma", gradient: "from-blue-600 to-indigo-700", shadow: "shadow-blue-500/25" },
     { label: "Sales Invoice", icon: ShoppingCart, path: "/proforma", gradient: "from-emerald-500 to-teal-600", shadow: "shadow-emerald-500/25" },
@@ -161,6 +224,94 @@ export default function Index() {
               </div>
             </button>
           ))}
+        </div>
+
+        {/* Reorder Alerts + Inactive Customers */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Reorder Alerts */}
+          <Card className="border-destructive/20">
+            <CardHeader className="pb-2 pt-4 px-5">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-heading flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive" /> Smart Reorder Alerts
+                </CardTitle>
+                <Button size="sm" variant="outline" onClick={generateReorderAlerts} disabled={loadingReorder} className="text-xs h-7">
+                  {loadingReorder ? "Analyzing..." : "Refresh"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="px-5 pb-4">
+              {reorderAlerts.length === 0 ? (
+                <div className="text-center py-6">
+                  <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground">No reorder alerts</p>
+                  <p className="text-xs text-muted-foreground mt-1">Click Refresh to analyze stock levels</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {reorderAlerts.map((alert, idx) => (
+                    <div key={idx} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-muted/50 border border-border/50">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${alert.severity === "critical" ? "bg-destructive animate-pulse" : alert.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} />
+                          <span className="text-sm font-medium text-foreground truncate">{alert.product_name}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground ml-4">
+                          Stock: {alert.current_stock} • {alert.days_until_stockout}d left
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={`text-[10px] ${
+                        alert.severity === "critical" ? "border-destructive/30 text-destructive" :
+                        alert.severity === "warning" ? "border-amber-500/30 text-amber-600" :
+                        "border-blue-500/30 text-blue-600"
+                      }`}>
+                        {alert.severity}
+                      </Badge>
+                    </div>
+                  ))}
+                  {settings?.whatsapp_number && (
+                    <Button size="sm" variant="outline" className="w-full mt-2 text-xs gap-1.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/5" onClick={generateReorderAlerts}>
+                      <MessageCircle className="h-3.5 w-3.5" /> Send WhatsApp Alert
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Inactive Customers */}
+          <Card className="border-amber-500/20">
+            <CardHeader className="pb-2 pt-4 px-5">
+              <CardTitle className="text-sm font-heading flex items-center gap-2">
+                <UserX className="h-4 w-4 text-amber-500" /> Inactive Customers (30+ days)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-5 pb-4">
+              {inactiveCustomers.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">All customers active — great!</p>
+              ) : (
+                <div className="space-y-2">
+                  {inactiveCustomers.map((c, idx) => (
+                    <div key={idx} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-muted/50">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium text-foreground truncate block">{c.name}</span>
+                        <span className="text-xs text-muted-foreground">{c.days_inactive} days since last order</span>
+                      </div>
+                      {c.phone && (
+                        <Button size="sm" variant="ghost" className="text-xs h-7 gap-1 text-emerald-600" onClick={() => {
+                          const msg = `Hi ${c.name}, we noticed it's been a while since your last order. Would you like to place a new order? We have fresh stock available!`;
+                          const num = c.phone!.replace(/[^0-9]/g, "");
+                          window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, "_blank");
+                        }}>
+                          <MessageCircle className="h-3 w-3" /> Reach Out
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Panels */}
@@ -249,12 +400,13 @@ export default function Index() {
             )}
           </CardContent>
         </Card>
+
         {/* AI Insights CTA */}
         <Card className="overflow-hidden cursor-pointer hover:shadow-md transition-all" onClick={() => navigate("/insights")}>
           <CardContent className="p-0">
             <div className="flex items-center gap-5 bg-gradient-to-r from-violet-600/10 to-primary/10 p-5">
               <div className="p-3 rounded-xl bg-violet-600/20">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-violet-600"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>
+                <Brain className="h-6 w-6 text-violet-600" />
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-bold text-foreground font-heading">AI Business Insights</h3>

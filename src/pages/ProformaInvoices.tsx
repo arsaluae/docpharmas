@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -504,68 +503,60 @@ export default function ProformaInvoices() {
   const productOptions = products.map(p => ({ value: p.id, label: p.name }));
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          {/* HEADER */}
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border px-6 py-4 flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-foreground font-heading tracking-tight">Sales Orders</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Create orders → confirm with batch → auto invoice + delivery note</p>
+    <AppLayout title="Sales Orders" subtitle="Create orders → confirm with batch → auto invoice + delivery note"
+      headerActions={
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:scale-[1.02] transition-all">
+              <Plus className="h-4 w-4" /> New Order
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader><DialogTitle className="font-heading">Create Sales Order</DialogTitle></DialogHeader>
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Customer *</Label>
+                <SearchableSelect options={customerOptions} value={customerId} onChange={setCustomerId} placeholder="Select customer..." searchPlaceholder="Search..." />
+              </div>
+              <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={pfDate} onChange={e => setPfDate(e.target.value)} /></div>
+              <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
             </div>
-            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 shadow-sm">
-                  <Plus className="h-4 w-4" /> New Order
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader><DialogTitle className="font-heading">Create Sales Order</DialogTitle></DialogHeader>
-                <div className="grid grid-cols-3 gap-3 mt-3">
-                  <div>
-                    <Label className="text-xs font-medium text-muted-foreground">Customer *</Label>
-                    <SearchableSelect options={customerOptions} value={customerId} onChange={setCustomerId} placeholder="Select customer..." searchPlaceholder="Search..." />
-                  </div>
-                  <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={pfDate} onChange={e => setPfDate(e.target.value)} /></div>
-                  <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
+            <div className="mt-3">
+              <Label className="text-xs font-medium text-muted-foreground">Payment Instructions</Label>
+              <Textarea value={paymentInstructions} onChange={e => setPaymentInstructions(e.target.value)} placeholder="Bank details, payment terms..." rows={2} className="mt-1" />
+            </div>
+            <Separator className="my-4" />
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-sm font-semibold">Items</Label>
+              <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
+            </div>
+            {items.map((item, idx) => (
+              <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
+                <div className="col-span-4">
+                  <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
                 </div>
-                <div className="mt-3">
-                  <Label className="text-xs font-medium text-muted-foreground">Payment Instructions</Label>
-                  <Textarea value={paymentInstructions} onChange={e => setPaymentInstructions(e.target.value)} placeholder="Bank details, payment terms..." rows={2} className="mt-1" />
-                </div>
-                <Separator className="my-4" />
-                <div className="flex items-center justify-between mb-3">
-                  <Label className="text-sm font-semibold">Items</Label>
-                  <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
-                </div>
-                {items.map((item, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
-                    <div className="col-span-4">
-                      <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
-                    </div>
-                    <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
-                    <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" /></div>
-                    {settings?.gst_enabled && <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" placeholder="GST%" /></div>}
-                    <div className={`${settings?.gst_enabled ? "col-span-2" : "col-span-3"} text-right text-sm font-mono pt-2 text-foreground`}>{item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}</div>
-                    <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
-                  </div>
-                ))}
-                <Separator className="my-3" />
-                <div className="space-y-1.5 text-sm">
-                  <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
-                  {settings?.gst_enabled && <div className="flex justify-between text-muted-foreground"><span>GST</span><span className="font-mono">{gst.toLocaleString()}</span></div>}
-                  <div className="flex justify-between font-bold text-foreground text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
-                </div>
-                <Button onClick={handleSave} disabled={saving} className="w-full mt-4 h-11 text-sm font-semibold">
-                  {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Sales Order
-                </Button>
-              </DialogContent>
-            </Dialog>
-          </header>
+                <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
+                <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" /></div>
+                {settings?.gst_enabled && <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" placeholder="GST%" /></div>}
+                <div className={`${settings?.gst_enabled ? "col-span-2" : "col-span-3"} text-right text-sm font-mono pt-2 text-foreground`}>{item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}</div>
+                <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
+              </div>
+            ))}
+            <Separator className="my-3" />
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
+              {settings?.gst_enabled && <div className="flex justify-between text-muted-foreground"><span>GST</span><span className="font-mono">{gst.toLocaleString()}</span></div>}
+              <div className="flex justify-between font-bold text-foreground text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
+            </div>
+            <Button onClick={handleSave} disabled={saving} className="w-full mt-4 h-11 text-sm font-semibold">
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Sales Order
+            </Button>
+          </DialogContent>
+        </Dialog>
+      }
+    >
 
-          <div className="p-6 space-y-4">
+      <div className="space-y-4">
             {/* STATS */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
@@ -666,9 +657,9 @@ export default function ProformaInvoices() {
                             {Number(order.total).toLocaleString()}
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1">
                               {order.status === "draft" && (
-                                <Button variant="default" size="sm" onClick={() => openSubmitDialog(order)} className="h-7 text-xs gap-1 shadow-sm">
+                                <Button size="sm" onClick={() => openSubmitDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-sm">
                                   <CheckCircle className="h-3 w-3" /> Submit
                                 </Button>
                               )}
@@ -898,8 +889,6 @@ export default function ProformaInvoices() {
               </Button>
             </DialogContent>
           </Dialog>
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }

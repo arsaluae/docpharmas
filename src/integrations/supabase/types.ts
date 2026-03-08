@@ -187,6 +187,7 @@ export type Database = {
           tenant_id: string | null
           updated_at: string
           website: string | null
+          whatsapp_number: string | null
           wht_enabled: boolean
         }
         Insert: {
@@ -206,6 +207,7 @@ export type Database = {
           tenant_id?: string | null
           updated_at?: string
           website?: string | null
+          whatsapp_number?: string | null
           wht_enabled?: boolean
         }
         Update: {
@@ -225,6 +227,7 @@ export type Database = {
           tenant_id?: string | null
           updated_at?: string
           website?: string | null
+          whatsapp_number?: string | null
           wht_enabled?: boolean
         }
         Relationships: [
@@ -1616,6 +1619,60 @@ export type Database = {
           },
           {
             foreignKeyName: "purchase_returns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reorder_alerts: {
+        Row: {
+          avg_daily_consumption: number
+          created_at: string
+          current_stock: number
+          days_until_stockout: number
+          id: string
+          notified: boolean
+          product_id: string
+          product_name: string
+          severity: string
+          tenant_id: string | null
+        }
+        Insert: {
+          avg_daily_consumption?: number
+          created_at?: string
+          current_stock?: number
+          days_until_stockout?: number
+          id?: string
+          notified?: boolean
+          product_id: string
+          product_name: string
+          severity?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          avg_daily_consumption?: number
+          created_at?: string
+          current_stock?: number
+          days_until_stockout?: number
+          id?: string
+          notified?: boolean
+          product_id?: string
+          product_name?: string
+          severity?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reorder_alerts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reorder_alerts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
