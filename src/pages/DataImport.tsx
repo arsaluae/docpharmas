@@ -232,7 +232,6 @@ function isEmptyValue(v: any): boolean {
 }
 
 export default function DataImport() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const defaultTab = (searchParams.get("tab") as TabType) || "customers";
   const [tab, setTab] = useState<TabType>(defaultTab);
