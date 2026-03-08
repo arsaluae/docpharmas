@@ -875,6 +875,7 @@ export default function ProformaInvoices() {
               </Button>
             </DialogContent>
           </Dialog>
+      <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );
 }
