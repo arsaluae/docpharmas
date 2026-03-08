@@ -73,6 +73,13 @@ export default function SalesReturns() {
       quantity: Number(i.quantity), rate: Number(i.rate), amount: Number(i.quantity) * Number(i.rate),
     })));
 
+    // Create return_in stock movements to restore inventory
+    await supabase.from("stock_movements").insert(validItems.map(i => ({
+      product_id: i.product_id, movement_type: "return_in", quantity: Number(i.quantity),
+      batch_number: i.batch_number || null, reference_type: "sales_return", date: new Date().toISOString().split("T")[0],
+      notes: `Sales Return ${num}`,
+    })));
+
     toast.success(`Sales Return ${num} created`);
     setOpen(false); setCustomerId(""); setInvoiceId(""); setReason("");
     setItems([{ product_id: "", product_name: "", batch_number: "", quantity: "1", rate: "0" }]);
