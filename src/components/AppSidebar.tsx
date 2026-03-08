@@ -42,6 +42,7 @@ const allSections = [
   ]},
   { label: "Reports", icon: BarChart3, staffVisible: false, items: [
     { title: "Reports", url: "/reports", icon: BarChart3 },
+    { title: "AI Insights", url: "/insights", icon: BarChart3 },
   ]},
   { label: "Settings", icon: Settings, staffVisible: false, items: [
     { title: "Company Settings", url: "/settings", icon: Settings },
