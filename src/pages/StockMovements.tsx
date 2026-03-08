@@ -149,9 +149,6 @@ export default function StockMovements() {
                 </Table>
               </CardContent>
             </Card>
-          </div>
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }
