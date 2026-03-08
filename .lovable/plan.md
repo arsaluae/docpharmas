@@ -1,44 +1,34 @@
 
 
-# Plan: Ultra-Premium Pharmaceutical Dashboard
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## What Changes
+## Two Changes
 
-Replace the grouped action hubs section with **8 premium action buttons in 2 rows of 4**, remove inactive customers (already done), and refine the overall dashboard feel with pharmaceutical-grade styling.
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-### Row 1 — Sales Operations (Teal/Sapphire tones)
-| Button | Route | Color |
-|--------|-------|-------|
-| Sales Order | /proforma | Indigo gradient |
-| Sales Invoice | /delivery-notes | Blue gradient |
-| Warranty Invoice | /warranty-invoices | Violet gradient |
-| Payment In | /payments | Cyan/Teal gradient |
-
-### Row 2 — Operations (Warm/Earthy pharma tones)
-| Button | Route | Color |
-|--------|-------|-------|
-| Inventory | /products | Amber/Orange gradient |
-| Purchase Order | /purchase-proforma | Emerald gradient |
-| Print Jobs | /print-jobs | Fuchsia/Purple gradient |
-| Expenses | /expenses | Rose gradient |
-
-### Button Design
-Each button is a tall card (~120px) with:
-- Subtle gradient background (e.g., `from-indigo-500/8 to-indigo-600/15`)
-- Large centered icon (h-8 w-8) with matching gradient icon background circle
-- Label below in `font-heading` small caps
-- Hover: scale-[1.02] + shadow-lg + gradient intensifies
-- Bottom colored accent line (2px gradient bar)
-- Smooth `transition-all duration-300`
-
-### Additional Polish
-- Stats strip: Keep as-is (already clean)
-- Remove the `actionHubs` array and the 5-column card grid entirely
-- Keep: Stats, 8 buttons, New Stock In, Top Selling, Top Customers, Reorder Alerts, AI CTA
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
 ## Files Changed
 
-| File | Action |
-|------|--------|
-| `src/pages/Index.tsx` | Replace actionHubs section with 8 premium gradient buttons in 2×4 grid |
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+
+No other files change. The template system and all callers remain the same.
 
