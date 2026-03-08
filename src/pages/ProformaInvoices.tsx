@@ -558,33 +558,24 @@ export default function ProformaInvoices() {
     >
 
       <div className="space-y-4">
-            {/* STATS */}
+            {/* PREMIUM STATUS BUTTONS */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Drafts", ...draftStats, gradient: "from-amber-500/10 to-amber-600/5", textColor: "text-amber-600" },
-                { label: "Invoiced", ...invoicedStats, gradient: "from-primary/10 to-primary/5", textColor: "text-primary" },
-                { label: "Dispatched", ...dispatchedStats, gradient: "from-primary/10 to-primary/5", textColor: "text-primary" },
-                { label: "Paid", ...paidStats, gradient: "from-emerald-500/10 to-emerald-600/5", textColor: "text-emerald-600" },
+                { label: "Draft", ...draftStats, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
+                { label: "Invoiced", ...invoicedStats, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "invoiced" },
+                { label: "Dispatched", ...dispatchedStats, icon: Truck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "dispatched" },
+                { label: "Paid", ...paidStats, icon: CreditCard, gradient: "from-emerald-500/8 to-emerald-600/15", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-400 to-emerald-600", textColor: "text-emerald-600", statusKey: "paid" },
               ].map(s => (
-                <button key={s.label} onClick={() => setStatusFilter(s.label.toLowerCase())}
-                  className={`text-left p-4 rounded-xl border border-border bg-gradient-to-br ${s.gradient} hover:shadow-md transition-all duration-200 group`}>
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.15em]">{s.label}</p>
-                  <p className={`text-2xl font-bold font-heading ${s.textColor} mt-1`}>{s.count}</p>
-                  <p className="text-xs font-mono text-muted-foreground mt-0.5">PKR {s.value.toLocaleString()}</p>
+                <button key={s.label} onClick={() => setStatusFilter(s.statusKey)}
+                  className={`group relative flex flex-col items-center justify-center h-[100px] rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
+                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300`}>
+                    <s.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <span className={`text-lg font-bold font-heading ${s.textColor}`}>{s.count}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{s.label}</span>
+                  <div className={`absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r ${s.accent} opacity-50 group-hover:opacity-100 transition-opacity`} />
                 </button>
               ))}
-            </div>
-
-            {/* FLOW INDICATOR */}
-            <div className="flex items-center gap-2 text-xs bg-muted/40 rounded-xl px-4 py-3 border border-border/60">
-              <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-600 font-semibold">Draft</span>
-              <span className="text-muted-foreground">→</span>
-              <span className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-semibold">Submit</span>
-              <span className="text-muted-foreground">→</span>
-              <span className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-semibold">Invoice + DN</span>
-              <span className="text-muted-foreground">→</span>
-              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 font-semibold">Paid</span>
-              <span className="ml-auto text-muted-foreground italic hidden sm:inline">Submit enforces batch selection from stock</span>
             </div>
 
             {/* FILTERS */}
