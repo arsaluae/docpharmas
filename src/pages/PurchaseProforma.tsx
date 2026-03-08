@@ -19,7 +19,8 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { generatePdf } from "@/lib/pdf-generator";
+import { generatePdfHtml } from "@/lib/pdf-generator";
+import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 
 interface Supplier { id: string; name: string; wht_rate: number; company?: string | null; phone?: string | null; address?: string | null; }
@@ -67,7 +68,9 @@ export default function PurchaseProforma() {
   const [previewOrder, setPreviewOrder] = useState<PurchaseOrder | null>(null);
   const [previewItems, setPreviewItems] = useState<any[]>([]);
   const [previewCosts, setPreviewCosts] = useState<any[]>([]);
-
+  const [pdfHtml, setPdfHtml] = useState("");
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
   // Edit
   const [editMode, setEditMode] = useState(false);
   const [editSupplierId, setEditSupplierId] = useState("");
@@ -230,7 +233,7 @@ export default function PurchaseProforma() {
 
   // ── PDF ──
   const printOrder = (order: PurchaseOrder) => {
-    generatePdf({
+    const html = generatePdfHtml({
       title: "PURCHASE ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
       partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
       partyAddress: (order.suppliers as any)?.address || undefined,
@@ -252,6 +255,7 @@ export default function PurchaseProforma() {
       notes: order.notes || undefined, settings,
       template: getTemplate("purchase_proforma"),
     });
+    setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
   };
 
   // ── CONFIRM ORDER (Create PO) ──
@@ -284,7 +288,7 @@ export default function PurchaseProforma() {
 
       // Auto-download PO PDF
       const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", po.id);
-      generatePdf({
+      const poHtml = generatePdfHtml({
         title: "PURCHASE ORDER", documentNumber: poNumber, date: po.date, statusTheme: "confirmed" as const,
         partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
         columns: [
@@ -303,6 +307,7 @@ export default function PurchaseProforma() {
         ],
         settings, template: getTemplate("purchase_order"),
       });
+      setPdfHtml(poHtml); setPdfTitle(`Purchase Order — ${poNumber}`); setPdfOpen(true);
       setPreviewOpen(false); setSaving(false); load();
     } else { setSaving(false); }
   };
@@ -385,7 +390,7 @@ export default function PurchaseProforma() {
         toast.success(`GRN ${grnNumber} created`);
       }
 
-      generatePdf({
+      const grnHtml = generatePdfHtml({
         title: "GOODS RECEIVED NOTE", documentNumber: grnNumber, date: grn.date, statusTheme: "received" as const,
         partyLabel: "Supplier", partyName: (receivePO.suppliers as any)?.name || "—",
         columns: [
@@ -399,6 +404,7 @@ export default function PurchaseProforma() {
         })),
         settings, template: getTemplate("grn"),
       });
+      setPdfHtml(grnHtml); setPdfTitle(`GRN — ${grnNumber}`); setPdfOpen(true);
       setReceiveOpen(false); setReceivedBy(""); setReceiveNotes(""); setReceiving(false); setPreviewOpen(false); load();
     } else { setReceiving(false); }
   };
@@ -921,6 +927,7 @@ export default function PurchaseProforma() {
               </Button>
             </DialogContent>
           </Dialog>
+      <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );
 }

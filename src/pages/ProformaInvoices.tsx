@@ -17,7 +17,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { generatePdf } from "@/lib/pdf-generator";
+import { generatePdfHtml } from "@/lib/pdf-generator";
+import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -50,6 +51,9 @@ export default function ProformaInvoices() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pdfHtml, setPdfHtml] = useState("");
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
 
   // Create form
   const [customerId, setCustomerId] = useState("");
@@ -249,7 +253,7 @@ export default function ProformaInvoices() {
     const custAddress = (order.customers as any)?.address || undefined;
     const custPhone = (order.customers as any)?.phone || undefined;
     const custArea = (order.customers as any)?.area || undefined;
-    generatePdf({
+    const html = generatePdfHtml({
       title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
       partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
       meta: [{ label: "Validity", value: `${order.validity_days} days` }],
@@ -266,8 +270,8 @@ export default function ProformaInvoices() {
         { label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` },
       ],
       notes: order.payment_instructions || undefined, settings,
-      template: getTemplate("proforma"),
     });
+    setPdfHtml(html); setPdfTitle(`Sales Order — ${order.proforma_number}`); setPdfOpen(true);
   };
 
   const printInvoice = async (order: SalesOrder) => {
@@ -275,7 +279,7 @@ export default function ProformaInvoices() {
     const { data: inv } = await supabase.from("sales_invoices").select("*, customers(name)").eq("id", order.converted_invoice_id).single();
     const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", order.converted_invoice_id);
     if (inv) {
-      generatePdf({
+      const html = generatePdfHtml({
         title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
         partyLabel: "Customer", partyName: (inv.customers as any)?.name || "—",
         columns: [
@@ -294,6 +298,7 @@ export default function ProformaInvoices() {
         ],
         settings, template: getTemplate("sales_invoice"),
       });
+      setPdfHtml(html); setPdfTitle(`Sales Invoice — ${inv.invoice_number}`); setPdfOpen(true);
     }
   };
 
@@ -418,7 +423,7 @@ export default function ProformaInvoices() {
 
       // Auto-download invoice PDF
       const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
-      generatePdf({
+      const autoHtml = generatePdfHtml({
         title: "SALES INVOICE", documentNumber: invNumber, date: inv.date, statusTheme: "dispatched" as const,
         partyLabel: "Customer", partyName: (inv.customers as any)?.name || (submitOrder.customers as any)?.name || "—",
         columns: [
@@ -437,6 +442,7 @@ export default function ProformaInvoices() {
         ],
         settings, template: getTemplate("sales_invoice"),
       });
+      setPdfHtml(autoHtml); setPdfTitle(`Sales Invoice — ${invNumber}`); setPdfOpen(true);
 
       setSubmitOpen(false); setPreviewOpen(false); setSubmitting(false); load();
     } else {
@@ -869,6 +875,7 @@ export default function ProformaInvoices() {
               </Button>
             </DialogContent>
           </Dialog>
+      <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );
 }

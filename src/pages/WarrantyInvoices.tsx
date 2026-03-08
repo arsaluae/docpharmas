@@ -14,7 +14,8 @@ import { Plus, Search, ShieldCheck, Trash2, X, Download } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { generatePdf } from "@/lib/pdf-generator";
+import { generatePdfHtml } from "@/lib/pdf-generator";
+import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 
 interface Customer { id: string; name: string; company: string | null; }
@@ -49,6 +50,9 @@ export default function WarrantyInvoices() {
   const [form, setForm] = useState(emptyForm);
   const [items, setItems] = useState<LineItem[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
+  const [pdfHtml, setPdfHtml] = useState("");
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
 
@@ -281,7 +285,7 @@ export default function WarrantyInvoices() {
                       <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                         <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => {
                           const wiItems = Array.isArray(inv.items) ? inv.items : [];
-                          generatePdf({
+                          const wiHtml = generatePdfHtml({
                             title: "WARRANTY INVOICE", documentNumber: inv.warranty_number, date: inv.date,
                             partyLabel: "Pharmacy", partyName: inv.pharmacy_name,
                             partyAddress: inv.pharmacy_address || undefined,
@@ -302,6 +306,7 @@ export default function WarrantyInvoices() {
                             ],
                             notes: inv.notes || undefined, settings, template: getTemplate("warranty_invoice"),
                           });
+                          setPdfHtml(wiHtml); setPdfTitle(`Warranty Invoice — ${inv.warranty_number}`); setPdfOpen(true);
                         }}>
                           <Download className="h-3 w-3" /> PDF
                         </Button>
@@ -329,6 +334,7 @@ export default function WarrantyInvoices() {
           </CardContent>
         </Card>
       </div>
+      <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );
 }
