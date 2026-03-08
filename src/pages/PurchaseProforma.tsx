@@ -650,18 +650,16 @@ export default function PurchaseProforma() {
                       <TableRow className="bg-muted/30">
                         <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                         <TableHead className="font-semibold">Order #</TableHead>
-                        <TableHead className="font-semibold">PO #</TableHead>
                         <TableHead className="font-semibold">Supplier</TableHead>
                         <TableHead className="font-semibold">Date</TableHead>
                         <TableHead className="font-semibold">Status</TableHead>
-                        <TableHead className="font-semibold">GRN</TableHead>
                         <TableHead className="text-right font-semibold">Total</TableHead>
                         <TableHead className="font-semibold">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filtered.length === 0 ? (
-                        <TableRow><TableCell colSpan={9} className="text-center py-16">
+                        <TableRow><TableCell colSpan={7} className="text-center py-16">
                           <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
                           <p className="text-muted-foreground font-medium">No purchase orders yet</p>
                           <p className="text-xs text-muted-foreground mt-1">Click "New Order" to start</p>
@@ -670,16 +668,14 @@ export default function PurchaseProforma() {
                         <TableRow key={order.id} className="group cursor-pointer hover:bg-muted/30 transition-colors" data-state={selected.has(order.id) ? "selected" : undefined}>
                           <TableCell><Checkbox checked={selected.has(order.id)} onCheckedChange={() => toggleSelect(order.id)} /></TableCell>
                           <TableCell className="font-mono font-semibold text-sm" onClick={() => openPreview(order)}>{order.proforma_number}</TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground" onClick={() => openPreview(order)}>{order.po_number || "—"}</TableCell>
                           <TableCell className="text-sm" onClick={() => openPreview(order)}>{(order.suppliers as any)?.name || "—"}</TableCell>
                           <TableCell className="text-sm text-muted-foreground" onClick={() => openPreview(order)}>{order.date}</TableCell>
                           <TableCell onClick={() => openPreview(order)}>
                             <Badge variant="outline" className={`text-[10px] font-semibold ${statusColor(order.status)}`}>{statusLabel(order.status)}</Badge>
                           </TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">{order.grn_number || "—"}</TableCell>
                           <TableCell className="text-right font-mono font-semibold text-sm" onClick={() => openPreview(order)}>{Number(order.total).toLocaleString()}</TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1">
                               {order.status === "draft" && (
                                 <Button variant="default" size="sm" onClick={() => handleConfirmOrder(order)} className="h-7 text-xs gap-1 shadow-sm">
                                   <CheckCircle className="h-3 w-3" /> Confirm
