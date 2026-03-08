@@ -664,9 +664,19 @@ export default function ProformaInvoices() {
                                   <CheckCircle className="h-3 w-3" /> Submit
                                 </Button>
                               )}
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(order)}>
-                                <Eye className="h-3.5 w-3.5" />
+                              {order.status === "draft" && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSheet(order)} title="Edit">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printOrder(order)} title="Download PDF">
+                                <Download className="h-3.5 w-3.5" />
                               </Button>
+                              {order.converted_invoice_id && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printInvoice(order)} title="Invoice PDF">
+                                  <FileText className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               {order.status === "draft" && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => promptDelete([order.id])}>
                                   <Trash2 className="h-3.5 w-3.5 text-destructive" />

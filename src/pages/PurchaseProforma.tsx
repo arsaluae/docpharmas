@@ -728,8 +728,13 @@ export default function PurchaseProforma() {
                                   <PackageCheck className="h-3 w-3" /> Receive
                                 </Button>
                               )}
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(order)}>
-                                <Eye className="h-3.5 w-3.5" />
+                              {order.status === "draft" && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSheet(order)} title="Edit">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(order)} title="Download PDF">
+                                <Download className="h-3.5 w-3.5" />
                               </Button>
                               {order.status === "draft" && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => promptDelete([order.id])}>
