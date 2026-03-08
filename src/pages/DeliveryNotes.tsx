@@ -28,6 +28,9 @@ export default function DeliveryNotes() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
+  const [pdfHtml, setPdfHtml] = useState("");
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailDN, setDetailDN] = useState<DeliveryNote | null>(null);
@@ -47,7 +50,7 @@ export default function DeliveryNotes() {
 
   const printDN = (dn: DeliveryNote) => {
     const items = typeof dn.items === "string" ? JSON.parse(dn.items) : dn.items;
-    generatePdf({
+    const html = generatePdfHtml({
       title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date,
       columns: [
         { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
@@ -58,6 +61,7 @@ export default function DeliveryNotes() {
       notes: dn.notes || undefined, settings,
       template: getTemplate("delivery_note"),
     });
+    setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
   };
 
   const filtered = notes.filter(n => n.dn_number.toLowerCase().includes(search.toLowerCase()));
