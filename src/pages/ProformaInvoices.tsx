@@ -491,7 +491,8 @@ export default function ProformaInvoices() {
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
 
   const statusColor = (s: string) => {
-    if (s === "invoiced" || s === "dispatched") return "bg-primary/15 text-primary border-primary/20";
+    if (s === "invoiced") return "bg-blue-500/15 text-blue-600 border-blue-500/20";
+    if (s === "dispatched") return "bg-violet-500/15 text-violet-600 border-violet-500/20";
     if (s === "paid") return "bg-emerald-500/15 text-emerald-600 border-emerald-500/20";
     if (s === "draft") return "bg-amber-500/15 text-amber-600 border-amber-500/20";
     return "bg-muted text-muted-foreground";
