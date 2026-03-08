@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, ArrowDownUp } from "lucide-react";
 import { toast } from "sonner";
 
-const MOVE_TYPES = ["purchase_in", "sale_out", "return_in", "return_out", "adjustment"];
+const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", "return_out", "adjustment", "adjustment_in", "adjustment_out", "opening", "damage", "expired"];
 
 interface Product { id: string; name: string; stock_quantity: number; }
 interface StockMovement {

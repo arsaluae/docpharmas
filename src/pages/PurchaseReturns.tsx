@@ -73,6 +73,13 @@ export default function PurchaseReturns() {
       quantity: Number(i.quantity), rate: Number(i.rate), amount: Number(i.quantity) * Number(i.rate),
     })));
 
+    // Create return_out stock movements to reduce inventory
+    await supabase.from("stock_movements").insert(validItems.map(i => ({
+      product_id: i.product_id, movement_type: "return_out", quantity: Number(i.quantity),
+      batch_number: i.batch_number || null, reference_type: "purchase_return", date: new Date().toISOString().split("T")[0],
+      notes: `Purchase Return ${num}`,
+    })));
+
     toast.success(`Purchase Return ${num} created`);
     setOpen(false); setSupplierId(""); setInvoiceId(""); setReason("");
     setItems([{ product_id: "", batch_number: "", quantity: "1", rate: "0" }]);

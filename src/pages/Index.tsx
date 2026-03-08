@@ -45,7 +45,7 @@ export default function Index() {
       supabase.from("sales_invoices").select("subtotal").gte("date", weekStartStr).lte("date", todayStr),
       supabase.from("sales_invoices").select("subtotal, customer_id").gte("date", monthStart).lte("date", todayStr),
       supabase.from("sales_invoices").select("subtotal, customer_id").gte("date", yearStart).lte("date", todayStr),
-      supabase.from("sales_invoice_items").select("product_id, quantity, amount, invoice_id, rate").order("amount", { ascending: false }),
+      supabase.from("sales_invoice_items").select("product_id, quantity, amount, invoice_id, rate").order("amount", { ascending: false }).limit(5000),
       supabase.from("stock_movements").select("product_id, quantity, date").eq("movement_type", "purchase_in").order("created_at", { ascending: false }).limit(5),
       supabase.from("products").select("id, name, cost_price"),
       supabase.from("customers").select("id, name"),
