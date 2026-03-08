@@ -386,7 +386,7 @@ export default function PurchaseProforma() {
       }
 
       generatePdf({
-        title: "GOODS RECEIVED NOTE", documentNumber: grnNumber, date: grn.date,
+        title: "GOODS RECEIVED NOTE", documentNumber: grnNumber, date: grn.date, statusTheme: "received" as const,
         partyLabel: "Supplier", partyName: (receivePO.suppliers as any)?.name || "—",
         columns: [
           { header: "#", key: "idx" }, { header: "Item", key: "item_name" },
