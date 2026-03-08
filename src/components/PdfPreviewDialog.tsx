@@ -27,14 +27,18 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title }: PdfPreview
   ).replace(
     /<\/head>/,
     `<style>
-      body { margin: 0 !important; padding: 8px !important; }
+      body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
       .page-frame { 
         margin: 0 auto !important; 
+        padding: 28px 32px !important;
         width: 100% !important; 
         max-width: 100% !important;
         box-sizing: border-box !important;
         box-shadow: none !important;
+        border: none !important;
       }
+      .page-frame::before { display: none !important; }
+      .corner { display: none !important; }
     </style></head>`
   );
 
