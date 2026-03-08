@@ -142,6 +142,51 @@ export default function Index() {
     { label: "Expenses", path: "/expenses", icon: Receipt, gradient: "from-rose-500/8 to-rose-600/18", iconBg: "from-rose-500 to-rose-600", accent: "from-rose-500 to-rose-400", shadow: "shadow-rose-500/20" },
   ];
 
+  return (
+    <AppLayout title="Dashboard" subtitle="Business overview">
+      <div className="space-y-6">
+        {/* Sales Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="border-l-4 border-l-primary hover:shadow-md transition-all">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">This Week Sale</p>
+                  <p className="text-2xl font-bold text-foreground mt-1 font-heading">PKR {weekSales.toLocaleString()}</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-primary/10"><CalendarDays className="h-5 w-5 text-primary" /></div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-emerald-500 hover:shadow-md transition-all">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">This Month Sale</p>
+                  <p className="text-2xl font-bold text-foreground mt-1 font-heading">PKR {monthSales.toLocaleString()}</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-emerald-500/10"><ShoppingCart className="h-5 w-5 text-emerald-500" /></div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className={`border-l-4 hover:shadow-md transition-all ${grossMargin >= 0 ? "border-l-primary" : "border-l-destructive"}`}>
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Gross Margin (Month)</p>
+                  <p className={`text-2xl font-bold mt-1 font-heading ${grossMargin >= 0 ? "text-primary" : "text-destructive"}`}>
+                    PKR {Math.abs(grossMargin).toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Sale − Cost Price</p>
+                </div>
+                <div className={`p-2.5 rounded-xl ${grossMargin >= 0 ? "bg-primary/10" : "bg-destructive/10"}`}>
+                  {grossMargin >= 0 ? <TrendingUp className="h-5 w-5 text-primary" /> : <TrendingDown className="h-5 w-5 text-destructive" />}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Premium Action Buttons */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {quickActions.map((action) => (
