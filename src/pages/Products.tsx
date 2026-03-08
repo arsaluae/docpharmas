@@ -56,10 +56,7 @@ export default function Products() {
   const [moveNotes, setMoveNotes] = useState("");
   const [moveTypeFilter, setMoveTypeFilter] = useState("all");
 
-  useEffect(() => {
-    const check = async () => { const { data: { session } } = await supabase.auth.getSession(); if (!session) navigate("/auth"); };
-    check(); loadAll();
-  }, [navigate]);
+  useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     const [prodRes, moveRes] = await Promise.all([
