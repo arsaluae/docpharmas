@@ -1,34 +1,61 @@
 
+Root cause confirmed from backend network/audit:
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+1) Purchase confirm is failing because the app inserts `purchase_orders.status = "confirmed"` but the database check only allows `draft/sent/partial/received/cancelled` (HTTP 400 constraint error).
+2) Sales submit is failing for the same pattern: app inserts `sales_invoices.status = "dispatched"` while the database check only allows `draft/sent/partial/paid/overdue`.
+3) Both flows fail silently in UI because current handlers don’t surface insert errors clearly (they mostly branch on `if (data)`).
 
-## Two Changes
+Assumption for your requested purchase flow:
+- We will keep business flow as: Draft → Confirmed/Ordered (PO) → Received (GRN + Bill) → Paid.
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+Implementation plan
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+1) Fix status compatibility at database level (migration)
+- Update `purchase_orders_status_check` to include `confirmed` (while keeping existing values).
+- Update `sales_invoices_status_check` to include `dispatched` (while keeping existing values).
+- This aligns backend constraints with the statuses the UI already uses.
 
-## Files Changed
+2) Harden Sales submit flow (`src/pages/ProformaInvoices.tsx`)
+- Add explicit error handling for:
+  - invoice insert
+  - sales_invoice_items insert
+  - delivery_note insert
+  - proforma update
+- Show exact actionable toast when any step fails (no more silent stop).
+- Keep current batch allocation validation, but improve failure copy.
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+3) Harden Purchase confirm flow (`src/pages/PurchaseProforma.tsx`)
+- Add explicit error handling for:
+  - PO insert
+  - PO items insert
+  - additional costs copy
+  - purchase proforma status update
+- Prevent false “success” when PO creation fails.
 
-No other files change. The template system and all callers remain the same.
+4) Normalize status mapping for old + new records
+- Sales dashboard mapping:
+  - treat invoice `sent` and `dispatched` consistently as dispatched stage in UI.
+- Purchase dashboard mapping:
+  - treat PO `sent` as ordered, `confirmed` as confirmed, `received` as received, bill `paid` as paid.
 
+5) Make purchase flow clearly visible through to payment
+- Add/restore “Paid” status card in Purchase dashboard summary so final stage is visible.
+- Ensure rows move to Paid when linked bill status becomes paid.
+
+6) End-to-end validation after code changes
+- Test sales path: Draft order → Submit → Sales invoice + delivery note created.
+- Test purchase path: Draft order → Confirm → Receive (batch/expiry/qty) → GRN + purchase bill created.
+- Test payment path: record payment against customer/supplier and verify order/dashboard status updates to Paid.
+- Validate with network responses + backend row checks to ensure every stage persists correctly.
+
+Technical details (what will be changed)
+
+- Migration:
+  - `ALTER TABLE public.purchase_orders DROP CONSTRAINT ...;`
+  - recreate check with `confirmed` included.
+  - `ALTER TABLE public.sales_invoices DROP CONSTRAINT ...;`
+  - recreate check with `dispatched` included.
+- Frontend files:
+  - `src/pages/ProformaInvoices.tsx` (submit error handling + status normalization)
+  - `src/pages/PurchaseProforma.tsx` (confirm error handling + paid-stage visibility + normalization)
+- No auth model or roles changes required.
