@@ -51,6 +51,9 @@ export default function ProformaInvoices() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pdfHtml, setPdfHtml] = useState("");
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
 
   // Create form
   const [customerId, setCustomerId] = useState("");
