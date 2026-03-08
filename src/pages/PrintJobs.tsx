@@ -340,6 +340,6 @@ export default function PrintJobs() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </SidebarProvider>
+    </AppLayout>
   );
 }

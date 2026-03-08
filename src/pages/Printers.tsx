@@ -176,8 +176,6 @@ export default function Printers() {
               </CardContent>
             </Card>
           </div>
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }

@@ -128,8 +128,6 @@ export default function BankAccounts() {
               </Card>
             </div>
           )}
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }

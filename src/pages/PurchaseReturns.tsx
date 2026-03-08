@@ -189,8 +189,6 @@ export default function PurchaseReturns() {
               </Table>
             </CardContent></Card>
           </div>
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }

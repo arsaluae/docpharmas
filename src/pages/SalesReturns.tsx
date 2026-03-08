@@ -195,8 +195,6 @@ export default function SalesReturns() {
               </Table>
             </CardContent></Card>
           </div>
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }
