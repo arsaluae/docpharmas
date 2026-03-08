@@ -1,34 +1,46 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Plan: Streamlined Filters + Status-Themed PDF Templates
 
-## Two Changes
+## 1. Filter Bar Redesign (Both Sales & Purchase)
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+**Remove** the duplicate status text filter buttons (the `STATUS_OPTIONS` pill group) — these duplicate the premium status buttons above.
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+**Add "All" as a 5th premium button** at the start of the status buttons row (grid becomes 5 columns). Style it with a neutral slate/gray gradient. When active (default), shows total order count.
+
+**Replace customer/supplier dropdown** with a search Input field that filters by customer/supplier name (text-based search, not combobox dropdown).
+
+**Redesign time filter** — style the date range pills (All/Today/Week/Month) as small premium pill buttons with subtle gradient backgrounds instead of plain text tabs. Keep them inline with the search bar.
+
+**Final filter bar layout:**
+```text
+[ 🔍 Search orders & customers...          ] [ All | Today | Week | Month ]
+```
+
+## 2. PDF Templates Per Status
+
+Enhance `generatePdf` to accept an optional `statusTheme` parameter that changes the accent colors and title styling:
+
+| Status | PDF Title | Accent Color | Header Accent |
+|--------|-----------|-------------|---------------|
+| Draft | SALES ORDER (DRAFT) | Amber (#d97706) | Amber gradient |
+| Invoiced | SALES INVOICE | Blue (#2563eb) | Blue gradient |
+| Dispatched | DELIVERY NOTE | Violet (#7c3aed) | Violet gradient |
+| Paid | SALES INVOICE (PAID) | Emerald (#059669) | Emerald gradient |
+
+For **Purchase**:
+| Draft | PURCHASE ORDER (DRAFT) | Amber |
+| Ordered | PURCHASE ORDER | Blue |
+| Confirmed | PURCHASE ORDER (CONFIRMED) | Violet |
+| Received | GOODS RECEIVED NOTE | Emerald |
+
+The PDF generator's color palette (`C` object) will be parameterized — `statusTheme` overrides `C.primary`, the header gradient, and the accent divider color while keeping the same clean layout.
 
 ## Files Changed
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
-
-No other files change. The template system and all callers remain the same.
+| File | Action |
+|------|--------|
+| `src/pages/ProformaInvoices.tsx` | Add "All" button, remove STATUS_OPTIONS pills, replace customer dropdown with search input, restyle date filters |
+| `src/pages/PurchaseProforma.tsx` | Same filter changes for purchase |
+| `src/lib/pdf-generator.ts` | Add `statusTheme` option to `PdfOptions`, parameterize colors per theme |
 
