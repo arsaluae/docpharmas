@@ -334,6 +334,7 @@ export default function WarrantyInvoices() {
           </CardContent>
         </Card>
       </div>
+      <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );
 }
