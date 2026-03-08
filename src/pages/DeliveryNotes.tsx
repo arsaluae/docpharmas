@@ -138,8 +138,8 @@ export default function DeliveryNotes() {
               <TableHeader>
                 <TableRow>
                   <TableHead><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                  <TableHead>DN #</TableHead><TableHead>Date</TableHead><TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead><TableHead>Actions</TableHead>
+                   <TableHead>DN #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Type</TableHead>
+                   <TableHead>Status</TableHead><TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
