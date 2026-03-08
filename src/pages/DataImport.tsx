@@ -655,15 +655,7 @@ export default function DataImport() {
 
   return (
     <AppLayout title="Data Import" subtitle="Smart merge from 20+ software formats with duplicate detection">
-          <div className="space-y-6">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                <span className="text-xs text-muted-foreground font-medium">Ready</span>
-              </div>
-            </div>
-          </header>
-
-          <div className="p-8 max-w-5xl mx-auto">
+          <div className="max-w-5xl mx-auto">
             <Tabs value={tab} onValueChange={v => { setTab(v as TabType); resetFile(); }}>
               {/* Premium Tab Pills */}
               <TabsList className="bg-secondary/50 p-1 rounded-xl mb-8 border border-border/50">
