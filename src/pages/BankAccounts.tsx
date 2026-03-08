@@ -20,7 +20,6 @@ interface Payment {
 }
 
 export default function BankAccounts() {
-  const navigate = useNavigate();
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [linkedPayments, setLinkedPayments] = useState<Payment[]>([]);
