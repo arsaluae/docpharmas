@@ -267,6 +267,7 @@ export default function DeliveryNotes() {
           )}
         </DialogContent>
       </Dialog>
+      <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );
 }

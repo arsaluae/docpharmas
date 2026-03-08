@@ -389,7 +389,7 @@ export default function PurchaseProforma() {
         toast.success(`GRN ${grnNumber} created`);
       }
 
-      generatePdf({
+      const grnHtml = generatePdfHtml({
         title: "GOODS RECEIVED NOTE", documentNumber: grnNumber, date: grn.date, statusTheme: "received" as const,
         partyLabel: "Supplier", partyName: (receivePO.suppliers as any)?.name || "—",
         columns: [
@@ -403,6 +403,7 @@ export default function PurchaseProforma() {
         })),
         settings, template: getTemplate("grn"),
       });
+      setPdfHtml(grnHtml); setPdfTitle(`GRN — ${grnNumber}`); setPdfOpen(true);
       setReceiveOpen(false); setReceivedBy(""); setReceiveNotes(""); setReceiving(false); setPreviewOpen(false); load();
     } else { setReceiving(false); }
   };
