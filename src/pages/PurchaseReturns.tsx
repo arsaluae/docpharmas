@@ -22,7 +22,6 @@ const DATE_RANGES = [
 ];
 
 export default function PurchaseReturns() {
-  const navigate = useNavigate();
   const [returns, setReturns] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [pInvoices, setPInvoices] = useState<any[]>([]);
