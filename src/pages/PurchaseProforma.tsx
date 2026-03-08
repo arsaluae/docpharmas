@@ -256,6 +256,7 @@ export default function PurchaseProforma() {
       template: getTemplate("purchase_proforma"),
     });
     setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
+  };
 
   // ── CONFIRM ORDER (Create PO) ──
   const handleConfirmOrder = async (order: PurchaseOrder) => {
