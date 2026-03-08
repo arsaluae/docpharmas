@@ -373,13 +373,13 @@ export default function ProformaInvoices() {
     const { data: invNumber } = await supabase.rpc("generate_document_number", { p_document_type: "sales_invoice" });
     if (!invNumber) { toast.error("Failed to generate invoice number"); setSubmitting(false); return; }
 
-    const { data: inv } = await supabase.from("sales_invoices").insert({
+    const { data: inv, error: invErr } = await supabase.from("sales_invoices").insert({
       invoice_number: invNumber, customer_id: submitOrder.customer_id,
       date: new Date().toISOString().split("T")[0],
       subtotal: submitOrder.subtotal, gst_amount: submitOrder.gst, total: submitOrder.total, status: "dispatched",
     }).select("*, customers(name)").single();
 
-    if (inv) {
+    if (invErr || !inv) { toast.error("Failed to create invoice: " + (invErr?.message || "Unknown error")); setSubmitting(false); return; }
       const lineItems = submitItems.map((i: any) => ({
         invoice_id: inv.id, product_id: i.product_id || null,
         quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
@@ -462,9 +462,6 @@ export default function ProformaInvoices() {
       setPdfHtml(autoHtml); setPdfTitle(`Sales Invoice — ${invNumber}`); setPdfOpen(true);
 
       setSubmitOpen(false); setPreviewOpen(false); setSubmitting(false); load();
-    } else {
-      setSubmitting(false);
-    }
   };
 
   // ── DELETE ──

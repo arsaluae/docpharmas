@@ -289,11 +289,11 @@ export default function PurchaseProforma() {
     setSaving(true);
     const { data: poNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_order" });
     if (!poNumber) { toast.error("Failed to generate PO number"); setSaving(false); return; }
-    const { data: po } = await supabase.from("purchase_orders").insert({
+    const { data: po, error: poErr } = await supabase.from("purchase_orders").insert({
       po_number: poNumber, supplier_id: order.supplier_id, date: new Date().toISOString().split("T")[0],
       subtotal: order.subtotal, gst: order.gst, total: order.total, status: "confirmed", proforma_id: order.id,
     }).select().single();
-    if (po) {
+    if (poErr || !po) { toast.error("Failed to create PO: " + (poErr?.message || "Unknown error")); setSaving(false); return; }
       const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*").eq("proforma_id", order.id);
       if (ppItems?.length) {
         await supabase.from("purchase_order_items").insert(
@@ -335,7 +335,7 @@ export default function PurchaseProforma() {
       });
       setPdfHtml(poHtml); setPdfTitle(`Purchase Order — ${poNumber}`); setPdfOpen(true);
       setPreviewOpen(false); setSaving(false); load();
-    } else { setSaving(false); }
+    
   };
 
   // ── RECEIVE (GRN + Bill) ──
