@@ -1,34 +1,57 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Plan: Bootstrap Tenant + Seed Dummy Data + In-App PDF Preview
 
-## Two Changes
+## Critical Fix First: Tenant & Admin Setup
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+Your account has **no tenant, no tenant_user record, and no admin role**. The entire app is broken because of this. A migration will seed:
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+1. Insert `arsaluae@gmail.com` into `user_roles` as `admin`
+2. Create a tenant "PharmaZen Demo" with `owner_email = arsaluae@gmail.com`, active subscription
+3. Create `tenant_users` record linking your user to this tenant as `owner`
+
+## Dummy Data Seeding (via migration)
+
+All records will get the same `tenant_id` so RLS works. The flow:
+
+1. **Supplier**: "MediPharma Labs" (Karachi)
+2. **Customer**: "City Pharmacy" (Lahore), "HealthPlus Store" (Islamabad)
+3. **Printer**: "National Printers" (Karachi)
+4. **Products**: "Paracetamol 500mg Tablets", "Amoxicillin 250mg Capsules", "Cough Syrup 100ml"
+5. **Bank Account**: "Meezan Bank Operating"
+6. **Company Settings**: Basic company config
+7. **Document Counters**: Initialize SO, INV, PO, BILL, DN, GRN, PAY, EXP, PJ, PR, SR counters
+8. **Purchase Order** (draft) → **Confirm** (creates GRN + Bill + stock_movements for batch/expiry)
+9. **Print Job**: 1 job with some rejection
+10. **Sales Order** (draft) → **Submit** (creates Invoice + DN + stock_movements with batch selection)
+11. **Payment**: Received from customer, made to supplier
+12. **Expense**: Business expense (office supplies)
+
+This creates a complete audit trail hitting all ledgers.
+
+## PDF Preview: In-App Modal Instead of New Tab
+
+Currently `generatePdf()` calls `window.open("", "_blank")` — opens a full new tab. Change to:
+
+1. **New component**: `PdfPreviewDialog.tsx` — a dialog/sheet with an `<iframe>` rendering the HTML
+2. **Modify `pdf-generator.ts`**: Add `generatePdfHtml()` that returns the HTML string instead of opening a window. Keep `generatePdf()` for backward compat but default to returning HTML.
+3. **Update all pages** that call `generatePdf()` to use the new preview dialog — opens as a centered modal (not full page), has "Download/Print" button inside, screenshot-friendly
+
+The dialog will be ~80% viewport width, scrollable, with the invoice rendered inside an iframe using `srcdoc`.
 
 ## Files Changed
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
-
-No other files change. The template system and all callers remain the same.
+| File | Change |
+|------|--------|
+| Migration SQL | Seed admin role, tenant, tenant_user, dummy business data |
+| `src/lib/pdf-generator.ts` | Add `generatePdfHtml()` returning HTML string |
+| `src/components/PdfPreviewDialog.tsx` | New: modal with iframe for PDF preview |
+| `src/pages/ProformaInvoices.tsx` | Use PdfPreviewDialog |
+| `src/pages/PurchaseProforma.tsx` | Use PdfPreviewDialog |
+| `src/pages/DeliveryNotes.tsx` | Use PdfPreviewDialog |
+| `src/pages/Payments.tsx` | Use PdfPreviewDialog |
+| `src/pages/PrintJobs.tsx` | Use PdfPreviewDialog |
+| `src/pages/WarrantyInvoices.tsx` | Use PdfPreviewDialog |
+| `src/pages/PurchaseReturns.tsx` | Use PdfPreviewDialog |
+| `src/pages/SalesReturns.tsx` | Use PdfPreviewDialog |
 
