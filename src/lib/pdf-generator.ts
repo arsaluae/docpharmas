@@ -3,6 +3,8 @@ import type { DocumentTemplate } from "@/hooks/useDocumentTemplates";
 
 interface PdfColumn { header: string; key: string; align?: "left" | "right" | "center"; }
 interface PdfMeta { label: string; value: string; }
+type StatusTheme = "draft" | "invoiced" | "dispatched" | "paid" | "ordered" | "confirmed" | "received";
+
 interface PdfOptions {
   title: string;
   documentNumber: string;
@@ -23,6 +25,7 @@ interface PdfOptions {
   notes?: string;
   settings: CompanySettings | null;
   template?: DocumentTemplate | null;
+  statusTheme?: StatusTheme;
 }
 
 function numberToWords(num: number): string {
