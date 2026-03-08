@@ -61,8 +61,8 @@ function numberToWords(num: number): string {
   return result + " Only";
 }
 
-// Premium Pharma Palette
-const C = {
+// Premium Pharma Palette — base
+const BASE_C = {
   primary: "#0e7490",
   primaryLight: "#99f6e4",
   primaryMid: "#14b8a6",
@@ -77,6 +77,21 @@ const C = {
   cardBg: "#f8fafc",
   cardBgEnd: "#f1f5f9",
 };
+
+const STATUS_THEMES: Record<StatusTheme, Partial<typeof BASE_C>> = {
+  draft: { primary: "#d97706", primaryLight: "#fef3c7", primaryMid: "#f59e0b", headerBg: "#451a03", headerBgEnd: "#78350f" },
+  invoiced: { primary: "#2563eb", primaryLight: "#dbeafe", primaryMid: "#3b82f6", headerBg: "#1e1b4b", headerBgEnd: "#312e81" },
+  dispatched: { primary: "#7c3aed", primaryLight: "#ede9fe", primaryMid: "#8b5cf6", headerBg: "#2e1065", headerBgEnd: "#4c1d95" },
+  paid: { primary: "#059669", primaryLight: "#d1fae5", primaryMid: "#10b981", headerBg: "#022c22", headerBgEnd: "#064e3b" },
+  ordered: { primary: "#2563eb", primaryLight: "#dbeafe", primaryMid: "#3b82f6", headerBg: "#1e1b4b", headerBgEnd: "#312e81" },
+  confirmed: { primary: "#7c3aed", primaryLight: "#ede9fe", primaryMid: "#8b5cf6", headerBg: "#2e1065", headerBgEnd: "#4c1d95" },
+  received: { primary: "#059669", primaryLight: "#d1fae5", primaryMid: "#10b981", headerBg: "#022c22", headerBgEnd: "#064e3b" },
+};
+
+function getColors(theme?: StatusTheme) {
+  if (!theme) return BASE_C;
+  return { ...BASE_C, ...STATUS_THEMES[theme] };
+}
 
 export function generatePdf(opts: PdfOptions) {
   const s = opts.settings;
