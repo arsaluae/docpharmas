@@ -335,7 +335,7 @@ export default function PurchaseProforma() {
       });
       setPdfHtml(poHtml); setPdfTitle(`Purchase Order — ${poNumber}`); setPdfOpen(true);
       setPreviewOpen(false); setSaving(false); load();
-    } else { setSaving(false); }
+    
   };
 
   // ── RECEIVE (GRN + Bill) ──
