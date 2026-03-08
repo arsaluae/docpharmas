@@ -8,34 +8,37 @@ interface TenantContextType {
   tenantName: string | null;
   isAdmin: boolean;
   loading: boolean;
+  subscriptionStatus: string | null;
+  subscriptionEndsAt: string | null;
+  daysRemaining: number;
 }
 
 const TenantContext = createContext<TenantContextType>({
   tenantId: null, tenantRole: null, tenantName: null, isAdmin: false, loading: true,
+  subscriptionStatus: null, subscriptionEndsAt: null, daysRemaining: 0,
 });
 
 export function TenantProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [state, setState] = useState<TenantContextType>({
     tenantId: null, tenantRole: null, tenantName: null, isAdmin: false, loading: true,
+    subscriptionStatus: null, subscriptionEndsAt: null, daysRemaining: 0,
   });
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      setState({ tenantId: null, tenantRole: null, tenantName: null, isAdmin: false, loading: false });
+      setState({ tenantId: null, tenantRole: null, tenantName: null, isAdmin: false, loading: false, subscriptionStatus: null, subscriptionEndsAt: null, daysRemaining: 0 });
       return;
     }
 
     const load = async () => {
-      // Check if super admin
       const { data: adminData } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
       const isAdmin = !!adminData;
 
-      // Get tenant mapping
       const { data: tuData } = await supabase
         .from("tenant_users")
-        .select("tenant_id, role, tenants:tenant_id(company_name)")
+        .select("tenant_id, role, tenants:tenant_id(company_name, subscription_status, subscription_ends_at)")
         .eq("user_id", user.id)
         .eq("is_active", true)
         .limit(1)
@@ -43,15 +46,31 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
       if (tuData) {
         const tenantInfo = tuData.tenants as any;
+        const endsAt = tenantInfo?.subscription_ends_at;
+        const now = new Date();
+        const endDate = endsAt ? new Date(endsAt) : now;
+        const diffMs = endDate.getTime() - now.getTime();
+        const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+        
+        let status = tenantInfo?.subscription_status || "trial";
+        if (endsAt && endDate < now && status !== "active") {
+          status = "expired";
+        } else if (endsAt && endDate < now) {
+          status = "expired";
+        }
+
         setState({
           tenantId: tuData.tenant_id,
           tenantRole: tuData.role as "owner" | "staff",
           tenantName: tenantInfo?.company_name || null,
           isAdmin,
           loading: false,
+          subscriptionStatus: status,
+          subscriptionEndsAt: endsAt || null,
+          daysRemaining,
         });
       } else {
-        setState({ tenantId: null, tenantRole: null, tenantName: null, isAdmin, loading: false });
+        setState({ tenantId: null, tenantRole: null, tenantName: null, isAdmin, loading: false, subscriptionStatus: null, subscriptionEndsAt: null, daysRemaining: 0 });
       }
     };
 

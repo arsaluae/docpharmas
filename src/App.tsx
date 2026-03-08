@@ -42,6 +42,7 @@ import CustomerWiseReport from "./pages/reports/CustomerWiseReport";
 import SupplierWiseReport from "./pages/reports/SupplierWiseReport";
 import Reports from "./pages/Reports";
 import AIInsights from "./pages/AIInsights";
+import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -95,6 +96,7 @@ const App = () => (
             <Route path="/reports/customer-wise" element={<CustomerWiseReport />} />
             <Route path="/reports/supplier-wise" element={<SupplierWiseReport />} />
             <Route path="/insights" element={<AIInsights />} />
+            <Route path="/subscription" element={<Subscription />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

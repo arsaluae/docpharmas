@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, Users, Truck, Package, LogOut, Pill, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
-  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown, Shield,
+  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown, Shield, CreditCard as SubIcon,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -47,6 +47,7 @@ const allSections = [
   { label: "Settings", icon: Settings, staffVisible: false, items: [
     { title: "Company Settings", url: "/settings", icon: Settings },
     { title: "Data Import", url: "/import", icon: Upload },
+    { title: "Subscription", url: "/subscription", icon: SubIcon },
   ]},
 ];
 
