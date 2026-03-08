@@ -518,7 +518,7 @@ export default function PurchaseProforma() {
     return "bg-muted text-muted-foreground";
   };
   const statusLabel = (s: string) => ({ draft: "Draft", ordered: "Ordered", confirmed: "Confirmed", received: "Received" }[s] || s);
-  const STATUS_OPTIONS = ["all", "draft", "ordered", "confirmed", "received"];
+  const allStats = { count: orders.length, value: orders.reduce((s, d) => s + Number(d.total), 0) };
 
   return (
     <AppLayout title="Purchase Orders" subtitle="Draft → confirm order → receive with batch + expiry → auto GRN + bill"
