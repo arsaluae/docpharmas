@@ -1000,8 +1000,6 @@ export default function DataImport() {
               ))}
             </Tabs>
           </div>
-        </main>
-      </div>
-    </SidebarProvider>
+    </AppLayout>
   );
 }
