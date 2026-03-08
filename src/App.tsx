@@ -94,6 +94,7 @@ const App = () => (
             <Route path="/reports/batch-wise" element={<BatchWiseReport />} />
             <Route path="/reports/customer-wise" element={<CustomerWiseReport />} />
             <Route path="/reports/supplier-wise" element={<SupplierWiseReport />} />
+            <Route path="/insights" element={<AIInsights />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
