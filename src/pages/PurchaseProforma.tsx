@@ -287,7 +287,7 @@ export default function PurchaseProforma() {
 
       // Auto-download PO PDF
       const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", po.id);
-      generatePdf({
+      const poHtml = generatePdfHtml({
         title: "PURCHASE ORDER", documentNumber: poNumber, date: po.date, statusTheme: "confirmed" as const,
         partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
         columns: [
@@ -306,6 +306,7 @@ export default function PurchaseProforma() {
         ],
         settings, template: getTemplate("purchase_order"),
       });
+      setPdfHtml(poHtml); setPdfTitle(`Purchase Order — ${poNumber}`); setPdfOpen(true);
       setPreviewOpen(false); setSaving(false); load();
     } else { setSaving(false); }
   };
