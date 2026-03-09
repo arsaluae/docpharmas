@@ -19,7 +19,7 @@ export default function BalanceSheet() {
   useEffect(() => { load(); }, [asOfDate]);
 
   const load = async () => {
-    const [banks, custs, prods, sups, printers, salesInv, purchInv, expenses, payments] = await Promise.all([
+    const [banks, custs, prods, sups, printers, salesInv, purchInv, expenses, payments, sReturns, pReturns] = await Promise.all([
       supabase.from("bank_accounts").select("balance"),
       supabase.from("customers").select("balance"),
       supabase.from("products").select("cost_price, stock_quantity"),
@@ -29,6 +29,8 @@ export default function BalanceSheet() {
       supabase.from("purchase_invoices").select("gst, subtotal").lte("date", asOfDate),
       supabase.from("expenses").select("amount, expense_type").lte("date", asOfDate),
       supabase.from("payments").select("type, amount").lte("date", asOfDate),
+      supabase.from("sales_returns").select("total").lte("date", asOfDate),
+      supabase.from("purchase_returns").select("total").lte("date", asOfDate),
     ]);
     setBankTotal((banks.data || []).reduce((s, b) => s + Number(b.balance), 0));
     setReceivables((custs.data || []).reduce((s, c) => s + Number(c.balance), 0));
@@ -36,16 +38,19 @@ export default function BalanceSheet() {
     setPayables((sups.data || []).reduce((s, su) => s + Number(su.balance), 0));
     setPrinterPayables((printers.data || []).reduce((s, pr) => s + Number(pr.balance), 0));
 
-    // GST: all invoices up to date (not just unpaid)
+    const salesReturnTotal = (sReturns.data || []).reduce((s, i) => s + Number(i.total), 0);
+    const purchReturnTotal = (pReturns.data || []).reduce((s, i) => s + Number(i.total), 0);
+
+    // GST: account for returns — sales returns reduce output GST, purchase returns reduce input GST
     const gstOut = (salesInv.data || []).reduce((s, i) => s + Number(i.gst_amount), 0);
     const gstIn = (purchInv.data || []).reduce((s, i) => s + Number(i.gst), 0);
-    setTaxPayable(gstOut - gstIn);
+    setTaxPayable((gstOut - salesReturnTotal * 0.17) - (gstIn - purchReturnTotal * 0.17));
 
-    // Retained Earnings = Revenue - COGS - Business Expenses (simplified)
+    // Retained Earnings = Revenue - Sales Returns - COGS + Purchase Returns - Business Expenses
     const totalRevenue = (salesInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0);
     const totalCOGS = (purchInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0);
     const totalBizExpenses = (expenses.data || []).filter(e => e.expense_type === 'business').reduce((s, e) => s + Number(e.amount), 0);
-    setRetainedEarnings(totalRevenue - totalCOGS - totalBizExpenses);
+    setRetainedEarnings((totalRevenue - salesReturnTotal) - (totalCOGS - purchReturnTotal) - totalBizExpenses);
   };
 
   const totalAssets = bankTotal + receivables + inventory;

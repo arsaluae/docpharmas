@@ -210,7 +210,7 @@ export default function Payments() {
               </SelectContent>
             </Select>
           </div>
-          {bankAccounts.length > 0 && (paymentMethod === "bank_transfer" || paymentMethod === "cheque") && (
+          {bankAccounts.length > 0 && (paymentMethod === "bank_transfer" || paymentMethod === "cheque" || paymentMethod === "online") && (
             <div>
               <Label>Bank Account</Label>
               <Select value={bankAccountId} onValueChange={setBankAccountId}>

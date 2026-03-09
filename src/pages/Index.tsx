@@ -41,11 +41,10 @@ export default function Index() {
     weekStart.setDate(today.getDate() - mondayOffset);
     const weekStartStr = weekStart.toISOString().split("T")[0];
 
-    const [weekInv, monthInv, yearInv, monthItems, recentMovements, products, customers] = await Promise.all([
+    const [weekInv, monthInv, yearInv, recentMovements, products, customers] = await Promise.all([
       supabase.from("sales_invoices").select("subtotal").gte("date", weekStartStr).lte("date", todayStr),
       supabase.from("sales_invoices").select("subtotal, customer_id").gte("date", monthStart).lte("date", todayStr),
       supabase.from("sales_invoices").select("subtotal, customer_id").gte("date", yearStart).lte("date", todayStr),
-      supabase.from("sales_invoice_items").select("product_id, quantity, amount, invoice_id, rate").limit(5000),
       supabase.from("stock_movements").select("product_id, quantity, date").eq("movement_type", "purchase_in").order("created_at", { ascending: false }).limit(5),
       supabase.from("products").select("id, name, cost_price"),
       supabase.from("customers").select("id, name"),
@@ -61,14 +60,23 @@ export default function Index() {
     setWeekSales(ws);
     setMonthSales(ms);
 
-    const monthInvoiceIds = new Set<string>();
+    // Fetch month invoice IDs then items filtered by those IDs — avoids 1000-row limit
     const { data: monthInvIds } = await supabase.from("sales_invoices").select("id").gte("date", monthStart).lte("date", todayStr);
+    const monthInvoiceIds = new Set<string>();
     (monthInvIds || []).forEach(inv => monthInvoiceIds.add(inv.id));
+
+    const allMonthIds = Array.from(monthInvoiceIds);
+    let monthItemsData: any[] = [];
+    for (let i = 0; i < allMonthIds.length; i += 50) {
+      const batch = allMonthIds.slice(i, i + 50);
+      const { data } = await supabase.from("sales_invoice_items").select("product_id, quantity, amount, invoice_id, rate").in("invoice_id", batch);
+      monthItemsData = monthItemsData.concat(data || []);
+    }
 
     let totalCost = 0;
     const prodQtyMonth: Record<string, number> = {};
-    (monthItems.data || []).forEach(item => {
-      if (item.product_id && monthInvoiceIds.has(item.invoice_id)) {
+    monthItemsData.forEach(item => {
+      if (item.product_id) {
         const cost = prodMap[item.product_id]?.cost || 0;
         totalCost += Number(item.quantity) * cost;
         prodQtyMonth[item.product_id] = (prodQtyMonth[item.product_id] || 0) + Number(item.quantity);

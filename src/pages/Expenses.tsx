@@ -101,12 +101,13 @@ export default function Expenses() {
     } else {
       const { data: expNumber } = await supabase.rpc("generate_document_number", { p_document_type: "expense" });
       if (!expNumber) { toast.error("Failed to generate expense number"); return; }
-      await supabase.from("expenses").insert({
+      const { error: insertError } = await supabase.from("expenses").insert({
         expense_number: expNumber, category, description: description || null,
         amount: Number(amount), gst_amount: Number(gstAmount) || 0,
         payment_method: paymentMethod, bank_account_id: bankAccountId || null,
         date, notes: notes || null, expense_type: expenseType,
       });
+      if (insertError) { toast.error("Failed to save: " + insertError.message); return; }
       toast.success(`Expense ${expNumber} recorded`);
     }
     resetForm(); load();
