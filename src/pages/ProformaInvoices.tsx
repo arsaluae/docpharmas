@@ -26,7 +26,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
 interface ProformaItem { product_id: string; product_name: string; quantity: number; rate: number; gst_rate: number; amount: number; last_price?: number | null; }
-interface DeliveryNoteRow { id: string; dn_number: string; date: string; customer_id: string | null; items: any; status: string; reference_id: string; created_at: string; customer_name?: string; }
+interface DeliveryNoteRow { id: string; dn_number: string; date: string; customer_id: string | null; items: any; status: string; reference_id: string; created_at: string; customer_name?: string; invoice_number?: string; }
 
 interface SalesOrder {
   id: string; proforma_number: string; customer_id: string | null; date: string;
@@ -551,13 +551,27 @@ export default function ProformaInvoices() {
     setDnLoading(true);
     const { data } = await supabase.from("delivery_notes").select("*").eq("reference_type", "sales_invoice").order("created_at", { ascending: false });
     if (data) {
-      const custIds = [...new Set(data.filter(d => d.customer_id).map(d => d.customer_id!))];
+      // Fetch linked invoice numbers
+      const refIds = [...new Set(data.map(d => d.reference_id))];
+      let invMap: Record<string, string> = {};
+      if (refIds.length > 0) {
+        const { data: invs } = await supabase.from("sales_invoices").select("id, invoice_number").in("id", refIds);
+        if (invs) invs.forEach((inv: any) => { invMap[inv.id] = inv.invoice_number; });
+      }
+      // Filter to only DNs with valid invoices
+      const validDns = data.filter(d => invMap[d.reference_id]);
+
+      const custIds = [...new Set(validDns.filter(d => d.customer_id).map(d => d.customer_id!))];
       let custMap: Record<string, string> = {};
       if (custIds.length > 0) {
         const { data: custs } = await supabase.from("customers").select("id, name").in("id", custIds);
         if (custs) custs.forEach(c => { custMap[c.id] = c.name; });
       }
-      setDeliveryNotes(data.map((d: any) => ({ ...d, customer_name: d.customer_id ? custMap[d.customer_id] || "—" : "—" })));
+      setDeliveryNotes(validDns.map((d: any) => ({
+        ...d,
+        customer_name: d.customer_id ? custMap[d.customer_id] || "—" : "—",
+        invoice_number: invMap[d.reference_id] || "—",
+      })));
     }
     setDnLoading(false);
   };
@@ -583,10 +597,26 @@ export default function ProformaInvoices() {
     setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
   };
 
-  const deleteDn = async (id: string) => {
-    await supabase.from("delivery_notes").delete().eq("id", id);
-    toast.success("Delivery note deleted");
-    loadDeliveryNotes();
+  // Cascade delete: DN → also delete linked invoice, items, stock movements, reset proforma
+  const voidFromDn = async (dn: DeliveryNoteRow) => {
+    const invoiceId = dn.reference_id;
+    // Find linked proforma
+    const { data: proforma } = await supabase.from("proforma_invoices")
+      .select("id").eq("converted_invoice_id", invoiceId).single();
+    // 1. Delete stock movements
+    await supabase.from("stock_movements").delete().eq("reference_id", invoiceId);
+    // 2. Delete invoice items
+    await supabase.from("sales_invoice_items").delete().eq("invoice_id", invoiceId);
+    // 3. Delete invoice (trigger reverses customer balance)
+    await supabase.from("sales_invoices").delete().eq("id", invoiceId);
+    // 4. Delete delivery note
+    await supabase.from("delivery_notes").delete().eq("id", dn.id);
+    // 5. Reset proforma to draft
+    if (proforma) {
+      await supabase.from("proforma_invoices").update({ status: "draft", converted_invoice_id: null }).eq("id", proforma.id);
+    }
+    toast.success(`Voided — invoice ${dn.invoice_number || ""}, delivery note & stock reversed`);
+    loadDeliveryNotes(); load();
   };
   const filtered = orders.filter(p => {
     const q = search.toLowerCase();
@@ -733,33 +763,53 @@ export default function ProformaInvoices() {
                       <TableHeader>
                         <TableRow className="bg-muted/30">
                           <TableHead className="font-semibold">DN #</TableHead>
+                          <TableHead className="font-semibold">Invoice #</TableHead>
                           <TableHead className="font-semibold">Customer</TableHead>
                           <TableHead className="font-semibold">Date</TableHead>
+                          <TableHead className="font-semibold">Status</TableHead>
                           <TableHead className="text-right font-semibold">Items</TableHead>
                           <TableHead className="font-semibold">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {deliveryNotes.length === 0 ? (
-                          <TableRow><TableCell colSpan={5} className="text-center py-16">
+                          <TableRow><TableCell colSpan={7} className="text-center py-16">
                             <Truck className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
                             <p className="text-muted-foreground font-medium">No delivery notes yet</p>
+                            <p className="text-xs text-muted-foreground/60 mt-1">Submit a Sales Order to auto-generate delivery notes</p>
                           </TableCell></TableRow>
                         ) : deliveryNotes.map(dn => {
                           const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]) || [];
                           return (
-                            <TableRow key={dn.id} className="hover:bg-muted/30 transition-colors">
-                              <TableCell className="font-mono font-semibold text-sm">{dn.dn_number}</TableCell>
+                            <TableRow key={dn.id} className="hover:bg-muted/30 transition-colors group">
+                              <TableCell className="font-mono font-semibold text-sm cursor-pointer" onClick={() => viewDnPdf(dn)}>{dn.dn_number}</TableCell>
+                              <TableCell className="font-mono text-sm text-primary cursor-pointer" onClick={() => {
+                                const linkedOrder = orders.find(o => o.converted_invoice_id === dn.reference_id);
+                                if (linkedOrder) printInvoice(linkedOrder);
+                              }}>{dn.invoice_number || "—"}</TableCell>
                               <TableCell className="text-sm">{dn.customer_name || "—"}</TableCell>
                               <TableCell className="text-sm text-muted-foreground">{dn.date}</TableCell>
-                              <TableCell className="text-right text-sm">{dnItems.length}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={`text-[10px] font-semibold ${dn.status === "delivered" ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20" : "bg-amber-500/15 text-amber-600 border-amber-500/20"}`}>
+                                  {dn.status === "delivered" ? "Delivered" : "Issued"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right text-sm font-medium">{dnItems.length}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => viewDnPdf(dn)} title="View PDF">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => viewDnPdf(dn)} title="View DN PDF">
                                     <Eye className="h-3.5 w-3.5" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteDn(dn.id)} title="Delete">
-                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                  {dn.status === "issued" && (
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
+                                      await supabase.from("delivery_notes").update({ status: "delivered" }).eq("id", dn.id);
+                                      toast.success("Marked as delivered"); loadDeliveryNotes();
+                                    }} title="Mark Delivered">
+                                      <Truck className="h-3.5 w-3.5 text-emerald-600" />
+                                    </Button>
+                                  )}
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => voidFromDn(dn)} title="Void (delete invoice + DN)">
+                                    <RotateCcw className="h-3.5 w-3.5 text-destructive" />
                                   </Button>
                                 </div>
                               </TableCell>
