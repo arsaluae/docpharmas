@@ -601,7 +601,7 @@ export default function PurchaseProforma() {
     }
     toast.success(`${deleteIds.length} deleted`);
     setSelected(new Set()); setDeleteConfirmOpen(false); setDeleteIds([]);
-    if (previewOpen && previewOrder && deleteIds.includes(previewOrder.id)) setPreviewOpen(false);
+    if (editOpen && editOrder && deleteIds.includes(editOrder.id)) setEditOpen(false);
     load();
   };
 
