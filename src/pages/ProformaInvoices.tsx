@@ -232,16 +232,16 @@ export default function ProformaInvoices() {
   };
 
   const handleEditSave = async () => {
-    if (!previewOrder) return;
+    if (!editOrder) return;
     setSaving(true);
     const { subtotal, gst, total } = calcTotals(editItems);
     const { error } = await supabase.from("proforma_invoices").update({
       customer_id: editCustomerId || null, date: editDate, validity_days: Number(editValidity),
       payment_instructions: editPaymentInstr || null, items: JSON.stringify(editItems), subtotal, gst, total,
-    }).eq("id", previewOrder.id);
+    }).eq("id", editOrder.id);
     if (error) { toast.error("Failed to update: " + error.message); setSaving(false); return; }
     toast.success("Order updated");
-    setPreviewOpen(false); setEditMode(false); setSaving(false); load();
+    setEditOpen(false); setSaving(false); load();
   };
 
   // ── WHATSAPP ──
