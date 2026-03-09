@@ -561,6 +561,38 @@ export default function PurchaseProforma() {
     setCostDialogOpen(false); setCostDesc(""); setCostAmount(""); setCostVendorId("");
   };
 
+  // ── VOID (Rollback) ──
+  const promptVoid = (order: PurchaseOrder) => { setVoidOrder(order); setVoidConfirmOpen(true); };
+  const confirmVoid = async () => {
+    if (!voidOrder || !voidOrder.converted_po_id) return;
+    setVoiding(true);
+    const poId = voidOrder.converted_po_id;
+    // 1. Delete stock movements linked to any GRN for this PO
+    const { data: grns } = await supabase.from("goods_received_notes").select("id").eq("po_id", poId);
+    if (grns?.length) {
+      for (const grn of grns) {
+        await supabase.from("stock_movements").delete().eq("reference_id", grn.id);
+        await supabase.from("grn_items").delete().eq("grn_id", grn.id);
+      }
+      // Delete purchase invoices linked to GRNs
+      const grnIds = grns.map(g => g.id);
+      await supabase.from("purchase_invoices").delete().in("grn_id", grnIds);
+      await supabase.from("goods_received_notes").delete().in("id", grnIds);
+    }
+    // 2. Delete purchase invoices linked directly (from confirm)
+    await supabase.from("purchase_invoices").delete().eq("supplier_id", voidOrder.supplier_id || "").is("grn_id", null);
+    // 3. Delete delivery notes
+    await supabase.from("delivery_notes").delete().eq("reference_id", poId);
+    // 4. Delete PO items and PO
+    await supabase.from("purchase_order_items").delete().eq("po_id", poId);
+    await supabase.from("additional_costs").delete().eq("reference_type", "purchase_order").eq("reference_id", poId);
+    await supabase.from("purchase_orders").delete().eq("id", poId);
+    // 5. Reset proforma to draft
+    await supabase.from("purchase_proformas").update({ status: "draft", converted_po_id: null }).eq("id", voidOrder.id);
+    toast.success(`Order ${voidOrder.proforma_number} voided — PO, bill, delivery note & stock reversed`);
+    setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); setPreviewOpen(false); load();
+  };
+
   // ── DELETE ──
   const promptDelete = (ids: string[]) => { setDeleteIds(ids); setDeleteConfirmOpen(true); };
   const confirmDelete = async () => {
