@@ -14,7 +14,7 @@ import {
 import { BarChart, Bar, ResponsiveContainer, Cell } from "recharts";
 
 interface InsightsData {
-  demand_forecast: { product_name: string; last_month_qty: number; predicted_qty: number; confidence: number; trend: string }[];
+  demand_forecast: { product_name: string; last_month_qty: number; predicted_qty: number; confidence: number; trend: string; monthly_history?: number[] }[];
   reorder_alerts: { product_name: string; current_stock: number; avg_monthly_consumption: number; days_until_stockout: number; severity: string }[];
   slow_movers: { product_name: string; decline_percent: number; suggestion: string }[];
   customer_insights: { customer_name: string; trend: string; change_percent: number; note: string }[];
