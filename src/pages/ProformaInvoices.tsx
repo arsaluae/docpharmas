@@ -551,13 +551,27 @@ export default function ProformaInvoices() {
     setDnLoading(true);
     const { data } = await supabase.from("delivery_notes").select("*").eq("reference_type", "sales_invoice").order("created_at", { ascending: false });
     if (data) {
-      const custIds = [...new Set(data.filter(d => d.customer_id).map(d => d.customer_id!))];
+      // Fetch linked invoice numbers
+      const refIds = [...new Set(data.map(d => d.reference_id))];
+      let invMap: Record<string, string> = {};
+      if (refIds.length > 0) {
+        const { data: invs } = await supabase.from("sales_invoices").select("id, invoice_number").in("id", refIds);
+        if (invs) invs.forEach((inv: any) => { invMap[inv.id] = inv.invoice_number; });
+      }
+      // Filter to only DNs with valid invoices
+      const validDns = data.filter(d => invMap[d.reference_id]);
+
+      const custIds = [...new Set(validDns.filter(d => d.customer_id).map(d => d.customer_id!))];
       let custMap: Record<string, string> = {};
       if (custIds.length > 0) {
         const { data: custs } = await supabase.from("customers").select("id, name").in("id", custIds);
         if (custs) custs.forEach(c => { custMap[c.id] = c.name; });
       }
-      setDeliveryNotes(data.map((d: any) => ({ ...d, customer_name: d.customer_id ? custMap[d.customer_id] || "—" : "—" })));
+      setDeliveryNotes(validDns.map((d: any) => ({
+        ...d,
+        customer_name: d.customer_id ? custMap[d.customer_id] || "—" : "—",
+        invoice_number: invMap[d.reference_id] || "—",
+      })));
     }
     setDnLoading(false);
   };
@@ -583,10 +597,26 @@ export default function ProformaInvoices() {
     setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
   };
 
-  const deleteDn = async (id: string) => {
-    await supabase.from("delivery_notes").delete().eq("id", id);
-    toast.success("Delivery note deleted");
-    loadDeliveryNotes();
+  // Cascade delete: DN → also delete linked invoice, items, stock movements, reset proforma
+  const voidFromDn = async (dn: DeliveryNoteRow) => {
+    const invoiceId = dn.reference_id;
+    // Find linked proforma
+    const { data: proforma } = await supabase.from("proforma_invoices")
+      .select("id").eq("converted_invoice_id", invoiceId).single();
+    // 1. Delete stock movements
+    await supabase.from("stock_movements").delete().eq("reference_id", invoiceId);
+    // 2. Delete invoice items
+    await supabase.from("sales_invoice_items").delete().eq("invoice_id", invoiceId);
+    // 3. Delete invoice (trigger reverses customer balance)
+    await supabase.from("sales_invoices").delete().eq("id", invoiceId);
+    // 4. Delete delivery note
+    await supabase.from("delivery_notes").delete().eq("id", dn.id);
+    // 5. Reset proforma to draft
+    if (proforma) {
+      await supabase.from("proforma_invoices").update({ status: "draft", converted_invoice_id: null }).eq("id", proforma.id);
+    }
+    toast.success(`Voided — invoice ${dn.invoice_number || ""}, delivery note & stock reversed`);
+    loadDeliveryNotes(); load();
   };
   const filtered = orders.filter(p => {
     const q = search.toLowerCase();
