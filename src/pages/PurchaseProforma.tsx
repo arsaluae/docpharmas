@@ -811,13 +811,17 @@ export default function PurchaseProforma() {
                                   <PackageCheck className="h-3 w-3" /> Receive
                                 </Button>
                               )}
+                              {(order.status === "ordered" || order.status === "confirmed") && (
+                                <Button size="sm" variant="outline" onClick={() => promptVoid(order)} className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10">
+                                  <RotateCcw className="h-3 w-3" /> Void
+                                </Button>
+                              )}
                               {order.status === "draft" && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSheet(order)} title="Edit">
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
                               )}
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
-                                // Load items if not already loaded, then print
                                 const { data: its } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
                                 setPreviewItems(its || []);
                                 setPreviewOrder(order);
