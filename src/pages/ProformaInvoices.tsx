@@ -763,33 +763,53 @@ export default function ProformaInvoices() {
                       <TableHeader>
                         <TableRow className="bg-muted/30">
                           <TableHead className="font-semibold">DN #</TableHead>
+                          <TableHead className="font-semibold">Invoice #</TableHead>
                           <TableHead className="font-semibold">Customer</TableHead>
                           <TableHead className="font-semibold">Date</TableHead>
+                          <TableHead className="font-semibold">Status</TableHead>
                           <TableHead className="text-right font-semibold">Items</TableHead>
                           <TableHead className="font-semibold">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {deliveryNotes.length === 0 ? (
-                          <TableRow><TableCell colSpan={5} className="text-center py-16">
+                          <TableRow><TableCell colSpan={7} className="text-center py-16">
                             <Truck className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
                             <p className="text-muted-foreground font-medium">No delivery notes yet</p>
+                            <p className="text-xs text-muted-foreground/60 mt-1">Submit a Sales Order to auto-generate delivery notes</p>
                           </TableCell></TableRow>
                         ) : deliveryNotes.map(dn => {
                           const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]) || [];
                           return (
-                            <TableRow key={dn.id} className="hover:bg-muted/30 transition-colors">
-                              <TableCell className="font-mono font-semibold text-sm">{dn.dn_number}</TableCell>
+                            <TableRow key={dn.id} className="hover:bg-muted/30 transition-colors group">
+                              <TableCell className="font-mono font-semibold text-sm cursor-pointer" onClick={() => viewDnPdf(dn)}>{dn.dn_number}</TableCell>
+                              <TableCell className="font-mono text-sm text-primary cursor-pointer" onClick={() => {
+                                const linkedOrder = orders.find(o => o.converted_invoice_id === dn.reference_id);
+                                if (linkedOrder) printInvoice(linkedOrder);
+                              }}>{dn.invoice_number || "—"}</TableCell>
                               <TableCell className="text-sm">{dn.customer_name || "—"}</TableCell>
                               <TableCell className="text-sm text-muted-foreground">{dn.date}</TableCell>
-                              <TableCell className="text-right text-sm">{dnItems.length}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={`text-[10px] font-semibold ${dn.status === "delivered" ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20" : "bg-amber-500/15 text-amber-600 border-amber-500/20"}`}>
+                                  {dn.status === "delivered" ? "Delivered" : "Issued"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right text-sm font-medium">{dnItems.length}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => viewDnPdf(dn)} title="View PDF">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => viewDnPdf(dn)} title="View DN PDF">
                                     <Eye className="h-3.5 w-3.5" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteDn(dn.id)} title="Delete">
-                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                  {dn.status === "issued" && (
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
+                                      await supabase.from("delivery_notes").update({ status: "delivered" }).eq("id", dn.id);
+                                      toast.success("Marked as delivered"); loadDeliveryNotes();
+                                    }} title="Mark Delivered">
+                                      <Truck className="h-3.5 w-3.5 text-emerald-600" />
+                                    </Button>
+                                  )}
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => voidFromDn(dn)} title="Void (delete invoice + DN)">
+                                    <RotateCcw className="h-3.5 w-3.5 text-destructive" />
                                   </Button>
                                 </div>
                               </TableCell>
