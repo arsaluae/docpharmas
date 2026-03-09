@@ -1145,6 +1145,55 @@ export default function ProformaInvoices() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ═══ RECEIVE PAYMENT DIALOG ═══ */}
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="font-heading">Receive Payment</DialogTitle></DialogHeader>
+          {paymentOrder && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                <p className="text-xs text-muted-foreground">Invoice</p>
+                <p className="font-semibold text-sm">{paymentOrder.invoice_number || paymentOrder.proforma_number} — {(paymentOrder.customers as any)?.name || "Customer"}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total: PKR {Number(paymentOrder.total).toLocaleString()}</p>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Amount (PKR)</Label>
+                <Input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={v => { setPaymentMethod(v); if (v === "cash") setPaymentBankId(""); }}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="online">Online</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {paymentMethod !== "cash" && (
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground">Receiving Account</Label>
+                  <Select value={paymentBankId} onValueChange={setPaymentBankId}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select account..." /></SelectTrigger>
+                    <SelectContent>
+                      {bankAccounts.map(b => (
+                        <SelectItem key={b.id} value={b.id}>{b.name} ({b.bank_name})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <Button onClick={handleReceivePayment} disabled={paymentSaving || !paymentAmount} className="w-full h-11 gap-2 bg-gradient-to-r from-emerald-600 to-green-700 text-white">
+                {paymentSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <DollarSign className="h-4 w-4" /> Receive PKR {Number(paymentAmount || 0).toLocaleString()}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
