@@ -1,34 +1,37 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Fix PDF Preview + Submit Flow (Invoice + Delivery Note)
 
-## Two Changes
+## Three Issues Found
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+### 1. PDF Preview Shows Blank/Cut-Off Content
+The `DialogContent` base class uses CSS `grid` layout, but `PdfPreviewDialog` puts `flex-1` on the iframe expecting a `flex-col` parent. The iframe gets zero height and content is invisible.
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+**Fix**: Add `flex flex-col` to the DialogContent in `PdfPreviewDialog.tsx`.
 
-## Files Changed
+### 2. Submit Only Shows Invoice — No Delivery Note Access
+After clicking Submit, only the Invoice PDF auto-opens. The user needs **two separate documents**:
+- **Invoice** (for customer): Product, Qty, Rate, Amount
+- **Delivery Note** (for staff): Product, Batch #, Expiry, Qty (no pricing)
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+Currently there's no easy way to download the Delivery Note from the Sales Orders page.
 
-No other files change. The template system and all callers remain the same.
+**Fix**: After submit, show a choice dialog with two buttons: "View Invoice" and "View Delivery Note". Also add a Delivery Note download button (Truck icon) in the actions column for invoiced/dispatched orders.
+
+### 3. Status Column Visibility
+On submit (line 369), the sales invoice is created with `status: "dispatched"` but the proforma is set to `status: "invoiced"` (line 428). The proforma correctly appears in the "Invoiced" column. If the user wants it visible in both Invoiced AND Dispatched grids, those are two different document types (proforma vs sales invoice). The current design is correct — proforma shows as "invoiced", and the sales invoice lives in a separate module. No change needed here, but I'll make the two documents easily accessible.
+
+## Files to Change
+
+| File | Change |
+|------|--------|
+| `src/components/PdfPreviewDialog.tsx` | Add `flex flex-col` to fix iframe height |
+| `src/pages/ProformaInvoices.tsx` | After submit: show both Invoice + DN buttons; add DN download action for invoiced orders; create `printDeliveryNote` function |
+
+## Implementation Details
+
+- `PdfPreviewDialog`: Change DialogContent className to include `flex flex-col`
+- After submit completes: show a post-submit dialog with "View Invoice" and "View Delivery Note" buttons instead of auto-opening just the invoice
+- Add a `printDeliveryNote` function that fetches the delivery note by `reference_id` and generates the DN PDF (Product, Batch, Expiry, Qty — no rate columns)
+- Add Truck icon button in actions column for orders with `converted_invoice_id` to download their delivery note
 
