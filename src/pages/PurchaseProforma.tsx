@@ -969,6 +969,9 @@ export default function PurchaseProforma() {
                                   <Truck className="h-3.5 w-3.5" />
                                 </Button>
                               )}
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shareWhatsApp(order)} title="WhatsApp to Supplier">
+                                <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(order)} title="Download PDF">
                                 <Download className="h-3.5 w-3.5" />
                               </Button>
