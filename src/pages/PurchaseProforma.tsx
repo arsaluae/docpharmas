@@ -640,8 +640,10 @@ export default function PurchaseProforma() {
     return { count: list.length, value: list.reduce((s, d) => s + Number(d.total), 0) };
   };
   const draftStats = statsByStatus("draft");
-  const orderedStats = statsByStatus("ordered");
-  const confirmedStats = statsByStatus("confirmed");
+  const invoiceStats = { 
+    count: orders.filter(d => d.status === "ordered" || d.status === "confirmed").length, 
+    value: orders.filter(d => d.status === "ordered" || d.status === "confirmed").reduce((s, d) => s + Number(d.total), 0) 
+  };
   const receivedStats = statsByStatus("received");
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
@@ -650,12 +652,12 @@ export default function PurchaseProforma() {
   const statusColor = (s: string) => {
     if (s === "paid") return "bg-green-500/15 text-green-700 border-green-500/20";
     if (s === "received") return "bg-emerald-500/15 text-emerald-600 border-emerald-500/20";
-    if (s === "confirmed") return "bg-violet-500/15 text-violet-600 border-violet-500/20";
+    if (s === "confirmed") return "bg-blue-500/15 text-blue-600 border-blue-500/20";
     if (s === "ordered") return "bg-blue-500/15 text-blue-600 border-blue-500/20";
     if (s === "draft") return "bg-amber-500/15 text-amber-600 border-amber-500/20";
     return "bg-muted text-muted-foreground";
   };
-  const statusLabel = (s: string) => ({ draft: "Draft", ordered: "Ordered", confirmed: "Confirmed", received: "Received", paid: "Paid" }[s] || s);
+  const statusLabel = (s: string) => ({ draft: "Draft", ordered: "Invoice", confirmed: "Invoice", received: "Received", paid: "Paid" }[s] || s);
   const allStats = { count: orders.length, value: orders.reduce((s, d) => s + Number(d.total), 0) };
 
   return (
