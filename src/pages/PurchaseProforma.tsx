@@ -944,6 +944,11 @@ export default function PurchaseProforma() {
                                   <PackageCheck className="h-3 w-3" /> Receive
                                 </Button>
                               )}
+                              {(order.status === "ordered" || order.status === "confirmed" || order.status === "received") && order.supplier_id && (
+                                <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-600 to-green-700 text-white shadow-sm" title="Make Payment">
+                                  <DollarSign className="h-3 w-3" /> Payment
+                                </Button>
+                              )}
                               {(order.status === "ordered" || order.status === "confirmed") && (
                                 <Button size="sm" variant="outline" onClick={() => promptVoid(order)} className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10">
                                   <RotateCcw className="h-3 w-3" /> Void
