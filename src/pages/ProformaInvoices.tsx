@@ -248,16 +248,21 @@ export default function ProformaInvoices() {
     return typeof order.items === "string" ? JSON.parse(order.items) : order.items;
   };
 
-  const updateEditItem = (idx: number, field: string, value: any) => {
+  const updateEditItem = async (idx: number, field: string, value: any) => {
     const u = [...editItems];
     (u[idx] as any)[field] = value;
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
       if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; }
+      if (editCustomerId && value) {
+        const lastRate = await lookupLastPrice(value, editCustomerId);
+        u[idx].last_price = lastRate;
+        if (lastRate !== null) u[idx].rate = lastRate;
+      }
     }
     const line = Number(u[idx].quantity) * Number(u[idx].rate);
     u[idx].amount = line + (settings?.gst_enabled ? (line * Number(u[idx].gst_rate) / 100) : 0);
-    setEditItems(u);
+    setEditItems([...u]);
   };
 
   const handleEditSave = async () => {
