@@ -961,6 +961,11 @@ export default function PurchaseProforma() {
                         <Button variant="ghost" onClick={() => promptDelete([previewOrder.id])} className="flex-1 gap-2 h-9 text-xs text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /> Delete</Button>
                       </div>
                     )}
+                    {(previewOrder.status === "ordered" || previewOrder.status === "confirmed") && (
+                      <Button variant="outline" onClick={() => promptVoid(previewOrder)} className="w-full h-10 gap-2 text-sm text-destructive border-destructive/30 hover:bg-destructive/10">
+                        <RotateCcw className="h-4 w-4" /> Void — Rollback PO, Bill & Delivery Note
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
