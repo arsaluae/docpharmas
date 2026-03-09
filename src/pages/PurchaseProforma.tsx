@@ -307,11 +307,46 @@ export default function PurchaseProforma() {
   };
 
   // ── WHATSAPP ──
-  const shareWhatsApp = (order: PurchaseOrder) => {
-    const supName = (order.suppliers as any)?.name || "Supplier";
+  const shareWhatsApp = async (order: PurchaseOrder) => {
+    const sup = order.suppliers as any;
+    const supName = sup?.name || "Supplier";
+    const supPhone = sup?.phone || "";
     const companyName = settings?.company_name || "PharmBooks";
-    const text = `*Purchase Order ${order.proforma_number}*\n${companyName}\n\nSupplier: ${supName}\nDate: ${order.date}\n\n${previewItems.map((i: any) => `• ${i.products?.name || "Item"} × ${i.quantity_requested} @ ${Number(i.rate).toLocaleString()}`).join("\n")}\n\n*Total: PKR ${Number(order.total).toLocaleString()}*`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    const { data: its } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
+    const text = `*Purchase Order ${order.proforma_number}*\n${companyName}\n\nSupplier: ${supName}\nDate: ${order.date}\n\n${(its || []).map((i: any) => `• ${i.products?.name || "Item"} × ${i.quantity_requested} @ ${Number(i.rate).toLocaleString()}`).join("\n")}\n\n*Total: PKR ${Number(order.total).toLocaleString()}*`;
+    const waNumber = supPhone ? supPhone.replace(/[^0-9]/g, "") : "";
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  // ── MAKE PAYMENT ──
+  const openPaymentDialog = (order: PurchaseOrder) => {
+    setPaymentOrder(order);
+    setPaymentAmount(String(order.total));
+    setPaymentMethod("bank_transfer");
+    const meezan = bankAccounts.find(b => b.bank_name.toLowerCase().includes("meezan"));
+    setPaymentBankId(meezan?.id || bankAccounts[0]?.id || "");
+    setPaymentOpen(true);
+  };
+
+  const handleMakePayment = async () => {
+    if (!paymentOrder) return;
+    setPaymentSaving(true);
+    const { data: payNum } = await supabase.rpc("generate_document_number", { p_document_type: "payment" });
+    if (!payNum) { toast.error("Failed to generate payment number"); setPaymentSaving(false); return; }
+    const { error } = await supabase.from("payments").insert({
+      payment_number: payNum,
+      party_type: "supplier",
+      party_id: paymentOrder.supplier_id!,
+      type: "made",
+      amount: Number(paymentAmount),
+      payment_method: paymentMethod,
+      bank_account_id: paymentMethod === "cash" ? null : paymentBankId || null,
+      date: new Date().toISOString().split("T")[0],
+      reference: paymentOrder.po_number || paymentOrder.proforma_number,
+    });
+    if (error) { toast.error("Payment failed: " + error.message); setPaymentSaving(false); return; }
+    toast.success(`Payment PKR ${Number(paymentAmount).toLocaleString()} made`);
+    setPaymentOpen(false); setPaymentSaving(false); load();
   };
 
   // ── PDF ──
