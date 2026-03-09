@@ -113,7 +113,7 @@ serve(async (req) => {
     if (body.whatsapp_number && alerts.length > 0) {
       const criticalAlerts = alerts.filter(a => a.severity === "critical" || a.severity === "warning");
       if (criticalAlerts.length > 0) {
-        const message = `⚠️ *PharmaZen Reorder Alert*\n\n${criticalAlerts.map(a => 
+        const message = `⚠️ *DocPharmas Reorder Alert*\n\n${criticalAlerts.map(a => 
           `${a.severity === "critical" ? "🔴" : "🟡"} *${a.product_name}*\n   Stock: ${a.current_stock} | ${a.days_until_stockout} days left`
         ).join("\n\n")}\n\n_Generated ${new Date().toLocaleDateString("en-PK")}_`;
         
