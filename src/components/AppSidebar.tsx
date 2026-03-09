@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  LayoutDashboard, Users, Truck, Package, LogOut, Pill, FileText,
+  LayoutDashboard, Users, Truck, Package, LogOut, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
   BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown, Shield, CreditCard as SubIcon,
 } from "lucide-react";
@@ -13,6 +13,7 @@ import {
   SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import docpharmasLogo from "@/assets/docpharmas-logo.jpg";
 
 const allSections = [
   { label: "Sales", icon: FileText, staffVisible: true, items: [
@@ -58,7 +59,6 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { tenantRole, isAdmin, tenantName } = useTenant();
 
-  // Filter sections based on role
   const sections = tenantRole === "staff" && !isAdmin
     ? allSections.filter(s => s.staffVisible)
     : allSections;
@@ -82,18 +82,15 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r-0 bg-sidebar">
       <div className="p-4 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-          <Pill className="h-4 w-4 text-primary" />
-        </div>
+        <img src={docpharmasLogo} alt="DocPharmas" className="w-8 h-8 rounded-lg object-cover" />
         {!collapsed && (
           <div className="flex-1 min-w-0">
-            <span className="font-heading font-bold text-foreground text-lg tracking-tight block">PharmaZen</span>
+            <span className="font-heading font-bold text-foreground text-lg tracking-tight block">DocPharmas</span>
             {tenantName && <span className="text-[10px] text-muted-foreground truncate block">{tenantName}</span>}
           </div>
         )}
       </div>
       <SidebarContent className="mt-2 px-2">
-        {/* Dashboard */}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
@@ -107,7 +104,6 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
 
-        {/* Admin link */}
         {isAdmin && (
           <SidebarMenu>
             <SidebarMenuItem>
@@ -123,7 +119,6 @@ export function AppSidebar() {
           </SidebarMenu>
         )}
 
-        {/* Collapsible Sections */}
         {sections.map((section, idx) => {
           const isOpen = openSections[idx] || false;
           const sectionActive = section.items.some(i => location.pathname === i.url || (i.url !== "/" && location.pathname.startsWith(i.url)));

@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Pill, Lock, ArrowRight } from "lucide-react";
+import { Lock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import docpharmasLogo from "@/assets/docpharmas-logo.jpg";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -14,51 +15,33 @@ export default function ResetPassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for recovery event
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setIsRecovery(true);
-      }
+      if (event === "PASSWORD_RECOVERY") setIsRecovery(true);
     });
-
-    // Also check URL hash for type=recovery
     const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
-      setIsRecovery(true);
-    }
-
+    if (hash.includes("type=recovery")) setIsRecovery(true);
     return () => subscription.unsubscribe();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-
+    if (password !== confirmPassword) { toast.error("Passwords do not match"); return; }
+    if (password.length < 6) { toast.error("Password must be at least 6 characters"); return; }
     setLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       toast.success("Password updated successfully!");
       navigate("/");
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: any) { toast.error(err.message); }
+    finally { setLoading(false); }
   };
 
   if (!isRecovery) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="glass-card-glow w-full max-w-md p-8 text-center">
-          <Pill className="h-8 w-8 text-primary mx-auto mb-4" />
+          <img src={docpharmasLogo} alt="DocPharmas" className="h-8 w-8 rounded-lg object-cover mx-auto mb-4" />
           <h2 className="font-heading text-lg text-foreground mb-2">Invalid Reset Link</h2>
           <p className="text-sm text-muted-foreground mb-4">This link may have expired or already been used.</p>
           <Button onClick={() => navigate("/auth")} variant="outline">Back to Login</Button>
@@ -74,10 +57,8 @@ export default function ResetPassword() {
       </div>
       <div className="glass-card-glow w-full max-w-md p-8 relative z-10">
         <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center glow-primary">
-            <Pill className="h-5 w-5 text-primary" />
-          </div>
-          <h1 className="font-heading font-bold text-2xl text-foreground">PharmaZen</h1>
+          <img src={docpharmasLogo} alt="DocPharmas" className="w-10 h-10 rounded-xl object-cover" />
+          <h1 className="font-heading font-bold text-2xl text-foreground">DocPharmas</h1>
         </div>
         <h2 className="font-heading text-lg text-center text-foreground mb-1">Set New Password</h2>
         <p className="text-sm text-muted-foreground text-center mb-6">Enter your new password below</p>

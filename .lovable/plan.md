@@ -1,48 +1,34 @@
 
 
-# Rebrand to DocPharmas + Add Logo + Data Backup
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## 1. Rebrand: Replace "PharmaZen" → "DocPharmas" Everywhere
+## Two Changes
 
-**Files to update:**
-- `index.html` — title, og:title, twitter:title (5 occurrences)
-- `src/components/AppSidebar.tsx` — sidebar brand name (line 90)
-- `src/pages/Landing.tsx` — navbar, hero text, dashboard mockup label, before/after sections, testimonials, footer (12+ occurrences)
-- `src/pages/Auth.tsx` — login page brand (line 65)
-- `src/pages/ResetPassword.tsx` — reset page brand (line 80)
-- `supabase/functions/reorder-alerts/index.ts` — WhatsApp alert message (line 116)
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-## 2. Add DocPharmas Logo
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-- Copy uploaded `DocPharmas_Logo.jpg` to `public/images/docpharmas-logo.jpg` for favicon and to `src/assets/docpharmas-logo.jpg` for React components
-- Update `index.html` favicon to use the logo
-- Replace the `Pill` icon placeholder with the actual logo image in:
-  - `AppSidebar.tsx` — sidebar header
-  - `Landing.tsx` — navbar, footer
-  - `Auth.tsx` — login page
-  - `ResetPassword.tsx` — reset page
+## Files Changed
 
-## 3. Data Backup Feature
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
 
-Add a "Data Backup" section in `src/pages/Settings.tsx` (new tab "Backup"):
-- **Export All Data** button that fetches all tenant tables (customers, suppliers, products, proforma_invoices, sales_invoices, purchase_invoices, payments, expenses, stock_movements, etc.) and downloads them as a single `.xlsx` file (using existing `xlsx` dependency) with one sheet per table
-- Shows last backup timestamp (stored in localStorage)
-- Simple, clean UI with a download button and explanation text
-
-**Implementation:** A `handleBackup` function that:
-1. Queries each major table via Supabase client (RLS ensures tenant isolation)
-2. Creates an xlsx workbook with sheets: Customers, Suppliers, Products, Sales Orders, Sales Invoices, Purchase Orders, Purchase Invoices, Payments, Expenses, Bank Accounts, Stock Movements, Delivery Notes
-3. Triggers browser download of `DocPharmas_Backup_YYYY-MM-DD.xlsx`
-
-## Files to Change
-
-| File | Change |
-|------|--------|
-| `index.html` | Rebrand title/meta + favicon |
-| `src/components/AppSidebar.tsx` | Logo image + "DocPharmas" |
-| `src/pages/Landing.tsx` | Logo image + all "PharmaZen" → "DocPharmas" |
-| `src/pages/Auth.tsx` | Logo image + rebrand |
-| `src/pages/ResetPassword.tsx` | Logo image + rebrand |
-| `src/pages/Settings.tsx` | Add "Backup" tab with xlsx export |
-| `supabase/functions/reorder-alerts/index.ts` | Rebrand alert text |
+No other files change. The template system and all callers remain the same.
 

@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Pill, Mail, Lock, ArrowRight } from "lucide-react";
+import { Mail, Lock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import docpharmasLogo from "@/assets/docpharmas-logo.jpg";
 
 export default function Auth() {
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
@@ -59,10 +60,8 @@ export default function Auth() {
 
       <div className="glass-card-glow w-full max-w-md p-8 relative z-10">
         <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center glow-primary">
-            <Pill className="h-5 w-5 text-primary" />
-          </div>
-          <h1 className="font-heading font-bold text-2xl text-foreground">PharmaZen</h1>
+          <img src={docpharmasLogo} alt="DocPharmas" className="w-10 h-10 rounded-xl object-cover" />
+          <h1 className="font-heading font-bold text-2xl text-foreground">DocPharmas</h1>
         </div>
 
         <h2 className="font-heading text-lg text-center text-foreground mb-1">

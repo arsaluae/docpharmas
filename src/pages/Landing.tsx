@@ -4,12 +4,13 @@ import { motion, useInView } from "framer-motion";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { Button } from "@/components/ui/button";
 import {
-  Pill, ShieldCheck, Package, Printer, BarChart3, Receipt,
+  ShieldCheck, Package, Printer, BarChart3, Receipt,
   Clock, Calculator,
   ArrowRight, Check, MessageCircle, ChevronRight, Star,
   Copy, Zap, Users, BadgeCheck, Sparkles, Heart, TrendingUp, Lightbulb,
 } from "lucide-react";
 import { toast } from "sonner";
+import docpharmasLogo from "@/assets/docpharmas-logo.jpg";
 
 function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number; suffix?: string; duration?: number }) {
   const [count, setCount] = useState(0);
@@ -59,7 +60,7 @@ const features = [
 ];
 
 const testimonials = [
-  { name: "Ahmed Pharma", city: "Karachi", quote: "PharmaZen saved us 3 hours daily on invoicing alone. We can't imagine going back to paper ledgers." },
+  { name: "Ahmed Pharma", city: "Karachi", quote: "DocPharmas saved us 3 hours daily on invoicing alone. We can't imagine going back to paper ledgers." },
   { name: "Al-Shifa Distributors", city: "Lahore", quote: "Our stock expiry losses dropped by 70% in the first quarter. The batch tracking is a game-changer." },
   { name: "Medline Trading", city: "Islamabad", quote: "FBR filing used to take us a full week. Now it's done in 20 minutes with one click." },
 ];
@@ -80,10 +81,8 @@ export default function Landing() {
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-[#E2E8F0]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#0EA5E9]/10 flex items-center justify-center">
-              <Pill className="h-5 w-5 text-[#0EA5E9]" />
-            </div>
-            <span className="font-heading font-bold text-xl tracking-tight text-[#1E293B]">PharmaZen</span>
+            <img src={docpharmasLogo} alt="DocPharmas" className="w-9 h-9 rounded-xl object-cover" />
+            <span className="font-heading font-bold text-xl tracking-tight text-[#1E293B]">DocPharmas</span>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" onClick={() => navigate("/auth")} className="text-sm text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9]">
@@ -122,7 +121,7 @@ export default function Landing() {
               </span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg md:text-xl text-[#64748B] max-w-2xl mx-auto mb-10 leading-relaxed">
-              PharmaZen is the <strong className="text-[#1E293B]">only ERP built for Pakistan's pharma industry</strong>.
+              DocPharmas is the <strong className="text-[#1E293B]">only ERP built for Pakistan's pharma industry</strong>.
               Replace your ledgers, spreadsheets, and guesswork — starting today.
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -164,7 +163,7 @@ export default function Landing() {
                 <div className="w-3 h-3 rounded-full bg-[#10B981]" />
                 <div className="w-3 h-3 rounded-full bg-[#0EA5E9]" />
                 <div className="w-3 h-3 rounded-full bg-[#8B5CF6]" />
-                <span className="ml-3 text-xs text-[#94A3B8]">PharmaZen Dashboard</span>
+                <span className="ml-3 text-xs text-[#94A3B8]">DocPharmas Dashboard</span>
               </div>
               <div className="grid grid-cols-3 gap-4 mb-6">
                 {[
@@ -261,7 +260,7 @@ export default function Landing() {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp}
             className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             <div className="bg-white rounded-2xl p-8 border border-[#E2E8F0] border-l-4 border-l-[#94A3B8]">
-              <p className="text-xs font-bold text-[#94A3B8] uppercase tracking-widest mb-4">Before PharmaZen</p>
+              <p className="text-xs font-bold text-[#94A3B8] uppercase tracking-widest mb-4">Before DocPharmas</p>
               <ul className="space-y-3">
                 {["Paper ledgers & manual calculations", "Stock expires unnoticed", "Tax filing takes a week", "No idea what you sold today", "Printer disputes every month"].map((item) => (
                   <li key={item} className="flex items-center gap-2 text-sm text-[#64748B]">
@@ -271,7 +270,7 @@ export default function Landing() {
               </ul>
             </div>
             <div className="bg-white rounded-2xl p-8 border border-[#E2E8F0] border-l-4 border-l-[#10B981] shadow-md shadow-[#10B981]/[0.06]">
-              <p className="text-xs font-bold text-[#10B981] uppercase tracking-widest mb-4">✓ After PharmaZen</p>
+              <p className="text-xs font-bold text-[#10B981] uppercase tracking-widest mb-4">✓ After DocPharmas</p>
               <ul className="space-y-3">
                 {["One-click invoicing & auto-calculations", "Batch & expiry alerts before it's too late", "FBR-ready tax reports in 20 minutes", "Real-time dashboard with today's numbers", "Transparent printer ledger — no disputes"].map((item) => (
                   <li key={item} className="flex items-center gap-2 text-sm text-[#475569]">
@@ -451,13 +450,11 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#0EA5E9]/10 flex items-center justify-center">
-                <Pill className="h-4 w-4 text-[#0EA5E9]" />
-              </div>
-              <span className="font-heading font-bold text-lg text-[#1E293B]">PharmaZen</span>
+              <img src={docpharmasLogo} alt="DocPharmas" className="w-8 h-8 rounded-lg object-cover" />
+              <span className="font-heading font-bold text-lg text-[#1E293B]">DocPharmas</span>
             </div>
             <p className="text-sm text-[#94A3B8]">
-              © {new Date().getFullYear()} PharmaZen. Built for Pakistan's pharmaceutical industry.
+              © {new Date().getFullYear()} DocPharmas. Built for Pakistan's pharmaceutical industry.
             </p>
             <a href="https://wa.me/447477210590" target="_blank" rel="noopener noreferrer"
               className="text-sm text-[#0EA5E9] hover:text-[#0284C7] flex items-center gap-1 transition-colors">
