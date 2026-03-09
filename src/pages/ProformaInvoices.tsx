@@ -931,8 +931,27 @@ export default function ProformaInvoices() {
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                 Confirm & Create Invoice + Delivery Note
               </Button>
-            </DialogContent>
+             </DialogContent>
           </Dialog>
+
+          {/* VOID CONFIRM */}
+          <AlertDialog open={voidConfirmOpen} onOpenChange={setVoidConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Void Order {voidOrder?.proforma_number}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will delete the associated invoice, delivery note, and reverse all stock movements. The order will return to Draft status. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={voiding}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmVoid} disabled={voiding} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  {voiding && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Void & Rollback
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
       <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );
