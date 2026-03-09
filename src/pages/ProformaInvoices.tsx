@@ -588,7 +588,7 @@ export default function ProformaInvoices() {
     toast.success("Delivery note deleted");
     loadDeliveryNotes();
   };
-
+  const filtered = orders.filter(p => {
     const q = search.toLowerCase();
     const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
       ((p.customers as any)?.name || "").toLowerCase().includes(q) ||
