@@ -618,7 +618,12 @@ export default function ProformaInvoices() {
                   <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
                 </div>
                 <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
-                <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" /></div>
+                <div className="col-span-2 relative">
+                  <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
+                  {item.last_price !== undefined && item.last_price !== null && (
+                    <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number(item.last_price).toLocaleString()}</span>
+                  )}
+                </div>
                 {settings?.gst_enabled && <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" placeholder="GST%" /></div>}
                 <div className={`${settings?.gst_enabled ? "col-span-2" : "col-span-3"} text-right text-sm font-mono pt-2 text-foreground`}>{item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}</div>
                 <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
