@@ -238,7 +238,7 @@ export default function ProformaInvoices() {
       status: "draft", payment_instructions: paymentInstructions || null,
     });
     if (error) { toast.error("Failed to create order: " + error.message); setSaving(false); return; }
-    toast.success(`Sales Order ${pfNumber} created`);
+    toast.success(`Sales Invoice ${pfNumber} created`);
     setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); setSaving(false); load();
   };
 
