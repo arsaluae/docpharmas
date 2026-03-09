@@ -710,7 +710,7 @@ export default function ProformaInvoices() {
   const productOptions = products.map(p => ({ value: p.id, label: p.name }));
 
   return (
-    <AppLayout title="Sales Orders" subtitle="Create orders → confirm with batch → auto invoice + delivery note"
+    <AppLayout title="Sales Invoices" subtitle="Create invoices → confirm with batch → auto invoice + delivery note"
       headerActions={
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
