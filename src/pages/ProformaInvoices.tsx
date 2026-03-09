@@ -299,11 +299,14 @@ export default function ProformaInvoices() {
 
   // ── WHATSAPP ──
   const shareWhatsApp = (order: SalesOrder) => {
-    const custName = (order.customers as any)?.name || "Customer";
+    const cust = order.customers as any;
+    const custName = cust?.name || "Customer";
+    const custPhone = cust?.phone || "";
     const companyName = settings?.company_name || "PharmBooks";
     const pfItems = getPfItems(order);
-    const text = `*Sales Order ${order.proforma_number}*\n${companyName}\n\nCustomer: ${custName}\nDate: ${order.date}\n\n${pfItems.map(i => `• ${i.product_name} × ${i.quantity} @ ${Number(i.rate).toLocaleString()}`).join("\n")}\n\n*Total: PKR ${Number(order.total).toLocaleString()}*${order.payment_instructions ? `\n\n${order.payment_instructions}` : ""}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    const text = `*Sales Invoice ${order.proforma_number}*\n${companyName}\n\nCustomer: ${custName}\nDate: ${order.date}\n\n${pfItems.map(i => `• ${i.product_name} × ${i.quantity} @ ${Number(i.rate).toLocaleString()}`).join("\n")}\n\n*Total: PKR ${Number(order.total).toLocaleString()}*${order.payment_instructions ? `\n\n${order.payment_instructions}` : ""}`;
+    const waNumber = custPhone ? custPhone.replace(/[^0-9]/g, "") : "";
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   // ── PDF ──
