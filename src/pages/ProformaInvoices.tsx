@@ -56,6 +56,11 @@ export default function ProformaInvoices() {
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfTitle, setPdfTitle] = useState("");
 
+  // Post-submit document choice
+  const [postSubmitOpen, setPostSubmitOpen] = useState(false);
+  const [postSubmitOrder, setPostSubmitOrder] = useState<SalesOrder | null>(null);
+  const [postSubmitInvoiceId, setPostSubmitInvoiceId] = useState<string | null>(null);
+
   // Create form
   const [customerId, setCustomerId] = useState("");
   const [pfDate, setPfDate] = useState(new Date().toISOString().split("T")[0]);
@@ -309,6 +314,40 @@ export default function ProformaInvoices() {
     }
   };
 
+  // ── DELIVERY NOTE PDF ──
+  const printDeliveryNote = async (order: SalesOrder) => {
+    const invoiceId = order.converted_invoice_id;
+    if (!invoiceId) return;
+    const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", invoiceId).single();
+    if (!dn) { toast.error("Delivery note not found"); return; }
+    const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
+    const custName = (order.customers as any)?.name || "—";
+    const custAddress = (order.customers as any)?.address || undefined;
+    const custPhone = (order.customers as any)?.phone || undefined;
+    const custArea = (order.customers as any)?.area || undefined;
+    const html = generatePdfHtml({
+      title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
+      partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "product_name" },
+        { header: "Batch #", key: "batch_number" },
+        { header: "Expiry", key: "expiry_date" },
+        { header: "Qty", key: "quantity", align: "right" },
+      ],
+      rows: dnItems.map((i: any, idx: number) => ({
+        idx: idx + 1,
+        product_name: i.product_name || "Item",
+        batch_number: i.batch_number || "—",
+        expiry_date: i.expiry_date || "—",
+        quantity: i.quantity,
+      })),
+      totals: [],
+      settings, template: getTemplate("delivery_note"),
+    });
+    setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
+  };
+
   // ── SUBMIT (Convert to Invoice) ──
   const openSubmitDialog = async (order: SalesOrder) => {
     setSubmitOrder(order);
@@ -428,30 +467,11 @@ export default function ProformaInvoices() {
       await supabase.from("proforma_invoices").update({ status: "invoiced", converted_invoice_id: inv.id }).eq("id", submitOrder.id);
       toast.success(`Invoice ${invNumber} + Delivery Note created successfully`);
 
-      // Auto-download invoice PDF
-      const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
-      const autoHtml = generatePdfHtml({
-        title: "SALES INVOICE", documentNumber: invNumber, date: inv.date, statusTheme: "dispatched" as const,
-        partyLabel: "Customer", partyName: (inv.customers as any)?.name || (submitOrder.customers as any)?.name || "—",
-        columns: [
-          { header: "#", key: "idx" }, { header: "Product", key: "name" }, { header: "Batch", key: "batch_number" },
-          { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
-          { header: "Amount", key: "amount", align: "right" },
-        ],
-        rows: (invItems || []).map((i: any, idx: number) => ({
-          idx: idx + 1, name: i.products?.name || "Item", batch_number: i.batch_number || "—",
-          quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
-        })),
-        totals: [
-          { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
-          { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
-          { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
-        ],
-        settings, template: getTemplate("sales_invoice"),
-      });
-      setPdfHtml(autoHtml); setPdfTitle(`Sales Invoice — ${invNumber}`); setPdfOpen(true);
+      // Show post-submit document choice dialog
+      setPostSubmitOrder({ ...submitOrder, converted_invoice_id: inv.id, invoice_number: invNumber });
+      setPostSubmitInvoiceId(inv.id);
 
-      setSubmitOpen(false); setSubmitting(false); load();
+      setSubmitOpen(false); setSubmitting(false); setPostSubmitOpen(true); load();
   };
 
   // ── VOID (Rollback) ──
@@ -689,6 +709,11 @@ export default function ProformaInvoices() {
                                   <FileText className="h-3.5 w-3.5" />
                                 </Button>
                               )}
+                              {order.converted_invoice_id && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printDeliveryNote(order)} title="Delivery Note">
+                                  <Truck className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               {order.status === "draft" && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => promptDelete([order.id])}>
                                   <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -834,6 +859,33 @@ export default function ProformaInvoices() {
           </AlertDialog>
 
       <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+
+      {/* ═══ POST-SUBMIT DOCUMENT CHOICE ═══ */}
+      <Dialog open={postSubmitOpen} onOpenChange={setPostSubmitOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-center">Documents Ready</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground text-center">Invoice and Delivery Note have been created. Which document would you like to view?</p>
+          <div className="flex flex-col gap-3 mt-2">
+            <Button
+              className="h-12 gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white"
+              onClick={() => { setPostSubmitOpen(false); if (postSubmitOrder) printInvoice(postSubmitOrder); }}
+            >
+              <FileText className="h-4 w-4" /> View Invoice
+              <span className="text-xs opacity-75 ml-1">(for customer)</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-12 gap-2"
+              onClick={() => { setPostSubmitOpen(false); if (postSubmitOrder) printDeliveryNote(postSubmitOrder); }}
+            >
+              <Truck className="h-4 w-4" /> View Delivery Note
+              <span className="text-xs text-muted-foreground ml-1">(for staff)</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
