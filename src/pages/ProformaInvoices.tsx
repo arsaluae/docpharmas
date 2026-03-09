@@ -645,13 +645,14 @@ export default function ProformaInvoices() {
 
       <div className="space-y-4">
             {/* PREMIUM STATUS BUTTONS */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               {[
                 { label: "All", ...allStats, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
                 { label: "Draft", ...draftStats, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
                 { label: "Invoice", ...invoicedAndDispatchedStats, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "invoiced" },
+                { label: "Delivery Notes", count: deliveryNotes.length, value: 0, icon: Truck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "delivery_notes" },
               ].map(s => (
-                <button key={s.label} onClick={() => setStatusFilter(s.statusKey)}
+                <button key={s.label} onClick={() => { setStatusFilter(s.statusKey); if (s.statusKey === "delivery_notes") loadDeliveryNotes(); }}
                   className={`group relative flex flex-col items-center justify-center h-[100px] rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
                   <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300`}>
                     <s.icon className="h-5 w-5 text-white" />
