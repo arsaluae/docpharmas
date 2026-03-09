@@ -176,15 +176,32 @@ export default function PurchaseProforma() {
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }]);
   useEffect(() => { if (createOpen && items.length === 0) addItem(); }, [createOpen]);
 
-  const updateItem = (idx: number, field: string, value: any) => {
+  const lookupLastSupplierPrice = async (productId: string, supId: string): Promise<number | null> => {
+    if (!productId || !supId) return null;
+    const { data } = await supabase.from("purchase_proforma_items")
+      .select("rate, proforma_id, purchase_proformas!inner(supplier_id)")
+      .eq("product_id", productId)
+      .eq("purchase_proformas.supplier_id", supId)
+      .order("proforma_id", { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) return Number(data[0].rate);
+    return null;
+  };
+
+  const updateItem = async (idx: number, field: string, value: any) => {
     const u = [...items];
     (u[idx] as any)[field] = value;
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
       if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.cost_price); }
+      if (supplierId && value) {
+        const lastRate = await lookupLastSupplierPrice(value, supplierId);
+        (u[idx] as any).last_price = lastRate;
+        if (lastRate !== null) u[idx].rate = lastRate;
+      }
     }
     u[idx].amount = Number(u[idx].quantity_requested) * Number(u[idx].rate);
-    setItems(u);
+    setItems([...u]);
   };
 
   const calcTotals = (list: PPItem[]) => {
@@ -561,15 +578,20 @@ export default function PurchaseProforma() {
 
   // ── EDIT ──
 
-  const updateEditItem = (idx: number, field: string, value: any) => {
+  const updateEditItem = async (idx: number, field: string, value: any) => {
     const u = [...editItems];
     (u[idx] as any)[field] = value;
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
       if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.cost_price); }
+      if (editSupplierId && value) {
+        const lastRate = await lookupLastSupplierPrice(value, editSupplierId);
+        (u[idx] as any).last_price = lastRate;
+        if (lastRate !== null) u[idx].rate = lastRate;
+      }
     }
     u[idx].amount = Number(u[idx].quantity_requested) * Number(u[idx].rate);
-    setEditItems(u);
+    setEditItems([...u]);
   };
 
   const handleEditSave = async () => {
@@ -733,7 +755,12 @@ export default function PurchaseProforma() {
               <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
                 <div className="col-span-5"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
                 <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateItem(idx, "quantity_requested", e.target.value)} className="text-xs" placeholder="Qty" /></div>
-                <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" /></div>
+                <div className="col-span-2 relative">
+                  <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
+                  {(item as any).last_price !== undefined && (item as any).last_price !== null && (
+                    <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number((item as any).last_price).toLocaleString()}</span>
+                  )}
+                </div>
                 <div className="col-span-2 text-right text-sm font-mono pt-2 text-foreground">{item.amount.toLocaleString()}</div>
                 <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
               </div>
@@ -943,7 +970,12 @@ export default function PurchaseProforma() {
                     <div key={idx} className="grid grid-cols-12 gap-2 items-end">
                       <div className="col-span-5"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
                       <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateEditItem(idx, "quantity_requested", e.target.value)} className="text-xs" placeholder="Qty" /></div>
-                      <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" /></div>
+                      <div className="col-span-2 relative">
+                        <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
+                        {(item as any).last_price !== undefined && (item as any).last_price !== null && (
+                          <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number((item as any).last_price).toLocaleString()}</span>
+                        )}
+                      </div>
                       <div className="col-span-2 text-right text-xs font-mono pt-2">{item.amount.toLocaleString()}</div>
                       <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
                     </div>

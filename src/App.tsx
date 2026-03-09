@@ -28,7 +28,7 @@ import PrinterLedger from "./pages/PrinterLedger";
 import PrintJobs from "./pages/PrintJobs";
 import DataImport from "./pages/DataImport";
 import Settings from "./pages/Settings";
-import DeliveryNotes from "./pages/DeliveryNotes";
+// DeliveryNotes moved into ProformaInvoices page as a tabas a tab
 import ProfitLoss from "./pages/reports/ProfitLoss";
 import BalanceSheet from "./pages/reports/BalanceSheet";
 import CashFlow from "./pages/reports/CashFlow";
@@ -82,7 +82,7 @@ const App = () => (
             <Route path="/print-jobs" element={<PrintJobs />} />
             <Route path="/import" element={<DataImport />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/delivery-notes" element={<DeliveryNotes />} />
+    {/* Delivery Notes now in Sales Orders page */}
             <Route path="/reports" element={<Reports />} />
             <Route path="/reports/pl" element={<ProfitLoss />} />
             <Route path="/reports/balance-sheet" element={<BalanceSheet />} />

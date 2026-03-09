@@ -25,7 +25,8 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
-interface ProformaItem { product_id: string; product_name: string; quantity: number; rate: number; gst_rate: number; amount: number; }
+interface ProformaItem { product_id: string; product_name: string; quantity: number; rate: number; gst_rate: number; amount: number; last_price?: number | null; }
+interface DeliveryNoteRow { id: string; dn_number: string; date: string; customer_id: string | null; items: any; status: string; reference_id: string; created_at: string; customer_name?: string; }
 
 interface SalesOrder {
   id: string; proforma_number: string; customer_id: string | null; date: string;
@@ -55,6 +56,8 @@ export default function ProformaInvoices() {
   const [pdfHtml, setPdfHtml] = useState("");
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfTitle, setPdfTitle] = useState("");
+  const [deliveryNotes, setDeliveryNotes] = useState<DeliveryNoteRow[]>([]);
+  const [dnLoading, setDnLoading] = useState(false);
 
   // Post-submit document choice
   const [postSubmitOpen, setPostSubmitOpen] = useState(false);
@@ -162,16 +165,39 @@ export default function ProformaInvoices() {
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0 }]);
   useEffect(() => { if (createOpen && items.length === 0) addItem(); }, [createOpen]);
 
-  const updateItem = (idx: number, field: string, value: any) => {
+  const lookupLastPrice = async (productId: string, custId: string): Promise<number | null> => {
+    if (!productId || !custId) return null;
+    const { data } = await supabase.from("proforma_invoices")
+      .select("items")
+      .eq("customer_id", custId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (data) {
+      for (const row of data) {
+        const rowItems: any[] = typeof row.items === "string" ? JSON.parse(row.items) : row.items;
+        const match = rowItems?.find((i: any) => i.product_id === productId);
+        if (match) return Number(match.rate);
+      }
+    }
+    return null;
+  };
+
+  const updateItem = async (idx: number, field: string, value: any) => {
     const u = [...items];
     (u[idx] as any)[field] = value;
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
       if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; }
+      // Look up last price for this customer+product
+      if (customerId && value) {
+        const lastRate = await lookupLastPrice(value, customerId);
+        u[idx].last_price = lastRate;
+        if (lastRate !== null) u[idx].rate = lastRate;
+      }
     }
     const line = Number(u[idx].quantity) * Number(u[idx].rate);
     u[idx].amount = line + (settings?.gst_enabled ? (line * Number(u[idx].gst_rate) / 100) : 0);
-    setItems(u);
+    setItems([...u]);
   };
 
   const calcTotals = (list: ProformaItem[]) => {
@@ -222,16 +248,21 @@ export default function ProformaInvoices() {
     return typeof order.items === "string" ? JSON.parse(order.items) : order.items;
   };
 
-  const updateEditItem = (idx: number, field: string, value: any) => {
+  const updateEditItem = async (idx: number, field: string, value: any) => {
     const u = [...editItems];
     (u[idx] as any)[field] = value;
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
       if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; }
+      if (editCustomerId && value) {
+        const lastRate = await lookupLastPrice(value, editCustomerId);
+        u[idx].last_price = lastRate;
+        if (lastRate !== null) u[idx].rate = lastRate;
+      }
     }
     const line = Number(u[idx].quantity) * Number(u[idx].rate);
     u[idx].amount = line + (settings?.gst_enabled ? (line * Number(u[idx].gst_rate) / 100) : 0);
-    setEditItems(u);
+    setEditItems([...u]);
   };
 
   const handleEditSave = async () => {
@@ -515,6 +546,48 @@ export default function ProformaInvoices() {
     return null;
   };
 
+  // ── DELIVERY NOTES (tab) ──
+  const loadDeliveryNotes = async () => {
+    setDnLoading(true);
+    const { data } = await supabase.from("delivery_notes").select("*").eq("reference_type", "sales_invoice").order("created_at", { ascending: false });
+    if (data) {
+      const custIds = [...new Set(data.filter(d => d.customer_id).map(d => d.customer_id!))];
+      let custMap: Record<string, string> = {};
+      if (custIds.length > 0) {
+        const { data: custs } = await supabase.from("customers").select("id, name").in("id", custIds);
+        if (custs) custs.forEach(c => { custMap[c.id] = c.name; });
+      }
+      setDeliveryNotes(data.map((d: any) => ({ ...d, customer_name: d.customer_id ? custMap[d.customer_id] || "—" : "—" })));
+    }
+    setDnLoading(false);
+  };
+
+  const viewDnPdf = (dn: DeliveryNoteRow) => {
+    const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]) || [];
+    const html = generatePdfHtml({
+      title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
+      partyLabel: "Customer", partyName: dn.customer_name || "—",
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "product_name" },
+        { header: "Batch #", key: "batch_number" },
+        { header: "Expiry", key: "expiry_date" },
+        { header: "Qty", key: "quantity", align: "right" },
+      ],
+      rows: dnItems.map((i: any, idx: number) => ({
+        idx: idx + 1, product_name: i.product_name || "Item",
+        batch_number: i.batch_number || "—", expiry_date: i.expiry_date || "—", quantity: i.quantity,
+      })),
+      totals: [], settings, template: getTemplate("delivery_note"),
+    });
+    setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
+  };
+
+  const deleteDn = async (id: string) => {
+    await supabase.from("delivery_notes").delete().eq("id", id);
+    toast.success("Delivery note deleted");
+    loadDeliveryNotes();
+  };
   const filtered = orders.filter(p => {
     const q = search.toLowerCase();
     const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
@@ -587,7 +660,12 @@ export default function ProformaInvoices() {
                   <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
                 </div>
                 <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
-                <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" /></div>
+                <div className="col-span-2 relative">
+                  <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
+                  {item.last_price !== undefined && item.last_price !== null && (
+                    <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number(item.last_price).toLocaleString()}</span>
+                  )}
+                </div>
                 {settings?.gst_enabled && <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" placeholder="GST%" /></div>}
                 <div className={`${settings?.gst_enabled ? "col-span-2" : "col-span-3"} text-right text-sm font-mono pt-2 text-foreground`}>{item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}</div>
                 <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
@@ -609,13 +687,14 @@ export default function ProformaInvoices() {
 
       <div className="space-y-4">
             {/* PREMIUM STATUS BUTTONS */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               {[
                 { label: "All", ...allStats, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
                 { label: "Draft", ...draftStats, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
                 { label: "Invoice", ...invoicedAndDispatchedStats, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "invoiced" },
+                { label: "Delivery Notes", count: deliveryNotes.length, value: 0, icon: Truck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "delivery_notes" },
               ].map(s => (
-                <button key={s.label} onClick={() => setStatusFilter(s.statusKey)}
+                <button key={s.label} onClick={() => { setStatusFilter(s.statusKey); if (s.statusKey === "delivery_notes") loadDeliveryNotes(); }}
                   className={`group relative flex flex-col items-center justify-center h-[100px] rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
                   <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300`}>
                     <s.icon className="h-5 w-5 text-white" />
@@ -643,7 +722,56 @@ export default function ProformaInvoices() {
               </div>
             </div>
 
-            {/* TABLE */}
+            {/* TABLE or DELIVERY NOTES */}
+            {statusFilter === "delivery_notes" ? (
+              <Card className="glass-card overflow-hidden">
+                <CardContent className="p-0">
+                  {dnLoading ? (
+                    <div className="p-6 space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30">
+                          <TableHead className="font-semibold">DN #</TableHead>
+                          <TableHead className="font-semibold">Customer</TableHead>
+                          <TableHead className="font-semibold">Date</TableHead>
+                          <TableHead className="text-right font-semibold">Items</TableHead>
+                          <TableHead className="font-semibold">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {deliveryNotes.length === 0 ? (
+                          <TableRow><TableCell colSpan={5} className="text-center py-16">
+                            <Truck className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+                            <p className="text-muted-foreground font-medium">No delivery notes yet</p>
+                          </TableCell></TableRow>
+                        ) : deliveryNotes.map(dn => {
+                          const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]) || [];
+                          return (
+                            <TableRow key={dn.id} className="hover:bg-muted/30 transition-colors">
+                              <TableCell className="font-mono font-semibold text-sm">{dn.dn_number}</TableCell>
+                              <TableCell className="text-sm">{dn.customer_name || "—"}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{dn.date}</TableCell>
+                              <TableCell className="text-right text-sm">{dnItems.length}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => viewDnPdf(dn)} title="View PDF">
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteDn(dn.id)} title="Delete">
+                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
             <Card className="glass-card overflow-hidden">
               <CardContent className="p-0">
                 {loading ? (
@@ -728,6 +856,7 @@ export default function ProformaInvoices() {
                 )}
               </CardContent>
             </Card>
+            )}
           </div>
 
           {/* BULK DELETE BAR */}
@@ -776,7 +905,12 @@ export default function ProformaInvoices() {
                     <div key={idx} className="grid grid-cols-12 gap-2 items-end">
                       <div className="col-span-5"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
                       <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
-                      <div className="col-span-2"><Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" /></div>
+                      <div className="col-span-2 relative">
+                        <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
+                        {item.last_price !== undefined && item.last_price !== null && (
+                          <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number(item.last_price).toLocaleString()}</span>
+                        )}
+                      </div>
                       <div className="col-span-2 text-right text-xs font-mono pt-2">{item.amount.toLocaleString()}</div>
                       <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
                     </div>
