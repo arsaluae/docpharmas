@@ -516,18 +516,6 @@ export default function PurchaseProforma() {
   };
 
   // ── EDIT ──
-  const enterEditMode = () => {
-    if (!previewOrder) return;
-    setEditSupplierId(previewOrder.supplier_id || "");
-    setEditDate(previewOrder.date);
-    setEditValidity(String(previewOrder.validity_days));
-    setEditNotes(previewOrder.notes || "");
-    setEditItems(previewItems.map((i: any) => ({
-      product_id: i.product_id || "", product_name: i.products?.name || "Item",
-      quantity_requested: i.quantity_requested, rate: Number(i.rate), amount: Number(i.amount),
-    })));
-    setEditMode(true);
-  };
 
   const updateEditItem = (idx: number, field: string, value: any) => {
     const u = [...editItems];
