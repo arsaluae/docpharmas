@@ -719,7 +719,7 @@ export default function ProformaInvoices() {
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle className="font-heading">Create Sales Order</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="font-heading">Create Sales Invoice</DialogTitle></DialogHeader>
             <div className="grid grid-cols-3 gap-3 mt-3">
               <div>
                 <Label className="text-xs font-medium text-muted-foreground">Customer *</Label>
