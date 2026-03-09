@@ -86,6 +86,11 @@ export default function ProformaInvoices() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
 
+  // Void
+  const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
+  const [voidOrder, setVoidOrder] = useState<SalesOrder | null>(null);
+  const [voiding, setVoiding] = useState(false);
+
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
 
