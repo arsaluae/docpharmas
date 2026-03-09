@@ -5,6 +5,44 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const DOCUMENT_COUNTER_SEEDS = [
+  { document_type: "sales_invoice", prefix: "INV-" },
+  { document_type: "proforma", prefix: "PI-" },
+  { document_type: "warranty_invoice", prefix: "WI-" },
+  { document_type: "purchase_proforma", prefix: "PP-" },
+  { document_type: "purchase_order", prefix: "PO-" },
+  { document_type: "purchase_invoice", prefix: "BILL-" },
+  { document_type: "grn", prefix: "GRN-" },
+  { document_type: "payment", prefix: "PAY-" },
+  { document_type: "expense", prefix: "EXP-" },
+  { document_type: "delivery_note", prefix: "DN-" },
+  { document_type: "journal", prefix: "JE-" },
+  { document_type: "sales_return", prefix: "SR-" },
+  { document_type: "purchase_return", prefix: "PR-" },
+  { document_type: "print_job", prefix: "PJ-" },
+];
+
+async function seedTenantData(supabaseAdmin: any, tenantId: string) {
+  // Seed document counters
+  const counters = DOCUMENT_COUNTER_SEEDS.map(c => ({
+    ...c,
+    tenant_id: tenantId,
+    current_value: 0,
+  }));
+  await supabaseAdmin.from("document_counters").insert(counters);
+
+  // Seed default company settings
+  await supabaseAdmin.from("company_settings").insert({
+    tenant_id: tenantId,
+    company_name: null,
+    gst_enabled: false,
+    wht_enabled: false,
+    fbr_enabled: false,
+    default_gst_rate: 17,
+    default_wht_rate: 4.5,
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -86,6 +124,109 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "approve_signup") {
+      const { signup_id } = body;
+      if (!signup_id) {
+        return new Response(JSON.stringify({ error: "Missing signup_id" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Get pending signup
+      const { data: signup, error: fetchErr } = await supabaseAdmin
+        .from("pending_signups")
+        .select("*")
+        .eq("id", signup_id)
+        .eq("status", "pending")
+        .single();
+
+      if (fetchErr || !signup) {
+        return new Response(JSON.stringify({ error: "Signup not found or already processed" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Create tenant
+      const trialEnd = new Date();
+      trialEnd.setDate(trialEnd.getDate() + 7);
+
+      const { data: tenant, error: tenantErr } = await supabaseAdmin.from("tenants").insert({
+        company_name: signup.company_name,
+        owner_email: signup.email,
+        phone: signup.phone || null,
+        plan: "monthly",
+        subscription_status: "trial",
+        trial_starts_at: new Date().toISOString(),
+        subscription_ends_at: trialEnd.toISOString(),
+      }).select().single();
+
+      if (tenantErr) {
+        return new Response(JSON.stringify({ error: tenantErr.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Link user to tenant
+      const { error: tuErr } = await supabaseAdmin.from("tenant_users").insert({
+        tenant_id: tenant.id,
+        user_id: signup.user_id,
+        role: "owner",
+      });
+
+      if (tuErr) {
+        return new Response(JSON.stringify({ error: tuErr.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Seed document counters + company settings
+      await seedTenantData(supabaseAdmin, tenant.id);
+
+      // Mark signup as approved
+      await supabaseAdmin.from("pending_signups").update({
+        status: "approved",
+        reviewed_at: new Date().toISOString(),
+      }).eq("id", signup_id);
+
+      return new Response(JSON.stringify({ success: true, tenant_id: tenant.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "reject_signup") {
+      const { signup_id, admin_notes } = body;
+      if (!signup_id) {
+        return new Response(JSON.stringify({ error: "Missing signup_id" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      await supabaseAdmin.from("pending_signups").update({
+        status: "rejected",
+        reviewed_at: new Date().toISOString(),
+        admin_notes: admin_notes || null,
+      }).eq("id", signup_id);
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "seed_tenant") {
+      const { tenant_id } = body;
+      if (!tenant_id) {
+        return new Response(JSON.stringify({ error: "Missing tenant_id" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      await seedTenantData(supabaseAdmin, tenant_id);
+      
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

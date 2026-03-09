@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, ArrowRight } from "lucide-react";
+import { Mail, Lock, ArrowRight, Building2, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -11,6 +11,8 @@ export default function Auth() {
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -30,12 +32,29 @@ export default function Auth() {
         if (error) throw error;
         navigate("/");
       } else if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        if (!companyName.trim()) {
+          toast.error("Company name is required");
+          setLoading(false);
+          return;
+        }
+        const { data, error } = await supabase.auth.signUp({
           email, password,
           options: { emailRedirectTo: window.location.origin },
         });
         if (error) throw error;
-        toast.success("Check your email to confirm your account");
+        
+        // Create pending signup record
+        if (data.user) {
+          const { error: signupError } = await supabase.from("pending_signups").insert({
+            user_id: data.user.id,
+            email,
+            company_name: companyName.trim(),
+            phone: phone.trim() || null,
+          } as any);
+          if (signupError) console.error("Pending signup error:", signupError);
+        }
+        
+        toast.success("Account created! Please check your email to verify, then wait for admin approval.");
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
@@ -68,10 +87,24 @@ export default function Auth() {
           {mode === "login" ? "Welcome back" : mode === "signup" ? "Create account" : "Reset password"}
         </h2>
         <p className="text-sm text-muted-foreground text-center mb-6">
-          {mode === "login" ? "Sign in to your ERP dashboard" : mode === "signup" ? "Register for access" : "We'll send you a reset link"}
+          {mode === "login" ? "Sign in to your ERP dashboard" : mode === "signup" ? "Register your company for access" : "We'll send you a reset link"}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === "signup" && (
+            <>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input type="text" placeholder="Company Name *" value={companyName} onChange={(e) => setCompanyName(e.target.value)}
+                  className="pl-10 bg-secondary/50 border-border focus:border-primary" required />
+              </div>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input type="tel" placeholder="Phone (optional)" value={phone} onChange={(e) => setPhone(e.target.value)}
+                  className="pl-10 bg-secondary/50 border-border focus:border-primary" />
+              </div>
+            </>
+          )}
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)}

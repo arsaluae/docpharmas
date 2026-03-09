@@ -120,18 +120,31 @@ export default function Settings() {
     toast.success("Logo uploaded");
   };
 
+  const fetchAllRows = async (tableName: string) => {
+    const PAGE_SIZE = 500;
+    let allData: any[] = [];
+    let from = 0;
+    let hasMore = true;
+    while (hasMore) {
+      // Use type assertion for dynamic table name
+      const { data, error } = await (supabase as any).from(tableName).select("*").range(from, from + PAGE_SIZE - 1);
+      if (error) { console.error(`Error fetching ${tableName}:`, error); break; }
+      if (data) allData = allData.concat(data);
+      hasMore = data ? data.length === PAGE_SIZE : false;
+      from += PAGE_SIZE;
+    }
+    return allData;
+  };
+
   const handleBackup = async () => {
     setBackupLoading(true);
     try {
       const workbook = XLSX.utils.book_new();
       
-      for (const { table, sheet } of BACKUP_TABLES) {
-        const { data, error } = await supabase.from(table).select("*");
-        if (error) {
-          console.error(`Error fetching ${table}:`, error);
-          continue;
-        }
-        const worksheet = XLSX.utils.json_to_sheet(data || []);
+      for (let i = 0; i < BACKUP_TABLES.length; i++) {
+        const { table, sheet } = BACKUP_TABLES[i];
+        const data = await fetchAllRows(table);
+        const worksheet = XLSX.utils.json_to_sheet(data);
         XLSX.utils.book_append_sheet(workbook, worksheet, sheet);
       }
 
