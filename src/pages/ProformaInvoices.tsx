@@ -687,6 +687,11 @@ export default function ProformaInvoices() {
                                   <CheckCircle className="h-3 w-3" /> Submit
                                 </Button>
                               )}
+                              {(order.status === "invoiced" || order.status === "dispatched") && (
+                                <Button size="sm" variant="outline" onClick={() => promptVoid(order)} className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10">
+                                  <RotateCcw className="h-3 w-3" /> Void
+                                </Button>
+                              )}
                               {order.status === "draft" && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSheet(order)} title="Edit">
                                   <Pencil className="h-3.5 w-3.5" />
