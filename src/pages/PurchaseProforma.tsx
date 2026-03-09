@@ -629,7 +629,8 @@ export default function PurchaseProforma() {
     const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
       ((p.suppliers as any)?.name || "").toLowerCase().includes(q) ||
       (p.po_number || "").toLowerCase().includes(q);
-    const matchStatus = statusFilter === "all" || p.status === statusFilter;
+    const matchStatus = statusFilter === "all" || p.status === statusFilter ||
+      (statusFilter === "ordered" && (p.status === "ordered" || p.status === "confirmed"));
     const dateStart = getDateFilter();
     const matchDate = !dateStart || p.date >= dateStart;
     return matchSearch && matchStatus && matchDate;
