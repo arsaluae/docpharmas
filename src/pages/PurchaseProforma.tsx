@@ -13,7 +13,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Search, FileText, Trash2, Download, CheckCircle, Pencil, PackageCheck, MessageCircle, DollarSign, Eye, Loader2, FileEdit, ShoppingCart, BadgeCheck, PackageOpen } from "lucide-react";
+import { Plus, Search, FileText, Trash2, Download, CheckCircle, Pencil, PackageCheck, MessageCircle, DollarSign, Eye, Loader2, FileEdit, ShoppingCart, BadgeCheck, PackageOpen, RotateCcw } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -90,6 +91,11 @@ export default function PurchaseProforma() {
   // Delete
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
+
+  // Void
+  const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
+  const [voidOrder, setVoidOrder] = useState<PurchaseOrder | null>(null);
+  const [voiding, setVoiding] = useState(false);
 
   // Costs dialog
   const [costDialogOpen, setCostDialogOpen] = useState(false);
@@ -284,7 +290,7 @@ export default function PurchaseProforma() {
     setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
   };
 
-  // ── CONFIRM ORDER (Create PO) ──
+  // ── CONFIRM ORDER (Create PO + Purchase Invoice + Delivery Note) ──
   const handleConfirmOrder = async (order: PurchaseOrder) => {
     setSaving(true);
     const { data: poNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_order" });
@@ -294,48 +300,81 @@ export default function PurchaseProforma() {
       subtotal: order.subtotal, gst: order.gst, total: order.total, status: "confirmed", proforma_id: order.id,
     }).select().single();
     if (poErr || !po) { toast.error("Failed to create PO: " + (poErr?.message || "Unknown error")); setSaving(false); return; }
-      const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*").eq("proforma_id", order.id);
-      if (ppItems?.length) {
-        await supabase.from("purchase_order_items").insert(
-          ppItems.map((i: any) => ({
-            po_id: po.id, product_id: i.product_id, quantity: Number(i.quantity_requested),
-            quantity_confirmed: Number(i.quantity_requested), rate: Number(i.rate), amount: Number(i.amount),
-          }))
-        );
-      }
-      const { data: ppCosts } = await supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", order.id);
-      if (ppCosts?.length) {
-        await supabase.from("additional_costs").insert(
-          ppCosts.map((c: any) => ({ reference_type: "purchase_order", reference_id: po.id, cost_type: c.cost_type, description: c.description, amount: Number(c.amount), vendor_id: c.vendor_id }))
-        );
-      }
-      await supabase.from("purchase_proformas").update({ status: "ordered", converted_po_id: po.id }).eq("id", order.id);
-      toast.success(`PO ${poNumber} created`);
 
-      // Auto-download PO PDF
-      const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", po.id);
-      const poHtml = generatePdfHtml({
-        title: "PURCHASE ORDER", documentNumber: poNumber, date: po.date, statusTheme: "confirmed" as const,
-        partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
-        columns: [
-          { header: "#", key: "idx" }, { header: "Product", key: "name" },
-          { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
-          { header: "Amount", key: "amount", align: "right" },
-        ],
-        rows: (poItems || []).map((i: any, idx: number) => ({
-          idx: idx + 1, name: i.products?.name || "Item",
-          quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
-        })),
-        totals: [
-          { label: "Subtotal", value: `PKR ${Number(po.subtotal).toLocaleString()}` },
-          { label: "GST", value: `PKR ${Number(po.gst).toLocaleString()}` },
-          { label: "Total", value: `PKR ${Number(po.total).toLocaleString()}` },
-        ],
-        settings, template: getTemplate("purchase_order"),
-      });
-      setPdfHtml(poHtml); setPdfTitle(`Purchase Order — ${poNumber}`); setPdfOpen(true);
-      setPreviewOpen(false); setSaving(false); load();
-    
+    const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*").eq("proforma_id", order.id);
+    if (ppItems?.length) {
+      await supabase.from("purchase_order_items").insert(
+        ppItems.map((i: any) => ({
+          po_id: po.id, product_id: i.product_id, quantity: Number(i.quantity_requested),
+          quantity_confirmed: Number(i.quantity_requested), rate: Number(i.rate), amount: Number(i.amount),
+        }))
+      );
+    }
+
+    const { data: ppCosts } = await supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", order.id);
+    if (ppCosts?.length) {
+      await supabase.from("additional_costs").insert(
+        ppCosts.map((c: any) => ({ reference_type: "purchase_order", reference_id: po.id, cost_type: c.cost_type, description: c.description, amount: Number(c.amount), vendor_id: c.vendor_id }))
+      );
+    }
+
+    // Auto-create Purchase Invoice (Bill)
+    try {
+      const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
+      if (billNumber) {
+        const supplier = suppliers.find(s => s.id === order.supplier_id);
+        const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
+        const whtAmount = settings?.wht_enabled ? Number(order.subtotal) * whtRate / 100 : 0;
+        const netTotal = Number(order.subtotal) + Number(order.gst) - whtAmount;
+        await supabase.from("purchase_invoices").insert({
+          bill_number: billNumber, supplier_id: order.supplier_id,
+          date: po.date, subtotal: Number(order.subtotal), gst: Number(order.gst),
+          wht_amount: whtAmount, total: netTotal, status: "unpaid",
+        });
+      }
+    } catch { /* bill generation is best-effort */ }
+
+    // Auto-create Delivery Note
+    try {
+      const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "delivery_note" });
+      if (dnNumber && ppItems?.length) {
+        const dnItems = ppItems.map((i: any) => ({
+          product_name: i.product_name || products.find(p => p.id === i.product_id)?.name || "Item",
+          quantity: Number(i.quantity_requested),
+        }));
+        await supabase.from("delivery_notes").insert({
+          dn_number: dnNumber, reference_type: "purchase_order", reference_id: po.id,
+          supplier_id: order.supplier_id, items: dnItems,
+        });
+      }
+    } catch { /* DN generation is best-effort */ }
+
+    await supabase.from("purchase_proformas").update({ status: "ordered", converted_po_id: po.id }).eq("id", order.id);
+    toast.success(`PO ${poNumber} + Bill + Delivery Note created`);
+
+    // Auto-download PO PDF
+    const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", po.id);
+    const poHtml = generatePdfHtml({
+      title: "PURCHASE ORDER", documentNumber: poNumber, date: po.date, statusTheme: "confirmed" as const,
+      partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
+      columns: [
+        { header: "#", key: "idx" }, { header: "Product", key: "name" },
+        { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+        { header: "Amount", key: "amount", align: "right" },
+      ],
+      rows: (poItems || []).map((i: any, idx: number) => ({
+        idx: idx + 1, name: i.products?.name || "Item",
+        quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+      })),
+      totals: [
+        { label: "Subtotal", value: `PKR ${Number(po.subtotal).toLocaleString()}` },
+        { label: "GST", value: `PKR ${Number(po.gst).toLocaleString()}` },
+        { label: "Total", value: `PKR ${Number(po.total).toLocaleString()}` },
+      ],
+      settings, template: getTemplate("purchase_order"),
+    });
+    setPdfHtml(poHtml); setPdfTitle(`Purchase Order — ${poNumber}`); setPdfOpen(true);
+    setPreviewOpen(false); setSaving(false); load();
   };
 
   // ── RECEIVE (GRN + Bill) ──
@@ -522,6 +561,38 @@ export default function PurchaseProforma() {
     setCostDialogOpen(false); setCostDesc(""); setCostAmount(""); setCostVendorId("");
   };
 
+  // ── VOID (Rollback) ──
+  const promptVoid = (order: PurchaseOrder) => { setVoidOrder(order); setVoidConfirmOpen(true); };
+  const confirmVoid = async () => {
+    if (!voidOrder || !voidOrder.converted_po_id) return;
+    setVoiding(true);
+    const poId = voidOrder.converted_po_id;
+    // 1. Delete stock movements linked to any GRN for this PO
+    const { data: grns } = await supabase.from("goods_received_notes").select("id").eq("po_id", poId);
+    if (grns?.length) {
+      for (const grn of grns) {
+        await supabase.from("stock_movements").delete().eq("reference_id", grn.id);
+        await supabase.from("grn_items").delete().eq("grn_id", grn.id);
+      }
+      // Delete purchase invoices linked to GRNs
+      const grnIds = grns.map(g => g.id);
+      await supabase.from("purchase_invoices").delete().in("grn_id", grnIds);
+      await supabase.from("goods_received_notes").delete().in("id", grnIds);
+    }
+    // 2. Delete purchase invoices linked directly (from confirm)
+    await supabase.from("purchase_invoices").delete().eq("supplier_id", voidOrder.supplier_id || "").is("grn_id", null);
+    // 3. Delete delivery notes
+    await supabase.from("delivery_notes").delete().eq("reference_id", poId);
+    // 4. Delete PO items and PO
+    await supabase.from("purchase_order_items").delete().eq("po_id", poId);
+    await supabase.from("additional_costs").delete().eq("reference_type", "purchase_order").eq("reference_id", poId);
+    await supabase.from("purchase_orders").delete().eq("id", poId);
+    // 5. Reset proforma to draft
+    await supabase.from("purchase_proformas").update({ status: "draft", converted_po_id: null }).eq("id", voidOrder.id);
+    toast.success(`Order ${voidOrder.proforma_number} voided — PO, bill, delivery note & stock reversed`);
+    setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); setPreviewOpen(false); load();
+  };
+
   // ── DELETE ──
   const promptDelete = (ids: string[]) => { setDeleteIds(ids); setDeleteConfirmOpen(true); };
   const confirmDelete = async () => {
@@ -658,11 +729,10 @@ export default function PurchaseProforma() {
     >
       <div className="space-y-4">
             {/* PREMIUM STATUS BUTTONS */}
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               {[
                 { label: "All", ...allStats, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
                 { label: "Draft", ...draftStats, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
-                { label: "Ordered", ...orderedStats, icon: ShoppingCart, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "ordered" },
                 { label: "Confirmed", ...confirmedStats, icon: BadgeCheck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "confirmed" },
                 { label: "Received", ...receivedStats, icon: PackageOpen, gradient: "from-emerald-500/8 to-emerald-600/15", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-400 to-emerald-600", textColor: "text-emerald-600", statusKey: "received" },
               ].map(s => (
@@ -741,13 +811,17 @@ export default function PurchaseProforma() {
                                   <PackageCheck className="h-3 w-3" /> Receive
                                 </Button>
                               )}
+                              {(order.status === "ordered" || order.status === "confirmed") && (
+                                <Button size="sm" variant="outline" onClick={() => promptVoid(order)} className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10">
+                                  <RotateCcw className="h-3 w-3" /> Void
+                                </Button>
+                              )}
                               {order.status === "draft" && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSheet(order)} title="Edit">
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
                               )}
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
-                                // Load items if not already loaded, then print
                                 const { data: its } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
                                 setPreviewItems(its || []);
                                 setPreviewOrder(order);
@@ -887,6 +961,11 @@ export default function PurchaseProforma() {
                         <Button variant="ghost" onClick={() => promptDelete([previewOrder.id])} className="flex-1 gap-2 h-9 text-xs text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /> Delete</Button>
                       </div>
                     )}
+                    {(previewOrder.status === "ordered" || previewOrder.status === "confirmed") && (
+                      <Button variant="outline" onClick={() => promptVoid(previewOrder)} className="w-full h-10 gap-2 text-sm text-destructive border-destructive/30 hover:bg-destructive/10">
+                        <RotateCcw className="h-4 w-4" /> Void — Rollback PO, Bill & Delivery Note
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -997,6 +1076,25 @@ export default function PurchaseProforma() {
               </Button>
             </DialogContent>
           </Dialog>
+
+          {/* VOID CONFIRM */}
+          <AlertDialog open={voidConfirmOpen} onOpenChange={setVoidConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Void Order {voidOrder?.proforma_number}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will delete the PO, purchase invoice (bill), delivery note, GRN, and reverse all stock movements. The order will return to Draft status.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={voiding}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmVoid} disabled={voiding} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  {voiding && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Void & Rollback
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
       <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );

@@ -12,7 +12,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, MessageCircle, FileText, Loader2, X, Share2, Eye, FileEdit, Send, Truck, CreditCard } from "lucide-react";
+import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, MessageCircle, FileText, Loader2, X, Share2, Eye, FileEdit, Send, Truck, RotateCcw } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -84,6 +85,11 @@ export default function ProformaInvoices() {
   // Delete
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
+
+  // Void
+  const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
+  const [voidOrder, setVoidOrder] = useState<SalesOrder | null>(null);
+  const [voiding, setVoiding] = useState(false);
 
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
@@ -464,6 +470,26 @@ export default function ProformaInvoices() {
       setSubmitOpen(false); setPreviewOpen(false); setSubmitting(false); load();
   };
 
+  // ── VOID (Rollback) ──
+  const promptVoid = (order: SalesOrder) => { setVoidOrder(order); setVoidConfirmOpen(true); };
+  const confirmVoid = async () => {
+    if (!voidOrder || !voidOrder.converted_invoice_id) return;
+    setVoiding(true);
+    const invoiceId = voidOrder.converted_invoice_id;
+    // 1. Delete stock movements (trigger restores inventory)
+    await supabase.from("stock_movements").delete().eq("reference_id", invoiceId);
+    // 2. Delete invoice items
+    await supabase.from("sales_invoice_items").delete().eq("invoice_id", invoiceId);
+    // 3. Delete invoice (trigger reverses customer balance)
+    await supabase.from("sales_invoices").delete().eq("id", invoiceId);
+    // 4. Delete delivery note
+    await supabase.from("delivery_notes").delete().eq("reference_id", invoiceId);
+    // 5. Reset proforma to draft
+    await supabase.from("proforma_invoices").update({ status: "draft", converted_invoice_id: null }).eq("id", voidOrder.id);
+    toast.success(`Order ${voidOrder.proforma_number} voided — invoice, delivery note & stock reversed`);
+    setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); setPreviewOpen(false); load();
+  };
+
   // ── DELETE ──
   const promptDelete = (ids: string[]) => { setDeleteIds(ids); setDeleteConfirmOpen(true); };
   const confirmDelete = async () => {
@@ -505,7 +531,6 @@ export default function ProformaInvoices() {
   const draftStats = statsByStatus("draft");
   const invoicedStats = statsByStatus("invoiced");
   const dispatchedStats = statsByStatus("dispatched");
-  const paidStats = statsByStatus("paid");
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
@@ -579,13 +604,12 @@ export default function ProformaInvoices() {
 
       <div className="space-y-4">
             {/* PREMIUM STATUS BUTTONS */}
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               {[
                 { label: "All", ...allStats, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
                 { label: "Draft", ...draftStats, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
                 { label: "Invoiced", ...invoicedStats, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "invoiced" },
                 { label: "Dispatched", ...dispatchedStats, icon: Truck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "dispatched" },
-                { label: "Paid", ...paidStats, icon: CreditCard, gradient: "from-emerald-500/8 to-emerald-600/15", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-400 to-emerald-600", textColor: "text-emerald-600", statusKey: "paid" },
               ].map(s => (
                 <button key={s.label} onClick={() => setStatusFilter(s.statusKey)}
                   className={`group relative flex flex-col items-center justify-center h-[100px] rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
@@ -661,6 +685,11 @@ export default function ProformaInvoices() {
                               {order.status === "draft" && (
                                 <Button size="sm" onClick={() => openSubmitDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-sm">
                                   <CheckCircle className="h-3 w-3" /> Submit
+                                </Button>
+                              )}
+                              {(order.status === "invoiced" || order.status === "dispatched") && (
+                                <Button size="sm" variant="outline" onClick={() => promptVoid(order)} className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10">
+                                  <RotateCcw className="h-3 w-3" /> Void
                                 </Button>
                               )}
                               {order.status === "draft" && (
@@ -808,6 +837,11 @@ export default function ProformaInvoices() {
                         </Button>
                       </div>
                     )}
+                    {(previewOrder.status === "invoiced" || previewOrder.status === "dispatched") && (
+                      <Button variant="outline" onClick={() => promptVoid(previewOrder)} className="w-full h-10 gap-2 text-sm text-destructive border-destructive/30 hover:bg-destructive/10">
+                        <RotateCcw className="h-4 w-4" /> Void — Rollback Invoice & Stock
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -897,8 +931,27 @@ export default function ProformaInvoices() {
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                 Confirm & Create Invoice + Delivery Note
               </Button>
-            </DialogContent>
+             </DialogContent>
           </Dialog>
+
+          {/* VOID CONFIRM */}
+          <AlertDialog open={voidConfirmOpen} onOpenChange={setVoidConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Void Order {voidOrder?.proforma_number}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will delete the associated invoice, delivery note, and reverse all stock movements. The order will return to Draft status. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={voiding}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmVoid} disabled={voiding} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  {voiding && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Void & Rollback
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
       <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );
