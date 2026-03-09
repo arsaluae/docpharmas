@@ -92,6 +92,11 @@ export default function PurchaseProforma() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
 
+  // Void
+  const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
+  const [voidOrder, setVoidOrder] = useState<PurchaseOrder | null>(null);
+  const [voiding, setVoiding] = useState(false);
+
   // Costs dialog
   const [costDialogOpen, setCostDialogOpen] = useState(false);
   const [costDialogId, setCostDialogId] = useState("");
