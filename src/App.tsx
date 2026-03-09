@@ -28,7 +28,7 @@ import PrinterLedger from "./pages/PrinterLedger";
 import PrintJobs from "./pages/PrintJobs";
 import DataImport from "./pages/DataImport";
 import Settings from "./pages/Settings";
-import DeliveryNotes from "./pages/DeliveryNotes";
+// DeliveryNotes moved into ProformaInvoices page as a tab
 import ProfitLoss from "./pages/reports/ProfitLoss";
 import BalanceSheet from "./pages/reports/BalanceSheet";
 import CashFlow from "./pages/reports/CashFlow";
