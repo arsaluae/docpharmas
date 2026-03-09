@@ -511,7 +511,7 @@ export default function PurchaseProforma() {
         settings, template: getTemplate("grn"),
       });
       setPdfHtml(grnHtml); setPdfTitle(`GRN — ${grnNumber}`); setPdfOpen(true);
-      setReceiveOpen(false); setReceivedBy(""); setReceiveNotes(""); setReceiving(false); setPreviewOpen(false); load();
+      setReceiveOpen(false); setReceivedBy(""); setReceiveNotes(""); setReceiving(false); load();
     } else { setReceiving(false); }
   };
 
