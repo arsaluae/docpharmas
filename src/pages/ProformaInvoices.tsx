@@ -114,8 +114,17 @@ export default function ProformaInvoices() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) navigate("/auth");
     };
-    check(); load(); loadDeliveryNotes();
+    check(); load(); loadDeliveryNotes(); loadBankAccounts();
   }, [navigate]);
+
+  const loadBankAccounts = async () => {
+    const { data } = await supabase.from("bank_accounts").select("id, name, bank_name").order("is_default", { ascending: false });
+    if (data) {
+      setBankAccounts(data);
+      const meezan = data.find(b => b.bank_name.toLowerCase().includes("meezan"));
+      setPaymentBankId(meezan?.id || data[0]?.id || "");
+    }
+  };
 
   // ── SIMPLIFIED LOAD: proforma_invoices only ──
   const load = async () => {
