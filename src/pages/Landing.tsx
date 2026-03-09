@@ -80,10 +80,9 @@ export default function Landing() {
       {/* NAVBAR — Light */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-[#E2E8F0]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src={docpharmasLogo} alt="DocPharmas" className="w-9 h-9 rounded-xl object-cover" />
-              <span className="font-heading font-bold text-xl tracking-tight text-[#1E293B]">DocPharmas</span>
-            </div>
+          <div className="flex items-center gap-3">
+            <img src={docpharmasLogo} alt="DocPharmas" className="w-9 h-9 rounded-xl object-cover" />
+            <span className="font-heading font-bold text-xl tracking-tight text-[#1E293B]">DocPharmas</span>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" onClick={() => navigate("/auth")} className="text-sm text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9]">
