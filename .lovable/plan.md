@@ -1,34 +1,53 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Sales & Purchase Order Workflow Improvements
 
-## Two Changes
+## Changes Overview
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+### 1. Sales Orders: Add Void/Rollback for Invoiced Orders
+Currently once a draft is submitted (creating invoice + delivery note + stock movements), there's no way to undo it. Add a "Void" button that:
+- Deletes the associated `sales_invoice` and its `sales_invoice_items`
+- Deletes the associated `delivery_note`
+- Deletes the `stock_movements` linked to that invoice (which auto-restores inventory via the trigger)
+- Resets the proforma back to `draft` status (clears `converted_invoice_id`)
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+The Void button will appear for orders with status `invoiced` or `dispatched`, with a confirmation dialog.
 
-## Files Changed
+### 2. Sales Orders: Remove "Paid" Status Button
+Remove the 5th "Paid" status filter button from the dashboard grid, making it a 4-column grid: All, Draft, Invoiced, Dispatched.
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+### 3. Purchase Orders: Confirm Creates Invoice + Delivery Note
+Currently: Draft → Confirm (creates PO only) → Receive (creates GRN + Bill).
+Change to: When a draft purchase order is **confirmed**, also auto-create:
+- A **Purchase Invoice** (bill) with the order items and totals
+- A **Delivery Note** (without prices, just product names and quantities)
 
-No other files change. The template system and all callers remain the same.
+Update the purchase dashboard status buttons to: All, Draft, Confirmed, Received (remove Ordered, keep the receive flow for batch/expiry assignment).
+
+### 4. Purchase Orders: Add Void/Rollback
+Same as sales - add ability to void a confirmed purchase order by deleting the auto-created invoice and delivery note, resetting back to draft.
+
+## Files to Change
+
+| File | Change |
+|------|--------|
+| `src/pages/ProformaInvoices.tsx` | Add `handleVoid` function, void button in actions + preview; remove Paid status button; change grid to 4 columns |
+| `src/pages/PurchaseProforma.tsx` | Update `handleConfirmOrder` to also create purchase invoice + delivery note; add `handleVoid`; update status buttons |
+
+## Technical Details
+
+**Sales Void Logic:**
+```
+1. Get converted_invoice_id from proforma
+2. Delete stock_movements where reference_id = invoice_id (trigger restores stock)
+3. Delete sales_invoice_items where invoice_id
+4. Delete sales_invoices where id (trigger reverses customer balance)
+5. Delete delivery_notes where reference_id = invoice_id
+6. Update proforma: status = 'draft', converted_invoice_id = null
+```
+
+**Purchase Confirm Enhancement:**
+After creating the PO (existing code), also:
+1. Generate `purchase_invoice` number and insert bill
+2. Generate `delivery_note` number and insert DN with supplier_id, items (no prices)
 
