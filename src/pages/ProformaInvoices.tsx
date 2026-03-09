@@ -467,30 +467,11 @@ export default function ProformaInvoices() {
       await supabase.from("proforma_invoices").update({ status: "invoiced", converted_invoice_id: inv.id }).eq("id", submitOrder.id);
       toast.success(`Invoice ${invNumber} + Delivery Note created successfully`);
 
-      // Auto-download invoice PDF
-      const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", inv.id);
-      const autoHtml = generatePdfHtml({
-        title: "SALES INVOICE", documentNumber: invNumber, date: inv.date, statusTheme: "dispatched" as const,
-        partyLabel: "Customer", partyName: (inv.customers as any)?.name || (submitOrder.customers as any)?.name || "—",
-        columns: [
-          { header: "#", key: "idx" }, { header: "Product", key: "name" }, { header: "Batch", key: "batch_number" },
-          { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
-          { header: "Amount", key: "amount", align: "right" },
-        ],
-        rows: (invItems || []).map((i: any, idx: number) => ({
-          idx: idx + 1, name: i.products?.name || "Item", batch_number: i.batch_number || "—",
-          quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
-        })),
-        totals: [
-          { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
-          { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
-          { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
-        ],
-        settings, template: getTemplate("sales_invoice"),
-      });
-      setPdfHtml(autoHtml); setPdfTitle(`Sales Invoice — ${invNumber}`); setPdfOpen(true);
+      // Show post-submit document choice dialog
+      setPostSubmitOrder({ ...submitOrder, converted_invoice_id: inv.id, invoice_number: invNumber });
+      setPostSubmitInvoiceId(inv.id);
 
-      setSubmitOpen(false); setSubmitting(false); load();
+      setSubmitOpen(false); setSubmitting(false); setPostSubmitOpen(true); load();
   };
 
   // ── VOID (Rollback) ──
