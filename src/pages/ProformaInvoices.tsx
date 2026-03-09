@@ -531,7 +531,6 @@ export default function ProformaInvoices() {
   const draftStats = statsByStatus("draft");
   const invoicedStats = statsByStatus("invoiced");
   const dispatchedStats = statsByStatus("dispatched");
-  const paidStats = statsByStatus("paid");
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
