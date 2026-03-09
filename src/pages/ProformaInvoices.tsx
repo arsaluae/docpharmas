@@ -895,6 +895,7 @@ export default function ProformaInvoices() {
                         <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                         <TableHead className="font-semibold">Order #</TableHead>
                         <TableHead className="font-semibold">Customer</TableHead>
+                        <TableHead className="font-semibold">Items</TableHead>
                         <TableHead className="font-semibold">Date</TableHead>
                         <TableHead className="font-semibold">Status</TableHead>
                         <TableHead className="text-right font-semibold">Total</TableHead>
@@ -904,17 +905,22 @@ export default function ProformaInvoices() {
                     <TableBody>
                       {filtered.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-16">
+                          <TableCell colSpan={8} className="text-center py-16">
                             <FilePlus className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
                             <p className="text-muted-foreground font-medium">No sales invoices yet</p>
                             <p className="text-xs text-muted-foreground mt-1">Click "New Order" to create your first sales invoice</p>
                           </TableCell>
                         </TableRow>
-                      ) : filtered.map(order => (
+                      ) : filtered.map(order => {
+                        const pfItems = getPfItems(order);
+                        const itemNames = pfItems.map(i => i.product_name).filter(Boolean);
+                        const itemsDisplay = itemNames.length <= 2 ? itemNames.join(", ") : `${itemNames.slice(0, 2).join(", ")} +${itemNames.length - 2} more`;
+                        return (
                         <TableRow key={order.id} className="group cursor-pointer hover:bg-muted/30 transition-colors" data-state={selected.has(order.id) ? "selected" : undefined}>
                           <TableCell><Checkbox checked={selected.has(order.id)} onCheckedChange={() => toggleSelect(order.id)} /></TableCell>
                           <TableCell className="font-mono font-semibold text-sm" onClick={() => openPreview(order)}>{order.proforma_number}</TableCell>
                           <TableCell className="text-sm" onClick={() => openPreview(order)}>{(order.customers as any)?.name || "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate" onClick={() => openPreview(order)} title={itemNames.join(", ")}>{itemsDisplay || "—"}</TableCell>
                           <TableCell className="text-sm text-muted-foreground" onClick={() => openPreview(order)}>{order.date}</TableCell>
                           <TableCell onClick={() => openPreview(order)}>
                             <Badge variant="outline" className={`text-[10px] font-semibold ${statusColor(order.status)}`}>{statusLabel(order.status)}</Badge>
@@ -929,6 +935,11 @@ export default function ProformaInvoices() {
                                   <CheckCircle className="h-3 w-3" /> Submit
                                 </Button>
                               )}
+                              {(order.status === "invoiced" || order.status === "dispatched") && order.customer_id && (
+                                <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-600 to-green-700 text-white shadow-sm" title="Receive Payment">
+                                  <DollarSign className="h-3 w-3" /> Payment
+                                </Button>
+                              )}
                               {(order.status === "invoiced" || order.status === "dispatched") && (
                                 <Button size="sm" variant="outline" onClick={() => promptVoid(order)} className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10">
                                   <RotateCcw className="h-3 w-3" /> Void
@@ -939,6 +950,9 @@ export default function ProformaInvoices() {
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
                               )}
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shareWhatsApp(order)} title="WhatsApp to Customer">
+                                <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printOrder(order)} title="Download PDF">
                                 <Download className="h-3.5 w-3.5" />
                               </Button>
@@ -960,7 +974,8 @@ export default function ProformaInvoices() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}
