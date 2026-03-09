@@ -1,37 +1,34 @@
 
 
-# Fix: Submitted Orders Show in Both Tabs + Undo "Mark Delivered"
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## Issues
+## Two Changes
 
-1. **Submitted orders should appear in both Invoice AND Delivery Notes tabs** — Currently the DN tab only loads when clicked; after submit, user has to manually click the DN tab to see it. The post-submit flow already creates both documents but the DN tab count doesn't update until clicked.
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-2. **"Mark Delivered" has no undo** — Once clicked, there's no way to revert back to "Issued". The only option is the Void button which deletes everything (invoice, stock, DN).
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-3. **Void button on DN tab does full rollback** — This is correct for voiding, but user wants a SEPARATE undo for just the "delivered" status toggle.
+## Files Changed
 
-## Changes — `src/pages/ProformaInvoices.tsx`
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
 
-### 1. Auto-refresh DN tab after submit
-- In `handleSubmit`, after success, also call `loadDeliveryNotes()` so the DN tab count updates immediately in the status buttons.
-
-### 2. Add "Undo Delivered" toggle
-- When `dn.status === "delivered"`, show an undo button (RotateCcw icon in amber, NOT destructive) that sets status back to `"issued"` — just a simple status update, no invoice/stock rollback.
-- Keep the existing Void button (destructive) separate for full rollback.
-
-### 3. UI for delivered status toggle
-```
-Issued state:   [Truck icon] Mark Delivered
-Delivered state: [RotateCcw icon] Undo Delivered  (amber, not red)
-```
-The Void button (red RotateCcw) remains separate and always visible.
-
-### 4. Ensure DN count in status buttons updates
-- Call `loadDeliveryNotes()` on initial load and after submit, so the count badge is always current.
-
-## Summary of button changes in DN Actions column:
-- **Eye** — View DN PDF (always)
-- **Truck** (emerald) — Mark Delivered (only when issued)
-- **RotateCcw** (amber) — Undo Delivered (only when delivered) — just toggles status
-- **RotateCcw** (red/destructive) — Void (always) — full cascade delete
+No other files change. The template system and all callers remain the same.
 
