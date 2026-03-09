@@ -97,7 +97,15 @@ export default function ProformaInvoices() {
   const [voidOrder, setVoidOrder] = useState<SalesOrder | null>(null);
   const [voiding, setVoiding] = useState(false);
 
-  const { settings } = useCompanySettings();
+  // Receive Payment
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentOrder, setPaymentOrder] = useState<SalesOrder | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+  const [paymentBankId, setPaymentBankId] = useState("");
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string; bank_name: string }[]>([]);
+  const [paymentSaving, setPaymentSaving] = useState(false);
+
   const { getTemplate } = useDocumentTemplates();
 
   useEffect(() => {
