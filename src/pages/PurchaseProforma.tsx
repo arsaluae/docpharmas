@@ -1052,6 +1052,33 @@ export default function PurchaseProforma() {
           </AlertDialog>
 
       <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+
+      {/* ═══ POST-CONFIRM DOCUMENT CHOICE ═══ */}
+      <Dialog open={postConfirmOpen} onOpenChange={setPostConfirmOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-center">Documents Ready</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground text-center">Purchase Invoice and Delivery Note have been created. Which document would you like to view?</p>
+          <div className="flex flex-col gap-3 mt-2">
+            <Button
+              className="h-12 gap-2 bg-gradient-to-r from-emerald-600 to-teal-700 text-white"
+              onClick={() => { setPostConfirmOpen(false); if (postConfirmOrder) printPurchaseInvoice(postConfirmOrder); }}
+            >
+              <FileText className="h-4 w-4" /> View Purchase Invoice
+              <span className="text-xs opacity-75 ml-1">(for records)</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-12 gap-2"
+              onClick={() => { setPostConfirmOpen(false); if (postConfirmOrder) printPurchaseDeliveryNote(postConfirmOrder); }}
+            >
+              <Truck className="h-4 w-4" /> View Delivery Note
+              <span className="text-xs text-muted-foreground ml-1">(for staff)</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
