@@ -800,14 +800,21 @@ export default function ProformaInvoices() {
                                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => viewDnPdf(dn)} title="View DN PDF">
                                     <Eye className="h-3.5 w-3.5" />
                                   </Button>
-                                  {dn.status === "issued" && (
+                                  {dn.status === "issued" ? (
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
                                       await supabase.from("delivery_notes").update({ status: "delivered" }).eq("id", dn.id);
                                       toast.success("Marked as delivered"); loadDeliveryNotes();
                                     }} title="Mark Delivered">
                                       <Truck className="h-3.5 w-3.5 text-emerald-600" />
                                     </Button>
-                                  )}
+                                  ) : dn.status === "delivered" ? (
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
+                                      await supabase.from("delivery_notes").update({ status: "issued" }).eq("id", dn.id);
+                                      toast.success("Reverted to issued"); loadDeliveryNotes();
+                                    }} title="Undo Delivered">
+                                      <RotateCcw className="h-3.5 w-3.5 text-amber-600" />
+                                    </Button>
+                                  ) : null}
                                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => voidFromDn(dn)} title="Void (delete invoice + DN)">
                                     <RotateCcw className="h-3.5 w-3.5 text-destructive" />
                                   </Button>
