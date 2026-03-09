@@ -317,7 +317,7 @@ export default function ProformaInvoices() {
     const custPhone = (order.customers as any)?.phone || undefined;
     const custArea = (order.customers as any)?.area || undefined;
     const html = generatePdfHtml({
-      title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
+      title: "SALES INVOICE", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
       partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
       meta: [{ label: "Validity", value: `${order.validity_days} days` }],
       columns: [
@@ -334,7 +334,38 @@ export default function ProformaInvoices() {
       ],
       notes: order.payment_instructions || undefined, settings,
     });
-    setPdfHtml(html); setPdfTitle(`Sales Order — ${order.proforma_number}`); setPdfOpen(true);
+    setPdfHtml(html); setPdfTitle(`Sales Invoice — ${order.proforma_number}`); setPdfOpen(true);
+  };
+  
+  // ── RECEIVE PAYMENT ──
+  const openPaymentDialog = (order: SalesOrder) => {
+    setPaymentOrder(order);
+    setPaymentAmount(String(order.total));
+    setPaymentMethod("bank_transfer");
+    const meezan = bankAccounts.find(b => b.bank_name.toLowerCase().includes("meezan"));
+    setPaymentBankId(meezan?.id || bankAccounts[0]?.id || "");
+    setPaymentOpen(true);
+  };
+
+  const handleReceivePayment = async () => {
+    if (!paymentOrder) return;
+    setPaymentSaving(true);
+    const { data: payNum } = await supabase.rpc("generate_document_number", { p_document_type: "payment" });
+    if (!payNum) { toast.error("Failed to generate payment number"); setPaymentSaving(false); return; }
+    const { error } = await supabase.from("payments").insert({
+      payment_number: payNum,
+      party_type: "customer",
+      party_id: paymentOrder.customer_id!,
+      type: "received",
+      amount: Number(paymentAmount),
+      payment_method: paymentMethod,
+      bank_account_id: paymentMethod === "cash" ? null : paymentBankId || null,
+      date: new Date().toISOString().split("T")[0],
+      reference: paymentOrder.invoice_number || paymentOrder.proforma_number,
+    });
+    if (error) { toast.error("Payment failed: " + error.message); setPaymentSaving(false); return; }
+    toast.success(`Payment PKR ${Number(paymentAmount).toLocaleString()} received`);
+    setPaymentOpen(false); setPaymentSaving(false); load();
   };
 
   const printInvoice = async (order: SalesOrder) => {
