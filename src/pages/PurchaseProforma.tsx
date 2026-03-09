@@ -426,7 +426,7 @@ export default function PurchaseProforma() {
         }))
       );
 
-      // Stock movements for received quantities
+      // Stock movements for received quantities (purchase_in = actual received qty, no extra adjustment)
       const varianceItems: { name: string; ordered: number; received: number; diff: number }[] = [];
       for (const item of receiveItems) {
         if (item.product_id) {
@@ -436,58 +436,54 @@ export default function PurchaseProforma() {
             reference_type: "grn", reference_id: grn.id, date: grn.date, notes: `GRN ${grnNumber}`,
           });
 
-          // Stock variance check
+          // Track variance for reporting only (no extra stock movement — purchase_in already has correct qty)
           const ordered = Number(item.quantity_confirmed) || Number(item.quantity);
           const received = Number(item.quantity_received);
           if (ordered !== received) {
-            const diff = received - ordered;
-            varianceItems.push({ name: item.item_name, ordered, received, diff });
-            // Create adjustment movement for variance
-            if (diff > 0) {
-              await supabase.from("stock_movements").insert({
-                product_id: item.product_id, quantity: Math.abs(diff),
-                movement_type: "adjustment_in", batch_number: item.batch_number || null,
-                reference_type: "grn", reference_id: grn.id, date: grn.date,
-                notes: `Stock variance: received ${received} vs ordered ${ordered} (over by ${Math.abs(diff)})`,
-              });
-            } else {
-              await supabase.from("stock_movements").insert({
-                product_id: item.product_id, quantity: Math.abs(diff),
-                movement_type: "adjustment_out", batch_number: item.batch_number || null,
-                reference_type: "grn", reference_id: grn.id, date: grn.date,
-                notes: `Stock variance: received ${received} vs ordered ${ordered} (short by ${Math.abs(diff)})`,
-              });
-            }
+            varianceItems.push({ name: item.item_name, ordered, received, diff: received - ordered });
           }
         }
       }
 
       await supabase.from("purchase_orders").update({ status: "received" }).eq("id", poId);
 
-      try {
-        const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
-        if (billNumber) {
-          const { data: poData } = await supabase.from("purchase_orders").select("subtotal, gst, total, supplier_id").eq("id", poId).single();
-          if (poData) {
-            const supplier = suppliers.find(s => s.id === poData.supplier_id);
-            const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
-            const whtAmount = settings?.wht_enabled ? Number(poData.subtotal) * whtRate / 100 : 0;
-            const netTotal = Number(poData.subtotal) + Number(poData.gst) - whtAmount;
-            await supabase.from("purchase_invoices").insert({
-              bill_number: billNumber, supplier_id: poData.supplier_id, grn_id: grn.id,
-              date: grn.date, subtotal: Number(poData.subtotal), gst: Number(poData.gst),
-              wht_amount: whtAmount, total: netTotal, status: "unpaid",
-            });
-            toast.success(`GRN ${grnNumber} + Bill ${billNumber} created`, {
-              action: {
-                label: "Create Print Job",
-                onClick: () => navigate(`/print-jobs?from_grn=1`),
-              },
-            });
+      // Only create bill at receive if one wasn't already created at confirm stage
+      const { data: existingBill } = await supabase.from("purchase_invoices")
+        .select("id")
+        .eq("supplier_id", receivePO.supplier_id || "")
+        .is("grn_id", null)
+        .limit(1);
+      
+      if (existingBill && existingBill.length > 0) {
+        // Link the existing bill (from confirm) to this GRN
+        await supabase.from("purchase_invoices").update({ grn_id: grn.id }).eq("id", existingBill[0].id);
+        toast.success(`GRN ${grnNumber} created & linked to existing bill`, {
+          action: { label: "Create Print Job", onClick: () => navigate(`/print-jobs?from_grn=1`) },
+        });
+      } else {
+        // No bill exists yet — create one now
+        try {
+          const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
+          if (billNumber) {
+            const { data: poData } = await supabase.from("purchase_orders").select("subtotal, gst, total, supplier_id").eq("id", poId).single();
+            if (poData) {
+              const supplier = suppliers.find(s => s.id === poData.supplier_id);
+              const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
+              const whtAmount = settings?.wht_enabled ? Number(poData.subtotal) * whtRate / 100 : 0;
+              const netTotal = Number(poData.subtotal) + Number(poData.gst) - whtAmount;
+              await supabase.from("purchase_invoices").insert({
+                bill_number: billNumber, supplier_id: poData.supplier_id, grn_id: grn.id,
+                date: grn.date, subtotal: Number(poData.subtotal), gst: Number(poData.gst),
+                wht_amount: whtAmount, total: netTotal, status: "unpaid",
+              });
+              toast.success(`GRN ${grnNumber} + Bill ${billNumber} created`, {
+                action: { label: "Create Print Job", onClick: () => navigate(`/print-jobs?from_grn=1`) },
+              });
+            }
           }
+        } catch {
+          toast.success(`GRN ${grnNumber} created`);
         }
-      } catch {
-        toast.success(`GRN ${grnNumber} created`);
       }
 
       // Show variance summary if any
@@ -576,8 +572,17 @@ export default function PurchaseProforma() {
       await supabase.from("purchase_invoices").delete().in("grn_id", grnIds);
       await supabase.from("goods_received_notes").delete().in("id", grnIds);
     }
-    // 2. Delete purchase invoices linked directly (from confirm)
-    await supabase.from("purchase_invoices").delete().eq("supplier_id", voidOrder.supplier_id || "").is("grn_id", null);
+    // 2. Delete purchase invoices linked to this specific PO (unlinked bills created at confirm)
+    // Find bills that match the PO's supplier and were created around the same time
+    const poId2 = voidOrder.converted_po_id;
+    const { data: poData } = await supabase.from("purchase_orders").select("date, supplier_id").eq("id", poId2!).single();
+    if (poData) {
+      // Delete only bills matching this PO's supplier + date that have no GRN link
+      await supabase.from("purchase_invoices").delete()
+        .eq("supplier_id", poData.supplier_id || "")
+        .eq("date", poData.date)
+        .is("grn_id", null);
+    }
     // 3. Delete delivery notes
     await supabase.from("delivery_notes").delete().eq("reference_id", poId);
     // 4. Delete PO items and PO

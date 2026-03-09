@@ -82,16 +82,30 @@ export default function Payments() {
     if (!partyId || !amount || Number(amount) <= 0) { toast.error("Party and amount required"); return; }
 
     if (editingId) {
-      // Delete-then-insert to let triggers fire
+      // Find old payment to calculate balance diffs
+      const oldPayment = payments.find(p => p.id === editingId);
+      if (!oldPayment) { toast.error("Payment not found"); return; }
+      
+      // Delete old record and insert new one (triggers handle balance reversal + application)
       const { error: delErr } = await supabase.from("payments").delete().eq("id", editingId);
-      if (delErr) { toast.error("Failed to update payment"); return; }
+      if (delErr) { toast.error("Failed to update payment: " + delErr.message); return; }
+      
       const { error: insErr } = await supabase.from("payments").insert({
         payment_number: editingNumber, type: paymentType, party_type: partyType, party_id: partyId,
         amount: Number(amount), payment_method: paymentMethod,
         bank_account_id: bankAccountId || null, cheque_number: chequeNumber || null,
         cheque_date: chequeDate || null, reference: reference || null, date: payDate, notes: notes || null,
       });
-      if (insErr) { toast.error("Failed to save payment"); return; }
+      if (insErr) {
+        // CRITICAL: Re-insert old payment to prevent data loss
+        await supabase.from("payments").insert({
+          payment_number: oldPayment.payment_number, type: oldPayment.type, party_type: oldPayment.party_type,
+          party_id: oldPayment.party_id, amount: oldPayment.amount, payment_method: oldPayment.payment_method,
+          bank_account_id: oldPayment.bank_account_id, cheque_number: oldPayment.cheque_number,
+          cheque_date: oldPayment.cheque_date, reference: oldPayment.reference, date: oldPayment.date, notes: oldPayment.notes,
+        });
+        toast.error("Failed to save payment — original restored"); return;
+      }
       toast.success(`Payment ${editingNumber} updated`);
     } else {
       const { data: paymentNumber } = await supabase.rpc("generate_document_number", { p_document_type: "payment" });

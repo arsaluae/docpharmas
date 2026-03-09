@@ -73,11 +73,11 @@ export default function SalesReturns() {
       quantity: Number(i.quantity), rate: Number(i.rate), amount: Number(i.quantity) * Number(i.rate),
     })));
 
-    // Create return_in stock movements to restore inventory
+    // Create return_in stock movements to restore inventory (with reference_id for audit trail)
     await supabase.from("stock_movements").insert(validItems.map(i => ({
       product_id: i.product_id, movement_type: "return_in", quantity: Number(i.quantity),
-      batch_number: i.batch_number || null, reference_type: "sales_return", date: new Date().toISOString().split("T")[0],
-      notes: `Sales Return ${num}`,
+      batch_number: i.batch_number || null, reference_type: "sales_return", reference_id: sr.id,
+      date: new Date().toISOString().split("T")[0], notes: `Sales Return ${num}`,
     })));
 
     toast.success(`Sales Return ${num} created`);
