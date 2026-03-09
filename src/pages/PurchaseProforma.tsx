@@ -862,114 +862,12 @@ export default function PurchaseProforma() {
             </DialogContent>
           </Dialog>
 
-          {/* ═══ PREMIUM ORDER PREVIEW SHEET ═══ */}
-          <Sheet open={previewOpen} onOpenChange={o => { if (!o) { setPreviewOpen(false); setEditMode(false); } }}>
-            <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto p-0">
-              {previewOrder && !editMode && (
-                <div className="flex flex-col h-full">
-                  <div className="bg-gradient-to-r from-foreground to-foreground/90 text-background px-6 py-5">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-background/60">Purchase Order</p>
-                        <p className="text-2xl font-bold font-heading tracking-tight mt-1">{previewOrder.proforma_number}</p>
-                      </div>
-                      {settings?.logo_url && <img src={settings.logo_url} alt="Logo" className="h-10 w-auto object-contain rounded opacity-90" />}
-                    </div>
-                    <div className="flex items-center gap-3 mt-3">
-                      <Badge variant="outline" className={`text-[10px] border-background/20 ${previewOrder.status === "draft" ? "text-amber-300" : previewOrder.status === "received" ? "text-emerald-300" : "text-background/80"}`}>
-                        {statusLabel(previewOrder.status)}
-                      </Badge>
-                      <span className="text-xs text-background/50">{previewOrder.date}</span>
-                      {previewOrder.po_number && <span className="text-xs text-background/50">PO: {previewOrder.po_number}</span>}
-                      {previewOrder.grn_number && <span className="text-xs text-background/50">GRN: {previewOrder.grn_number}</span>}
-                    </div>
-                  </div>
-
-                  <div className="px-6 py-4 border-b border-border">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.15em] mb-2">Supplier</p>
-                    <p className="text-sm font-semibold text-foreground">{(previewOrder.suppliers as any)?.name || "—"}</p>
-                    {(previewOrder.suppliers as any)?.company && <p className="text-xs text-muted-foreground">{(previewOrder.suppliers as any).company}</p>}
-                    {(previewOrder.suppliers as any)?.phone && <p className="text-xs text-muted-foreground mt-0.5">{(previewOrder.suppliers as any).phone}</p>}
-                  </div>
-
-                  <div className="px-6 py-4 flex-1">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.15em] mb-3">Items</p>
-                    <div className="space-y-2">
-                      {previewItems.map((item: any, idx: number) => (
-                        <div key={idx} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-muted/30 border border-border/50">
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-foreground">{item.products?.name || "Item"}</p>
-                            <p className="text-xs text-muted-foreground">{item.quantity_requested} × PKR {Number(item.rate).toLocaleString()}</p>
-                          </div>
-                          <p className="text-sm font-mono font-semibold text-foreground">PKR {Number(item.amount).toLocaleString()}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    {previewCosts.length > 0 && (
-                      <div className="mt-4">
-                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.15em] mb-2">Additional Costs</p>
-                        {previewCosts.map((c: any) => (
-                          <div key={c.id} className="flex justify-between text-xs py-1.5 px-3 rounded-lg bg-muted/20 mb-1">
-                            <span className="capitalize text-muted-foreground">{c.cost_type}: {c.description}</span>
-                            <span className="font-mono text-foreground">PKR {Number(c.amount).toLocaleString()}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mt-4 pt-3 border-t border-border space-y-1.5">
-                      <div className="flex justify-between text-sm text-muted-foreground"><span>Subtotal</span><span className="font-mono">PKR {Number(previewOrder.subtotal).toLocaleString()}</span></div>
-                      {settings?.gst_enabled && <div className="flex justify-between text-sm text-muted-foreground"><span>GST</span><span className="font-mono">PKR {Number(previewOrder.gst).toLocaleString()}</span></div>}
-                      <div className="flex justify-between text-base font-bold text-foreground pt-1 border-t border-border"><span>Total</span><span className="font-mono">PKR {Number(previewOrder.total).toLocaleString()}</span></div>
-                    </div>
-
-                    {previewOrder.notes && (
-                      <div className="mt-4 p-3 rounded-lg bg-muted/30 border border-border/50">
-                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">Notes</p>
-                        <p className="text-xs text-muted-foreground">{previewOrder.notes}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="sticky bottom-0 border-t border-border bg-background/95 backdrop-blur-sm px-6 py-4 space-y-2">
-                    {previewOrder.status === "draft" && (
-                      <Button onClick={() => handleConfirmOrder(previewOrder)} disabled={saving} className="w-full h-11 gap-2 text-sm font-semibold shadow-md">
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />} Confirm Order — Create PO
-                      </Button>
-                    )}
-                    {(previewOrder.status === "ordered" || previewOrder.status === "confirmed") && (
-                      <Button onClick={() => openReceiveDialog(previewOrder)} className="w-full h-11 gap-2 text-sm font-semibold shadow-md">
-                        <PackageCheck className="h-4 w-4" /> Mark Received — Create GRN
-                      </Button>
-                    )}
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => shareWhatsApp(previewOrder)} className="flex-1 gap-2 h-10">
-                        <MessageCircle className="h-4 w-4" /> WhatsApp
-                      </Button>
-                      <Button variant="outline" onClick={() => printOrder(previewOrder)} className="flex-1 gap-2 h-10">
-                        <Download className="h-4 w-4" /> PDF
-                      </Button>
-                    </div>
-                    {previewOrder.status === "draft" && (
-                      <div className="flex gap-2">
-                        <Button variant="ghost" onClick={enterEditMode} className="flex-1 gap-2 h-9 text-xs"><Pencil className="h-3.5 w-3.5" /> Edit</Button>
-                        <Button variant="ghost" onClick={() => { setCostDialogId(previewOrder.id); setCostDialogOpen(true); }} className="flex-1 gap-2 h-9 text-xs"><DollarSign className="h-3.5 w-3.5" /> Add Cost</Button>
-                        <Button variant="ghost" onClick={() => promptDelete([previewOrder.id])} className="flex-1 gap-2 h-9 text-xs text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /> Delete</Button>
-                      </div>
-                    )}
-                    {(previewOrder.status === "ordered" || previewOrder.status === "confirmed") && (
-                      <Button variant="outline" onClick={() => promptVoid(previewOrder)} className="w-full h-10 gap-2 text-sm text-destructive border-destructive/30 hover:bg-destructive/10">
-                        <RotateCcw className="h-4 w-4" /> Void — Rollback PO, Bill & Delivery Note
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {previewOrder && editMode && (
-                <div className="p-6 space-y-4">
-                  <SheetHeader><SheetTitle className="font-heading">Edit Order {previewOrder.proforma_number}</SheetTitle></SheetHeader>
+          {/* ═══ EDIT ORDER DIALOG ═══ */}
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader><DialogTitle className="font-heading">Edit Order {editOrder?.proforma_number}</DialogTitle></DialogHeader>
+              {editOrder && (
+                <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div><Label className="text-xs font-medium text-muted-foreground">Supplier</Label><SearchableSelect options={supplierOptions} value={editSupplierId} onChange={setEditSupplierId} placeholder="Supplier..." /></div>
                     <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} /></div>
@@ -998,12 +896,12 @@ export default function PurchaseProforma() {
                   ); })()}
                   <div className="flex gap-2">
                     <Button onClick={handleEditSave} disabled={saving} className="flex-1">{saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Save</Button>
-                    <Button variant="outline" onClick={() => setEditMode(false)}>Cancel</Button>
+                    <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
                   </div>
                 </div>
               )}
-            </SheetContent>
-          </Sheet>
+            </DialogContent>
+          </Dialog>
 
           {/* ADD COST DIALOG */}
           <Dialog open={costDialogOpen} onOpenChange={setCostDialogOpen}>
