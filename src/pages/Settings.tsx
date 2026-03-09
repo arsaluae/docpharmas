@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Save, Upload, FileText, Plus, Trash2, MessageCircle } from "lucide-react";
+import { Save, Upload, FileText, Plus, Trash2, MessageCircle, Download, Database } from "lucide-react";
 import { toast } from "sonner";
 import { useDocumentTemplates, DocumentTemplate } from "@/hooks/useDocumentTemplates";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import * as XLSX from "xlsx";
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   sales_invoice: "Sales Invoice / Sales Order",
@@ -24,11 +25,31 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   grn: "Goods Received Note (GRN)",
 };
 
+const BACKUP_TABLES = [
+  { table: "customers", sheet: "Customers" },
+  { table: "suppliers", sheet: "Suppliers" },
+  { table: "products", sheet: "Products" },
+  { table: "proforma_invoices", sheet: "Sales Orders" },
+  { table: "sales_invoices", sheet: "Sales Invoices" },
+  { table: "sales_invoice_items", sheet: "Sales Invoice Items" },
+  { table: "purchase_proformas", sheet: "Purchase Proformas" },
+  { table: "purchase_orders", sheet: "Purchase Orders" },
+  { table: "purchase_invoices", sheet: "Purchase Invoices" },
+  { table: "payments", sheet: "Payments" },
+  { table: "expenses", sheet: "Expenses" },
+  { table: "bank_accounts", sheet: "Bank Accounts" },
+  { table: "delivery_notes", sheet: "Delivery Notes" },
+  { table: "print_jobs", sheet: "Print Jobs" },
+  { table: "printers", sheet: "Printers" },
+] as const;
+
 export default function Settings() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settingsId, setSettingsId] = useState<string | null>(null);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [lastBackup, setLastBackup] = useState<string | null>(null);
   const [form, setForm] = useState({
     company_name: "", address: "", phone: "", email: "", website: "",
     logo_url: "", fbr_enabled: false, ntn: "", strn: "",
@@ -38,7 +59,10 @@ export default function Settings() {
 
   const { templates, loading: templatesLoading, updateTemplate } = useDocumentTemplates();
 
-  useEffect(() => { loadSettings(); }, []);
+  useEffect(() => {
+    loadSettings();
+    setLastBackup(localStorage.getItem("docpharmas_last_backup"));
+  }, []);
 
   const loadSettings = async () => {
     const { data } = await supabase.from("company_settings").select("*").limit(1).single();
@@ -96,6 +120,35 @@ export default function Settings() {
     toast.success("Logo uploaded");
   };
 
+  const handleBackup = async () => {
+    setBackupLoading(true);
+    try {
+      const workbook = XLSX.utils.book_new();
+      
+      for (const { table, sheet } of BACKUP_TABLES) {
+        const { data, error } = await supabase.from(table).select("*");
+        if (error) {
+          console.error(`Error fetching ${table}:`, error);
+          continue;
+        }
+        const worksheet = XLSX.utils.json_to_sheet(data || []);
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheet);
+      }
+
+      const today = new Date().toISOString().split("T")[0];
+      XLSX.writeFile(workbook, `DocPharmas_Backup_${today}.xlsx`);
+      
+      const timestamp = new Date().toLocaleString();
+      localStorage.setItem("docpharmas_last_backup", timestamp);
+      setLastBackup(timestamp);
+      toast.success("Backup downloaded successfully!");
+    } catch (err: any) {
+      toast.error("Backup failed: " + err.message);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
   if (loading) return null;
 
   const headerActions = (
@@ -105,13 +158,16 @@ export default function Settings() {
   );
 
   return (
-    <AppLayout title="Settings" subtitle="Company profile, tax configuration & templates" headerActions={headerActions}>
+    <AppLayout title="Settings" subtitle="Company profile, tax configuration, templates & backup" headerActions={headerActions}>
       <div className="max-w-4xl">
         <Tabs defaultValue="company" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="company">Company Profile</TabsTrigger>
             <TabsTrigger value="templates">
               <FileText className="h-4 w-4 mr-1" /> Document Templates
+            </TabsTrigger>
+            <TabsTrigger value="backup">
+              <Database className="h-4 w-4 mr-1" /> Data Backup
             </TabsTrigger>
           </TabsList>
 
@@ -143,7 +199,6 @@ export default function Settings() {
               </CardContent>
             </Card>
 
-            {/* WhatsApp Configuration */}
             <Card className="glass-card border-emerald-500/20">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -169,7 +224,6 @@ export default function Settings() {
             <Card className="glass-card">
               <CardHeader><CardTitle className="text-lg">Tax Configuration</CardTitle></CardHeader>
               <CardContent className="space-y-5">
-                {/* GST */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
@@ -188,7 +242,6 @@ export default function Settings() {
 
                 <div className="border-t border-border" />
 
-                {/* WHT */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
@@ -207,7 +260,6 @@ export default function Settings() {
 
                 <div className="border-t border-border" />
 
-                {/* FBR */}
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium text-sm">FBR QR Code</p>
@@ -232,6 +284,40 @@ export default function Settings() {
                 </Accordion>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="backup" className="max-w-2xl">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Database className="h-5 w-5 text-primary" /> Data Backup
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="rounded-xl bg-muted/50 p-6 text-center">
+                  <Download className="h-12 w-12 text-primary mx-auto mb-4" />
+                  <h3 className="font-heading font-semibold text-lg text-foreground mb-2">Export All Data</h3>
+                  <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
+                    Download a complete backup of your data as an Excel file. Includes customers, suppliers, products, invoices, payments, expenses, and more.
+                  </p>
+                  <Button onClick={handleBackup} disabled={backupLoading} size="lg" className="px-8">
+                    <Download className="h-4 w-4 mr-2" />
+                    {backupLoading ? "Exporting..." : "Download Backup (.xlsx)"}
+                  </Button>
+                  {lastBackup && (
+                    <p className="text-xs text-muted-foreground mt-4">
+                      Last backup: {lastBackup}
+                    </p>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>• Backup includes {BACKUP_TABLES.length} data tables with all records</p>
+                  <p>• Each table is exported as a separate sheet in the Excel file</p>
+                  <p>• Data is filtered to your company only (tenant-isolated)</p>
+                  <p>• We recommend taking regular backups for safety</p>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

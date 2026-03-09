@@ -451,13 +451,11 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#0EA5E9]/10 flex items-center justify-center">
-                <Pill className="h-4 w-4 text-[#0EA5E9]" />
-              </div>
-              <span className="font-heading font-bold text-lg text-[#1E293B]">PharmaZen</span>
+              <img src={docpharmasLogo} alt="DocPharmas" className="w-8 h-8 rounded-lg object-cover" />
+              <span className="font-heading font-bold text-lg text-[#1E293B]">DocPharmas</span>
             </div>
             <p className="text-sm text-[#94A3B8]">
-              © {new Date().getFullYear()} PharmaZen. Built for Pakistan's pharmaceutical industry.
+              © {new Date().getFullYear()} DocPharmas. Built for Pakistan's pharmaceutical industry.
             </p>
             <a href="https://wa.me/447477210590" target="_blank" rel="noopener noreferrer"
               className="text-sm text-[#0EA5E9] hover:text-[#0284C7] flex items-center gap-1 transition-colors">
