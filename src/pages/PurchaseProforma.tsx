@@ -122,8 +122,17 @@ export default function PurchaseProforma() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) navigate("/auth");
     };
-    check(); load();
+    check(); load(); loadBankAccounts();
   }, [navigate]);
+
+  const loadBankAccounts = async () => {
+    const { data } = await supabase.from("bank_accounts").select("id, name, bank_name").order("is_default", { ascending: false });
+    if (data) {
+      setBankAccounts(data);
+      const meezan = data.find(b => b.bank_name.toLowerCase().includes("meezan"));
+      setPaymentBankId(meezan?.id || data[0]?.id || "");
+    }
+  };
 
   // ── SIMPLIFIED LOAD: proformas as single source of truth ──
   const load = async () => {
