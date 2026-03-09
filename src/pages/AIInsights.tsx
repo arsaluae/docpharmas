@@ -11,6 +11,7 @@ import {
   Brain, AlertTriangle, TrendingDown, TrendingUp, Users, DollarSign,
   Sparkles, PackageX, ArrowDown, ArrowUp, Minus, RefreshCw,
 } from "lucide-react";
+import { BarChart, Bar, ResponsiveContainer, Cell } from "recharts";
 
 interface InsightsData {
   demand_forecast: { product_name: string; last_month_qty: number; predicted_qty: number; confidence: number; trend: string }[];
