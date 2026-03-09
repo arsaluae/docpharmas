@@ -63,12 +63,9 @@ export default function ProformaInvoices() {
   const [paymentInstructions, setPaymentInstructions] = useState("");
   const [items, setItems] = useState<ProformaItem[]>([]);
 
-  // Preview Sheet
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewOrder, setPreviewOrder] = useState<SalesOrder | null>(null);
-
-  // Edit mode inside preview
-  const [editMode, setEditMode] = useState(false);
+  // Edit Dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editOrder, setEditOrder] = useState<SalesOrder | null>(null);
   const [editCustomerId, setEditCustomerId] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editValidity, setEditValidity] = useState("30");
