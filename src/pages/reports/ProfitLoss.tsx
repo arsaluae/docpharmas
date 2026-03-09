@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
+} from "recharts";
 
 export default function ProfitLoss() {
   const [from, setFrom] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().split("T")[0]; });
@@ -28,7 +31,6 @@ export default function ProfitLoss() {
     const salesIds = (sales.data || []).map(s => s.id);
     setRevenue((sales.data || []).reduce((s, i) => s + Number(i.subtotal), 0));
 
-    // Fetch items only for invoices in the period — avoids 1000-row default limit
     let allItems: any[] = [];
     for (let i = 0; i < salesIds.length; i += 50) {
       const batch = salesIds.slice(i, i + 50);
@@ -36,12 +38,10 @@ export default function ProfitLoss() {
       allItems = allItems.concat(data || []);
     }
 
-    // Get products for cost_price lookup
     const { data: products } = await supabase.from("products").select("id, cost_price");
     const costMap: Record<string, number> = {};
     (products || []).forEach(p => { costMap[p.id] = Number(p.cost_price); });
 
-    // COGS = sum of (quantity × cost_price) for items in sales invoices within the period
     const cogsTotal = allItems.reduce((s, item) => s + Number(item.quantity) * (costMap[item.product_id || ""] || 0), 0);
     setCogs(cogsTotal);
 
@@ -61,6 +61,15 @@ export default function ProfitLoss() {
   const netMargin = netRevenue > 0 ? (netProfit / netRevenue) * 100 : 0;
   const formatCategory = (c: string) => c.replace(/_/g, " ");
 
+  // Waterfall chart data
+  const waterfallData = [
+    { name: "Revenue", value: netRevenue, fill: "hsl(199, 89%, 48%)" },
+    { name: "COGS", value: -netCogs, fill: "hsl(0, 72%, 51%)" },
+    { name: "Gross Profit", value: grossProfit, fill: grossProfit >= 0 ? "hsl(160, 84%, 39%)" : "hsl(0, 72%, 51%)" },
+    { name: "Expenses", value: -totalExpenses, fill: "hsl(263, 70%, 50%)" },
+    { name: "Net Profit", value: netProfit, fill: netProfit >= 0 ? "hsl(160, 84%, 39%)" : "hsl(0, 72%, 51%)" },
+  ];
+
   const headerActions = (
     <div className="flex items-center gap-2">
       <Label className="text-xs">From</Label><Input type="date" className="w-36" value={from} onChange={e => setFrom(e.target.value)} />
@@ -71,6 +80,30 @@ export default function ProfitLoss() {
   return (
     <AppLayout title="Profit & Loss" headerActions={headerActions}>
       <div className="max-w-2xl mx-auto space-y-4">
+
+        {/* Waterfall Chart */}
+        <Card className="glass-card">
+          <CardHeader><CardTitle className="text-base">P&L Overview</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={waterfallData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(214, 32%, 91%)" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                <YAxis hide />
+                <Tooltip
+                  contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(214, 32%, 91%)" }}
+                  formatter={(value: number) => [`PKR ${Math.abs(value).toLocaleString()}`, ""]}
+                />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={50}>
+                  {waterfallData.map((entry, idx) => (
+                    <Cell key={idx} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
         <Card className="glass-card">
           <CardHeader><CardTitle className="text-base">Revenue</CardTitle></CardHeader>
           <CardContent className="space-y-1">

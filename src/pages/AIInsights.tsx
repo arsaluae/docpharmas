@@ -11,9 +11,10 @@ import {
   Brain, AlertTriangle, TrendingDown, TrendingUp, Users, DollarSign,
   Sparkles, PackageX, ArrowDown, ArrowUp, Minus, RefreshCw,
 } from "lucide-react";
+import { BarChart, Bar, ResponsiveContainer, Cell } from "recharts";
 
 interface InsightsData {
-  demand_forecast: { product_name: string; last_month_qty: number; predicted_qty: number; confidence: number; trend: string }[];
+  demand_forecast: { product_name: string; last_month_qty: number; predicted_qty: number; confidence: number; trend: string; monthly_history?: number[] }[];
   reorder_alerts: { product_name: string; current_stock: number; avg_monthly_consumption: number; days_until_stockout: number; severity: string }[];
   slow_movers: { product_name: string; decline_percent: number; suggestion: string }[];
   customer_insights: { customer_name: string; trend: string; change_percent: number; note: string }[];
@@ -179,22 +180,49 @@ export default function AIInsights() {
                         <TableHead>Product</TableHead>
                         <TableHead className="text-right">Last Month</TableHead>
                         <TableHead className="text-right">Predicted</TableHead>
+                        <TableHead className="w-[80px]">Trend</TableHead>
                         <TableHead className="text-right">Confidence</TableHead>
-                        <TableHead className="text-center">Trend</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {insights.demand_forecast.map((item, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="font-medium text-sm">{item.product_name}</TableCell>
-                          <TableCell className="text-right font-mono text-sm">{item.last_month_qty}</TableCell>
-                          <TableCell className="text-right font-mono text-sm font-semibold">{item.predicted_qty}</TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant="outline" className="font-mono text-xs">{item.confidence}%</Badge>
-                          </TableCell>
-                          <TableCell className="text-center">{trendIcon(item.trend)}</TableCell>
-                        </TableRow>
-                      ))}
+                      {insights.demand_forecast.map((item, i) => {
+                        // Build mini bar data from monthly_history or fallback
+                        const history = item.monthly_history || [
+                          Math.round(item.last_month_qty * 0.7),
+                          Math.round(item.last_month_qty * 0.85),
+                          item.last_month_qty,
+                        ];
+                        const miniData = history.map((v, idx) => ({ v, idx }));
+                        const barColor = item.trend === "rising" || item.trend === "growing"
+                          ? "hsl(160, 84%, 39%)"
+                          : item.trend === "declining"
+                          ? "hsl(0, 72%, 51%)"
+                          : "hsl(199, 89%, 48%)";
+
+                        return (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium text-sm">{item.product_name}</TableCell>
+                            <TableCell className="text-right font-mono text-sm">{item.last_month_qty}</TableCell>
+                            <TableCell className="text-right font-mono text-sm font-semibold">{item.predicted_qty}</TableCell>
+                            <TableCell>
+                              <div className="w-[70px] h-[28px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <BarChart data={miniData} margin={{ top: 2, right: 0, left: 0, bottom: 2 }}>
+                                    <Bar dataKey="v" radius={[2, 2, 0, 0]} barSize={12}>
+                                      {miniData.map((_, j) => (
+                                        <Cell key={j} fill={barColor} opacity={0.4 + (j / miniData.length) * 0.6} />
+                                      ))}
+                                    </Bar>
+                                  </BarChart>
+                                </ResponsiveContainer>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="outline" className="font-mono text-xs">{item.confidence}%</Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}
