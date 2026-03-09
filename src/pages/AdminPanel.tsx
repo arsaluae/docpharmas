@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, Power, UserPlus, Shield, CreditCard, CheckCircle, XCircle, Clock, Image } from "lucide-react";
+import { Plus, Building2, Users, Power, UserPlus, Shield, CreditCard, CheckCircle, XCircle, Clock, Image, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
 
@@ -51,6 +51,16 @@ interface PaymentSubmission {
   created_at: string;
 }
 
+interface PendingSignup {
+  id: string;
+  user_id: string;
+  email: string;
+  company_name: string;
+  phone: string | null;
+  status: string;
+  created_at: string;
+}
+
 const emptyTenantForm = { company_name: "", owner_email: "", phone: "", plan: "monthly" };
 const emptyUserForm = { email: "", password: "", role: "owner" };
 
@@ -65,13 +75,15 @@ export default function AdminPanel() {
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [payments, setPayments] = useState<PaymentSubmission[]>([]);
+  const [pendingSignups, setPendingSignups] = useState<PendingSignup[]>([]);
   const [rejectNotes, setRejectNotes] = useState("");
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAdmin) {
       loadTenants();
       loadPayments();
+      loadPendingSignups();
     }
   }, [isAdmin]);
 
@@ -81,14 +93,15 @@ export default function AdminPanel() {
   async function loadTenants() {
     const { data } = await supabase.from("tenants").select("*").order("created_at", { ascending: false });
     setTenants((data as any) || []);
-    if (data) {
-      const usersMap: Record<string, TenantUser[]> = {};
-      for (const t of data) {
-        const { data: users } = await supabase.from("tenant_users").select("*").eq("tenant_id", t.id);
-        usersMap[t.id] = users || [];
-      }
-      setTenantUsers(usersMap);
-    }
+    
+    // Single query for all tenant users (fixes N+1)
+    const { data: allUsers } = await supabase.from("tenant_users").select("*");
+    const usersMap: Record<string, TenantUser[]> = {};
+    (allUsers || []).forEach((u: any) => {
+      if (!usersMap[u.tenant_id]) usersMap[u.tenant_id] = [];
+      usersMap[u.tenant_id].push(u);
+    });
+    setTenantUsers(usersMap);
   }
 
   async function loadPayments() {
@@ -99,17 +112,34 @@ export default function AdminPanel() {
     setPayments((data as any) || []);
   }
 
+  async function loadPendingSignups() {
+    const { data } = await supabase
+      .from("pending_signups")
+      .select("*")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false }) as any;
+    setPendingSignups(data || []);
+  }
+
   async function createTenant() {
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("tenants").insert({
+      const { data: newTenant, error } = await supabase.from("tenants").insert({
         company_name: tenantForm.company_name,
         owner_email: tenantForm.owner_email || null,
         phone: tenantForm.phone || null,
         plan: tenantForm.plan,
-      });
+      }).select().single();
       if (error) throw error;
-      toast.success("Tenant created!");
+      
+      // Seed document counters + company settings
+      if (newTenant) {
+        await supabase.functions.invoke("manage-tenant", {
+          body: { action: "seed_tenant", tenant_id: newTenant.id },
+        });
+      }
+      
+      toast.success("Tenant created with all defaults!");
       setDialogOpen(false);
       setTenantForm(emptyTenantForm);
       loadTenants();
@@ -182,6 +212,40 @@ export default function AdminPanel() {
     }
   }
 
+  async function handleSignupAction(signupId: string, action: "approve" | "reject") {
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-tenant", {
+        body: { 
+          action: action === "approve" ? "approve_signup" : "reject_signup", 
+          signup_id: signupId,
+          admin_notes: action === "reject" ? rejectNotes : undefined,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(action === "approve" ? "Signup approved! Tenant created with all defaults." : "Signup rejected");
+      setRejectNotes("");
+      loadPendingSignups();
+      loadTenants();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function viewScreenshot(url: string) {
+    // Use signed URL for private bucket
+    const path = url.split("/payment-screenshots/")[1];
+    if (path) {
+      const { data } = await supabase.storage.from("payment-screenshots").createSignedUrl(path, 300);
+      setScreenshotUrl(data?.signedUrl || url);
+    } else {
+      setScreenshotUrl(url);
+    }
+  }
+
   const tenantMap: Record<string, string> = {};
   tenants.forEach(t => { tenantMap[t.id] = t.company_name; });
 
@@ -194,9 +258,14 @@ export default function AdminPanel() {
           <Badge className="bg-primary/10 text-primary">
             <Shield className="h-3 w-3 mr-1" /> Super Admin
           </Badge>
+          {pendingSignups.length > 0 && (
+            <Badge className="bg-blue-500/10 text-blue-600">
+              {pendingSignups.length} signups
+            </Badge>
+          )}
           {pendingPayments.length > 0 && (
             <Badge className="bg-amber-500/10 text-amber-600">
-              {pendingPayments.length} pending
+              {pendingPayments.length} payments
             </Badge>
           )}
         </div>
@@ -205,6 +274,14 @@ export default function AdminPanel() {
       <Tabs defaultValue="tenants" className="space-y-4">
         <TabsList>
           <TabsTrigger value="tenants">Tenants</TabsTrigger>
+          <TabsTrigger value="signups" className="relative">
+            Signups
+            {pendingSignups.length > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-blue-500 text-white">
+                {pendingSignups.length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="payments" className="relative">
             Payments
             {pendingPayments.length > 0 && (
@@ -364,6 +441,49 @@ export default function AdminPanel() {
           </Card>
         </TabsContent>
 
+        {/* Pending Signups Tab */}
+        <TabsContent value="signups" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-heading flex items-center gap-2">
+                <UserCheck className="h-4 w-4 text-primary" /> Pending Signups
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {pendingSignups.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No pending signups</p>
+              ) : (
+                <div className="space-y-3">
+                  {pendingSignups.map(s => (
+                    <div key={s.id} className="p-4 rounded-lg border border-border bg-card space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium text-sm">{s.company_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {s.email} {s.phone ? `• ${s.phone}` : ""} • {new Date(s.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Badge className="bg-amber-500/10 text-amber-600">
+                          <Clock className="h-3 w-3 mr-1" /> Pending
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" onClick={() => handleSignupAction(s.id, "approve")} disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700">
+                          <CheckCircle className="h-3 w-3 mr-1" /> Approve
+                        </Button>
+                        <Input placeholder="Reject reason..." value={rejectNotes} onChange={e => setRejectNotes(e.target.value)} className="flex-1 h-8 text-xs" />
+                        <Button size="sm" variant="destructive" onClick={() => handleSignupAction(s.id, "reject")} disabled={submitting}>
+                          <XCircle className="h-3 w-3 mr-1" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="payments" className="space-y-4">
           <Card>
             <CardHeader className="pb-2">
@@ -397,8 +517,8 @@ export default function AdminPanel() {
                         </Badge>
                       </div>
 
-                      {/* Screenshot preview */}
-                      <Button size="sm" variant="outline" onClick={() => setScreenshotPreview(p.screenshot_url)} className="text-xs">
+                      {/* Screenshot preview - uses signed URL */}
+                      <Button size="sm" variant="outline" onClick={() => viewScreenshot(p.screenshot_url)} className="text-xs">
                         <Image className="h-3 w-3 mr-1" /> View Screenshot
                       </Button>
 
@@ -423,12 +543,12 @@ export default function AdminPanel() {
         </TabsContent>
       </Tabs>
 
-      {/* Screenshot Preview Dialog */}
-      <Dialog open={!!screenshotPreview} onOpenChange={() => setScreenshotPreview(null)}>
+      {/* Screenshot Preview Dialog - uses signed URL */}
+      <Dialog open={!!screenshotUrl} onOpenChange={() => setScreenshotUrl(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Payment Screenshot</DialogTitle></DialogHeader>
-          {screenshotPreview && (
-            <img src={screenshotPreview} alt="Payment screenshot" className="w-full rounded-lg" />
+          {screenshotUrl && (
+            <img src={screenshotUrl} alt="Payment screenshot" className="w-full rounded-lg" />
           )}
         </DialogContent>
       </Dialog>
