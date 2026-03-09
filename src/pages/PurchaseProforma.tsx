@@ -218,40 +218,50 @@ export default function PurchaseProforma() {
     setCostDesc(""); setCostAmount(""); setCostVendorId("");
   };
 
-  // ── PREVIEW ──
+  // ── PREVIEW (opens PDF popup directly) ──
   const openPreview = async (order: PurchaseOrder) => {
-    const [itemsRes, costsRes] = await Promise.all([
-      supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id),
-      supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", order.id),
-    ]);
-    setPreviewItems(itemsRes.data || []);
-    setPreviewCosts(costsRes.data || []);
-    setPreviewOrder(order);
-    setEditMode(false);
-    setPreviewOpen(true);
+    const { data: its } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
+    setPreviewItems(its || []);
+    // Small delay to let state update for printOrder which uses previewItems
+    setTimeout(() => {
+      const html = generatePdfHtml({
+        title: "PURCHASE ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: order.status === "draft" ? "draft" as const : "confirmed" as const,
+        partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
+        partyAddress: (order.suppliers as any)?.address || undefined,
+        partyPhone: (order.suppliers as any)?.phone || undefined,
+        columns: [
+          { header: "#", key: "idx" }, { header: "Product", key: "name" },
+          { header: "Qty", key: "quantity_requested", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+          { header: "Amount", key: "amount", align: "right" },
+        ],
+        rows: (its || []).map((i: any, idx: number) => ({
+          idx: idx + 1, name: i.products?.name || "Item",
+          quantity_requested: i.quantity_requested, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+        })),
+        totals: [
+          { label: "Subtotal", value: `PKR ${Number(order.subtotal).toLocaleString()}` },
+          ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(order.gst).toLocaleString()}` }] : []),
+          { label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` },
+        ],
+        notes: order.notes || undefined, settings,
+        template: getTemplate("purchase_proforma"),
+      });
+      setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
+    }, 0);
   };
 
   const openEditSheet = async (order: PurchaseOrder) => {
-    const [itemsRes, costsRes] = await Promise.all([
-      supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id),
-      supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", order.id),
-    ]);
-    setPreviewItems(itemsRes.data || []);
-    setPreviewCosts(costsRes.data || []);
-    setPreviewOrder(order);
-    setEditMode(false);
-    setPreviewOpen(true);
-    setTimeout(() => {
-      setEditSupplierId(order.supplier_id || "");
-      setEditDate(order.date);
-      setEditValidity(String(order.validity_days));
-      setEditNotes(order.notes || "");
-      setEditItems((itemsRes.data || []).map((i: any) => ({
-        product_id: i.product_id || "", product_name: i.products?.name || "Item",
-        quantity_requested: i.quantity_requested, rate: Number(i.rate), amount: Number(i.amount),
-      })));
-      setEditMode(true);
-    }, 0);
+    const { data: its } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
+    setEditOrder(order);
+    setEditSupplierId(order.supplier_id || "");
+    setEditDate(order.date);
+    setEditValidity(String(order.validity_days));
+    setEditNotes(order.notes || "");
+    setEditItems((its || []).map((i: any) => ({
+      product_id: i.product_id || "", product_name: i.products?.name || "Item",
+      quantity_requested: i.quantity_requested, rate: Number(i.rate), amount: Number(i.amount),
+    })));
+    setEditOpen(true);
   };
 
   // ── WHATSAPP ──
