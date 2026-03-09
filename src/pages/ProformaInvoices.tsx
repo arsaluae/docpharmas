@@ -192,44 +192,31 @@ export default function ProformaInvoices() {
     setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); setSaving(false); load();
   };
 
-  // ── PREVIEW ──
+  // ── PREVIEW (opens PDF popup directly) ──
   const openPreview = (order: SalesOrder) => {
-    setPreviewOrder(order);
-    setEditMode(false);
-    setPreviewOpen(true);
+    if (order.status === "draft") {
+      printOrder(order);
+    } else if (order.converted_invoice_id) {
+      printInvoice(order);
+    } else {
+      printOrder(order);
+    }
   };
 
   const openEditSheet = (order: SalesOrder) => {
-    setPreviewOrder(order);
-    setEditMode(false);
-    setPreviewOpen(true);
-    // Immediately enter edit mode
-    setTimeout(() => {
-      setEditCustomerId(order.customer_id || "");
-      setEditDate(order.date);
-      setEditValidity(String(order.validity_days));
-      setEditPaymentInstr(order.payment_instructions || "");
-      const pfItems = getPfItems(order);
-      setEditItems(pfItems.map(i => ({ ...i })));
-      setEditMode(true);
-    }, 0);
+    setEditOrder(order);
+    setEditCustomerId(order.customer_id || "");
+    setEditDate(order.date);
+    setEditValidity(String(order.validity_days));
+    setEditPaymentInstr(order.payment_instructions || "");
+    const pfItems = getPfItems(order);
+    setEditItems(pfItems.map(i => ({ ...i })));
+    setEditOpen(true);
   };
 
   const getPfItems = (order: SalesOrder | null): ProformaItem[] => {
     if (!order || !order.items) return [];
     return typeof order.items === "string" ? JSON.parse(order.items) : order.items;
-  };
-
-  // ── EDIT ──
-  const enterEditMode = () => {
-    if (!previewOrder) return;
-    setEditCustomerId(previewOrder.customer_id || "");
-    setEditDate(previewOrder.date);
-    setEditValidity(String(previewOrder.validity_days));
-    setEditPaymentInstr(previewOrder.payment_instructions || "");
-    const pfItems = getPfItems(previewOrder);
-    setEditItems(pfItems.map(i => ({ ...i })));
-    setEditMode(true);
   };
 
   const updateEditItem = (idx: number, field: string, value: any) => {
