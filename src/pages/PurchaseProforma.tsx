@@ -222,10 +222,12 @@ export default function PurchaseProforma() {
   const openPreview = async (order: PurchaseOrder) => {
     const { data: its } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
     setPreviewItems(its || []);
-    // Small delay to let state update for printOrder which uses previewItems
+    const isInvoiced = order.status === "ordered" || order.status === "confirmed";
+    const pdfDocTitle = isInvoiced ? "PURCHASE INVOICE" : "PURCHASE ORDER";
+    const theme = order.status === "draft" ? "draft" as const : "invoiced" as const;
     setTimeout(() => {
       const html = generatePdfHtml({
-        title: "PURCHASE ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: order.status === "draft" ? "draft" as const : "confirmed" as const,
+        title: pdfDocTitle, documentNumber: order.po_number || order.proforma_number, date: order.date, statusTheme: theme,
         partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
         partyAddress: (order.suppliers as any)?.address || undefined,
         partyPhone: (order.suppliers as any)?.phone || undefined,
@@ -246,7 +248,7 @@ export default function PurchaseProforma() {
         notes: order.notes || undefined, settings,
         template: getTemplate("purchase_proforma"),
       });
-      setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
+      setPdfHtml(html); setPdfTitle(`${pdfDocTitle} — ${order.po_number || order.proforma_number}`); setPdfOpen(true);
     }, 0);
   };
 
