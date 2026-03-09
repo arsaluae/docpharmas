@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, MessageCircle, FileText, Loader2, X, Share2, Eye, FileEdit, Send, Truck, RotateCcw } from "lucide-react";
+import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, MessageCircle, FileText, Loader2, X, Share2, Eye, FileEdit, Send, Truck, RotateCcw, DollarSign } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,6 +22,7 @@ import { generatePdfHtml } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
@@ -96,6 +97,15 @@ export default function ProformaInvoices() {
   const [voidOrder, setVoidOrder] = useState<SalesOrder | null>(null);
   const [voiding, setVoiding] = useState(false);
 
+  // Receive Payment
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentOrder, setPaymentOrder] = useState<SalesOrder | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+  const [paymentBankId, setPaymentBankId] = useState("");
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string; bank_name: string }[]>([]);
+  const [paymentSaving, setPaymentSaving] = useState(false);
+
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
 
@@ -104,8 +114,17 @@ export default function ProformaInvoices() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) navigate("/auth");
     };
-    check(); load(); loadDeliveryNotes();
+    check(); load(); loadDeliveryNotes(); loadBankAccounts();
   }, [navigate]);
+
+  const loadBankAccounts = async () => {
+    const { data } = await supabase.from("bank_accounts").select("id, name, bank_name").order("is_default", { ascending: false });
+    if (data) {
+      setBankAccounts(data);
+      const meezan = data.find(b => b.bank_name.toLowerCase().includes("meezan"));
+      setPaymentBankId(meezan?.id || data[0]?.id || "");
+    }
+  };
 
   // ── SIMPLIFIED LOAD: proforma_invoices only ──
   const load = async () => {
@@ -219,7 +238,7 @@ export default function ProformaInvoices() {
       status: "draft", payment_instructions: paymentInstructions || null,
     });
     if (error) { toast.error("Failed to create order: " + error.message); setSaving(false); return; }
-    toast.success(`Sales Order ${pfNumber} created`);
+    toast.success(`Sales Invoice ${pfNumber} created`);
     setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); setSaving(false); load();
   };
 
@@ -280,11 +299,14 @@ export default function ProformaInvoices() {
 
   // ── WHATSAPP ──
   const shareWhatsApp = (order: SalesOrder) => {
-    const custName = (order.customers as any)?.name || "Customer";
+    const cust = order.customers as any;
+    const custName = cust?.name || "Customer";
+    const custPhone = cust?.phone || "";
     const companyName = settings?.company_name || "PharmBooks";
     const pfItems = getPfItems(order);
-    const text = `*Sales Order ${order.proforma_number}*\n${companyName}\n\nCustomer: ${custName}\nDate: ${order.date}\n\n${pfItems.map(i => `• ${i.product_name} × ${i.quantity} @ ${Number(i.rate).toLocaleString()}`).join("\n")}\n\n*Total: PKR ${Number(order.total).toLocaleString()}*${order.payment_instructions ? `\n\n${order.payment_instructions}` : ""}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    const text = `*Sales Invoice ${order.proforma_number}*\n${companyName}\n\nCustomer: ${custName}\nDate: ${order.date}\n\n${pfItems.map(i => `• ${i.product_name} × ${i.quantity} @ ${Number(i.rate).toLocaleString()}`).join("\n")}\n\n*Total: PKR ${Number(order.total).toLocaleString()}*${order.payment_instructions ? `\n\n${order.payment_instructions}` : ""}`;
+    const waNumber = custPhone ? custPhone.replace(/[^0-9]/g, "") : "";
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   // ── PDF ──
@@ -295,7 +317,7 @@ export default function ProformaInvoices() {
     const custPhone = (order.customers as any)?.phone || undefined;
     const custArea = (order.customers as any)?.area || undefined;
     const html = generatePdfHtml({
-      title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
+      title: "SALES INVOICE", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
       partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
       meta: [{ label: "Validity", value: `${order.validity_days} days` }],
       columns: [
@@ -312,7 +334,38 @@ export default function ProformaInvoices() {
       ],
       notes: order.payment_instructions || undefined, settings,
     });
-    setPdfHtml(html); setPdfTitle(`Sales Order — ${order.proforma_number}`); setPdfOpen(true);
+    setPdfHtml(html); setPdfTitle(`Sales Invoice — ${order.proforma_number}`); setPdfOpen(true);
+  };
+  
+  // ── RECEIVE PAYMENT ──
+  const openPaymentDialog = (order: SalesOrder) => {
+    setPaymentOrder(order);
+    setPaymentAmount(String(order.total));
+    setPaymentMethod("bank_transfer");
+    const meezan = bankAccounts.find(b => b.bank_name.toLowerCase().includes("meezan"));
+    setPaymentBankId(meezan?.id || bankAccounts[0]?.id || "");
+    setPaymentOpen(true);
+  };
+
+  const handleReceivePayment = async () => {
+    if (!paymentOrder) return;
+    setPaymentSaving(true);
+    const { data: payNum } = await supabase.rpc("generate_document_number", { p_document_type: "payment" });
+    if (!payNum) { toast.error("Failed to generate payment number"); setPaymentSaving(false); return; }
+    const { error } = await supabase.from("payments").insert({
+      payment_number: payNum,
+      party_type: "customer",
+      party_id: paymentOrder.customer_id!,
+      type: "received",
+      amount: Number(paymentAmount),
+      payment_method: paymentMethod,
+      bank_account_id: paymentMethod === "cash" ? null : paymentBankId || null,
+      date: new Date().toISOString().split("T")[0],
+      reference: paymentOrder.invoice_number || paymentOrder.proforma_number,
+    });
+    if (error) { toast.error("Payment failed: " + error.message); setPaymentSaving(false); return; }
+    toast.success(`Payment PKR ${Number(paymentAmount).toLocaleString()} received`);
+    setPaymentOpen(false); setPaymentSaving(false); load();
   };
 
   const printInvoice = async (order: SalesOrder) => {
@@ -657,7 +710,7 @@ export default function ProformaInvoices() {
   const productOptions = products.map(p => ({ value: p.id, label: p.name }));
 
   return (
-    <AppLayout title="Sales Orders" subtitle="Create orders → confirm with batch → auto invoice + delivery note"
+    <AppLayout title="Sales Invoices" subtitle="Create invoices → confirm with batch → auto invoice + delivery note"
       headerActions={
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
@@ -666,7 +719,7 @@ export default function ProformaInvoices() {
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle className="font-heading">Create Sales Order</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="font-heading">Create Sales Invoice</DialogTitle></DialogHeader>
             <div className="grid grid-cols-3 gap-3 mt-3">
               <div>
                 <Label className="text-xs font-medium text-muted-foreground">Customer *</Label>
@@ -708,7 +761,7 @@ export default function ProformaInvoices() {
               <div className="flex justify-between font-bold text-foreground text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
             </div>
             <Button onClick={handleSave} disabled={saving} className="w-full mt-4 h-11 text-sm font-semibold">
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Sales Order
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Sales Invoice
             </Button>
           </DialogContent>
         </Dialog>
@@ -842,6 +895,7 @@ export default function ProformaInvoices() {
                         <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
                         <TableHead className="font-semibold">Order #</TableHead>
                         <TableHead className="font-semibold">Customer</TableHead>
+                        <TableHead className="font-semibold">Items</TableHead>
                         <TableHead className="font-semibold">Date</TableHead>
                         <TableHead className="font-semibold">Status</TableHead>
                         <TableHead className="text-right font-semibold">Total</TableHead>
@@ -851,17 +905,22 @@ export default function ProformaInvoices() {
                     <TableBody>
                       {filtered.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-16">
+                          <TableCell colSpan={8} className="text-center py-16">
                             <FilePlus className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-                            <p className="text-muted-foreground font-medium">No sales orders yet</p>
-                            <p className="text-xs text-muted-foreground mt-1">Click "New Order" to create your first sales order</p>
+                            <p className="text-muted-foreground font-medium">No sales invoices yet</p>
+                            <p className="text-xs text-muted-foreground mt-1">Click "New Order" to create your first sales invoice</p>
                           </TableCell>
                         </TableRow>
-                      ) : filtered.map(order => (
+                      ) : filtered.map(order => {
+                        const pfItems = getPfItems(order);
+                        const itemNames = pfItems.map(i => i.product_name).filter(Boolean);
+                        const itemsDisplay = itemNames.length <= 2 ? itemNames.join(", ") : `${itemNames.slice(0, 2).join(", ")} +${itemNames.length - 2} more`;
+                        return (
                         <TableRow key={order.id} className="group cursor-pointer hover:bg-muted/30 transition-colors" data-state={selected.has(order.id) ? "selected" : undefined}>
                           <TableCell><Checkbox checked={selected.has(order.id)} onCheckedChange={() => toggleSelect(order.id)} /></TableCell>
                           <TableCell className="font-mono font-semibold text-sm" onClick={() => openPreview(order)}>{order.proforma_number}</TableCell>
                           <TableCell className="text-sm" onClick={() => openPreview(order)}>{(order.customers as any)?.name || "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate" onClick={() => openPreview(order)} title={itemNames.join(", ")}>{itemsDisplay || "—"}</TableCell>
                           <TableCell className="text-sm text-muted-foreground" onClick={() => openPreview(order)}>{order.date}</TableCell>
                           <TableCell onClick={() => openPreview(order)}>
                             <Badge variant="outline" className={`text-[10px] font-semibold ${statusColor(order.status)}`}>{statusLabel(order.status)}</Badge>
@@ -876,6 +935,11 @@ export default function ProformaInvoices() {
                                   <CheckCircle className="h-3 w-3" /> Submit
                                 </Button>
                               )}
+                              {(order.status === "invoiced" || order.status === "dispatched") && order.customer_id && (
+                                <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-600 to-green-700 text-white shadow-sm" title="Receive Payment">
+                                  <DollarSign className="h-3 w-3" /> Payment
+                                </Button>
+                              )}
                               {(order.status === "invoiced" || order.status === "dispatched") && (
                                 <Button size="sm" variant="outline" onClick={() => promptVoid(order)} className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10">
                                   <RotateCcw className="h-3 w-3" /> Void
@@ -886,6 +950,9 @@ export default function ProformaInvoices() {
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
                               )}
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shareWhatsApp(order)} title="WhatsApp to Customer">
+                                <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printOrder(order)} title="Download PDF">
                                 <Download className="h-3.5 w-3.5" />
                               </Button>
@@ -907,7 +974,8 @@ export default function ProformaInvoices() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}
@@ -1075,6 +1143,55 @@ export default function ProformaInvoices() {
               <span className="text-xs text-muted-foreground ml-1">(for staff)</span>
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ RECEIVE PAYMENT DIALOG ═══ */}
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="font-heading">Receive Payment</DialogTitle></DialogHeader>
+          {paymentOrder && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                <p className="text-xs text-muted-foreground">Invoice</p>
+                <p className="font-semibold text-sm">{paymentOrder.invoice_number || paymentOrder.proforma_number} — {(paymentOrder.customers as any)?.name || "Customer"}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total: PKR {Number(paymentOrder.total).toLocaleString()}</p>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Amount (PKR)</Label>
+                <Input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={v => { setPaymentMethod(v); if (v === "cash") setPaymentBankId(""); }}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="online">Online</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {paymentMethod !== "cash" && (
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground">Receiving Account</Label>
+                  <Select value={paymentBankId} onValueChange={setPaymentBankId}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select account..." /></SelectTrigger>
+                    <SelectContent>
+                      {bankAccounts.map(b => (
+                        <SelectItem key={b.id} value={b.id}>{b.name} ({b.bank_name})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <Button onClick={handleReceivePayment} disabled={paymentSaving || !paymentAmount} className="w-full h-11 gap-2 bg-gradient-to-r from-emerald-600 to-green-700 text-white">
+                {paymentSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <DollarSign className="h-4 w-4" /> Receive PKR {Number(paymentAmount || 0).toLocaleString()}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>

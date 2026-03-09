@@ -1,52 +1,34 @@
 
 
-# Sales & Purchase Invoice UX Enhancements
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## User Requests Summary
-1. Rename "Sales Order" to "Sales Invoice" throughout the UI
-2. Show item names in the order table (currently hidden)
-3. Add WhatsApp PDF sharing for invoices (customer & supplier)
-4. Add "Receive Payment" quick action directly from the sales invoice row
-5. Add "Make Payment" quick action from the purchase order row
-6. Payment popup should auto-fill invoice amount, default to Meezan Bank, allow changing to cash/other bank
+## Two Changes
 
-## Changes
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-### 1. `src/pages/ProformaInvoices.tsx` — Major Updates
-- **Rename all "Sales Order" text** → "Sales Invoice" in page title, buttons, dialogs, PDF titles, WhatsApp messages, empty states, tooltips
-- **Add "Items" column** to the table showing truncated product names (e.g., "Panadol, Brufen +2 more")
-- **Add WhatsApp PDF share button** in action row — sends invoice link/text via WhatsApp to the customer's phone number
-- **Add "Receive Payment" button** (green dollar icon) on invoiced/dispatched rows — opens a payment dialog pre-filled with:
-  - Type: "received", Party: the customer
-  - Amount: invoice total (editable)
-  - Payment method: "bank_transfer" by default
-  - Bank account: auto-select first Meezan bank account found (fallback to first bank), changeable via dropdown to cash/other
-  - On save: inserts payment record, reloads, shows success
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-### 2. `src/pages/PurchaseProforma.tsx` — Mirror Changes
-- **Add "Make Payment" button** on ordered/received rows — opens payment dialog pre-filled with:
-  - Type: "made", Party: the supplier
-  - Amount: order total (editable)
-  - Same Meezan-default bank logic
-- **Add WhatsApp share** for purchase orders to supplier's phone
+## Files Changed
 
-### 3. `src/hooks/useDocumentTemplates.tsx`
-- Rename default template title from "Sales Order" to "Sales Invoice"
-
-### 4. `src/pages/Index.tsx`
-- Rename quick action label "Sales Order" → "Sales Invoice"
-
-## Technical Details
-- Payment insertion reuses the existing `payments` table + `generate_document_number` RPC
-- Bank account fetching: query `bank_accounts`, find one where `bank_name` includes "meezan" (case-insensitive), else use first
-- No new DB tables or migrations needed — all data already exists
-- The `handle_payment_balance` trigger automatically updates customer/supplier balances and bank balances on insert
-
-## Files to Edit
 | File | Changes |
 |------|---------|
-| `src/pages/ProformaInvoices.tsx` | Rename to "Sales Invoice", add items column, add receive payment dialog, add WhatsApp PDF share |
-| `src/pages/PurchaseProforma.tsx` | Add make payment dialog, add WhatsApp share to supplier phone |
-| `src/hooks/useDocumentTemplates.tsx` | Rename template title |
-| `src/pages/Index.tsx` | Rename quick action label |
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+
+No other files change. The template system and all callers remain the same.
 

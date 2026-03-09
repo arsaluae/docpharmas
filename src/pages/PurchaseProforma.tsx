@@ -105,6 +105,15 @@ export default function PurchaseProforma() {
   const [postConfirmOrder, setPostConfirmOrder] = useState<PurchaseOrder | null>(null);
   const [postConfirmPoId, setPostConfirmPoId] = useState<string | null>(null);
 
+  // Make Payment
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentOrder, setPaymentOrder] = useState<PurchaseOrder | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+  const [paymentBankId, setPaymentBankId] = useState("");
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string; bank_name: string }[]>([]);
+  const [paymentSaving, setPaymentSaving] = useState(false);
+
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
 
@@ -113,8 +122,17 @@ export default function PurchaseProforma() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) navigate("/auth");
     };
-    check(); load();
+    check(); load(); loadBankAccounts();
   }, [navigate]);
+
+  const loadBankAccounts = async () => {
+    const { data } = await supabase.from("bank_accounts").select("id, name, bank_name").order("is_default", { ascending: false });
+    if (data) {
+      setBankAccounts(data);
+      const meezan = data.find(b => b.bank_name.toLowerCase().includes("meezan"));
+      setPaymentBankId(meezan?.id || data[0]?.id || "");
+    }
+  };
 
   // ── SIMPLIFIED LOAD: proformas as single source of truth ──
   const load = async () => {
@@ -289,11 +307,46 @@ export default function PurchaseProforma() {
   };
 
   // ── WHATSAPP ──
-  const shareWhatsApp = (order: PurchaseOrder) => {
-    const supName = (order.suppliers as any)?.name || "Supplier";
+  const shareWhatsApp = async (order: PurchaseOrder) => {
+    const sup = order.suppliers as any;
+    const supName = sup?.name || "Supplier";
+    const supPhone = sup?.phone || "";
     const companyName = settings?.company_name || "PharmBooks";
-    const text = `*Purchase Order ${order.proforma_number}*\n${companyName}\n\nSupplier: ${supName}\nDate: ${order.date}\n\n${previewItems.map((i: any) => `• ${i.products?.name || "Item"} × ${i.quantity_requested} @ ${Number(i.rate).toLocaleString()}`).join("\n")}\n\n*Total: PKR ${Number(order.total).toLocaleString()}*`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    const { data: its } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
+    const text = `*Purchase Order ${order.proforma_number}*\n${companyName}\n\nSupplier: ${supName}\nDate: ${order.date}\n\n${(its || []).map((i: any) => `• ${i.products?.name || "Item"} × ${i.quantity_requested} @ ${Number(i.rate).toLocaleString()}`).join("\n")}\n\n*Total: PKR ${Number(order.total).toLocaleString()}*`;
+    const waNumber = supPhone ? supPhone.replace(/[^0-9]/g, "") : "";
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  // ── MAKE PAYMENT ──
+  const openPaymentDialog = (order: PurchaseOrder) => {
+    setPaymentOrder(order);
+    setPaymentAmount(String(order.total));
+    setPaymentMethod("bank_transfer");
+    const meezan = bankAccounts.find(b => b.bank_name.toLowerCase().includes("meezan"));
+    setPaymentBankId(meezan?.id || bankAccounts[0]?.id || "");
+    setPaymentOpen(true);
+  };
+
+  const handleMakePayment = async () => {
+    if (!paymentOrder) return;
+    setPaymentSaving(true);
+    const { data: payNum } = await supabase.rpc("generate_document_number", { p_document_type: "payment" });
+    if (!payNum) { toast.error("Failed to generate payment number"); setPaymentSaving(false); return; }
+    const { error } = await supabase.from("payments").insert({
+      payment_number: payNum,
+      party_type: "supplier",
+      party_id: paymentOrder.supplier_id!,
+      type: "made",
+      amount: Number(paymentAmount),
+      payment_method: paymentMethod,
+      bank_account_id: paymentMethod === "cash" ? null : paymentBankId || null,
+      date: new Date().toISOString().split("T")[0],
+      reference: paymentOrder.po_number || paymentOrder.proforma_number,
+    });
+    if (error) { toast.error("Payment failed: " + error.message); setPaymentSaving(false); return; }
+    toast.success(`Payment PKR ${Number(paymentAmount).toLocaleString()} made`);
+    setPaymentOpen(false); setPaymentSaving(false); load();
   };
 
   // ── PDF ──
@@ -891,6 +944,11 @@ export default function PurchaseProforma() {
                                   <PackageCheck className="h-3 w-3" /> Receive
                                 </Button>
                               )}
+                              {(order.status === "ordered" || order.status === "confirmed" || order.status === "received") && order.supplier_id && (
+                                <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-600 to-green-700 text-white shadow-sm" title="Make Payment">
+                                  <DollarSign className="h-3 w-3" /> Payment
+                                </Button>
+                              )}
                               {(order.status === "ordered" || order.status === "confirmed") && (
                                 <Button size="sm" variant="outline" onClick={() => promptVoid(order)} className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10">
                                   <RotateCcw className="h-3 w-3" /> Void
@@ -911,6 +969,9 @@ export default function PurchaseProforma() {
                                   <Truck className="h-3.5 w-3.5" />
                                 </Button>
                               )}
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shareWhatsApp(order)} title="WhatsApp to Supplier">
+                                <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(order)} title="Download PDF">
                                 <Download className="h-3.5 w-3.5" />
                               </Button>
@@ -1109,6 +1170,55 @@ export default function PurchaseProforma() {
               <span className="text-xs text-muted-foreground ml-1">(for staff)</span>
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ MAKE PAYMENT DIALOG ═══ */}
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="font-heading">Make Payment</DialogTitle></DialogHeader>
+          {paymentOrder && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                <p className="text-xs text-muted-foreground">Purchase Order</p>
+                <p className="font-semibold text-sm">{paymentOrder.po_number || paymentOrder.proforma_number} — {(paymentOrder.suppliers as any)?.name || "Supplier"}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total: PKR {Number(paymentOrder.total).toLocaleString()}</p>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Amount (PKR)</Label>
+                <Input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={v => { setPaymentMethod(v); if (v === "cash") setPaymentBankId(""); }}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="online">Online</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {paymentMethod !== "cash" && (
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground">Paying Account</Label>
+                  <Select value={paymentBankId} onValueChange={setPaymentBankId}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select account..." /></SelectTrigger>
+                    <SelectContent>
+                      {bankAccounts.map(b => (
+                        <SelectItem key={b.id} value={b.id}>{b.name} ({b.bank_name})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <Button onClick={handleMakePayment} disabled={paymentSaving || !paymentAmount} className="w-full h-11 gap-2 bg-gradient-to-r from-emerald-600 to-green-700 text-white">
+                {paymentSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <DollarSign className="h-4 w-4" /> Pay PKR {Number(paymentAmount || 0).toLocaleString()}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>
