@@ -1,34 +1,41 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Replace Side Sheet with Full PDF Preview Popup
 
-## Two Changes
+## Problem
+Clicking an order row opens a side sheet with a custom HTML preview. The user wants a full-screen popup showing the actual formatted invoice/order document with download option instead.
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+## Approach
+Replace the `openPreview` function to directly open `PdfPreviewDialog` with the appropriate document:
+- **Draft orders**: Generate and show the Sales Order / Purchase Order PDF
+- **Invoiced/Dispatched orders**: Fetch invoice data and show the Sales Invoice / Purchase Invoice PDF
+- Remove the `Sheet` component entirely from both pages
+- Keep all action buttons (Submit, Edit, Void, Delete, WhatsApp, Download) in the table row — they already exist there
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+## Files to Change
 
-## Files Changed
+| File | Change |
+|------|--------|
+| `src/pages/ProformaInvoices.tsx` | Replace `openPreview` to generate PDF and open `PdfPreviewDialog` instead of Sheet; remove Sheet and all Sheet-related state (`previewOpen`, `previewOrder`, `editMode` etc.); move edit into a Dialog; keep edit mode in a separate Dialog |
+| `src/pages/PurchaseProforma.tsx` | Same — replace `openPreview` to open PDF popup; remove Sheet; keep edit in a Dialog |
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+## Technical Details
 
-No other files change. The template system and all callers remain the same.
+**Sales `openPreview` replacement:**
+- If order is `draft`: call existing `printOrder()` which already generates PDF and opens `PdfPreviewDialog`
+- If order is `invoiced`/`dispatched`: call existing `printInvoice()` which fetches invoice data and opens `PdfPreviewDialog`
+
+**Purchase `openPreview` replacement:**
+- Fetch proforma items, then call `printOrder()` to open PDF popup
+
+**Edit mode:**
+- Move edit form from Sheet into a standalone `Dialog` (same form, just wrapped in `DialogContent` instead of `SheetContent`)
+- `openEditSheet` will open this edit Dialog instead
+
+**Removals:**
+- Remove `Sheet`, `SheetContent`, `SheetHeader`, `SheetTitle` imports and usage
+- Remove `previewOpen`/`previewOrder` state (keep only what's needed for edit)
+- Remove the entire Sheet JSX block (~150 lines per file)
+
+This keeps all functionality intact while giving users the full formatted document popup they want.
 
