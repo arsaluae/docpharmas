@@ -818,12 +818,7 @@ export default function PurchaseProforma() {
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
                               )}
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
-                                const { data: its } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
-                                setPreviewItems(its || []);
-                                setPreviewOrder(order);
-                                setTimeout(() => printOrder(order), 50);
-                              }} title="Download PDF">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(order)} title="Download PDF">
                                 <Download className="h-3.5 w-3.5" />
                               </Button>
                               {order.status === "draft" && (
