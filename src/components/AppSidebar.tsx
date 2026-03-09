@@ -79,9 +79,12 @@ export function AppSidebar() {
   const handleLogout = async () => { await supabase.auth.signOut(); navigate("/auth"); };
 
   return (
-    <Sidebar collapsible="icon" className="border-r-0 bg-sidebar">
-      <div className="p-4 flex items-center gap-3">
-        <img src={docpharmasLogo} alt="DocPharmas" className="w-8 h-8 rounded-lg object-cover" />
+    <Sidebar collapsible="icon" className="border-r-0">
+      {/* Brand header */}
+      <div className="p-4 flex items-center gap-3 border-b border-border/50">
+        <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md ring-2 ring-primary/20">
+          <img src={docpharmasLogo} alt="DocPharmas" className="w-full h-full object-cover" />
+        </div>
         {!collapsed && (
           <div className="flex-1 min-w-0">
             <span className="font-heading font-bold text-foreground text-lg tracking-tight block">DocPharmas</span>
@@ -94,8 +97,8 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <NavLink to="/" end
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${location.pathname === "/" ? "bg-primary/10 text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
-                activeClassName="bg-primary/10 text-primary">
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${location.pathname === "/" ? "pharma-sidebar-active text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
+                activeClassName="pharma-sidebar-active text-primary font-medium">
                 <LayoutDashboard className={`h-4 w-4 ${location.pathname === "/" ? "text-primary" : ""}`} />
                 {!collapsed && <span>Dashboard</span>}
               </NavLink>
@@ -108,8 +111,8 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
                 <NavLink to="/admin"
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${location.pathname === "/admin" ? "bg-primary/10 text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
-                  activeClassName="bg-primary/10 text-primary">
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${location.pathname === "/admin" ? "pharma-sidebar-active text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
+                  activeClassName="pharma-sidebar-active text-primary font-medium">
                   <Shield className={`h-4 w-4 ${location.pathname === "/admin" ? "text-primary" : ""}`} />
                   {!collapsed && <span>Admin Panel</span>}
                 </NavLink>
@@ -131,8 +134,8 @@ export function AppSidebar() {
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton asChild>
                         <NavLink to={item.url}
-                          className={`flex items-center justify-center px-2 py-2 rounded-lg transition-all ${isActive ? "bg-primary/10 text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent"}`}
-                          activeClassName="bg-primary/10 text-primary">
+                          className={`flex items-center justify-center px-2 py-2 rounded-xl transition-all ${isActive ? "pharma-sidebar-active text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent"}`}
+                          activeClassName="pharma-sidebar-active text-primary">
                           <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
                         </NavLink>
                       </SidebarMenuButton>
@@ -145,21 +148,23 @@ export function AppSidebar() {
 
           return (
             <Collapsible key={section.label} open={isOpen} onOpenChange={() => toggleSection(idx)}>
-              <CollapsibleTrigger className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer select-none ${sectionActive ? "text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}>
-                <section.icon className={`h-4 w-4 ${sectionActive ? "text-primary" : ""}`} />
+              <CollapsibleTrigger className={`flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer select-none ${sectionActive ? "text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}>
+                <div className={`flex items-center justify-center w-6 h-6 rounded-lg ${sectionActive ? "bg-primary/10" : "bg-muted"}`}>
+                  <section.icon className={`h-3.5 w-3.5 ${sectionActive ? "text-primary" : "text-muted-foreground"}`} />
+                </div>
                 <span className="flex-1 text-left text-xs uppercase tracking-widest">{section.label}</span>
                 <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <SidebarMenu className="ml-3 mt-0.5 border-l border-border/50 pl-2">
+                <SidebarMenu className="ml-3 mt-0.5 border-l border-primary/10 pl-2">
                   {section.items.map((item) => {
                     const isActive = location.pathname === item.url || (item.url !== "/" && location.pathname.startsWith(item.url));
                     return (
                       <SidebarMenuItem key={item.url}>
                         <SidebarMenuButton asChild>
                           <NavLink to={item.url}
-                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] transition-all ${isActive ? "bg-primary/10 text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
-                            activeClassName="bg-primary/10 text-primary font-medium">
+                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] transition-all ${isActive ? "pharma-sidebar-active text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
+                            activeClassName="pharma-sidebar-active text-primary font-medium">
                             <item.icon className={`h-3.5 w-3.5 ${isActive ? "text-primary" : ""}`} />
                             <span>{item.title}</span>
                             {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
@@ -174,15 +179,15 @@ export function AppSidebar() {
           );
         })}
       </SidebarContent>
-      <SidebarFooter className="p-3">
+      <SidebarFooter className="p-3 border-t border-border/50">
         {tenantRole && !collapsed && (
           <div className="px-3 py-1.5 mb-1">
-            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+            <span className="text-[10px] font-medium uppercase tracking-widest text-primary/60">
               {tenantRole === "owner" ? "Admin Account" : "Staff Account"}
             </span>
           </div>
         )}
-        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-all w-full">
+        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-all w-full">
           <LogOut className="h-4 w-4" />{!collapsed && <span>Logout</span>}
         </button>
       </SidebarFooter>

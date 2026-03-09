@@ -65,10 +65,12 @@ export default function Customers() {
       opening_balance: Number(form.opening_balance),
     };
     if (editId) {
-      await supabase.from("customers").update(basePayload).eq("id", editId);
+      const { error } = await supabase.from("customers").update(basePayload).eq("id", editId);
+      if (error) { toast.error("Failed to update: " + error.message); return; }
       toast.success("Customer updated");
     } else {
-      await supabase.from("customers").insert({ ...basePayload, balance: Number(form.opening_balance) });
+      const { error } = await supabase.from("customers").insert({ ...basePayload, balance: Number(form.opening_balance) });
+      if (error) { toast.error("Failed to create: " + error.message); return; }
       toast.success("Customer created");
     }
     setOpen(false); setForm(emptyForm); setEditId(null); loadCustomers();

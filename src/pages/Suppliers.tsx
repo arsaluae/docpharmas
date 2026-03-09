@@ -51,8 +51,15 @@ export default function Suppliers() {
       payment_terms_days: Number(form.payment_terms_days), wht_rate: Number(form.wht_rate),
       opening_balance: Number(form.opening_balance),
     };
-    if (editId) { await supabase.from("suppliers").update(basePayload).eq("id", editId); toast.success("Supplier updated"); }
-    else { await supabase.from("suppliers").insert({ ...basePayload, balance: Number(form.opening_balance) }); toast.success("Supplier created"); }
+    if (editId) {
+      const { error } = await supabase.from("suppliers").update(basePayload).eq("id", editId);
+      if (error) { toast.error("Failed to update: " + error.message); return; }
+      toast.success("Supplier updated");
+    } else {
+      const { error } = await supabase.from("suppliers").insert({ ...basePayload, balance: Number(form.opening_balance) });
+      if (error) { toast.error("Failed to create: " + error.message); return; }
+      toast.success("Supplier created");
+    }
     setOpen(false); setForm(emptyForm); setEditId(null); loadSuppliers();
   };
 

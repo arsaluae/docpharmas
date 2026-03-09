@@ -62,7 +62,7 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title }: PdfPreview
           srcDoc={embeddedHtml}
           className="w-full flex-1 border-0"
           title="Document Preview"
-          sandbox="allow-same-origin allow-scripts allow-popups"
+          sandbox="allow-same-origin allow-scripts allow-popups allow-modals"
         />
       </DialogContent>
     </Dialog>
