@@ -587,7 +587,7 @@ export default function PurchaseProforma() {
     // 5. Reset proforma to draft
     await supabase.from("purchase_proformas").update({ status: "draft", converted_po_id: null }).eq("id", voidOrder.id);
     toast.success(`Order ${voidOrder.proforma_number} voided — PO, bill, delivery note & stock reversed`);
-    setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); setPreviewOpen(false); load();
+    setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); load();
   };
 
   // ── DELETE ──
