@@ -106,6 +106,7 @@ export default function ProformaInvoices() {
   const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string; bank_name: string }[]>([]);
   const [paymentSaving, setPaymentSaving] = useState(false);
 
+  const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
 
   useEffect(() => {
