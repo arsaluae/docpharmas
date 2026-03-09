@@ -199,9 +199,7 @@ export default function ProformaInvoices() {
 
   // ── PREVIEW (opens PDF popup directly) ──
   const openPreview = (order: SalesOrder) => {
-    if (order.status === "draft") {
-      printOrder(order);
-    } else if (order.converted_invoice_id) {
+    if (order.converted_invoice_id) {
       printInvoice(order);
     } else {
       printOrder(order);
