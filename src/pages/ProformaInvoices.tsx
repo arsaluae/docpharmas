@@ -709,6 +709,11 @@ export default function ProformaInvoices() {
                                   <FileText className="h-3.5 w-3.5" />
                                 </Button>
                               )}
+                              {order.converted_invoice_id && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printDeliveryNote(order)} title="Delivery Note">
+                                  <Truck className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               {order.status === "draft" && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => promptDelete([order.id])}>
                                   <Trash2 className="h-3.5 w-3.5 text-destructive" />
