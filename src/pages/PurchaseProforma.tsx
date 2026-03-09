@@ -529,22 +529,22 @@ export default function PurchaseProforma() {
   };
 
   const handleEditSave = async () => {
-    if (!previewOrder) return;
+    if (!editOrder) return;
     setSaving(true);
     const { subtotal, gst, total } = calcTotals(editItems);
     await supabase.from("purchase_proformas").update({
       supplier_id: editSupplierId || null, date: editDate, validity_days: Number(editValidity),
       notes: editNotes || null, subtotal, gst, total,
-    }).eq("id", previewOrder.id);
-    await supabase.from("purchase_proforma_items").delete().eq("proforma_id", previewOrder.id);
+    }).eq("id", editOrder.id);
+    await supabase.from("purchase_proforma_items").delete().eq("proforma_id", editOrder.id);
     if (editItems.length > 0) {
       await supabase.from("purchase_proforma_items").insert(editItems.map(i => ({
-        proforma_id: previewOrder.id, product_id: i.product_id || null,
+        proforma_id: editOrder.id, product_id: i.product_id || null,
         quantity_requested: Number(i.quantity_requested), rate: Number(i.rate), amount: i.amount,
       })));
     }
     toast.success("Order updated");
-    setPreviewOpen(false); setEditMode(false); setSaving(false); load();
+    setEditOpen(false); setSaving(false); load();
   };
 
   // ── ADD COST ──
