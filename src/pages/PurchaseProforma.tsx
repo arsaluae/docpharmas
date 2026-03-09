@@ -361,13 +361,27 @@ export default function PurchaseProforma() {
     } catch { /* DN generation is best-effort */ }
 
     await supabase.from("purchase_proformas").update({ status: "ordered", converted_po_id: po.id }).eq("id", order.id);
-    toast.success(`PO ${poNumber} + Bill + Delivery Note created`);
+    toast.success(`Purchase Invoice ${poNumber} + Delivery Note created`);
 
-    // Auto-download PO PDF
-    const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", po.id);
-    const poHtml = generatePdfHtml({
-      title: "PURCHASE ORDER", documentNumber: poNumber, date: po.date, statusTheme: "confirmed" as const,
+    // Show post-confirm document choice dialog
+    setPostConfirmOrder({ ...order, converted_po_id: po.id, po_number: poNumber });
+    setPostConfirmPoId(po.id);
+    setSaving(false); load();
+    setPostConfirmOpen(true);
+  };
+
+  // ── PURCHASE INVOICE PDF ──
+  const printPurchaseInvoice = async (order: PurchaseOrder) => {
+    const poId = order.converted_po_id;
+    if (!poId) return;
+    const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", poId);
+    const { data: poData } = await supabase.from("purchase_orders").select("*").eq("id", poId).single();
+    if (!poData) return;
+    const html = generatePdfHtml({
+      title: "PURCHASE INVOICE", documentNumber: order.po_number || poData.po_number, date: poData.date, statusTheme: "invoiced" as const,
       partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
+      partyAddress: (order.suppliers as any)?.address || undefined,
+      partyPhone: (order.suppliers as any)?.phone || undefined,
       columns: [
         { header: "#", key: "idx" }, { header: "Product", key: "name" },
         { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
@@ -378,14 +392,41 @@ export default function PurchaseProforma() {
         quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
       })),
       totals: [
-        { label: "Subtotal", value: `PKR ${Number(po.subtotal).toLocaleString()}` },
-        { label: "GST", value: `PKR ${Number(po.gst).toLocaleString()}` },
-        { label: "Total", value: `PKR ${Number(po.total).toLocaleString()}` },
+        { label: "Subtotal", value: `PKR ${Number(poData.subtotal).toLocaleString()}` },
+        ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(poData.gst).toLocaleString()}` }] : []),
+        { label: "Total", value: `PKR ${Number(poData.total).toLocaleString()}` },
       ],
       settings, template: getTemplate("purchase_order"),
     });
-    setPdfHtml(poHtml); setPdfTitle(`Purchase Order — ${poNumber}`); setPdfOpen(true);
-    setSaving(false); load();
+    setPdfHtml(html); setPdfTitle(`Purchase Invoice — ${order.po_number || poData.po_number}`); setPdfOpen(true);
+  };
+
+  // ── PURCHASE DELIVERY NOTE PDF ──
+  const printPurchaseDeliveryNote = async (order: PurchaseOrder) => {
+    const poId = order.converted_po_id;
+    if (!poId) return;
+    const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", poId).single();
+    if (!dn) { toast.error("Delivery note not found"); return; }
+    const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
+    const html = generatePdfHtml({
+      title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
+      partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
+      partyAddress: (order.suppliers as any)?.address || undefined,
+      partyPhone: (order.suppliers as any)?.phone || undefined,
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "product_name" },
+        { header: "Qty", key: "quantity", align: "right" },
+      ],
+      rows: dnItems.map((i: any, idx: number) => ({
+        idx: idx + 1,
+        product_name: i.product_name || "Item",
+        quantity: i.quantity,
+      })),
+      totals: [],
+      settings, template: getTemplate("delivery_note"),
+    });
+    setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
   };
 
   // ── RECEIVE (GRN + Bill) ──
