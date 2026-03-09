@@ -82,7 +82,7 @@ const App = () => (
             <Route path="/print-jobs" element={<PrintJobs />} />
             <Route path="/import" element={<DataImport />} />
             <Route path="/settings" element={<Settings />} />
-    {/* Delivery Notes now integrated into /proforma */}s />} />
+    {/* Delivery Notes now integrated into /proforma page */}s />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/reports/pl" element={<ProfitLoss />} />
             <Route path="/reports/balance-sheet" element={<BalanceSheet />} />
