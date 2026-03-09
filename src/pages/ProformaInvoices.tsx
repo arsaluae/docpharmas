@@ -837,6 +837,11 @@ export default function ProformaInvoices() {
                         </Button>
                       </div>
                     )}
+                    {(previewOrder.status === "invoiced" || previewOrder.status === "dispatched") && (
+                      <Button variant="outline" onClick={() => promptVoid(previewOrder)} className="w-full h-10 gap-2 text-sm text-destructive border-destructive/30 hover:bg-destructive/10">
+                        <RotateCcw className="h-4 w-4" /> Void — Rollback Invoice & Stock
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
