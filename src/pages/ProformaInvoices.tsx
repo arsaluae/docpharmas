@@ -56,6 +56,8 @@ export default function ProformaInvoices() {
   const [pdfHtml, setPdfHtml] = useState("");
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfTitle, setPdfTitle] = useState("");
+  const [deliveryNotes, setDeliveryNotes] = useState<DeliveryNoteRow[]>([]);
+  const [dnLoading, setDnLoading] = useState(false);
 
   // Post-submit document choice
   const [postSubmitOpen, setPostSubmitOpen] = useState(false);
