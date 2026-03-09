@@ -383,7 +383,7 @@ export default function PurchaseProforma() {
       settings, template: getTemplate("purchase_order"),
     });
     setPdfHtml(poHtml); setPdfTitle(`Purchase Order — ${poNumber}`); setPdfOpen(true);
-    setPreviewOpen(false); setSaving(false); load();
+    setSaving(false); load();
   };
 
   // ── RECEIVE (GRN + Bill) ──
