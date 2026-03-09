@@ -122,7 +122,7 @@ export default function Landing() {
               </span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg md:text-xl text-[#64748B] max-w-2xl mx-auto mb-10 leading-relaxed">
-              PharmaZen is the <strong className="text-[#1E293B]">only ERP built for Pakistan's pharma industry</strong>.
+              DocPharmas is the <strong className="text-[#1E293B]">only ERP built for Pakistan's pharma industry</strong>.
               Replace your ledgers, spreadsheets, and guesswork — starting today.
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-4 justify-center">
