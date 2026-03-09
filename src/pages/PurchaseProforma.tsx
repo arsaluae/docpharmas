@@ -874,6 +874,16 @@ export default function PurchaseProforma() {
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
                               )}
+                              {order.converted_po_id && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printPurchaseInvoice(order)} title="Invoice PDF">
+                                  <FileText className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              {order.converted_po_id && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printPurchaseDeliveryNote(order)} title="Delivery Note">
+                                  <Truck className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(order)} title="Download PDF">
                                 <Download className="h-3.5 w-3.5" />
                               </Button>
