@@ -21,7 +21,7 @@ export interface DocumentTemplate {
 const DEFAULT_TEMPLATES: Omit<DocumentTemplate, "id" | "created_at">[] = [
   {
     document_type: "sales_invoice",
-    title: "Sales Order",
+    title: "Sales Invoice",
     columns_config: [
       { header: "Sr#", key: "srno", align: "center" },
       { header: "Product Name", key: "product_name", align: "left" },
