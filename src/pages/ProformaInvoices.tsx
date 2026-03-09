@@ -104,7 +104,7 @@ export default function ProformaInvoices() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) navigate("/auth");
     };
-    check(); load();
+    check(); load(); loadDeliveryNotes();
   }, [navigate]);
 
   // ── SIMPLIFIED LOAD: proforma_invoices only ──
