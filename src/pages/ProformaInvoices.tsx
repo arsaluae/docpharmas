@@ -199,9 +199,7 @@ export default function ProformaInvoices() {
 
   // ── PREVIEW (opens PDF popup directly) ──
   const openPreview = (order: SalesOrder) => {
-    if (order.status === "draft") {
-      printOrder(order);
-    } else if (order.converted_invoice_id) {
+    if (order.converted_invoice_id) {
       printInvoice(order);
     } else {
       printOrder(order);
@@ -522,7 +520,8 @@ export default function ProformaInvoices() {
     const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
       ((p.customers as any)?.name || "").toLowerCase().includes(q) ||
       (p.invoice_number || "").toLowerCase().includes(q);
-    const matchStatus = statusFilter === "all" || p.status === statusFilter;
+    const matchStatus = statusFilter === "all" || p.status === statusFilter ||
+      (statusFilter === "invoiced" && (p.status === "invoiced" || p.status === "dispatched"));
     const dateStart = getDateFilter();
     const matchDate = !dateStart || p.date >= dateStart;
     return matchSearch && matchStatus && matchDate;
@@ -533,8 +532,10 @@ export default function ProformaInvoices() {
     return { count: list.length, value: list.reduce((s, d) => s + Number(d.total), 0) };
   };
   const draftStats = statsByStatus("draft");
-  const invoicedStats = statsByStatus("invoiced");
-  const dispatchedStats = statsByStatus("dispatched");
+  const invoicedAndDispatchedStats = { 
+    count: orders.filter(d => d.status === "invoiced" || d.status === "dispatched").length, 
+    value: orders.filter(d => d.status === "invoiced" || d.status === "dispatched").reduce((s, d) => s + Number(d.total), 0) 
+  };
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
@@ -608,12 +609,11 @@ export default function ProformaInvoices() {
 
       <div className="space-y-4">
             {/* PREMIUM STATUS BUTTONS */}
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               {[
                 { label: "All", ...allStats, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
                 { label: "Draft", ...draftStats, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
-                { label: "Invoiced", ...invoicedStats, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "invoiced" },
-                { label: "Dispatched", ...dispatchedStats, icon: Truck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "dispatched" },
+                { label: "Invoice", ...invoicedAndDispatchedStats, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "invoiced" },
               ].map(s => (
                 <button key={s.label} onClick={() => setStatusFilter(s.statusKey)}
                   className={`group relative flex flex-col items-center justify-center h-[100px] rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>

@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Search, FileText, Trash2, Download, CheckCircle, Pencil, PackageCheck, MessageCircle, DollarSign, Eye, Loader2, FileEdit, ShoppingCart, BadgeCheck, PackageOpen, RotateCcw } from "lucide-react";
+import { Plus, Search, FileText, Trash2, Download, CheckCircle, Pencil, PackageCheck, MessageCircle, DollarSign, Eye, Loader2, FileEdit, ShoppingCart, BadgeCheck, PackageOpen, RotateCcw, Truck, Send } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -99,6 +99,11 @@ export default function PurchaseProforma() {
   // Costs dialog
   const [costDialogOpen, setCostDialogOpen] = useState(false);
   const [costDialogId, setCostDialogId] = useState("");
+
+  // Post-confirm document choice
+  const [postConfirmOpen, setPostConfirmOpen] = useState(false);
+  const [postConfirmOrder, setPostConfirmOrder] = useState<PurchaseOrder | null>(null);
+  const [postConfirmPoId, setPostConfirmPoId] = useState<string | null>(null);
 
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
@@ -222,10 +227,12 @@ export default function PurchaseProforma() {
   const openPreview = async (order: PurchaseOrder) => {
     const { data: its } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
     setPreviewItems(its || []);
-    // Small delay to let state update for printOrder which uses previewItems
+    const isInvoiced = order.status === "ordered" || order.status === "confirmed";
+    const pdfDocTitle = isInvoiced ? "PURCHASE INVOICE" : "PURCHASE ORDER";
+    const theme = order.status === "draft" ? "draft" as const : "invoiced" as const;
     setTimeout(() => {
       const html = generatePdfHtml({
-        title: "PURCHASE ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: order.status === "draft" ? "draft" as const : "confirmed" as const,
+        title: pdfDocTitle, documentNumber: order.po_number || order.proforma_number, date: order.date, statusTheme: theme,
         partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
         partyAddress: (order.suppliers as any)?.address || undefined,
         partyPhone: (order.suppliers as any)?.phone || undefined,
@@ -246,7 +253,7 @@ export default function PurchaseProforma() {
         notes: order.notes || undefined, settings,
         template: getTemplate("purchase_proforma"),
       });
-      setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
+      setPdfHtml(html); setPdfTitle(`${pdfDocTitle} — ${order.po_number || order.proforma_number}`); setPdfOpen(true);
     }, 0);
   };
 
@@ -359,13 +366,27 @@ export default function PurchaseProforma() {
     } catch { /* DN generation is best-effort */ }
 
     await supabase.from("purchase_proformas").update({ status: "ordered", converted_po_id: po.id }).eq("id", order.id);
-    toast.success(`PO ${poNumber} + Bill + Delivery Note created`);
+    toast.success(`Purchase Invoice ${poNumber} + Delivery Note created`);
 
-    // Auto-download PO PDF
-    const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", po.id);
-    const poHtml = generatePdfHtml({
-      title: "PURCHASE ORDER", documentNumber: poNumber, date: po.date, statusTheme: "confirmed" as const,
+    // Show post-confirm document choice dialog
+    setPostConfirmOrder({ ...order, converted_po_id: po.id, po_number: poNumber });
+    setPostConfirmPoId(po.id);
+    setSaving(false); load();
+    setPostConfirmOpen(true);
+  };
+
+  // ── PURCHASE INVOICE PDF ──
+  const printPurchaseInvoice = async (order: PurchaseOrder) => {
+    const poId = order.converted_po_id;
+    if (!poId) return;
+    const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", poId);
+    const { data: poData } = await supabase.from("purchase_orders").select("*").eq("id", poId).single();
+    if (!poData) return;
+    const html = generatePdfHtml({
+      title: "PURCHASE INVOICE", documentNumber: order.po_number || poData.po_number, date: poData.date, statusTheme: "invoiced" as const,
       partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
+      partyAddress: (order.suppliers as any)?.address || undefined,
+      partyPhone: (order.suppliers as any)?.phone || undefined,
       columns: [
         { header: "#", key: "idx" }, { header: "Product", key: "name" },
         { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
@@ -376,14 +397,41 @@ export default function PurchaseProforma() {
         quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
       })),
       totals: [
-        { label: "Subtotal", value: `PKR ${Number(po.subtotal).toLocaleString()}` },
-        { label: "GST", value: `PKR ${Number(po.gst).toLocaleString()}` },
-        { label: "Total", value: `PKR ${Number(po.total).toLocaleString()}` },
+        { label: "Subtotal", value: `PKR ${Number(poData.subtotal).toLocaleString()}` },
+        ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(poData.gst).toLocaleString()}` }] : []),
+        { label: "Total", value: `PKR ${Number(poData.total).toLocaleString()}` },
       ],
       settings, template: getTemplate("purchase_order"),
     });
-    setPdfHtml(poHtml); setPdfTitle(`Purchase Order — ${poNumber}`); setPdfOpen(true);
-    setSaving(false); load();
+    setPdfHtml(html); setPdfTitle(`Purchase Invoice — ${order.po_number || poData.po_number}`); setPdfOpen(true);
+  };
+
+  // ── PURCHASE DELIVERY NOTE PDF ──
+  const printPurchaseDeliveryNote = async (order: PurchaseOrder) => {
+    const poId = order.converted_po_id;
+    if (!poId) return;
+    const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", poId).single();
+    if (!dn) { toast.error("Delivery note not found"); return; }
+    const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
+    const html = generatePdfHtml({
+      title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
+      partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
+      partyAddress: (order.suppliers as any)?.address || undefined,
+      partyPhone: (order.suppliers as any)?.phone || undefined,
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "product_name" },
+        { header: "Qty", key: "quantity", align: "right" },
+      ],
+      rows: dnItems.map((i: any, idx: number) => ({
+        idx: idx + 1,
+        product_name: i.product_name || "Item",
+        quantity: i.quantity,
+      })),
+      totals: [],
+      settings, template: getTemplate("delivery_note"),
+    });
+    setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
   };
 
   // ── RECEIVE (GRN + Bill) ──
@@ -629,7 +677,8 @@ export default function PurchaseProforma() {
     const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
       ((p.suppliers as any)?.name || "").toLowerCase().includes(q) ||
       (p.po_number || "").toLowerCase().includes(q);
-    const matchStatus = statusFilter === "all" || p.status === statusFilter;
+    const matchStatus = statusFilter === "all" || p.status === statusFilter ||
+      (statusFilter === "ordered" && (p.status === "ordered" || p.status === "confirmed"));
     const dateStart = getDateFilter();
     const matchDate = !dateStart || p.date >= dateStart;
     return matchSearch && matchStatus && matchDate;
@@ -640,8 +689,10 @@ export default function PurchaseProforma() {
     return { count: list.length, value: list.reduce((s, d) => s + Number(d.total), 0) };
   };
   const draftStats = statsByStatus("draft");
-  const orderedStats = statsByStatus("ordered");
-  const confirmedStats = statsByStatus("confirmed");
+  const invoiceStats = { 
+    count: orders.filter(d => d.status === "ordered" || d.status === "confirmed").length, 
+    value: orders.filter(d => d.status === "ordered" || d.status === "confirmed").reduce((s, d) => s + Number(d.total), 0) 
+  };
   const receivedStats = statsByStatus("received");
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
@@ -650,12 +701,12 @@ export default function PurchaseProforma() {
   const statusColor = (s: string) => {
     if (s === "paid") return "bg-green-500/15 text-green-700 border-green-500/20";
     if (s === "received") return "bg-emerald-500/15 text-emerald-600 border-emerald-500/20";
-    if (s === "confirmed") return "bg-violet-500/15 text-violet-600 border-violet-500/20";
+    if (s === "confirmed") return "bg-blue-500/15 text-blue-600 border-blue-500/20";
     if (s === "ordered") return "bg-blue-500/15 text-blue-600 border-blue-500/20";
     if (s === "draft") return "bg-amber-500/15 text-amber-600 border-amber-500/20";
     return "bg-muted text-muted-foreground";
   };
-  const statusLabel = (s: string) => ({ draft: "Draft", ordered: "Ordered", confirmed: "Confirmed", received: "Received", paid: "Paid" }[s] || s);
+  const statusLabel = (s: string) => ({ draft: "Draft", ordered: "Invoice", confirmed: "Invoice", received: "Received", paid: "Paid" }[s] || s);
   const allStats = { count: orders.length, value: orders.reduce((s, d) => s + Number(d.total), 0) };
 
   return (
@@ -735,7 +786,7 @@ export default function PurchaseProforma() {
               {[
                 { label: "All", ...allStats, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
                 { label: "Draft", ...draftStats, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
-                { label: "Confirmed", ...confirmedStats, icon: BadgeCheck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "confirmed" },
+                { label: "Invoice", ...invoiceStats, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "ordered" },
                 { label: "Received", ...receivedStats, icon: PackageOpen, gradient: "from-emerald-500/8 to-emerald-600/15", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-400 to-emerald-600", textColor: "text-emerald-600", statusKey: "received" },
               ].map(s => (
                 <button key={s.label} onClick={() => setStatusFilter(s.statusKey)}
@@ -821,6 +872,16 @@ export default function PurchaseProforma() {
                               {order.status === "draft" && (
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSheet(order)} title="Edit">
                                   <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              {order.converted_po_id && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printPurchaseInvoice(order)} title="Invoice PDF">
+                                  <FileText className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              {order.converted_po_id && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printPurchaseDeliveryNote(order)} title="Delivery Note">
+                                  <Truck className="h-3.5 w-3.5" />
                                 </Button>
                               )}
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(order)} title="Download PDF">
@@ -991,6 +1052,33 @@ export default function PurchaseProforma() {
           </AlertDialog>
 
       <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+
+      {/* ═══ POST-CONFIRM DOCUMENT CHOICE ═══ */}
+      <Dialog open={postConfirmOpen} onOpenChange={setPostConfirmOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-center">Documents Ready</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground text-center">Purchase Invoice and Delivery Note have been created. Which document would you like to view?</p>
+          <div className="flex flex-col gap-3 mt-2">
+            <Button
+              className="h-12 gap-2 bg-gradient-to-r from-emerald-600 to-teal-700 text-white"
+              onClick={() => { setPostConfirmOpen(false); if (postConfirmOrder) printPurchaseInvoice(postConfirmOrder); }}
+            >
+              <FileText className="h-4 w-4" /> View Purchase Invoice
+              <span className="text-xs opacity-75 ml-1">(for records)</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-12 gap-2"
+              onClick={() => { setPostConfirmOpen(false); if (postConfirmOrder) printPurchaseDeliveryNote(postConfirmOrder); }}
+            >
+              <Truck className="h-4 w-4" /> View Delivery Note
+              <span className="text-xs text-muted-foreground ml-1">(for staff)</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
