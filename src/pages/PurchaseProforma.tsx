@@ -290,7 +290,7 @@ export default function PurchaseProforma() {
     setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
   };
 
-  // ── CONFIRM ORDER (Create PO) ──
+  // ── CONFIRM ORDER (Create PO + Purchase Invoice + Delivery Note) ──
   const handleConfirmOrder = async (order: PurchaseOrder) => {
     setSaving(true);
     const { data: poNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_order" });
@@ -300,48 +300,81 @@ export default function PurchaseProforma() {
       subtotal: order.subtotal, gst: order.gst, total: order.total, status: "confirmed", proforma_id: order.id,
     }).select().single();
     if (poErr || !po) { toast.error("Failed to create PO: " + (poErr?.message || "Unknown error")); setSaving(false); return; }
-      const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*").eq("proforma_id", order.id);
-      if (ppItems?.length) {
-        await supabase.from("purchase_order_items").insert(
-          ppItems.map((i: any) => ({
-            po_id: po.id, product_id: i.product_id, quantity: Number(i.quantity_requested),
-            quantity_confirmed: Number(i.quantity_requested), rate: Number(i.rate), amount: Number(i.amount),
-          }))
-        );
-      }
-      const { data: ppCosts } = await supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", order.id);
-      if (ppCosts?.length) {
-        await supabase.from("additional_costs").insert(
-          ppCosts.map((c: any) => ({ reference_type: "purchase_order", reference_id: po.id, cost_type: c.cost_type, description: c.description, amount: Number(c.amount), vendor_id: c.vendor_id }))
-        );
-      }
-      await supabase.from("purchase_proformas").update({ status: "ordered", converted_po_id: po.id }).eq("id", order.id);
-      toast.success(`PO ${poNumber} created`);
 
-      // Auto-download PO PDF
-      const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", po.id);
-      const poHtml = generatePdfHtml({
-        title: "PURCHASE ORDER", documentNumber: poNumber, date: po.date, statusTheme: "confirmed" as const,
-        partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
-        columns: [
-          { header: "#", key: "idx" }, { header: "Product", key: "name" },
-          { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
-          { header: "Amount", key: "amount", align: "right" },
-        ],
-        rows: (poItems || []).map((i: any, idx: number) => ({
-          idx: idx + 1, name: i.products?.name || "Item",
-          quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
-        })),
-        totals: [
-          { label: "Subtotal", value: `PKR ${Number(po.subtotal).toLocaleString()}` },
-          { label: "GST", value: `PKR ${Number(po.gst).toLocaleString()}` },
-          { label: "Total", value: `PKR ${Number(po.total).toLocaleString()}` },
-        ],
-        settings, template: getTemplate("purchase_order"),
-      });
-      setPdfHtml(poHtml); setPdfTitle(`Purchase Order — ${poNumber}`); setPdfOpen(true);
-      setPreviewOpen(false); setSaving(false); load();
-    
+    const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*").eq("proforma_id", order.id);
+    if (ppItems?.length) {
+      await supabase.from("purchase_order_items").insert(
+        ppItems.map((i: any) => ({
+          po_id: po.id, product_id: i.product_id, quantity: Number(i.quantity_requested),
+          quantity_confirmed: Number(i.quantity_requested), rate: Number(i.rate), amount: Number(i.amount),
+        }))
+      );
+    }
+
+    const { data: ppCosts } = await supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", order.id);
+    if (ppCosts?.length) {
+      await supabase.from("additional_costs").insert(
+        ppCosts.map((c: any) => ({ reference_type: "purchase_order", reference_id: po.id, cost_type: c.cost_type, description: c.description, amount: Number(c.amount), vendor_id: c.vendor_id }))
+      );
+    }
+
+    // Auto-create Purchase Invoice (Bill)
+    try {
+      const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
+      if (billNumber) {
+        const supplier = suppliers.find(s => s.id === order.supplier_id);
+        const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
+        const whtAmount = settings?.wht_enabled ? Number(order.subtotal) * whtRate / 100 : 0;
+        const netTotal = Number(order.subtotal) + Number(order.gst) - whtAmount;
+        await supabase.from("purchase_invoices").insert({
+          bill_number: billNumber, supplier_id: order.supplier_id,
+          date: po.date, subtotal: Number(order.subtotal), gst: Number(order.gst),
+          wht_amount: whtAmount, total: netTotal, status: "unpaid",
+        });
+      }
+    } catch { /* bill generation is best-effort */ }
+
+    // Auto-create Delivery Note
+    try {
+      const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "delivery_note" });
+      if (dnNumber && ppItems?.length) {
+        const dnItems = ppItems.map((i: any) => ({
+          product_name: i.product_name || products.find(p => p.id === i.product_id)?.name || "Item",
+          quantity: Number(i.quantity_requested),
+        }));
+        await supabase.from("delivery_notes").insert({
+          dn_number: dnNumber, reference_type: "purchase_order", reference_id: po.id,
+          supplier_id: order.supplier_id, items: dnItems,
+        });
+      }
+    } catch { /* DN generation is best-effort */ }
+
+    await supabase.from("purchase_proformas").update({ status: "ordered", converted_po_id: po.id }).eq("id", order.id);
+    toast.success(`PO ${poNumber} + Bill + Delivery Note created`);
+
+    // Auto-download PO PDF
+    const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", po.id);
+    const poHtml = generatePdfHtml({
+      title: "PURCHASE ORDER", documentNumber: poNumber, date: po.date, statusTheme: "confirmed" as const,
+      partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
+      columns: [
+        { header: "#", key: "idx" }, { header: "Product", key: "name" },
+        { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+        { header: "Amount", key: "amount", align: "right" },
+      ],
+      rows: (poItems || []).map((i: any, idx: number) => ({
+        idx: idx + 1, name: i.products?.name || "Item",
+        quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+      })),
+      totals: [
+        { label: "Subtotal", value: `PKR ${Number(po.subtotal).toLocaleString()}` },
+        { label: "GST", value: `PKR ${Number(po.gst).toLocaleString()}` },
+        { label: "Total", value: `PKR ${Number(po.total).toLocaleString()}` },
+      ],
+      settings, template: getTemplate("purchase_order"),
+    });
+    setPdfHtml(poHtml); setPdfTitle(`Purchase Order — ${poNumber}`); setPdfOpen(true);
+    setPreviewOpen(false); setSaving(false); load();
   };
 
   // ── RECEIVE (GRN + Bill) ──
