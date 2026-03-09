@@ -164,7 +164,7 @@ export default function Landing() {
                 <div className="w-3 h-3 rounded-full bg-[#10B981]" />
                 <div className="w-3 h-3 rounded-full bg-[#0EA5E9]" />
                 <div className="w-3 h-3 rounded-full bg-[#8B5CF6]" />
-                <span className="ml-3 text-xs text-[#94A3B8]">PharmaZen Dashboard</span>
+                <span className="ml-3 text-xs text-[#94A3B8]">DocPharmas Dashboard</span>
               </div>
               <div className="grid grid-cols-3 gap-4 mb-6">
                 {[
