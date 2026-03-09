@@ -961,6 +961,42 @@ export type Database = {
           },
         ]
       }
+      pending_signups: {
+        Row: {
+          admin_notes: string | null
+          company_name: string
+          created_at: string
+          email: string
+          id: string
+          phone: string | null
+          reviewed_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          company_name: string
+          created_at?: string
+          email: string
+          id?: string
+          phone?: string | null
+          reviewed_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          company_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          phone?: string | null
+          reviewed_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       print_jobs: {
         Row: {
           cost_per_unit: number
