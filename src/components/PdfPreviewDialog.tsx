@@ -44,7 +44,7 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title }: PdfPreview
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-none w-[98vw] h-[95vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-none w-[98vw] h-[95vh] p-0 gap-0 overflow-hidden flex flex-col">
         <DialogTitle className="sr-only">{title || "Document Preview"}</DialogTitle>
         <DialogDescription className="sr-only">Preview of {title || "document"}</DialogDescription>
         {/* Header bar */}
