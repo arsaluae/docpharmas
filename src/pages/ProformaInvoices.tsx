@@ -471,7 +471,7 @@ export default function ProformaInvoices() {
     // 5. Reset proforma to draft
     await supabase.from("proforma_invoices").update({ status: "draft", converted_invoice_id: null }).eq("id", voidOrder.id);
     toast.success(`Order ${voidOrder.proforma_number} voided — invoice, delivery note & stock reversed`);
-    setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); setPreviewOpen(false); load();
+    setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); load();
   };
 
   // ── DELETE ──
