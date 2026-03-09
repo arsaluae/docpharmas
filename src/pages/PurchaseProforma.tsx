@@ -64,16 +64,15 @@ export default function PurchaseProforma() {
   const [costAmount, setCostAmount] = useState("");
   const [costVendorId, setCostVendorId] = useState("");
 
-  // Preview
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewOrder, setPreviewOrder] = useState<PurchaseOrder | null>(null);
+  // Preview items (for PDF generation)
   const [previewItems, setPreviewItems] = useState<any[]>([]);
   const [previewCosts, setPreviewCosts] = useState<any[]>([]);
   const [pdfHtml, setPdfHtml] = useState("");
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfTitle, setPdfTitle] = useState("");
-  // Edit
-  const [editMode, setEditMode] = useState(false);
+  // Edit Dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editOrder, setEditOrder] = useState<PurchaseOrder | null>(null);
   const [editSupplierId, setEditSupplierId] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editValidity, setEditValidity] = useState("30");
