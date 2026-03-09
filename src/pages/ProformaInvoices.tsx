@@ -680,7 +680,56 @@ export default function ProformaInvoices() {
               </div>
             </div>
 
-            {/* TABLE */}
+            {/* TABLE or DELIVERY NOTES */}
+            {statusFilter === "delivery_notes" ? (
+              <Card className="glass-card overflow-hidden">
+                <CardContent className="p-0">
+                  {dnLoading ? (
+                    <div className="p-6 space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30">
+                          <TableHead className="font-semibold">DN #</TableHead>
+                          <TableHead className="font-semibold">Customer</TableHead>
+                          <TableHead className="font-semibold">Date</TableHead>
+                          <TableHead className="text-right font-semibold">Items</TableHead>
+                          <TableHead className="font-semibold">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {deliveryNotes.length === 0 ? (
+                          <TableRow><TableCell colSpan={5} className="text-center py-16">
+                            <Truck className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+                            <p className="text-muted-foreground font-medium">No delivery notes yet</p>
+                          </TableCell></TableRow>
+                        ) : deliveryNotes.map(dn => {
+                          const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]) || [];
+                          return (
+                            <TableRow key={dn.id} className="hover:bg-muted/30 transition-colors">
+                              <TableCell className="font-mono font-semibold text-sm">{dn.dn_number}</TableCell>
+                              <TableCell className="text-sm">{dn.customer_name || "—"}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{dn.date}</TableCell>
+                              <TableCell className="text-right text-sm">{dnItems.length}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => viewDnPdf(dn)} title="View PDF">
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteDn(dn.id)} title="Delete">
+                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
             <Card className="glass-card overflow-hidden">
               <CardContent className="p-0">
                 {loading ? (
@@ -765,6 +814,7 @@ export default function ProformaInvoices() {
                 )}
               </CardContent>
             </Card>
+            )}
           </div>
 
           {/* BULK DELETE BAR */}
