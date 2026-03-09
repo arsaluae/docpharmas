@@ -314,6 +314,40 @@ export default function ProformaInvoices() {
     }
   };
 
+  // ── DELIVERY NOTE PDF ──
+  const printDeliveryNote = async (order: SalesOrder) => {
+    const invoiceId = order.converted_invoice_id;
+    if (!invoiceId) return;
+    const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", invoiceId).single();
+    if (!dn) { toast.error("Delivery note not found"); return; }
+    const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
+    const custName = (order.customers as any)?.name || "—";
+    const custAddress = (order.customers as any)?.address || undefined;
+    const custPhone = (order.customers as any)?.phone || undefined;
+    const custArea = (order.customers as any)?.area || undefined;
+    const html = generatePdfHtml({
+      title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
+      partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "product_name" },
+        { header: "Batch #", key: "batch_number" },
+        { header: "Expiry", key: "expiry_date" },
+        { header: "Qty", key: "quantity", align: "right" },
+      ],
+      rows: dnItems.map((i: any, idx: number) => ({
+        idx: idx + 1,
+        product_name: i.product_name || "Item",
+        batch_number: i.batch_number || "—",
+        expiry_date: i.expiry_date || "—",
+        quantity: i.quantity,
+      })),
+      totals: [],
+      settings, template: getTemplate("delivery_note"),
+    });
+    setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
+  };
+
   // ── SUBMIT (Convert to Invoice) ──
   const openSubmitDialog = async (order: SalesOrder) => {
     setSubmitOrder(order);
