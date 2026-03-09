@@ -261,7 +261,7 @@ export default function Landing() {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp}
             className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             <div className="bg-white rounded-2xl p-8 border border-[#E2E8F0] border-l-4 border-l-[#94A3B8]">
-              <p className="text-xs font-bold text-[#94A3B8] uppercase tracking-widest mb-4">Before PharmaZen</p>
+              <p className="text-xs font-bold text-[#94A3B8] uppercase tracking-widest mb-4">Before DocPharmas</p>
               <ul className="space-y-3">
                 {["Paper ledgers & manual calculations", "Stock expires unnoticed", "Tax filing takes a week", "No idea what you sold today", "Printer disputes every month"].map((item) => (
                   <li key={item} className="flex items-center gap-2 text-sm text-[#64748B]">
