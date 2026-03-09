@@ -271,7 +271,7 @@ export default function Landing() {
               </ul>
             </div>
             <div className="bg-white rounded-2xl p-8 border border-[#E2E8F0] border-l-4 border-l-[#10B981] shadow-md shadow-[#10B981]/[0.06]">
-              <p className="text-xs font-bold text-[#10B981] uppercase tracking-widest mb-4">✓ After PharmaZen</p>
+              <p className="text-xs font-bold text-[#10B981] uppercase tracking-widest mb-4">✓ After DocPharmas</p>
               <ul className="space-y-3">
                 {["One-click invoicing & auto-calculations", "Batch & expiry alerts before it's too late", "FBR-ready tax reports in 20 minutes", "Real-time dashboard with today's numbers", "Transparent printer ledger — no disputes"].map((item) => (
                   <li key={item} className="flex items-center gap-2 text-sm text-[#475569]">
