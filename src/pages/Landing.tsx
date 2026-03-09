@@ -4,12 +4,13 @@ import { motion, useInView } from "framer-motion";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { Button } from "@/components/ui/button";
 import {
-  Pill, ShieldCheck, Package, Printer, BarChart3, Receipt,
+  ShieldCheck, Package, Printer, BarChart3, Receipt,
   Clock, Calculator,
   ArrowRight, Check, MessageCircle, ChevronRight, Star,
   Copy, Zap, Users, BadgeCheck, Sparkles, Heart, TrendingUp, Lightbulb,
 } from "lucide-react";
 import { toast } from "sonner";
+import docpharmasLogo from "@/assets/docpharmas-logo.jpg";
 
 function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number; suffix?: string; duration?: number }) {
   const [count, setCount] = useState(0);
