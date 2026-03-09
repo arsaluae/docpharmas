@@ -18,15 +18,29 @@ export default function ProfitLoss() {
   useEffect(() => { load(); }, [from, to]);
 
   const load = async () => {
-    const [sales, purchases, expenses, sReturns, pReturns] = await Promise.all([
-      supabase.from("sales_invoices").select("subtotal").gte("date", from).lte("date", to),
-      supabase.from("purchase_invoices").select("subtotal").gte("date", from).lte("date", to),
+    const [sales, salesItems, expenses, sReturns, pReturns] = await Promise.all([
+      supabase.from("sales_invoices").select("id, subtotal").gte("date", from).lte("date", to),
+      supabase.from("sales_invoice_items").select("quantity, invoice_id, product_id"),
       supabase.from("expenses").select("amount, category, expense_type").gte("date", from).lte("date", to),
       supabase.from("sales_returns").select("total").gte("date", from).lte("date", to),
       supabase.from("purchase_returns").select("total").gte("date", from).lte("date", to),
     ]);
+
+    // Get products for cost_price lookup
+    const { data: products } = await supabase.from("products").select("id, cost_price");
+    const costMap: Record<string, number> = {};
+    (products || []).forEach(p => { costMap[p.id] = Number(p.cost_price); });
+
+    // Revenue from sales invoices in period
+    const salesInPeriod = new Set((sales.data || []).map(s => s.id));
     setRevenue((sales.data || []).reduce((s, i) => s + Number(i.subtotal), 0));
-    setCogs((purchases.data || []).reduce((s, i) => s + Number(i.subtotal), 0));
+
+    // COGS = sum of (quantity × cost_price) for items in sales invoices within the period
+    const cogsTotal = (salesItems.data || [])
+      .filter(item => salesInPeriod.has(item.invoice_id))
+      .reduce((s, item) => s + Number(item.quantity) * (costMap[item.product_id || ""] || 0), 0);
+    setCogs(cogsTotal);
+
     setSalesReturns((sReturns.data || []).reduce((s, i) => s + Number(i.total), 0));
     setPurchaseReturns((pReturns.data || []).reduce((s, i) => s + Number(i.total), 0));
     const cats: Record<string, number> = {};
@@ -65,7 +79,7 @@ export default function ProfitLoss() {
         <Card className="glass-card">
           <CardHeader><CardTitle className="text-base">Cost of Goods Sold</CardTitle></CardHeader>
           <CardContent className="space-y-1">
-            <div className="flex justify-between"><span className="text-muted-foreground text-sm">Purchases</span><span className="font-mono text-sm">PKR {cogs.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground text-sm">Cost of items sold</span><span className="font-mono text-sm">PKR {cogs.toLocaleString()}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground text-sm">Less: Purchase Returns</span><span className="font-mono text-sm text-primary">({purchaseReturns.toLocaleString()})</span></div>
             <Separator className="my-1" />
             <div className="flex justify-between font-medium"><span>Net COGS</span><span className="font-mono text-lg text-destructive">PKR {netCogs.toLocaleString()}</span></div>

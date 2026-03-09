@@ -73,16 +73,30 @@ export default function Expenses() {
     if (!amount || Number(amount) <= 0) { toast.error("Amount is required"); return; }
 
     if (editingId) {
-      // Delete-then-insert to let triggers fire
+      // Save old expense for rollback in case of failure
+      const oldExpense = expenses.find(e => e.id === editingId);
+      if (!oldExpense) { toast.error("Expense not found"); return; }
+      
       const { error: delErr } = await supabase.from("expenses").delete().eq("id", editingId);
-      if (delErr) { toast.error("Failed to update expense"); return; }
+      if (delErr) { toast.error("Failed to update expense: " + delErr.message); return; }
+      
       const { error: insErr } = await supabase.from("expenses").insert({
         expense_number: editingNumber, category, description: description || null,
         amount: Number(amount), gst_amount: Number(gstAmount) || 0,
         payment_method: paymentMethod, bank_account_id: bankAccountId || null,
         date, notes: notes || null, expense_type: expenseType,
       });
-      if (insErr) { toast.error("Failed to save expense"); return; }
+      if (insErr) {
+        // CRITICAL: Re-insert old expense to prevent data loss
+        await supabase.from("expenses").insert({
+          expense_number: oldExpense.expense_number, category: oldExpense.category,
+          description: oldExpense.description, amount: oldExpense.amount,
+          gst_amount: oldExpense.gst_amount, payment_method: oldExpense.payment_method,
+          bank_account_id: oldExpense.bank_account_id, date: oldExpense.date,
+          notes: oldExpense.notes, expense_type: oldExpense.expense_type,
+        });
+        toast.error("Failed to save expense — original restored"); return;
+      }
       toast.success(`Expense ${editingNumber} updated`);
     } else {
       const { data: expNumber } = await supabase.rpc("generate_document_number", { p_document_type: "expense" });

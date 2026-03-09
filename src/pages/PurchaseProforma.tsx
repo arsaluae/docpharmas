@@ -572,8 +572,17 @@ export default function PurchaseProforma() {
       await supabase.from("purchase_invoices").delete().in("grn_id", grnIds);
       await supabase.from("goods_received_notes").delete().in("id", grnIds);
     }
-    // 2. Delete purchase invoices linked directly (from confirm)
-    await supabase.from("purchase_invoices").delete().eq("supplier_id", voidOrder.supplier_id || "").is("grn_id", null);
+    // 2. Delete purchase invoices linked to this specific PO (unlinked bills created at confirm)
+    // Find bills that match the PO's supplier and were created around the same time
+    const poId2 = voidOrder.converted_po_id;
+    const { data: poData } = await supabase.from("purchase_orders").select("date, supplier_id").eq("id", poId2!).single();
+    if (poData) {
+      // Delete only bills matching this PO's supplier + date that have no GRN link
+      await supabase.from("purchase_invoices").delete()
+        .eq("supplier_id", poData.supplier_id || "")
+        .eq("date", poData.date)
+        .is("grn_id", null);
+    }
     // 3. Delete delivery notes
     await supabase.from("delivery_notes").delete().eq("reference_id", poId);
     // 4. Delete PO items and PO

@@ -3,40 +3,54 @@ import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function BalanceSheet() {
+  const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split("T")[0]);
   const [bankTotal, setBankTotal] = useState(0);
   const [receivables, setReceivables] = useState(0);
   const [inventory, setInventory] = useState(0);
   const [payables, setPayables] = useState(0);
   const [printerPayables, setPrinterPayables] = useState(0);
   const [taxPayable, setTaxPayable] = useState(0);
+  const [retainedEarnings, setRetainedEarnings] = useState(0);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [asOfDate]);
 
   const load = async () => {
-    const [banks, custs, prods, sups, printers, salesInv, purchInv] = await Promise.all([
+    const [banks, custs, prods, sups, printers, salesInv, purchInv, expenses, payments] = await Promise.all([
       supabase.from("bank_accounts").select("balance"),
       supabase.from("customers").select("balance"),
       supabase.from("products").select("cost_price, stock_quantity"),
       supabase.from("suppliers").select("balance"),
       supabase.from("printers").select("balance"),
-      supabase.from("sales_invoices").select("gst_amount").in("status", ["unpaid", "partial"]),
-      supabase.from("purchase_invoices").select("gst, wht_amount").in("status", ["unpaid", "partial"]),
+      supabase.from("sales_invoices").select("gst_amount, subtotal").lte("date", asOfDate),
+      supabase.from("purchase_invoices").select("gst, subtotal").lte("date", asOfDate),
+      supabase.from("expenses").select("amount, expense_type").lte("date", asOfDate),
+      supabase.from("payments").select("type, amount").lte("date", asOfDate),
     ]);
     setBankTotal((banks.data || []).reduce((s, b) => s + Number(b.balance), 0));
     setReceivables((custs.data || []).reduce((s, c) => s + Number(c.balance), 0));
     setInventory((prods.data || []).reduce((s, p) => s + Number(p.cost_price) * Number(p.stock_quantity), 0));
     setPayables((sups.data || []).reduce((s, su) => s + Number(su.balance), 0));
     setPrinterPayables((printers.data || []).reduce((s, pr) => s + Number(pr.balance), 0));
+
+    // GST: all invoices up to date (not just unpaid)
     const gstOut = (salesInv.data || []).reduce((s, i) => s + Number(i.gst_amount), 0);
     const gstIn = (purchInv.data || []).reduce((s, i) => s + Number(i.gst), 0);
     setTaxPayable(gstOut - gstIn);
+
+    // Retained Earnings = Revenue - COGS - Business Expenses (simplified)
+    const totalRevenue = (salesInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0);
+    const totalCOGS = (purchInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0);
+    const totalBizExpenses = (expenses.data || []).filter(e => e.expense_type === 'business').reduce((s, e) => s + Number(e.amount), 0);
+    setRetainedEarnings(totalRevenue - totalCOGS - totalBizExpenses);
   };
 
   const totalAssets = bankTotal + receivables + inventory;
   const totalLiabilities = payables + printerPayables + Math.max(taxPayable, 0);
-  const equity = totalAssets - totalLiabilities;
+  const equity = retainedEarnings;
 
   const Row = ({ label, value, bold }: { label: string; value: number; bold?: boolean }) => (
     <div className={`flex justify-between py-1 ${bold ? "font-semibold" : ""}`}>
@@ -45,8 +59,15 @@ export default function BalanceSheet() {
     </div>
   );
 
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      <Label className="text-xs">As of</Label>
+      <Input type="date" className="w-40" value={asOfDate} onChange={e => setAsOfDate(e.target.value)} />
+    </div>
+  );
+
   return (
-    <AppLayout title="Balance Sheet">
+    <AppLayout title="Balance Sheet" headerActions={headerActions}>
       <div className="max-w-2xl mx-auto space-y-4">
         <Card className="glass-card">
           <CardHeader><CardTitle className="text-base">Assets</CardTitle></CardHeader>
@@ -68,11 +89,26 @@ export default function BalanceSheet() {
             <Row label="Total Liabilities" value={totalLiabilities} bold />
           </CardContent>
         </Card>
-        <Card className={`glass-card border-2 ${equity >= 0 ? "border-primary/30" : "border-destructive/30"}`}>
+        <Card className="glass-card">
           <CardHeader><CardTitle className="text-base">Equity</CardTitle></CardHeader>
           <CardContent>
-            <p className={`text-3xl font-bold font-mono ${equity >= 0 ? "text-primary" : "text-destructive"}`}>PKR {equity.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">Assets − Liabilities</p>
+            <Row label="Retained Earnings" value={retainedEarnings} />
+            <Separator className="my-2" />
+            <Row label="Total Equity" value={equity} bold />
+          </CardContent>
+        </Card>
+        <Card className={`glass-card border-2 ${Math.abs(totalAssets - totalLiabilities - equity) < 1 ? "border-primary/30" : "border-destructive/30"}`}>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div>
+                <p className="text-xs text-muted-foreground">Total Assets</p>
+                <p className="text-2xl font-bold font-mono text-primary">PKR {totalAssets.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Liabilities + Equity</p>
+                <p className="text-2xl font-bold font-mono text-primary">PKR {(totalLiabilities + equity).toLocaleString()}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
