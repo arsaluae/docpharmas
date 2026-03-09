@@ -100,6 +100,11 @@ export default function PurchaseProforma() {
   const [costDialogOpen, setCostDialogOpen] = useState(false);
   const [costDialogId, setCostDialogId] = useState("");
 
+  // Post-confirm document choice
+  const [postConfirmOpen, setPostConfirmOpen] = useState(false);
+  const [postConfirmOrder, setPostConfirmOrder] = useState<PurchaseOrder | null>(null);
+  const [postConfirmPoId, setPostConfirmPoId] = useState<string | null>(null);
+
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
 
