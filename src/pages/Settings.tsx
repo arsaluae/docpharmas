@@ -120,14 +120,15 @@ export default function Settings() {
     toast.success("Logo uploaded");
   };
 
-  const fetchAllRows = async (table: string) => {
+  const fetchAllRows = async (tableName: string) => {
     const PAGE_SIZE = 500;
     let allData: any[] = [];
     let from = 0;
     let hasMore = true;
     while (hasMore) {
-      const { data, error } = await (supabase.from(table) as any).select("*").range(from, from + PAGE_SIZE - 1);
-      if (error) { console.error(`Error fetching ${table}:`, error); break; }
+      // Use type assertion for dynamic table name
+      const { data, error } = await (supabase as any).from(tableName).select("*").range(from, from + PAGE_SIZE - 1);
+      if (error) { console.error(`Error fetching ${tableName}:`, error); break; }
       if (data) allData = allData.concat(data);
       hasMore = data ? data.length === PAGE_SIZE : false;
       from += PAGE_SIZE;
