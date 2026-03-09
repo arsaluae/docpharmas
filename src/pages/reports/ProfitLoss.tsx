@@ -18,27 +18,31 @@ export default function ProfitLoss() {
   useEffect(() => { load(); }, [from, to]);
 
   const load = async () => {
-    const [sales, salesItems, expenses, sReturns, pReturns] = await Promise.all([
+    const [sales, expenses, sReturns, pReturns] = await Promise.all([
       supabase.from("sales_invoices").select("id, subtotal").gte("date", from).lte("date", to),
-      supabase.from("sales_invoice_items").select("quantity, invoice_id, product_id"),
       supabase.from("expenses").select("amount, category, expense_type").gte("date", from).lte("date", to),
       supabase.from("sales_returns").select("total").gte("date", from).lte("date", to),
       supabase.from("purchase_returns").select("total").gte("date", from).lte("date", to),
     ]);
+
+    const salesIds = (sales.data || []).map(s => s.id);
+    setRevenue((sales.data || []).reduce((s, i) => s + Number(i.subtotal), 0));
+
+    // Fetch items only for invoices in the period — avoids 1000-row default limit
+    let allItems: any[] = [];
+    for (let i = 0; i < salesIds.length; i += 50) {
+      const batch = salesIds.slice(i, i + 50);
+      const { data } = await supabase.from("sales_invoice_items").select("quantity, invoice_id, product_id").in("invoice_id", batch);
+      allItems = allItems.concat(data || []);
+    }
 
     // Get products for cost_price lookup
     const { data: products } = await supabase.from("products").select("id, cost_price");
     const costMap: Record<string, number> = {};
     (products || []).forEach(p => { costMap[p.id] = Number(p.cost_price); });
 
-    // Revenue from sales invoices in period
-    const salesInPeriod = new Set((sales.data || []).map(s => s.id));
-    setRevenue((sales.data || []).reduce((s, i) => s + Number(i.subtotal), 0));
-
     // COGS = sum of (quantity × cost_price) for items in sales invoices within the period
-    const cogsTotal = (salesItems.data || [])
-      .filter(item => salesInPeriod.has(item.invoice_id))
-      .reduce((s, item) => s + Number(item.quantity) * (costMap[item.product_id || ""] || 0), 0);
+    const cogsTotal = allItems.reduce((s, item) => s + Number(item.quantity) * (costMap[item.product_id || ""] || 0), 0);
     setCogs(cogsTotal);
 
     setSalesReturns((sReturns.data || []).reduce((s, i) => s + Number(i.total), 0));
