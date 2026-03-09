@@ -60,7 +60,7 @@ const features = [
 ];
 
 const testimonials = [
-  { name: "Ahmed Pharma", city: "Karachi", quote: "PharmaZen saved us 3 hours daily on invoicing alone. We can't imagine going back to paper ledgers." },
+  { name: "Ahmed Pharma", city: "Karachi", quote: "DocPharmas saved us 3 hours daily on invoicing alone. We can't imagine going back to paper ledgers." },
   { name: "Al-Shifa Distributors", city: "Lahore", quote: "Our stock expiry losses dropped by 70% in the first quarter. The batch tracking is a game-changer." },
   { name: "Medline Trading", city: "Islamabad", quote: "FBR filing used to take us a full week. Now it's done in 20 minutes with one click." },
 ];
