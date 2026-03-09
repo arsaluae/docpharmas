@@ -426,7 +426,7 @@ export default function PurchaseProforma() {
         }))
       );
 
-      // Stock movements for received quantities
+      // Stock movements for received quantities (purchase_in = actual received qty, no extra adjustment)
       const varianceItems: { name: string; ordered: number; received: number; diff: number }[] = [];
       for (const item of receiveItems) {
         if (item.product_id) {
@@ -436,28 +436,11 @@ export default function PurchaseProforma() {
             reference_type: "grn", reference_id: grn.id, date: grn.date, notes: `GRN ${grnNumber}`,
           });
 
-          // Stock variance check
+          // Track variance for reporting only (no extra stock movement — purchase_in already has correct qty)
           const ordered = Number(item.quantity_confirmed) || Number(item.quantity);
           const received = Number(item.quantity_received);
           if (ordered !== received) {
-            const diff = received - ordered;
-            varianceItems.push({ name: item.item_name, ordered, received, diff });
-            // Create adjustment movement for variance
-            if (diff > 0) {
-              await supabase.from("stock_movements").insert({
-                product_id: item.product_id, quantity: Math.abs(diff),
-                movement_type: "adjustment_in", batch_number: item.batch_number || null,
-                reference_type: "grn", reference_id: grn.id, date: grn.date,
-                notes: `Stock variance: received ${received} vs ordered ${ordered} (over by ${Math.abs(diff)})`,
-              });
-            } else {
-              await supabase.from("stock_movements").insert({
-                product_id: item.product_id, quantity: Math.abs(diff),
-                movement_type: "adjustment_out", batch_number: item.batch_number || null,
-                reference_type: "grn", reference_id: grn.id, date: grn.date,
-                notes: `Stock variance: received ${received} vs ordered ${ordered} (short by ${Math.abs(diff)})`,
-              });
-            }
+            varianceItems.push({ name: item.item_name, ordered, received, diff: received - ordered });
           }
         }
       }
