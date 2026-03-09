@@ -451,7 +451,7 @@ export default function ProformaInvoices() {
       });
       setPdfHtml(autoHtml); setPdfTitle(`Sales Invoice — ${invNumber}`); setPdfOpen(true);
 
-      setSubmitOpen(false); setPreviewOpen(false); setSubmitting(false); load();
+      setSubmitOpen(false); setSubmitting(false); load();
   };
 
   // ── VOID (Rollback) ──
