@@ -126,7 +126,7 @@ export default function Settings() {
     let from = 0;
     let hasMore = true;
     while (hasMore) {
-      const { data, error } = await supabase.from(table).select("*").range(from, from + PAGE_SIZE - 1);
+      const { data, error } = await (supabase.from(table) as any).select("*").range(from, from + PAGE_SIZE - 1);
       if (error) { console.error(`Error fetching ${table}:`, error); break; }
       if (data) allData = allData.concat(data);
       hasMore = data ? data.length === PAGE_SIZE : false;
