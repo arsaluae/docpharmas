@@ -500,7 +500,7 @@ export default function ProformaInvoices() {
       setPostSubmitOrder({ ...submitOrder, converted_invoice_id: inv.id, invoice_number: invNumber });
       setPostSubmitInvoiceId(inv.id);
 
-      setSubmitOpen(false); setSubmitting(false); setPostSubmitOpen(true); load();
+      setSubmitOpen(false); setSubmitting(false); setPostSubmitOpen(true); load(); loadDeliveryNotes();
   };
 
   // ── VOID (Rollback) ──
