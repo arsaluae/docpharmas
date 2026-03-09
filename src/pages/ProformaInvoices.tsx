@@ -165,16 +165,39 @@ export default function ProformaInvoices() {
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0 }]);
   useEffect(() => { if (createOpen && items.length === 0) addItem(); }, [createOpen]);
 
-  const updateItem = (idx: number, field: string, value: any) => {
+  const lookupLastPrice = async (productId: string, custId: string): Promise<number | null> => {
+    if (!productId || !custId) return null;
+    const { data } = await supabase.from("proforma_invoices")
+      .select("items")
+      .eq("customer_id", custId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (data) {
+      for (const row of data) {
+        const rowItems: any[] = typeof row.items === "string" ? JSON.parse(row.items) : row.items;
+        const match = rowItems?.find((i: any) => i.product_id === productId);
+        if (match) return Number(match.rate);
+      }
+    }
+    return null;
+  };
+
+  const updateItem = async (idx: number, field: string, value: any) => {
     const u = [...items];
     (u[idx] as any)[field] = value;
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
       if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; }
+      // Look up last price for this customer+product
+      if (customerId && value) {
+        const lastRate = await lookupLastPrice(value, customerId);
+        u[idx].last_price = lastRate;
+        if (lastRate !== null) u[idx].rate = lastRate;
+      }
     }
     const line = Number(u[idx].quantity) * Number(u[idx].rate);
     u[idx].amount = line + (settings?.gst_enabled ? (line * Number(u[idx].gst_rate) / 100) : 0);
-    setItems(u);
+    setItems([...u]);
   };
 
   const calcTotals = (list: ProformaItem[]) => {
