@@ -761,7 +761,7 @@ export default function ProformaInvoices() {
               <div className="flex justify-between font-bold text-foreground text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
             </div>
             <Button onClick={handleSave} disabled={saving} className="w-full mt-4 h-11 text-sm font-semibold">
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Sales Order
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Sales Invoice
             </Button>
           </DialogContent>
         </Dialog>
