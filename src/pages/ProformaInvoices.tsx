@@ -546,7 +546,49 @@ export default function ProformaInvoices() {
     return null;
   };
 
-  const filtered = orders.filter(p => {
+  // ── DELIVERY NOTES (tab) ──
+  const loadDeliveryNotes = async () => {
+    setDnLoading(true);
+    const { data } = await supabase.from("delivery_notes").select("*").eq("reference_type", "sales_invoice").order("created_at", { ascending: false });
+    if (data) {
+      const custIds = [...new Set(data.filter(d => d.customer_id).map(d => d.customer_id!))];
+      let custMap: Record<string, string> = {};
+      if (custIds.length > 0) {
+        const { data: custs } = await supabase.from("customers").select("id, name").in("id", custIds);
+        if (custs) custs.forEach(c => { custMap[c.id] = c.name; });
+      }
+      setDeliveryNotes(data.map((d: any) => ({ ...d, customer_name: d.customer_id ? custMap[d.customer_id] || "—" : "—" })));
+    }
+    setDnLoading(false);
+  };
+
+  const viewDnPdf = (dn: DeliveryNoteRow) => {
+    const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]) || [];
+    const html = generatePdfHtml({
+      title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
+      partyLabel: "Customer", partyName: dn.customer_name || "—",
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "product_name" },
+        { header: "Batch #", key: "batch_number" },
+        { header: "Expiry", key: "expiry_date" },
+        { header: "Qty", key: "quantity", align: "right" },
+      ],
+      rows: dnItems.map((i: any, idx: number) => ({
+        idx: idx + 1, product_name: i.product_name || "Item",
+        batch_number: i.batch_number || "—", expiry_date: i.expiry_date || "—", quantity: i.quantity,
+      })),
+      totals: [], settings, template: getTemplate("delivery_note"),
+    });
+    setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
+  };
+
+  const deleteDn = async (id: string) => {
+    await supabase.from("delivery_notes").delete().eq("id", id);
+    toast.success("Delivery note deleted");
+    loadDeliveryNotes();
+  };
+
     const q = search.toLowerCase();
     const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
       ((p.customers as any)?.name || "").toLowerCase().includes(q) ||

@@ -578,15 +578,20 @@ export default function PurchaseProforma() {
 
   // ── EDIT ──
 
-  const updateEditItem = (idx: number, field: string, value: any) => {
+  const updateEditItem = async (idx: number, field: string, value: any) => {
     const u = [...editItems];
     (u[idx] as any)[field] = value;
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
       if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.cost_price); }
+      if (editSupplierId && value) {
+        const lastRate = await lookupLastSupplierPrice(value, editSupplierId);
+        (u[idx] as any).last_price = lastRate;
+        if (lastRate !== null) u[idx].rate = lastRate;
+      }
     }
     u[idx].amount = Number(u[idx].quantity_requested) * Number(u[idx].rate);
-    setEditItems(u);
+    setEditItems([...u]);
   };
 
   const handleEditSave = async () => {
