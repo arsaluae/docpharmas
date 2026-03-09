@@ -56,6 +56,11 @@ export default function ProformaInvoices() {
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfTitle, setPdfTitle] = useState("");
 
+  // Post-submit document choice
+  const [postSubmitOpen, setPostSubmitOpen] = useState(false);
+  const [postSubmitOrder, setPostSubmitOrder] = useState<SalesOrder | null>(null);
+  const [postSubmitInvoiceId, setPostSubmitInvoiceId] = useState<string | null>(null);
+
   // Create form
   const [customerId, setCustomerId] = useState("");
   const [pfDate, setPfDate] = useState(new Date().toISOString().split("T")[0]);
