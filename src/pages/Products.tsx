@@ -63,12 +63,17 @@ export default function Products() {
   useEffect(() => { loadAll(); }, [productPagination.page, movementPagination.page, moveTypeFilter]);
 
   const loadAll = async () => {
+    let moveQuery = supabase.from("stock_movements").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (moveTypeFilter !== "all") moveQuery = moveQuery.eq("movement_type", moveTypeFilter);
+    moveQuery = moveQuery.range(movementPagination.from, movementPagination.to);
     const [prodRes, moveRes] = await Promise.all([
-      supabase.from("products").select("*").order("created_at", { ascending: false }),
-      supabase.from("stock_movements").select("*").order("created_at", { ascending: false }),
+      supabase.from("products").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(productPagination.from, productPagination.to),
+      moveQuery,
     ]);
     if (prodRes.data) setProducts(prodRes.data);
+    if (prodRes.count !== null) productPagination.setTotalCount(prodRes.count);
     if (moveRes.data) setMovements(moveRes.data);
+    if (moveRes.count !== null) movementPagination.setTotalCount(moveRes.count);
   };
 
   const handleSave = async () => {
