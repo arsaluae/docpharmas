@@ -730,17 +730,46 @@ export default function ProformaInvoices() {
     return matchSearch && matchStatus && matchDate;
   });
 
+  // Month selector for stats
+  const now = new Date();
+  const [statsMonth, setStatsMonth] = useState(() => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
+  const statsMonthLabel = (() => {
+    const [y, m] = statsMonth.split("-");
+    return new Date(Number(y), Number(m) - 1).toLocaleDateString("en-PK", { month: "long", year: "numeric" });
+  })();
+  const prevMonth = () => {
+    const [y, m] = statsMonth.split("-").map(Number);
+    const d = new Date(y, m - 2);
+    setStatsMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+  const nextMonth = () => {
+    const [y, m] = statsMonth.split("-").map(Number);
+    const d = new Date(y, m);
+    setStatsMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+
+  const monthOrders = orders.filter(o => o.date.startsWith(statsMonth));
   const statsByStatus = (status: string) => {
-    const list = orders.filter(d => d.status === status);
+    const list = monthOrders.filter(d => d.status === status);
     return { count: list.length, value: list.reduce((s, d) => s + Number(d.total), 0) };
   };
   const draftStats = statsByStatus("draft");
   const invoicedAndDispatchedStats = { 
-    count: orders.filter(d => d.status === "invoiced" || d.status === "dispatched").length, 
-    value: orders.filter(d => d.status === "invoiced" || d.status === "dispatched").reduce((s, d) => s + Number(d.total), 0) 
+    count: monthOrders.filter(d => d.status === "invoiced" || d.status === "dispatched").length, 
+    value: monthOrders.filter(d => d.status === "invoiced" || d.status === "dispatched").reduce((s, d) => s + Number(d.total), 0) 
   };
-  const paidStats = statsByStatus("paid");
+  const paidStats = { 
+    count: monthOrders.filter(d => d.status === "paid").length, 
+    value: monthOrders.filter(d => d.status === "paid").reduce((s, d) => s + Number(d.amount_paid || d.total), 0) 
+  };
   const partialStats = statsByStatus("partial");
+
+  // DN stats for month
+  const monthDNs = deliveryNotes.filter(dn => dn.date.startsWith(statsMonth));
+  const dnUnitsDispatched = monthDNs.reduce((sum, dn) => {
+    const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]) || [];
+    return sum + dnItems.reduce((s: number, i: any) => s + Number(i.quantity || 0), 0);
+  }, 0);
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
@@ -755,7 +784,7 @@ export default function ProformaInvoices() {
   };
   const statusLabel = (s: string) => ({ draft: "Draft", invoiced: "Invoiced", dispatched: "Dispatched", partial: "Partial", paid: "Paid" }[s] || s);
 
-  const allStats = { count: orders.length, value: orders.reduce((s, d) => s + Number(d.total), 0) };
+  const allStats = { count: monthOrders.length, value: monthOrders.reduce((s, d) => s + Number(d.total), 0) };
   const customerOptions = customers.map(c => ({ value: c.id, label: c.name }));
   const productOptions = products.map(p => ({ value: p.id, label: p.name }));
 
