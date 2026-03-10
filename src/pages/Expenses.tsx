@@ -164,8 +164,7 @@ export default function Expenses() {
     const matchSearch = e.expense_number.toLowerCase().includes(search.toLowerCase()) ||
       (e.description || "").toLowerCase().includes(search.toLowerCase());
     const matchCat = catFilter === "all" || e.category === catFilter;
-    const matchTab = activeTab === "all" || e.expense_type === activeTab;
-    return matchSearch && matchCat && matchTab;
+    return matchSearch && matchCat;
   });
 
   const totalBusiness = expenses.filter(e => e.expense_type === "business").reduce((s, e) => s + Number(e.amount), 0);
