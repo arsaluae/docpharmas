@@ -342,6 +342,12 @@ export default function Customers() {
           )}
         </DialogContent>
       </Dialog>
+      <CustomerProfileDialog 
+        open={profileOpen} 
+        onOpenChange={setProfileOpen} 
+        customerId={profileCustomer?.id || null} 
+        customerName={profileCustomer?.name || ""} 
+      />
     </AppLayout>
   );
 }
