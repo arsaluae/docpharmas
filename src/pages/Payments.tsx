@@ -61,14 +61,19 @@ export default function Payments() {
   useEffect(() => { load(); }, [pagination.page, tab]);
 
   const load = async () => {
+    let payQuery = supabase.from("payments").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (tab === "received") payQuery = payQuery.eq("type", "received");
+    if (tab === "made") payQuery = payQuery.eq("type", "made");
+    payQuery = payQuery.range(pagination.from, pagination.to);
     const [pay, cust, sup, banks, prnt] = await Promise.all([
-      supabase.from("payments").select("*").order("created_at", { ascending: false }),
+      payQuery,
       supabase.from("customers").select("id, name"),
       supabase.from("suppliers").select("id, name"),
       supabase.from("bank_accounts").select("id, name, bank_name"),
       supabase.from("printers").select("id, name"),
     ]);
     if (pay.data) setPayments(pay.data);
+    if (pay.count !== null && pay.count !== undefined) pagination.setTotalCount(pay.count);
     if (cust.data) setCustomers(cust.data);
     if (sup.data) setSuppliers(sup.data);
     if (banks.data) setBankAccounts(banks.data);
