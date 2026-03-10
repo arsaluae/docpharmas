@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Upload, Trash2, CheckCircle, XCircle, AlertTriangle, FileSpreadsheet, ChevronDown, Sparkles, ArrowRight, CloudUpload, X, FileCheck, RefreshCw, GitMerge } from "lucide-react";
+import { Upload, Trash2, CheckCircle, XCircle, AlertTriangle, FileSpreadsheet, ChevronDown, Sparkles, ArrowRight, CloudUpload, X, FileCheck, RefreshCw, GitMerge, Download } from "lucide-react";
 import { toast } from "sonner";
 
 type TabType = "customers" | "suppliers" | "products" | "inventory";
