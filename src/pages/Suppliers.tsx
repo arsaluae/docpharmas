@@ -32,6 +32,7 @@ export default function Suppliers() {
   const { settings } = useCompanySettings();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [search, setSearch] = useState("");
+  const pagination = usePagination();
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
