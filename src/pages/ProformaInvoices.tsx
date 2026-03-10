@@ -151,7 +151,7 @@ export default function ProformaInvoices() {
             if (p.converted_invoice_id && statusMap[p.converted_invoice_id]) {
               const invStatus = statusMap[p.converted_invoice_id];
               if (invStatus === "paid") p.status = "paid";
-              else if (invStatus === "partial") p.status = "dispatched"; // partial payment still shows as dispatched
+              else if (invStatus === "partial") p.status = "partial";
               else if (invStatus === "dispatched") p.status = "dispatched";
               else if (p.status === "draft" && p.converted_invoice_id) p.status = "invoiced";
             }
@@ -302,11 +302,32 @@ export default function ProformaInvoices() {
     const cust = order.customers as any;
     const custName = cust?.name || "Customer";
     const custPhone = cust?.phone || "";
-    const companyName = settings?.company_name || "PharmBooks";
+    const companyName = settings?.company_name || "DocPharmas";
     const pfItems = getPfItems(order);
-    const text = `*Sales Invoice ${order.proforma_number}*\n${companyName}\n\nCustomer: ${custName}\nDate: ${order.date}\n\n${pfItems.map(i => `• ${i.product_name} × ${i.quantity} @ ${Number(i.rate).toLocaleString()}`).join("\n")}\n\n*Total: PKR ${Number(order.total).toLocaleString()}*${order.payment_instructions ? `\n\n${order.payment_instructions}` : ""}`;
+    const itemsList = pfItems.map((i, idx) => `${idx + 1}. ${i.product_name} × ${i.quantity} @ PKR ${Number(i.rate).toLocaleString()}`).join("\n");
+    const text = [
+      `📋 *SALES INVOICE #${order.invoice_number || order.proforma_number}*`,
+      `🏢 ${companyName}`,
+      `━━━━━━━━━━━━━━━━━`,
+      `👤 Customer: ${custName}`,
+      `📅 Date: ${order.date}`,
+      ``,
+      `📦 *Items:*`,
+      itemsList,
+      ``,
+      `💰 *Total: PKR ${Number(order.total).toLocaleString()}*`,
+      ...(order.payment_instructions ? [``, `💳 ${order.payment_instructions}`] : []),
+      ``,
+      `Thank you for your business! 🙏`,
+    ].join("\n");
     const waNumber = custPhone ? custPhone.replace(/[^0-9]/g, "") : "";
-    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, "_blank");
+    const url = waNumber
+      ? `https://web.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(text)}`
+      : `https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    const waWindow = window.open(url, "_blank");
+    if (!waWindow || waWindow.closed) {
+      toast.info("Please allow popups or open WhatsApp Web in your browser first");
+    }
   };
 
   // ── PDF ──
@@ -338,9 +359,39 @@ export default function ProformaInvoices() {
   };
   
   // ── RECEIVE PAYMENT ──
-  const openPaymentDialog = (order: SalesOrder) => {
+  const openPaymentDialog = async (order: SalesOrder) => {
+    // Calculate remaining balance by checking existing payments for this customer
+    const { data: existingPayments } = await supabase
+      .from("payments")
+      .select("amount")
+      .eq("party_type", "customer")
+      .eq("party_id", order.customer_id!)
+      .eq("type", "received");
+    
+    const totalPaid = existingPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    // Get total invoiced amount for this customer to calculate what's allocated to this invoice
+    const { data: allInvoices } = await supabase
+      .from("sales_invoices")
+      .select("id, total")
+      .eq("customer_id", order.customer_id!)
+      .order("date", { ascending: true });
+    
+    // Allocate payments to invoices oldest first (same as DB trigger)
+    let remaining = totalPaid;
+    let thisInvoiceRemaining = order.total;
+    if (allInvoices) {
+      for (const inv of allInvoices) {
+        const allocated = Math.min(Number(inv.total), Math.max(remaining, 0));
+        remaining -= Number(inv.total);
+        if (inv.id === order.converted_invoice_id) {
+          thisInvoiceRemaining = Math.max(Number(inv.total) - allocated, 0);
+          break;
+        }
+      }
+    }
+    
     setPaymentOrder(order);
-    setPaymentAmount(String(order.total));
+    setPaymentAmount(String(Math.max(thisInvoiceRemaining, 0)));
     setPaymentMethod("bank_transfer");
     const meezan = bankAccounts.find(b => b.bank_name.toLowerCase().includes("meezan"));
     setPaymentBankId(meezan?.id || bankAccounts[0]?.id || "");
@@ -699,11 +750,12 @@ export default function ProformaInvoices() {
   const statusColor = (s: string) => {
     if (s === "invoiced") return "bg-blue-500/15 text-blue-600 border-blue-500/20";
     if (s === "dispatched") return "bg-violet-500/15 text-violet-600 border-violet-500/20";
+    if (s === "partial") return "bg-orange-500/15 text-orange-600 border-orange-500/20";
     if (s === "paid") return "bg-emerald-500/15 text-emerald-600 border-emerald-500/20";
     if (s === "draft") return "bg-amber-500/15 text-amber-600 border-amber-500/20";
     return "bg-muted text-muted-foreground";
   };
-  const statusLabel = (s: string) => ({ draft: "Draft", invoiced: "Invoiced", dispatched: "Dispatched", paid: "Paid" }[s] || s);
+  const statusLabel = (s: string) => ({ draft: "Draft", invoiced: "Invoiced", dispatched: "Dispatched", partial: "Partial", paid: "Paid" }[s] || s);
 
   const allStats = { count: orders.length, value: orders.reduce((s, d) => s + Number(d.total), 0) };
   const customerOptions = customers.map(c => ({ value: c.id, label: c.name }));
@@ -935,7 +987,7 @@ export default function ProformaInvoices() {
                                   <CheckCircle className="h-3 w-3" /> Submit
                                 </Button>
                               )}
-                              {(order.status === "invoiced" || order.status === "dispatched") && order.customer_id && (
+                              {(order.status === "invoiced" || order.status === "dispatched" || order.status === "partial") && order.customer_id && (
                                 <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-600 to-green-700 text-white shadow-sm" title="Receive Payment">
                                   <DollarSign className="h-3 w-3" /> Payment
                                 </Button>

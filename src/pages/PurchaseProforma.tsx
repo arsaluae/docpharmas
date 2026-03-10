@@ -311,17 +311,70 @@ export default function PurchaseProforma() {
     const sup = order.suppliers as any;
     const supName = sup?.name || "Supplier";
     const supPhone = sup?.phone || "";
-    const companyName = settings?.company_name || "PharmBooks";
+    const companyName = settings?.company_name || "DocPharmas";
     const { data: its } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
-    const text = `*Purchase Order ${order.proforma_number}*\n${companyName}\n\nSupplier: ${supName}\nDate: ${order.date}\n\n${(its || []).map((i: any) => `• ${i.products?.name || "Item"} × ${i.quantity_requested} @ ${Number(i.rate).toLocaleString()}`).join("\n")}\n\n*Total: PKR ${Number(order.total).toLocaleString()}*`;
+    const itemsList = (its || []).map((i: any, idx: number) => `${idx + 1}. ${i.products?.name || "Item"} × ${i.quantity_requested} @ PKR ${Number(i.rate).toLocaleString()}`).join("\n");
+    const text = [
+      `📋 *PURCHASE ORDER #${order.po_number || order.proforma_number}*`,
+      `🏢 ${companyName}`,
+      `━━━━━━━━━━━━━━━━━`,
+      `🏭 Supplier: ${supName}`,
+      `📅 Date: ${order.date}`,
+      ``,
+      `📦 *Items:*`,
+      itemsList,
+      ``,
+      `💰 *Total: PKR ${Number(order.total).toLocaleString()}*`,
+      ...(order.notes ? [``, `📝 ${order.notes}`] : []),
+      ``,
+      `Looking forward to your confirmation! 🤝`,
+    ].join("\n");
     const waNumber = supPhone ? supPhone.replace(/[^0-9]/g, "") : "";
-    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, "_blank");
+    const url = waNumber
+      ? `https://web.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(text)}`
+      : `https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    const waWindow = window.open(url, "_blank");
+    if (!waWindow || waWindow.closed) {
+      toast.info("Please allow popups or open WhatsApp Web in your browser first");
+    }
   };
 
   // ── MAKE PAYMENT ──
-  const openPaymentDialog = (order: PurchaseOrder) => {
+  const openPaymentDialog = async (order: PurchaseOrder) => {
+    // Calculate remaining balance
+    const { data: existingPayments } = await supabase
+      .from("payments")
+      .select("amount")
+      .eq("party_type", "supplier")
+      .eq("party_id", order.supplier_id!)
+      .eq("type", "made");
+    
+    const totalPaid = existingPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    // Get all purchase invoices for this supplier to allocate payments oldest-first
+    const { data: allInvoices } = await supabase
+      .from("purchase_invoices")
+      .select("id, total, grn_id")
+      .eq("supplier_id", order.supplier_id!)
+      .order("date", { ascending: true });
+    
+    let remaining = totalPaid;
+    let thisOrderRemaining = order.total;
+    if (allInvoices && order.converted_po_id) {
+      // Find the GRN linked to this PO, then the invoice linked to that GRN
+      const { data: grns } = await supabase.from("goods_received_notes").select("id").eq("po_id", order.converted_po_id);
+      const grnIds = grns?.map(g => g.id) || [];
+      for (const inv of allInvoices) {
+        const allocated = Math.min(Number(inv.total), Math.max(remaining, 0));
+        remaining -= Number(inv.total);
+        if (inv.grn_id && grnIds.includes(inv.grn_id)) {
+          thisOrderRemaining = Math.max(Number(inv.total) - allocated, 0);
+          break;
+        }
+      }
+    }
+    
     setPaymentOrder(order);
-    setPaymentAmount(String(order.total));
+    setPaymentAmount(String(Math.max(thisOrderRemaining, 0)));
     setPaymentMethod("bank_transfer");
     const meezan = bankAccounts.find(b => b.bank_name.toLowerCase().includes("meezan"));
     setPaymentBankId(meezan?.id || bankAccounts[0]?.id || "");

@@ -1,53 +1,34 @@
 
 
-# Fix Payment Double-Entry, Status Updates & WhatsApp Sharing
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## Issues Identified
+## Two Changes
 
-### 1. Payment Double-Entry Bug
-The "Receive Payment" button always auto-fills the **full invoice total**, even if partial/full payment already exists. Clicking it again creates a duplicate payment, double-debiting the customer balance. Fix: calculate remaining balance and pre-fill that instead. Also disable the payment button on already-paid invoices.
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-### 2. Status Not Updating After Payment
-The DB trigger `handle_payment_invoice_status` recalculates invoice status (paid/partial/dispatched) after payment insert. However, the UI `load()` function reads status from `sales_invoices` but the proforma page maps statuses inconsistently. Fix: ensure the reload correctly reflects "paid" status after payment.
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-### 3. WhatsApp Not Working Properly
-Current `wa.me` links work but feel generic. Fix:
-- Use `https://web.whatsapp.com/send?phone=...` as primary (falls back to app if installed)
-- If no phone number, open WhatsApp contact picker via `https://wa.me/?text=...`
-- Add branded, emoji-rich message with company name, invoice details, item list, and total
-- Include a professional closing line
+## Files Changed
 
-## Technical Changes
-
-### `src/pages/ProformaInvoices.tsx`
-1. **Payment amount**: Fetch existing payments for this customer and calculate remaining balance for the specific invoice. Pre-fill remaining amount (not full total). If fully paid, hide/disable the payment button.
-2. **WhatsApp**: Rewrite `shareWhatsApp()` with branded emoji message format:
-   ```
-   📋 *SALES INVOICE #SI-0042*
-   🏢 DocPharmas Pvt Ltd
-   ━━━━━━━━━━━━━━━━━
-   👤 Customer: ABC Pharmacy
-   📅 Date: 2026-03-09
-   
-   📦 Items:
-   1. Panadol × 100 @ PKR 25
-   2. Brufen × 50 @ PKR 40
-   
-   💰 *Total: PKR 4,500*
-   
-   Thank you for your business! 🙏
-   ```
-3. **Status badge**: After payment, ensure "paid" status shows correctly in the table row.
-4. **Disable payment button** on paid invoices.
-
-### `src/pages/PurchaseProforma.tsx`
-1. Same payment remaining-balance logic for supplier payments.
-2. Same branded WhatsApp message format for purchase orders.
-3. Disable "Make Payment" on fully paid orders.
-
-## Files to Edit
 | File | Changes |
 |------|---------|
-| `src/pages/ProformaInvoices.tsx` | Fix payment pre-fill to remaining balance, branded WhatsApp, disable on paid |
-| `src/pages/PurchaseProforma.tsx` | Same fixes mirrored for purchase side |
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+
+No other files change. The template system and all callers remain the same.
 
