@@ -153,9 +153,6 @@ export default function PrintJobs() {
     const matchSearch = j.job_number.toLowerCase().includes(search.toLowerCase()) ||
       (printerNames[j.printer_id || ""] || "").toLowerCase().includes(search.toLowerCase()) ||
       (productNames[j.product_id || ""] || "").toLowerCase().includes(search.toLowerCase());
-    if (tab === "draft") return matchSearch && j.status === "draft";
-    if (tab === "delivered") return matchSearch && j.status === "delivered";
-    if (tab === "settled") return matchSearch && j.status === "settled";
     return matchSearch;
   });
 

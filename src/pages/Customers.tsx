@@ -55,8 +55,9 @@ export default function Customers() {
   useEffect(() => { loadCustomers(); }, [pagination.page]);
 
   const loadCustomers = async () => {
-    const { data } = await supabase.from("customers").select("*").order("created_at", { ascending: false });
+    const { data, count } = await supabase.from("customers").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
     if (data) setCustomers(data);
+    if (count !== null) pagination.setTotalCount(count);
   };
 
   const handleSave = async () => {
