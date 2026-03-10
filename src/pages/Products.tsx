@@ -389,6 +389,11 @@ export default function Products() {
                         ))}
                       </TableBody>
                     </Table>
+                    <PaginationControls
+                      page={movementPagination.page} totalPages={movementPagination.totalPages} totalCount={movementPagination.totalCount}
+                      hasNext={movementPagination.hasNext} hasPrev={movementPagination.hasPrev}
+                      onNext={movementPagination.nextPage} onPrev={movementPagination.prevPage} pageSize={movementPagination.pageSize}
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>
