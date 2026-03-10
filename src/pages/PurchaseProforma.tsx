@@ -860,9 +860,9 @@ export default function PurchaseProforma() {
       headerActions={
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild><Button className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:scale-[1.02] transition-all"><Plus className="h-4 w-4" /> New Order</Button></DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+           <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle className="font-heading">Create Purchase Order</DialogTitle></DialogHeader>
-            <div className="grid grid-cols-3 gap-3 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
               <div>
                 <Label className="text-xs font-medium text-muted-foreground">Supplier *</Label>
                 <SearchableSelect options={supplierOptions} value={supplierId} onChange={setSupplierId} placeholder="Select supplier..." />
@@ -942,7 +942,7 @@ export default function PurchaseProforma() {
             </div>
 
             {/* PREMIUM STATUS BUTTONS */}
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
               {[
                 { label: "All", ...allStats, secondLine: `PKR ${allStats.value.toLocaleString()}`, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
                 { label: "Draft", ...draftStats, secondLine: `PKR ${draftStats.value.toLocaleString()}`, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
@@ -951,13 +951,13 @@ export default function PurchaseProforma() {
                 { label: "Paid", ...paidStats, secondLine: `PKR ${paidStats.value.toLocaleString()}`, icon: BadgeDollarSign, gradient: "from-green-500/8 to-green-600/15", iconBg: "from-green-500 to-green-600", accent: "from-green-400 to-green-600", textColor: "text-green-600", statusKey: "paid" },
               ].map(s => (
                 <button key={s.label} onClick={() => setStatusFilter(s.statusKey)}
-                  className={`group relative flex flex-col items-center justify-center h-[120px] rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
-                  <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform duration-300`}>
-                    <s.icon className="h-4 w-4 text-white" />
+                  className={`group relative flex flex-col items-center justify-center h-[90px] sm:h-[120px] rounded-xl sm:rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
+                  <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-110 transition-transform duration-300`}>
+                    <s.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
                   </div>
-                  <span className={`text-lg font-bold font-heading ${s.textColor}`}>{s.count}</span>
-                  <span className="text-[9px] font-mono text-muted-foreground">{s.secondLine}</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{s.label}</span>
+                  <span className={`text-base sm:text-lg font-bold font-heading ${s.textColor}`}>{s.count}</span>
+                  <span className="text-[8px] sm:text-[9px] font-mono text-muted-foreground">{s.secondLine}</span>
+                  <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.1em] sm:tracking-[0.12em] text-muted-foreground">{s.label}</span>
                   <div className={`absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r ${s.accent} opacity-50 group-hover:opacity-100 transition-opacity`} />
                 </button>
               ))}
@@ -1025,17 +1025,17 @@ export default function PurchaseProforma() {
                             <div className="flex items-center gap-1">
                               {order.status === "draft" && (
                                 <Button variant="default" size="sm" onClick={() => handleConfirmOrder(order)} className="h-7 text-xs gap-1 shadow-sm">
-                                  <CheckCircle className="h-3 w-3" /> Confirm
+                                  <CheckCircle className="h-3 w-3" /> <span className="hidden sm:inline">Confirm</span>
                                 </Button>
                               )}
                               {(order.status === "ordered" || order.status === "confirmed") && (
                                 <Button variant="default" size="sm" onClick={() => openReceiveDialog(order)} className="h-7 text-xs gap-1 shadow-sm">
-                                  <PackageCheck className="h-3 w-3" /> Receive
+                                  <PackageCheck className="h-3 w-3" /> <span className="hidden sm:inline">Receive</span>
                                 </Button>
                               )}
                               {(order.status === "ordered" || order.status === "confirmed" || order.status === "received") && order.supplier_id && !isPaid && (
                                 <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-600 to-green-700 text-white shadow-sm" title="Make Payment">
-                                  <DollarSign className="h-3 w-3" /> Payment
+                                  <DollarSign className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
                                 </Button>
                               )}
                               {/* Quick WhatsApp */}

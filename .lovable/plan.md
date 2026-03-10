@@ -1,74 +1,34 @@
 
 
-# Mobile-Friendly Redesign — Landing Page + ERP App
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## Overview
-Make both the public landing page and the authenticated ERP fully responsive and touch-friendly on mobile devices.
+## Two Changes
 
-## Landing Page (`src/pages/Landing.tsx`)
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-### Navbar
-- Shrink logo + text on mobile, stack CTA buttons or use a hamburger menu
-- Reduce padding: `px-4 py-3` on mobile
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-### Hero Section
-- Reduce heading size: `text-3xl` on mobile (currently jumps from `text-4xl`)
-- Hide decorative floating shapes on small screens (`hidden sm:block`)
-- Stack CTA buttons vertically on mobile (already using `flex-col sm:flex-row` — good)
-- Reduce hero padding: `py-16 md:py-36`
-
-### Dashboard Mockup
-- Make the 3-stat grid `grid-cols-1` on very small screens, `grid-cols-3` on `sm+`
-- Make the 4-button row `grid-cols-2` on mobile instead of `grid-cols-4`
-
-### Challenges & Features Grids
-- Already responsive (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`) — minor padding tweaks
-
-### Stats Section
-- Currently `grid-cols-2 md:grid-cols-4` — good, reduce text size on mobile: `text-3xl` instead of `text-4xl`
-
-### Pricing Cards
-- Already `grid-cols-1 md:grid-cols-2` — add better spacing on mobile
-
-### Footer
-- Stack items vertically with centered alignment on mobile
-
-## ERP App Layout
-
-### `src/components/AppLayout.tsx`
-- Reduce main content padding on mobile: `p-3 sm:p-6`
-- Reduce header padding: `px-3 sm:px-6 py-3 sm:py-4`
-- Shrink title text: `text-lg sm:text-xl`
-
-### Dashboard (`src/pages/Index.tsx`)
-- KPI row: already `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` — good
-- Quick Actions: change from `grid-cols-2 md:grid-cols-4` to `grid-cols-3 sm:grid-cols-4` with smaller card heights on mobile (`h-[90px] sm:h-[120px]`)
-- Charts: reduce height on mobile
-- Tables: add horizontal scroll wrapper for small screens
-- Reorder alerts: reduce padding
-
-### Sales/Purchase Pages (`ProformaInvoices.tsx`, `PurchaseProforma.tsx`)
-- Status cards: ensure they stack properly on mobile with `grid-cols-2 sm:grid-cols-3 lg:grid-cols-5`
-- Table: wrap in `overflow-x-auto` for horizontal scroll
-- Action buttons in table rows: use icon-only on mobile, hide text labels
-- Create/Edit dialog: make full-width on mobile with `max-w-full sm:max-w-4xl`
-- Month selector: stack above cards on mobile
-
-### All List Pages (Customers, Suppliers, Products, etc.)
-- Ensure tables have `overflow-x-auto` wrappers
-- Reduce cell padding on mobile
-
-### Sidebar (`AppSidebar.tsx`)
-- Already uses Sheet on mobile via the sidebar component — no changes needed
-
-## Files to Edit
+## Files Changed
 
 | File | Changes |
 |------|---------|
-| `src/pages/Landing.tsx` | Responsive navbar, hero sizing, mockup grid, footer stacking |
-| `src/components/AppLayout.tsx` | Reduce padding/title size on mobile |
-| `src/pages/Index.tsx` | Smaller quick action cards, chart heights, table scroll |
-| `src/pages/ProformaInvoices.tsx` | Status card grid, table scroll, dialog sizing, compact row actions |
-| `src/pages/PurchaseProforma.tsx` | Mirror ProformaInvoices mobile fixes |
-| `src/index.css` | Add mobile utility classes if needed |
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+
+No other files change. The template system and all callers remain the same.
 

@@ -79,27 +79,29 @@ export default function Landing() {
     <div className="min-h-screen overflow-x-hidden bg-[#FAFBFD]">
       {/* NAVBAR — Light */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-[#E2E8F0]">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={docpharmasLogo} alt="DocPharmas" className="w-9 h-9 rounded-xl object-cover" />
-            <span className="font-heading font-bold text-xl tracking-tight text-[#1E293B]">DocPharmas</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <img src={docpharmasLogo} alt="DocPharmas" className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-cover" />
+            <span className="font-heading font-bold text-lg sm:text-xl tracking-tight text-[#1E293B]">DocPharmas</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={() => navigate("/auth")} className="text-sm text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9]">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button variant="ghost" onClick={() => navigate("/auth")} className="text-xs sm:text-sm text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9] px-2 sm:px-4">
               Login
             </Button>
             <Button onClick={() => window.open("https://wa.me/447477210590", "_blank")}
-              className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white text-sm font-semibold rounded-xl shadow-md shadow-[#0EA5E9]/20">
-              Start Free Trial <ArrowRight className="h-4 w-4 ml-1" />
+              className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white text-xs sm:text-sm font-semibold rounded-xl shadow-md shadow-[#0EA5E9]/20 px-3 sm:px-4">
+              <span className="hidden sm:inline">Start Free Trial</span>
+              <span className="sm:hidden">Free Trial</span>
+              <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-1" />
             </Button>
           </div>
         </div>
       </nav>
 
       {/* HERO — Light, soothing */}
-      <section className="relative py-24 md:py-36 bg-gradient-to-b from-[#FAFBFD] via-[#F0F7FF] to-[#FAFBFD] overflow-hidden">
-        {/* Soft floating shapes */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <section className="relative py-16 sm:py-24 md:py-36 bg-gradient-to-b from-[#FAFBFD] via-[#F0F7FF] to-[#FAFBFD] overflow-hidden">
+        {/* Soft floating shapes — hidden on mobile for performance */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden hidden sm:block">
           <div className="absolute top-20 left-[10%] w-24 h-24 rounded-full bg-[#0EA5E9]/[0.06] landing-float" />
           <div className="absolute top-40 right-[15%] w-16 h-16 rounded-full bg-[#8B5CF6]/[0.06] landing-float-delay" />
           <div className="absolute bottom-32 left-[20%] w-14 h-14 rounded-2xl rotate-45 bg-[#10B981]/[0.06] landing-float" />
@@ -108,19 +110,19 @@ export default function Landing() {
           <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-[#8B5CF6]/[0.03] rounded-full blur-3xl" />
         </div>
 
-        <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center relative z-10">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0EA5E9]/[0.08] border border-[#0EA5E9]/20 text-[#0EA5E9] text-sm font-medium mb-8">
               <Zap className="h-4 w-4" /> 7-Day Free Trial • No Credit Card Required
             </motion.div>
-            <motion.h1 variants={fadeUp} className="font-heading text-4xl md:text-6xl lg:text-7xl font-bold leading-[1.1] mb-6 text-[#1E293B]">
+            <motion.h1 variants={fadeUp} className="font-heading text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold leading-[1.1] mb-4 sm:mb-6 text-[#1E293B]">
               Grow Your Pharma
               <br />
               <span className="bg-gradient-to-r from-[#0EA5E9] to-[#8B5CF6] bg-clip-text text-transparent">
                 Business with Confidence
               </span>
             </motion.h1>
-            <motion.p variants={fadeUp} className="text-lg md:text-xl text-[#64748B] max-w-2xl mx-auto mb-10 leading-relaxed">
+            <motion.p variants={fadeUp} className="text-base sm:text-lg md:text-xl text-[#64748B] max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed px-2">
               DocPharmas is the <strong className="text-[#1E293B]">only ERP built for Pakistan's pharma industry</strong>.
               Replace your ledgers, spreadsheets, and guesswork — starting today.
             </motion.p>
@@ -165,7 +167,7 @@ export default function Landing() {
                 <div className="w-3 h-3 rounded-full bg-[#8B5CF6]" />
                 <span className="ml-3 text-xs text-[#94A3B8]">DocPharmas Dashboard</span>
               </div>
-              <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
                 {[
                   { label: "Today's Sales", value: "PKR 284,500", color: "text-[#0EA5E9]" },
                   { label: "Collections", value: "PKR 1.2M", color: "text-[#8B5CF6]" },
@@ -177,7 +179,7 @@ export default function Landing() {
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                 {[
                   { label: "Sales Order", color: "bg-[#0EA5E9]" },
                   { label: "Invoice", color: "bg-[#10B981]" },
@@ -294,7 +296,7 @@ export default function Landing() {
               { value: 500, suffix: "K+", label: "Products Tracked", color: "text-[#0EA5E9]" },
             ].map((stat) => (
               <div key={stat.label}>
-                <p className={`text-4xl md:text-5xl font-bold font-heading ${stat.color}`}>
+                <p className={`text-3xl sm:text-4xl md:text-5xl font-bold font-heading ${stat.color}`}>
                   <AnimatedCounter end={stat.value} suffix={stat.suffix} />
                 </p>
                 <p className="text-sm text-[#94A3B8] mt-2">{stat.label}</p>
@@ -417,7 +419,7 @@ export default function Landing() {
       </section>
 
       {/* FINAL CTA */}
-      <section className="py-24 bg-gradient-to-b from-[#F0F7FF] to-[#FAFBFD] relative overflow-hidden">
+      <section className="py-16 sm:py-24 bg-gradient-to-b from-[#F0F7FF] to-[#FAFBFD] relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#0EA5E9]/[0.04] rounded-full blur-3xl" />
         </div>
@@ -446,14 +448,14 @@ export default function Landing() {
       </section>
 
       {/* FOOTER */}
-      <footer className="py-12 bg-[#F8FAFC] border-t border-[#E2E8F0]">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+      <footer className="py-8 sm:py-12 bg-[#F8FAFC] border-t border-[#E2E8F0]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col items-center gap-4 sm:gap-6 md:flex-row md:justify-between text-center md:text-left">
             <div className="flex items-center gap-3">
               <img src={docpharmasLogo} alt="DocPharmas" className="w-8 h-8 rounded-lg object-cover" />
               <span className="font-heading font-bold text-lg text-[#1E293B]">DocPharmas</span>
             </div>
-            <p className="text-sm text-[#94A3B8]">
+            <p className="text-xs sm:text-sm text-[#94A3B8]">
               © {new Date().getFullYear()} DocPharmas. Built for Pakistan's pharmaceutical industry.
             </p>
             <a href="https://wa.me/447477210590" target="_blank" rel="noopener noreferrer"
