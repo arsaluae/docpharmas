@@ -45,6 +45,8 @@ export default function Products() {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
+  const productPagination = usePagination();
+  const movementPagination = usePagination();
   const [editId, setEditId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("catalog");
 
