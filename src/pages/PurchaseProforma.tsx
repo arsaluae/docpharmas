@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Search, FileText, Trash2, Download, CheckCircle, Pencil, PackageCheck, MessageCircle, DollarSign, Eye, Loader2, FileEdit, ShoppingCart, BadgeCheck, PackageOpen, RotateCcw, Truck, Send, MoreHorizontal, BadgeDollarSign } from "lucide-react";
+import { Plus, Search, FileText, Trash2, Download, CheckCircle, Pencil, PackageCheck, MessageCircle, DollarSign, Eye, Loader2, FileEdit, ShoppingCart, BadgeCheck, PackageOpen, RotateCcw, Truck, Send, MoreHorizontal, BadgeDollarSign, ChevronLeft, ChevronRight } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -344,12 +344,9 @@ export default function PurchaseProforma() {
     ].join("\n");
     const waNumber = supPhone ? supPhone.replace(/[^0-9]/g, "") : "";
     const url = waNumber
-      ? `https://web.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(text)}`
-      : `https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-    const waWindow = window.open(url, "_blank");
-    if (!waWindow || waWindow.closed) {
-      toast.info("Please allow popups or open WhatsApp Web in your browser first");
-    }
+      ? `https://api.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(text)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
   };
 
   // ── MAKE PAYMENT ──
@@ -813,14 +810,33 @@ export default function PurchaseProforma() {
     return matchSearch && matchStatus && matchDate;
   });
 
+  // Month selector for stats
+  const now2 = new Date();
+  const [statsMonth, setStatsMonth] = useState(() => `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, "0")}`);
+  const statsMonthLabel = (() => {
+    const [y, m] = statsMonth.split("-");
+    return new Date(Number(y), Number(m) - 1).toLocaleDateString("en-PK", { month: "long", year: "numeric" });
+  })();
+  const prevMonth = () => {
+    const [y, m] = statsMonth.split("-").map(Number);
+    const d = new Date(y, m - 2);
+    setStatsMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+  const nextMonth = () => {
+    const [y, m] = statsMonth.split("-").map(Number);
+    const d = new Date(y, m);
+    setStatsMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+
+  const monthOrders = orders.filter(o => o.date.startsWith(statsMonth));
   const statsByStatus = (status: string) => {
-    const list = orders.filter(d => d.status === status);
+    const list = monthOrders.filter(d => d.status === status);
     return { count: list.length, value: list.reduce((s, d) => s + Number(d.total), 0) };
   };
   const draftStats = statsByStatus("draft");
   const invoiceStats = { 
-    count: orders.filter(d => d.status === "ordered" || d.status === "confirmed").length, 
-    value: orders.filter(d => d.status === "ordered" || d.status === "confirmed").reduce((s, d) => s + Number(d.total), 0) 
+    count: monthOrders.filter(d => d.status === "ordered" || d.status === "confirmed").length, 
+    value: monthOrders.filter(d => d.status === "ordered" || d.status === "confirmed").reduce((s, d) => s + Number(d.total), 0) 
   };
   const receivedStats = statsByStatus("received");
   const paidStats = statsByStatus("paid");
@@ -837,7 +853,7 @@ export default function PurchaseProforma() {
     return "bg-muted text-muted-foreground";
   };
   const statusLabel = (s: string) => ({ draft: "Draft", ordered: "Invoice", confirmed: "Invoice", received: "Received", paid: "Paid" }[s] || s);
-  const allStats = { count: orders.length, value: orders.reduce((s, d) => s + Number(d.total), 0) };
+  const allStats = { count: monthOrders.length, value: monthOrders.reduce((s, d) => s + Number(d.total), 0) };
 
   return (
     <AppLayout title="Purchase Orders" subtitle="Draft → confirm order → receive with batch + expiry → auto GRN + bill"
@@ -916,21 +932,31 @@ export default function PurchaseProforma() {
       }
     >
       <div className="space-y-4">
+            {/* MONTH SELECTOR */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
+                <span className="text-sm font-semibold min-w-[140px] text-center">{statsMonthLabel}</span>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
+              </div>
+            </div>
+
             {/* PREMIUM STATUS BUTTONS */}
             <div className="grid grid-cols-5 gap-3">
               {[
-                { label: "All", ...allStats, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
-                { label: "Draft", ...draftStats, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
-                { label: "Invoice", ...invoiceStats, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "ordered" },
-                { label: "Received", ...receivedStats, icon: PackageOpen, gradient: "from-emerald-500/8 to-emerald-600/15", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-400 to-emerald-600", textColor: "text-emerald-600", statusKey: "received" },
-                { label: "Paid", ...paidStats, icon: BadgeDollarSign, gradient: "from-green-500/8 to-green-600/15", iconBg: "from-green-500 to-green-600", accent: "from-green-400 to-green-600", textColor: "text-green-600", statusKey: "paid" },
+                { label: "All", ...allStats, secondLine: `PKR ${allStats.value.toLocaleString()}`, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
+                { label: "Draft", ...draftStats, secondLine: `PKR ${draftStats.value.toLocaleString()}`, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
+                { label: "Invoice", ...invoiceStats, secondLine: `PKR ${invoiceStats.value.toLocaleString()}`, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "ordered" },
+                { label: "Received", ...receivedStats, secondLine: `PKR ${receivedStats.value.toLocaleString()}`, icon: PackageOpen, gradient: "from-emerald-500/8 to-emerald-600/15", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-400 to-emerald-600", textColor: "text-emerald-600", statusKey: "received" },
+                { label: "Paid", ...paidStats, secondLine: `PKR ${paidStats.value.toLocaleString()}`, icon: BadgeDollarSign, gradient: "from-green-500/8 to-green-600/15", iconBg: "from-green-500 to-green-600", accent: "from-green-400 to-green-600", textColor: "text-green-600", statusKey: "paid" },
               ].map(s => (
                 <button key={s.label} onClick={() => setStatusFilter(s.statusKey)}
-                  className={`group relative flex flex-col items-center justify-center h-[100px] rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300`}>
-                    <s.icon className="h-5 w-5 text-white" />
+                  className={`group relative flex flex-col items-center justify-center h-[120px] rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
+                  <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform duration-300`}>
+                    <s.icon className="h-4 w-4 text-white" />
                   </div>
                   <span className={`text-lg font-bold font-heading ${s.textColor}`}>{s.count}</span>
+                  <span className="text-[9px] font-mono text-muted-foreground">{s.secondLine}</span>
                   <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{s.label}</span>
                   <div className={`absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r ${s.accent} opacity-50 group-hover:opacity-100 transition-opacity`} />
                 </button>
@@ -1012,6 +1038,10 @@ export default function PurchaseProforma() {
                                   <DollarSign className="h-3 w-3" /> Payment
                                 </Button>
                               )}
+                              {/* Quick WhatsApp */}
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shareWhatsApp(order)} title="Share via WhatsApp">
+                                <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                              </Button>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>

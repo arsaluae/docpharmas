@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, MessageCircle, FileText, Loader2, X, Share2, Eye, FileEdit, Send, Truck, RotateCcw, DollarSign, MoreHorizontal, BadgeDollarSign } from "lucide-react";
+import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, MessageCircle, FileText, Loader2, X, Share2, Eye, FileEdit, Send, Truck, RotateCcw, DollarSign, MoreHorizontal, BadgeDollarSign, ChevronLeft, ChevronRight } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -341,12 +341,9 @@ export default function ProformaInvoices() {
     ].join("\n");
     const waNumber = custPhone ? custPhone.replace(/[^0-9]/g, "") : "";
     const url = waNumber
-      ? `https://web.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(text)}`
-      : `https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-    const waWindow = window.open(url, "_blank");
-    if (!waWindow || waWindow.closed) {
-      toast.info("Please allow popups or open WhatsApp Web in your browser first");
-    }
+      ? `https://api.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(text)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
   };
 
   // ── PDF ──
@@ -733,17 +730,46 @@ export default function ProformaInvoices() {
     return matchSearch && matchStatus && matchDate;
   });
 
+  // Month selector for stats
+  const now = new Date();
+  const [statsMonth, setStatsMonth] = useState(() => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
+  const statsMonthLabel = (() => {
+    const [y, m] = statsMonth.split("-");
+    return new Date(Number(y), Number(m) - 1).toLocaleDateString("en-PK", { month: "long", year: "numeric" });
+  })();
+  const prevMonth = () => {
+    const [y, m] = statsMonth.split("-").map(Number);
+    const d = new Date(y, m - 2);
+    setStatsMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+  const nextMonth = () => {
+    const [y, m] = statsMonth.split("-").map(Number);
+    const d = new Date(y, m);
+    setStatsMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+
+  const monthOrders = orders.filter(o => o.date.startsWith(statsMonth));
   const statsByStatus = (status: string) => {
-    const list = orders.filter(d => d.status === status);
+    const list = monthOrders.filter(d => d.status === status);
     return { count: list.length, value: list.reduce((s, d) => s + Number(d.total), 0) };
   };
   const draftStats = statsByStatus("draft");
   const invoicedAndDispatchedStats = { 
-    count: orders.filter(d => d.status === "invoiced" || d.status === "dispatched").length, 
-    value: orders.filter(d => d.status === "invoiced" || d.status === "dispatched").reduce((s, d) => s + Number(d.total), 0) 
+    count: monthOrders.filter(d => d.status === "invoiced" || d.status === "dispatched").length, 
+    value: monthOrders.filter(d => d.status === "invoiced" || d.status === "dispatched").reduce((s, d) => s + Number(d.total), 0) 
   };
-  const paidStats = statsByStatus("paid");
+  const paidStats = { 
+    count: monthOrders.filter(d => d.status === "paid").length, 
+    value: monthOrders.filter(d => d.status === "paid").reduce((s, d) => s + Number(d.amount_paid || d.total), 0) 
+  };
   const partialStats = statsByStatus("partial");
+
+  // DN stats for month
+  const monthDNs = deliveryNotes.filter(dn => dn.date.startsWith(statsMonth));
+  const dnUnitsDispatched = monthDNs.reduce((sum, dn) => {
+    const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]) || [];
+    return sum + dnItems.reduce((s: number, i: any) => s + Number(i.quantity || 0), 0);
+  }, 0);
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
@@ -758,7 +784,7 @@ export default function ProformaInvoices() {
   };
   const statusLabel = (s: string) => ({ draft: "Draft", invoiced: "Invoiced", dispatched: "Dispatched", partial: "Partial", paid: "Paid" }[s] || s);
 
-  const allStats = { count: orders.length, value: orders.reduce((s, d) => s + Number(d.total), 0) };
+  const allStats = { count: monthOrders.length, value: monthOrders.reduce((s, d) => s + Number(d.total), 0) };
   const customerOptions = customers.map(c => ({ value: c.id, label: c.name }));
   const productOptions = products.map(p => ({ value: p.id, label: p.name }));
 
@@ -822,21 +848,31 @@ export default function ProformaInvoices() {
     >
 
       <div className="space-y-4">
+            {/* MONTH SELECTOR */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
+                <span className="text-sm font-semibold min-w-[140px] text-center">{statsMonthLabel}</span>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
+              </div>
+            </div>
+
             {/* PREMIUM STATUS BUTTONS */}
             <div className="grid grid-cols-5 gap-3">
               {[
-                { label: "All", ...allStats, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
-                { label: "Draft", ...draftStats, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
-                { label: "Invoice", ...invoicedAndDispatchedStats, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "invoiced" },
-                { label: "Paid", ...paidStats, icon: BadgeDollarSign, gradient: "from-emerald-500/8 to-emerald-600/15", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-400 to-emerald-600", textColor: "text-emerald-600", statusKey: "paid" },
-                { label: "Delivery Notes", count: deliveryNotes.length, value: 0, icon: Truck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "delivery_notes" },
+                { label: "All", ...allStats, secondLine: `PKR ${allStats.value.toLocaleString()}`, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
+                { label: "Draft", ...draftStats, secondLine: `PKR ${draftStats.value.toLocaleString()}`, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
+                { label: "Invoice", ...invoicedAndDispatchedStats, secondLine: `PKR ${invoicedAndDispatchedStats.value.toLocaleString()}`, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "invoiced" },
+                { label: "Paid", ...paidStats, secondLine: `PKR ${paidStats.value.toLocaleString()}`, icon: BadgeDollarSign, gradient: "from-emerald-500/8 to-emerald-600/15", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-400 to-emerald-600", textColor: "text-emerald-600", statusKey: "paid" },
+                { label: "Delivery Notes", count: monthDNs.length, value: 0, secondLine: `${dnUnitsDispatched} units`, icon: Truck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "delivery_notes" },
               ].map(s => (
                 <button key={s.label} onClick={() => { setStatusFilter(s.statusKey); if (s.statusKey === "delivery_notes") loadDeliveryNotes(); }}
-                  className={`group relative flex flex-col items-center justify-center h-[100px] rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300`}>
-                    <s.icon className="h-5 w-5 text-white" />
+                  className={`group relative flex flex-col items-center justify-center h-[120px] rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
+                  <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform duration-300`}>
+                    <s.icon className="h-4 w-4 text-white" />
                   </div>
                   <span className={`text-lg font-bold font-heading ${s.textColor}`}>{s.count}</span>
+                  <span className="text-[9px] font-mono text-muted-foreground">{s.secondLine}</span>
                   <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{s.label}</span>
                   <div className={`absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r ${s.accent} opacity-50 group-hover:opacity-100 transition-opacity`} />
                 </button>
@@ -1002,7 +1038,10 @@ export default function ProformaInvoices() {
                                   <DollarSign className="h-3 w-3" /> Payment
                                 </Button>
                               )}
-                              {/* Secondary actions in dropdown */}
+                              {/* Quick WhatsApp */}
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shareWhatsApp(order)} title="Share via WhatsApp">
+                                <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                              </Button>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-7 w-7">
