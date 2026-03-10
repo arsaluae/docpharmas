@@ -275,6 +275,11 @@ export default function Products() {
                         ))}
                       </TableBody>
                     </Table>
+                    <PaginationControls
+                      page={productPagination.page} totalPages={productPagination.totalPages} totalCount={productPagination.totalCount}
+                      hasNext={productPagination.hasNext} hasPrev={productPagination.hasPrev}
+                      onNext={productPagination.nextPage} onPrev={productPagination.prevPage} pageSize={productPagination.pageSize}
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>
