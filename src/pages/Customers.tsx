@@ -52,7 +52,7 @@ export default function Customers() {
   const [editLicenseId, setEditLicenseId] = useState<string | null>(null);
   const [showLicenseForm, setShowLicenseForm] = useState(false);
 
-  useEffect(() => { loadCustomers(); }, []);
+  useEffect(() => { loadCustomers(); }, [pagination.page]);
 
   const loadCustomers = async () => {
     const { data } = await supabase.from("customers").select("*").order("created_at", { ascending: false });
