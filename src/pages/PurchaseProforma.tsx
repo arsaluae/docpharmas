@@ -126,6 +126,18 @@ export default function PurchaseProforma() {
     check(); load(); loadBankAccounts();
   }, [navigate]);
 
+  // Keyboard shortcut: Ctrl+N for new order
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "n") {
+        e.preventDefault();
+        setCreateOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const loadBankAccounts = async () => {
     const { data } = await supabase.from("bank_accounts").select("id, name, bank_name").order("is_default", { ascending: false });
     if (data) {
