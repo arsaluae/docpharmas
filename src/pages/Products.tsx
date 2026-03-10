@@ -60,7 +60,7 @@ export default function Products() {
   const [moveNotes, setMoveNotes] = useState("");
   const [moveTypeFilter, setMoveTypeFilter] = useState("all");
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { loadAll(); }, [productPagination.page, movementPagination.page, moveTypeFilter]);
 
   const loadAll = async () => {
     const [prodRes, moveRes] = await Promise.all([
