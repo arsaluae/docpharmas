@@ -732,6 +732,29 @@ export default function DataImport() {
                           </p>
                         </div>
 
+                        {/* Download Sample CSV */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const cols = TAB_COLUMNS[t];
+                            const csvContent = cols.join(",") + "\n";
+                            const blob = new Blob([csvContent], { type: "text/csv" });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `${t}_sample.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            toast.success("Sample CSV downloaded!");
+                          }}
+                        >
+                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                          Download Sample CSV
+                        </Button>
+
                         {/* Smart merge info */}
                         <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/5 border border-primary/10">
                           <GitMerge className="h-4 w-4 text-primary" />
