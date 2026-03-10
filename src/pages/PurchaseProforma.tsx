@@ -810,14 +810,33 @@ export default function PurchaseProforma() {
     return matchSearch && matchStatus && matchDate;
   });
 
+  // Month selector for stats
+  const now2 = new Date();
+  const [statsMonth, setStatsMonth] = useState(() => `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, "0")}`);
+  const statsMonthLabel = (() => {
+    const [y, m] = statsMonth.split("-");
+    return new Date(Number(y), Number(m) - 1).toLocaleDateString("en-PK", { month: "long", year: "numeric" });
+  })();
+  const prevMonth = () => {
+    const [y, m] = statsMonth.split("-").map(Number);
+    const d = new Date(y, m - 2);
+    setStatsMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+  const nextMonth = () => {
+    const [y, m] = statsMonth.split("-").map(Number);
+    const d = new Date(y, m);
+    setStatsMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+
+  const monthOrders = orders.filter(o => o.date.startsWith(statsMonth));
   const statsByStatus = (status: string) => {
-    const list = orders.filter(d => d.status === status);
+    const list = monthOrders.filter(d => d.status === status);
     return { count: list.length, value: list.reduce((s, d) => s + Number(d.total), 0) };
   };
   const draftStats = statsByStatus("draft");
   const invoiceStats = { 
-    count: orders.filter(d => d.status === "ordered" || d.status === "confirmed").length, 
-    value: orders.filter(d => d.status === "ordered" || d.status === "confirmed").reduce((s, d) => s + Number(d.total), 0) 
+    count: monthOrders.filter(d => d.status === "ordered" || d.status === "confirmed").length, 
+    value: monthOrders.filter(d => d.status === "ordered" || d.status === "confirmed").reduce((s, d) => s + Number(d.total), 0) 
   };
   const receivedStats = statsByStatus("received");
   const paidStats = statsByStatus("paid");
@@ -834,7 +853,7 @@ export default function PurchaseProforma() {
     return "bg-muted text-muted-foreground";
   };
   const statusLabel = (s: string) => ({ draft: "Draft", ordered: "Invoice", confirmed: "Invoice", received: "Received", paid: "Paid" }[s] || s);
-  const allStats = { count: orders.length, value: orders.reduce((s, d) => s + Number(d.total), 0) };
+  const allStats = { count: monthOrders.length, value: monthOrders.reduce((s, d) => s + Number(d.total), 0) };
 
   return (
     <AppLayout title="Purchase Orders" subtitle="Draft → confirm order → receive with batch + expiry → auto GRN + bill"
