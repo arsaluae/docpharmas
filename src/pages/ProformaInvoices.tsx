@@ -203,6 +203,7 @@ export default function ProformaInvoices() {
       });
     }
     setOrders(allOrders);
+    if (pf.count !== null && pf.count !== undefined) pagination.setTotalCount(pf.count);
     if (cust.data) setCustomers(cust.data as any);
     if (prod.data) setProducts(prod.data);
     setLoading(false);
