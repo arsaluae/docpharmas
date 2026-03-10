@@ -151,7 +151,7 @@ export default function ProformaInvoices() {
             if (p.converted_invoice_id && statusMap[p.converted_invoice_id]) {
               const invStatus = statusMap[p.converted_invoice_id];
               if (invStatus === "paid") p.status = "paid";
-              else if (invStatus === "partial") p.status = "dispatched"; // partial payment still shows as dispatched
+              else if (invStatus === "partial") p.status = "partial";
               else if (invStatus === "dispatched") p.status = "dispatched";
               else if (p.status === "draft" && p.converted_invoice_id) p.status = "invoiced";
             }
