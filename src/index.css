@@ -138,6 +138,14 @@
       hsl(var(--pharma-violet) / 0.08) 100%
     );
   }
+
+  /* Mobile-friendly table wrapper */
+  .mobile-table-wrap {
+    @apply -mx-3 sm:mx-0;
+  }
+  .mobile-table-wrap > div {
+    @apply overflow-x-auto;
+  }
 }
 
 /* Landing page utilities */
