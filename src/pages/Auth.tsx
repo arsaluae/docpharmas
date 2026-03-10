@@ -43,15 +43,19 @@ export default function Auth() {
         });
         if (error) throw error;
         
-        // Create pending signup record
+        // Create pending signup record via edge function (bypasses RLS for unconfirmed users)
         if (data.user) {
-          const { error: signupError } = await supabase.from("pending_signups").insert({
-            user_id: data.user.id,
-            email,
-            company_name: companyName.trim(),
-            phone: phone.trim() || null,
-          } as any);
-          if (signupError) console.error("Pending signup error:", signupError);
+          const { data: fnData, error: fnError } = await supabase.functions.invoke("manage-tenant", {
+            body: {
+              action: "create_pending_signup",
+              user_id: data.user.id,
+              email,
+              company_name: companyName.trim(),
+              phone: phone.trim() || null,
+            },
+          });
+          if (fnError) console.error("Pending signup error:", fnError);
+          if (fnData?.error) console.error("Pending signup error:", fnData.error);
         }
         
         toast.success("Account created! Please check your email to verify, then wait for admin approval.");
