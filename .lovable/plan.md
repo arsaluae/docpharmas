@@ -1,34 +1,41 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Fix: New User Signup Not Appearing in Admin Panel
 
-## Two Changes
+## Root Cause
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+After `supabase.auth.signUp()`, the user's email is unconfirmed, so no session exists. `auth.uid()` returns null, causing the RLS INSERT policy on `pending_signups` (`user_id = auth.uid()`) to silently reject the insert. The error is only `console.error`'d, so the user sees "Account created!" but nothing is saved.
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+## Fix
 
-## Files Changed
+**Route the pending_signup insert through the `manage-tenant` edge function** which uses the service role key and bypasses RLS.
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+### Changes
 
-No other files change. The template system and all callers remain the same.
+1. **`supabase/functions/manage-tenant/index.ts`** — Add a new `create_pending_signup` action that:
+   - Does NOT require admin auth (it's called by unauthenticated users)
+   - Validates the user_id exists in auth.users
+   - Inserts into pending_signups using service role
+   
+2. **`src/pages/Auth.tsx`** — Replace the direct Supabase insert with a call to the edge function:
+   ```typescript
+   await supabase.functions.invoke("manage-tenant", {
+     body: { 
+       action: "create_pending_signup",
+       user_id: data.user.id,
+       email,
+       company_name: companyName.trim(),
+       phone: phone.trim() || null,
+     },
+   });
+   ```
+
+3. **Fix orphaned users** — Create pending_signup records for the two existing users (moujpharmaceuticals@gmail.com and medsalpk@gmail.com) via a one-time DB insert so they appear in the admin panel immediately.
+
+### Security
+
+The `create_pending_signup` action will validate:
+- `user_id` exists in `auth.users`
+- No duplicate pending_signup exists for that user_id
+- No admin auth required (public action), but scoped to only creating pending records
 
