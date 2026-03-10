@@ -15,7 +15,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Wallet, ArrowDownLeft, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Wallet, ArrowDownLeft, ArrowUpRight, Pencil, Trash2, MessageCircle } from "lucide-react";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 
