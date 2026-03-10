@@ -340,9 +340,41 @@ export default function PurchaseProforma() {
   };
 
   // ── MAKE PAYMENT ──
-  const openPaymentDialog = (order: PurchaseOrder) => {
+  const openPaymentDialog = async (order: PurchaseOrder) => {
+    // Calculate remaining balance
+    const { data: existingPayments } = await supabase
+      .from("payments")
+      .select("amount")
+      .eq("party_type", "supplier")
+      .eq("party_id", order.supplier_id!)
+      .eq("type", "made");
+    
+    const totalPaid = existingPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    // Get all purchase invoices for this supplier to allocate payments oldest-first
+    const { data: allInvoices } = await supabase
+      .from("purchase_invoices")
+      .select("id, total, grn_id")
+      .eq("supplier_id", order.supplier_id!)
+      .order("date", { ascending: true });
+    
+    let remaining = totalPaid;
+    let thisOrderRemaining = order.total;
+    if (allInvoices && order.converted_po_id) {
+      // Find the GRN linked to this PO, then the invoice linked to that GRN
+      const { data: grns } = await supabase.from("goods_received_notes").select("id").eq("po_id", order.converted_po_id);
+      const grnIds = grns?.map(g => g.id) || [];
+      for (const inv of allInvoices) {
+        const allocated = Math.min(Number(inv.total), Math.max(remaining, 0));
+        remaining -= Number(inv.total);
+        if (inv.grn_id && grnIds.includes(inv.grn_id)) {
+          thisOrderRemaining = Math.max(Number(inv.total) - allocated, 0);
+          break;
+        }
+      }
+    }
+    
     setPaymentOrder(order);
-    setPaymentAmount(String(order.total));
+    setPaymentAmount(String(Math.max(thisOrderRemaining, 0)));
     setPaymentMethod("bank_transfer");
     const meezan = bankAccounts.find(b => b.bank_name.toLowerCase().includes("meezan"));
     setPaymentBankId(meezan?.id || bankAccounts[0]?.id || "");
