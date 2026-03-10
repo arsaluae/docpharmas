@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
-interface AgingRow { bill_number: string; supplier: string; total: number; due_date: string; days: number; bucket: string; }
+interface AgingRow { bill_number: string; supplier: string; total: number; paid: number; outstanding: number; due_date: string; days: number; bucket: string; }
 const bucketLabel = (days: number) => { if (days <= 0) return "Current"; if (days <= 30) return "1-30"; if (days <= 60) return "31-60"; if (days <= 90) return "61-90"; return "90+"; };
 const bucketColor = (b: string) => { if (b === "Current") return "bg-primary/10 text-primary"; if (b === "1-30") return "bg-warning/10 text-warning"; if (b === "31-60") return "bg-warning/20 text-warning"; if (b === "61-90") return "bg-destructive/10 text-destructive"; return "bg-destructive/20 text-destructive"; };
 
@@ -16,21 +16,32 @@ export default function PayablesAging() {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const [inv, sups] = await Promise.all([
-      supabase.from("purchase_invoices").select("bill_number, supplier_id, total, due_date").in("status", ["unpaid", "partial"]),
+    const [inv, sups, pmts] = await Promise.all([
+      supabase.from("purchase_invoices").select("id, bill_number, supplier_id, total, due_date").in("status", ["unpaid", "partial"]),
       supabase.from("suppliers").select("id, name"),
+      supabase.from("payments").select("invoice_id, amount").eq("party_type", "supplier").eq("type", "made"),
     ]);
     const nameMap: Record<string, string> = {};
     (sups.data || []).forEach(s => { nameMap[s.id] = s.name; });
+
+    // Sum payments per invoice
+    const paidMap: Record<string, number> = {};
+    (pmts.data || []).forEach(p => {
+      if (p.invoice_id) paidMap[p.invoice_id] = (paidMap[p.invoice_id] || 0) + Number(p.amount);
+    });
+
     const today = new Date();
     const data: AgingRow[] = (inv.data || []).map(i => {
       const due = i.due_date ? new Date(i.due_date) : today;
       const days = Math.floor((today.getTime() - due.getTime()) / 86400000);
-      return { bill_number: i.bill_number, supplier: nameMap[i.supplier_id || ""] || "—", total: Number(i.total), due_date: i.due_date || "—", days: Math.max(days, 0), bucket: bucketLabel(days) };
-    });
+      const paid = paidMap[i.id] || 0;
+      const outstanding = Math.max(Number(i.total) - paid, 0);
+      return { bill_number: i.bill_number, supplier: nameMap[i.supplier_id || ""] || "—", total: Number(i.total), paid, outstanding, due_date: i.due_date || "—", days: Math.max(days, 0), bucket: bucketLabel(days) };
+    }).filter(r => r.outstanding > 0);
+
     setRows(data);
     const totals: Record<string, number> = {};
-    data.forEach(r => { totals[r.bucket] = (totals[r.bucket] || 0) + r.total; });
+    data.forEach(r => { totals[r.bucket] = (totals[r.bucket] || 0) + r.outstanding; });
     setBucketTotals(totals);
   };
 
@@ -47,7 +58,7 @@ export default function PayablesAging() {
         </div>
         <Card className="glass-card"><CardContent className="p-0">
           <Table>
-            <TableHeader><TableRow><TableHead>Bill #</TableHead><TableHead>Supplier</TableHead><TableHead>Due Date</TableHead><TableHead>Days</TableHead><TableHead>Bucket</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Bill #</TableHead><TableHead>Supplier</TableHead><TableHead>Due Date</TableHead><TableHead>Days</TableHead><TableHead>Bucket</TableHead><TableHead className="text-right">Outstanding</TableHead></TableRow></TableHeader>
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">No outstanding payables.</TableCell></TableRow>
@@ -58,7 +69,7 @@ export default function PayablesAging() {
                   <TableCell className="text-muted-foreground">{r.due_date}</TableCell>
                   <TableCell className="font-mono">{r.days}</TableCell>
                   <TableCell><Badge className={`border-0 ${bucketColor(r.bucket)}`}>{r.bucket}</Badge></TableCell>
-                  <TableCell className="text-right font-mono font-medium">PKR {r.total.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono font-medium">PKR {r.outstanding.toLocaleString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, Search } from "lucide-react";
+import { fetchAllRows } from "@/lib/batch-fetch";
 
 export default function CustomerWiseReport() {
   const [rows, setRows] = useState<any[]>([]);
@@ -13,18 +13,18 @@ export default function CustomerWiseReport() {
   useEffect(() => { loadReport(); }, []);
 
   const loadReport = async () => {
-    const [{ data: customers }, { data: invoices }, { data: payments }, { data: returns }] = await Promise.all([
-      supabase.from("customers").select("id, name, area, balance"),
-      supabase.from("sales_invoices").select("customer_id, total"),
-      supabase.from("payments").select("party_id, amount").eq("party_type", "customer"),
-      supabase.from("sales_returns").select("customer_id, total"),
+    const [customers, invoices, payments, returns] = await Promise.all([
+      fetchAllRows("customers", "id, name, area, balance"),
+      fetchAllRows("sales_invoices", "customer_id, total"),
+      fetchAllRows("payments", "party_id, amount", [{ column: "party_type", op: "eq", value: "customer" }]),
+      fetchAllRows("sales_returns", "customer_id, total"),
     ]);
-    if (!customers) return;
+    if (!customers.length) return;
     const map = new Map<string, any>();
-    customers.forEach(c => map.set(c.id, { ...c, total_sales: 0, total_payments: 0, total_returns: 0 }));
-    (invoices || []).forEach(inv => { if (inv.customer_id && map.has(inv.customer_id)) map.get(inv.customer_id).total_sales += Number(inv.total); });
-    (payments || []).forEach(p => { if (map.has(p.party_id)) map.get(p.party_id).total_payments += Number(p.amount); });
-    (returns || []).forEach(r => { if (r.customer_id && map.has(r.customer_id)) map.get(r.customer_id).total_returns += Number(r.total); });
+    customers.forEach((c: any) => map.set(c.id, { ...c, total_sales: 0, total_payments: 0, total_returns: 0 }));
+    invoices.forEach((inv: any) => { if (inv.customer_id && map.has(inv.customer_id)) map.get(inv.customer_id).total_sales += Number(inv.total); });
+    payments.forEach((p: any) => { if (map.has(p.party_id)) map.get(p.party_id).total_payments += Number(p.amount); });
+    returns.forEach((r: any) => { if (r.customer_id && map.has(r.customer_id)) map.get(r.customer_id).total_returns += Number(r.total); });
     setRows(Array.from(map.values()));
   };
 

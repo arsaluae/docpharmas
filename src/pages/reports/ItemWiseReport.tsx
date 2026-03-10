@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Package } from "lucide-react";
+import { fetchAllRows } from "@/lib/batch-fetch";
 
 export default function ItemWiseReport() {
   const [rows, setRows] = useState<any[]>([]);
@@ -11,16 +11,16 @@ export default function ItemWiseReport() {
   useEffect(() => { loadReport(); }, []);
 
   const loadReport = async () => {
-    const [{ data: products }, { data: grnItems }, { data: salesItems }] = await Promise.all([
-      supabase.from("products").select("id, name, stock_quantity, cost_price, selling_price"),
-      supabase.from("grn_items").select("product_id, quantity_received, amount"),
-      supabase.from("sales_invoice_items").select("product_id, quantity, amount"),
+    const [products, grnItems, salesItems] = await Promise.all([
+      fetchAllRows("products", "id, name, stock_quantity, cost_price, selling_price"),
+      fetchAllRows("grn_items", "product_id, quantity_received, amount"),
+      fetchAllRows("sales_invoice_items", "product_id, quantity, amount"),
     ]);
-    if (!products) return;
+    if (!products.length) return;
     const map = new Map<string, any>();
-    products.forEach(p => map.set(p.id, { ...p, purchased_qty: 0, sold_qty: 0, total_cost: 0, total_revenue: 0 }));
-    (grnItems || []).forEach(g => { if (g.product_id && map.has(g.product_id)) { const r = map.get(g.product_id); r.purchased_qty += Number(g.quantity_received); r.total_cost += Number(g.amount); } });
-    (salesItems || []).forEach(s => { if (s.product_id && map.has(s.product_id)) { const r = map.get(s.product_id); r.sold_qty += Number(s.quantity); r.total_revenue += Number(s.amount); } });
+    products.forEach((p: any) => map.set(p.id, { ...p, purchased_qty: 0, sold_qty: 0, total_cost: 0, total_revenue: 0 }));
+    grnItems.forEach((g: any) => { if (g.product_id && map.has(g.product_id)) { const r = map.get(g.product_id); r.purchased_qty += Number(g.quantity_received); r.total_cost += Number(g.amount); } });
+    salesItems.forEach((s: any) => { if (s.product_id && map.has(s.product_id)) { const r = map.get(s.product_id); r.sold_qty += Number(s.quantity); r.total_revenue += Number(s.amount); } });
     setRows(Array.from(map.values()));
   };
 

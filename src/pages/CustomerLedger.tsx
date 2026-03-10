@@ -18,11 +18,12 @@ export default function CustomerLedger() {
   useEffect(() => { if (id) loadLedger(id); }, [id]);
 
   const loadLedger = async (customerId: string) => {
-    const [{ data: cust }, { data: invoices }, { data: payments }, { data: returns }] = await Promise.all([
+    const [{ data: cust }, { data: invoices }, { data: payments }, { data: returns }, { data: warranties }] = await Promise.all([
       supabase.from("customers").select("*").eq("id", customerId).single(),
       supabase.from("sales_invoices").select("*").eq("customer_id", customerId),
       supabase.from("payments").select("*").eq("party_id", customerId).eq("party_type", "customer"),
       supabase.from("sales_returns").select("*").eq("customer_id", customerId),
+      supabase.from("warranty_invoices").select("*").eq("customer_id", customerId),
     ]);
     if (cust) setCustomer(cust);
 
@@ -31,6 +32,7 @@ export default function CustomerLedger() {
     (invoices || []).forEach(inv => raw.push({ date: inv.date, type: "Sales Invoice", reference: inv.invoice_number, debit: Number(inv.total), credit: 0 }));
     (payments || []).forEach(p => raw.push({ date: p.date, type: "Payment Received", reference: p.payment_number, debit: 0, credit: Number(p.amount) }));
     (returns || []).forEach(r => raw.push({ date: r.date, type: "Sales Return", reference: r.return_number, debit: 0, credit: Number(r.total) }));
+    (warranties || []).forEach(w => raw.push({ date: w.date, type: "Warranty Invoice", reference: w.warranty_number, debit: 0, credit: Number(w.total) }));
 
     raw.sort((a, b) => a.date.localeCompare(b.date));
     let bal = 0;
@@ -40,6 +42,7 @@ export default function CustomerLedger() {
   const totalSales = entries.filter(e => e.type === "Sales Invoice").reduce((s, e) => s + e.debit, 0);
   const totalReceived = entries.filter(e => e.type === "Payment Received").reduce((s, e) => s + e.credit, 0);
   const totalReturns = entries.filter(e => e.type === "Sales Return").reduce((s, e) => s + e.credit, 0);
+  const totalWarranty = entries.filter(e => e.type === "Warranty Invoice").reduce((s, e) => s + e.credit, 0);
   const outstanding = entries.length > 0 ? entries[entries.length - 1].balance : 0;
 
   const shareViaWhatsApp = () => {
@@ -48,6 +51,7 @@ export default function CustomerLedger() {
       `Total Sales: PKR ${totalSales.toLocaleString()}\n` +
       `Total Received: PKR ${totalReceived.toLocaleString()}\n` +
       `Returns: PKR ${totalReturns.toLocaleString()}\n` +
+      (totalWarranty > 0 ? `Warranty: PKR ${totalWarranty.toLocaleString()}\n` : "") +
       `*Outstanding Balance: PKR ${outstanding.toLocaleString()}*\n\n` +
       `As of ${new Date().toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}`;
     const num = customer.phone.replace(/[^0-9]/g, "");
@@ -66,11 +70,12 @@ export default function CustomerLedger() {
   return (
     <AppLayout title={`${customer?.name || "Customer"} — Ledger`} subtitle={`${customer?.company || ""} ${customer?.city ? `• ${customer.city}` : ""}`} headerActions={headerActions}>
       <div className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
             { label: "Total Sales", value: totalSales, icon: FileText, color: "text-primary" },
             { label: "Received", value: totalReceived, icon: Wallet, color: "text-primary" },
             { label: "Returns", value: totalReturns, icon: RotateCcw, color: "text-amber-500" },
+            { label: "Warranty", value: totalWarranty, icon: FileText, color: "text-amber-500" },
             { label: "Outstanding", value: outstanding, icon: FileText, color: outstanding > 0 ? "text-destructive" : "text-primary" },
           ].map(c => (
             <Card key={c.label} className="glass-card">

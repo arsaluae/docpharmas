@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Package } from "lucide-react";
+import { fetchAllRows } from "@/lib/batch-fetch";
 
 export default function BatchWiseReport() {
   const [rows, setRows] = useState<any[]>([]);
@@ -11,20 +11,20 @@ export default function BatchWiseReport() {
   useEffect(() => { loadReport(); }, []);
 
   const loadReport = async () => {
-    const [{ data: grnItems }, { data: salesItems }, { data: products }] = await Promise.all([
-      supabase.from("grn_items").select("product_id, batch_number, expiry_date, quantity_received"),
-      supabase.from("sales_invoice_items").select("product_id, batch_number, quantity"),
-      supabase.from("products").select("id, name"),
+    const [grnItems, salesItems, products] = await Promise.all([
+      fetchAllRows("grn_items", "product_id, batch_number, expiry_date, quantity_received"),
+      fetchAllRows("sales_invoice_items", "product_id, batch_number, quantity"),
+      fetchAllRows("products", "id, name"),
     ]);
-    if (!grnItems || !products) return;
-    const pMap = new Map(products.map(p => [p.id, p.name]));
+    if (!grnItems.length || !products.length) return;
+    const pMap = new Map(products.map((p: any) => [p.id, p.name]));
     const batchMap = new Map<string, any>();
-    grnItems.forEach(g => {
+    grnItems.forEach((g: any) => {
       const key = `${g.product_id}__${g.batch_number || "N/A"}`;
       if (!batchMap.has(key)) batchMap.set(key, { product_name: pMap.get(g.product_id!) || "—", batch_number: g.batch_number || "N/A", expiry_date: g.expiry_date, qty_received: 0, qty_sold: 0 });
       batchMap.get(key).qty_received += Number(g.quantity_received);
     });
-    (salesItems || []).forEach(s => {
+    salesItems.forEach((s: any) => {
       const key = `${s.product_id}__${s.batch_number || "N/A"}`;
       if (batchMap.has(key)) batchMap.get(key).qty_sold += Number(s.quantity);
     });
