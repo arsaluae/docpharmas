@@ -167,7 +167,7 @@ export default function Landing() {
                 <div className="w-3 h-3 rounded-full bg-[#8B5CF6]" />
                 <span className="ml-3 text-xs text-[#94A3B8]">DocPharmas Dashboard</span>
               </div>
-              <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
                 {[
                   { label: "Today's Sales", value: "PKR 284,500", color: "text-[#0EA5E9]" },
                   { label: "Collections", value: "PKR 1.2M", color: "text-[#8B5CF6]" },
