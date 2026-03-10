@@ -38,6 +38,7 @@ interface SalesOrder {
   customers: { name: string; company?: string | null; phone?: string | null; address?: string | null; area?: string | null } | null;
   created_at: string;
   invoice_number?: string;
+  amount_paid?: number;
 }
 
 interface BatchOption { batch_number: string; available: number; expiry_date?: string; }
