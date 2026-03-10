@@ -724,6 +724,8 @@ export default function ProformaInvoices() {
     count: orders.filter(d => d.status === "invoiced" || d.status === "dispatched").length, 
     value: orders.filter(d => d.status === "invoiced" || d.status === "dispatched").reduce((s, d) => s + Number(d.total), 0) 
   };
+  const paidStats = statsByStatus("paid");
+  const partialStats = statsByStatus("partial");
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
