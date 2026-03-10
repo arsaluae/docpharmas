@@ -655,7 +655,33 @@ export default function DataImport() {
 
   return (
     <AppLayout title="Data Import" subtitle="Smart merge from 20+ software formats with duplicate detection">
-          <div className="max-w-5xl mx-auto">
+          <div className="max-w-5xl mx-auto space-y-6">
+            {/* Onboarding Banner */}
+            <div className="glass-card-glow rounded-2xl p-6 border border-primary/10">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-heading font-semibold text-foreground text-base mb-1">Welcome to Data Import</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Migrating from Tally, QuickBooks, SAP, Zoho, or Excel? Simply export your data as CSV or Excel, 
+                    upload it here, and our system will auto-map your columns. <strong>Smart Merge</strong> ensures existing records 
+                    are enriched — never duplicated.
+                  </p>
+                  <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">1</span> Select type</span>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">2</span> Upload file</span>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">3</span> Review mapping</span>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">4</span> Import</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <Tabs value={tab} onValueChange={v => { setTab(v as TabType); resetFile(); }}>
               {/* Premium Tab Pills */}
               <TabsList className="bg-secondary/50 p-1 rounded-xl mb-8 border border-border/50">
