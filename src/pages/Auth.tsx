@@ -18,7 +18,7 @@ export default function Auth() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/");
+      if (session) navigate("/dashboard");
     });
   }, [navigate]);
 

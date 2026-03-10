@@ -96,10 +96,10 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
-              <NavLink to="/" end
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${location.pathname === "/" ? "pharma-sidebar-active text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
+              <NavLink to="/dashboard" end
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${location.pathname === "/dashboard" ? "pharma-sidebar-active text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
                 activeClassName="pharma-sidebar-active text-primary font-medium">
-                <LayoutDashboard className={`h-4 w-4 ${location.pathname === "/" ? "text-primary" : ""}`} />
+                <LayoutDashboard className={`h-4 w-4 ${location.pathname === "/dashboard" ? "text-primary" : ""}`} />
                 {!collapsed && <span>Dashboard</span>}
               </NavLink>
             </SidebarMenuButton>

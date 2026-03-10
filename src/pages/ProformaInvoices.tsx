@@ -971,7 +971,8 @@ export default function ProformaInvoices() {
                         const itemNames = pfItems.map(i => i.product_name).filter(Boolean);
                         const itemsDisplay = itemNames.length <= 2 ? itemNames.join(", ") : `${itemNames.slice(0, 2).join(", ")} +${itemNames.length - 2} more`;
                         const isPaid = order.status === "paid";
-                        const balance = order.status === "draft" ? null : (isPaid ? 0 : Number(order.total));
+                        const amtPaid = Number(order.amount_paid || 0);
+                        const balance = order.status === "draft" ? null : (isPaid ? 0 : Math.max(Number(order.total) - amtPaid, 0));
                         return (
                         <TableRow key={order.id} className={`group cursor-pointer hover:bg-muted/30 transition-colors ${isPaid ? "bg-emerald-500/5" : ""}`} data-state={selected.has(order.id) ? "selected" : undefined}>
                           <TableCell><Checkbox checked={selected.has(order.id)} onCheckedChange={() => toggleSelect(order.id)} /></TableCell>
