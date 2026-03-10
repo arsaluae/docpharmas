@@ -901,6 +901,7 @@ export type Database = {
           created_at: string
           date: string
           id: string
+          invoice_id: string | null
           notes: string | null
           party_id: string
           party_type: string
@@ -918,6 +919,7 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          invoice_id?: string | null
           notes?: string | null
           party_id: string
           party_type: string
@@ -935,6 +937,7 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          invoice_id?: string | null
           notes?: string | null
           party_id?: string
           party_type?: string
