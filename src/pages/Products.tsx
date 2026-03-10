@@ -142,7 +142,6 @@ export default function Products() {
   const filteredMovements = movements.filter(m => {
     const matchSearch = (productNames[m.product_id] || "").toLowerCase().includes(search.toLowerCase()) ||
       (m.batch_number || "").toLowerCase().includes(search.toLowerCase());
-    if (moveTypeFilter !== "all") return matchSearch && m.movement_type === moveTypeFilter;
     return matchSearch;
   });
 
