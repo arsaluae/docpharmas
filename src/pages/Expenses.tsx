@@ -61,7 +61,7 @@ export default function Expenses() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [pagination.page, activeTab]);
 
   const load = async () => {
     const [exp, banks] = await Promise.all([
