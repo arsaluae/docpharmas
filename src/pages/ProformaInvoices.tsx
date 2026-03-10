@@ -153,11 +153,14 @@ export default function ProformaInvoices() {
       // For invoiced orders, batch-fetch invoice numbers
       const invoicedIds = pf.data.filter((p: any) => p.converted_invoice_id).map((p: any) => p.converted_invoice_id);
       let invoiceMap: Record<string, string> = {};
+      let amountPaidMap: Record<string, number> = {};
       if (invoicedIds.length > 0) {
-        const { data: invs } = await supabase.from("sales_invoices").select("id, invoice_number, status").in("id", invoicedIds);
+        const { data: invs } = await supabase.from("sales_invoices").select("id, invoice_number, status, amount_paid").in("id", invoicedIds);
         if (invs) {
-          invs.forEach((inv: any) => { invoiceMap[inv.id] = inv.invoice_number; });
-          // Also update status from invoice
+          invs.forEach((inv: any) => { 
+            invoiceMap[inv.id] = inv.invoice_number;
+            amountPaidMap[inv.id] = Number(inv.amount_paid || 0);
+          });
           const statusMap: Record<string, string> = {};
           invs.forEach((inv: any) => { statusMap[inv.id] = inv.status; });
           pf.data.forEach((p: any) => {
