@@ -720,8 +720,8 @@ export default function ProformaInvoices() {
     const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
       ((p.customers as any)?.name || "").toLowerCase().includes(q) ||
       (p.invoice_number || "").toLowerCase().includes(q);
-    const matchStatus = statusFilter === "all" || p.status === statusFilter ||
-      (statusFilter === "invoiced" && (p.status === "invoiced" || p.status === "dispatched"));
+     const matchStatus = statusFilter === "all" || p.status === statusFilter ||
+      (statusFilter === "invoiced" && (p.status === "invoiced" || p.status === "dispatched" || p.status === "partial"));
     const dateStart = getDateFilter();
     const matchDate = !dateStart || p.date >= dateStart;
     return matchSearch && matchStatus && matchDate;
