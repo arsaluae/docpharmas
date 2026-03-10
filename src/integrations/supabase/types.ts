@@ -240,6 +240,60 @@ export type Database = {
           },
         ]
       }
+      customer_distributors: {
+        Row: {
+          address: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          license_expiry: string | null
+          license_number: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          license_expiry?: string | null
+          license_number?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          license_expiry?: string | null
+          license_number?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_distributors_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_distributors_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_licenses: {
         Row: {
           address: string | null
@@ -1149,6 +1203,7 @@ export type Database = {
           drap_reg_number: string | null
           gst_rate: number
           id: string
+          mrp: number
           name: string
           pack_size: string | null
           reorder_level: number
@@ -1165,6 +1220,7 @@ export type Database = {
           drap_reg_number?: string | null
           gst_rate?: number
           id?: string
+          mrp?: number
           name: string
           pack_size?: string | null
           reorder_level?: number
@@ -1181,6 +1237,7 @@ export type Database = {
           drap_reg_number?: string | null
           gst_rate?: number
           id?: string
+          mrp?: number
           name?: string
           pack_size?: string | null
           reorder_level?: number
@@ -2281,6 +2338,9 @@ export type Database = {
           created_at: string
           customer_id: string | null
           date: string
+          discount_amount: number
+          discount_percent: number
+          distributor_id: string | null
           gst_amount: number
           id: string
           items: Json
@@ -2288,6 +2348,7 @@ export type Database = {
           pharmacy_address: string | null
           pharmacy_license_no: string | null
           pharmacy_name: string
+          source_invoice_id: string | null
           status: string
           subtotal: number
           tenant_id: string | null
@@ -2298,6 +2359,9 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           date?: string
+          discount_amount?: number
+          discount_percent?: number
+          distributor_id?: string | null
           gst_amount?: number
           id?: string
           items?: Json
@@ -2305,6 +2369,7 @@ export type Database = {
           pharmacy_address?: string | null
           pharmacy_license_no?: string | null
           pharmacy_name: string
+          source_invoice_id?: string | null
           status?: string
           subtotal?: number
           tenant_id?: string | null
@@ -2315,6 +2380,9 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           date?: string
+          discount_amount?: number
+          discount_percent?: number
+          distributor_id?: string | null
           gst_amount?: number
           id?: string
           items?: Json
@@ -2322,6 +2390,7 @@ export type Database = {
           pharmacy_address?: string | null
           pharmacy_license_no?: string | null
           pharmacy_name?: string
+          source_invoice_id?: string | null
           status?: string
           subtotal?: number
           tenant_id?: string | null
@@ -2334,6 +2403,20 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warranty_invoices_distributor_id_fkey"
+            columns: ["distributor_id"]
+            isOneToOne: false
+            referencedRelation: "customer_distributors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warranty_invoices_source_invoice_id_fkey"
+            columns: ["source_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
             referencedColumns: ["id"]
           },
           {
