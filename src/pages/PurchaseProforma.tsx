@@ -968,18 +968,22 @@ export default function PurchaseProforma() {
                         <TableHead className="font-semibold">Date</TableHead>
                         <TableHead className="font-semibold">Status</TableHead>
                         <TableHead className="text-right font-semibold">Total</TableHead>
+                        <TableHead className="text-right font-semibold">Balance</TableHead>
                         <TableHead className="font-semibold">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filtered.length === 0 ? (
-                        <TableRow><TableCell colSpan={7} className="text-center py-16">
+                        <TableRow><TableCell colSpan={8} className="text-center py-16">
                           <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
                           <p className="text-muted-foreground font-medium">No purchase orders yet</p>
                           <p className="text-xs text-muted-foreground mt-1">Click "New Order" to start</p>
                         </TableCell></TableRow>
-                      ) : filtered.map(order => (
-                        <TableRow key={order.id} className="group cursor-pointer hover:bg-muted/30 transition-colors" data-state={selected.has(order.id) ? "selected" : undefined}>
+                      ) : filtered.map(order => {
+                        const isPaid = order.status === "paid";
+                        const balance = order.status === "draft" ? null : (isPaid ? 0 : Number(order.total));
+                        return (
+                        <TableRow key={order.id} className={`group cursor-pointer hover:bg-muted/30 transition-colors ${isPaid ? "bg-emerald-500/5" : ""}`} data-state={selected.has(order.id) ? "selected" : undefined}>
                           <TableCell><Checkbox checked={selected.has(order.id)} onCheckedChange={() => toggleSelect(order.id)} /></TableCell>
                           <TableCell className="font-mono font-semibold text-sm" onClick={() => openPreview(order)}>{order.proforma_number}</TableCell>
                           <TableCell className="text-sm" onClick={() => openPreview(order)}>{(order.suppliers as any)?.name || "—"}</TableCell>
@@ -988,6 +992,9 @@ export default function PurchaseProforma() {
                             <Badge variant="outline" className={`text-[10px] font-semibold ${statusColor(order.status)}`}>{statusLabel(order.status)}</Badge>
                           </TableCell>
                           <TableCell className="text-right font-mono font-semibold text-sm" onClick={() => openPreview(order)}>{Number(order.total).toLocaleString()}</TableCell>
+                          <TableCell className={`text-right font-mono text-sm ${balance === 0 ? "text-emerald-600 font-semibold" : balance !== null ? "text-orange-600 font-semibold" : "text-muted-foreground"}`}>
+                            {balance !== null ? (balance === 0 ? "✓ Paid" : Number(balance).toLocaleString()) : "—"}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               {order.status === "draft" && (
@@ -1000,46 +1007,30 @@ export default function PurchaseProforma() {
                                   <PackageCheck className="h-3 w-3" /> Receive
                                 </Button>
                               )}
-                              {(order.status === "ordered" || order.status === "confirmed" || order.status === "received") && order.supplier_id && (
+                              {(order.status === "ordered" || order.status === "confirmed" || order.status === "received") && order.supplier_id && !isPaid && (
                                 <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-600 to-green-700 text-white shadow-sm" title="Make Payment">
                                   <DollarSign className="h-3 w-3" /> Payment
                                 </Button>
                               )}
-                              {(order.status === "ordered" || order.status === "confirmed") && (
-                                <Button size="sm" variant="outline" onClick={() => promptVoid(order)} className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10">
-                                  <RotateCcw className="h-3 w-3" /> Void
-                                </Button>
-                              )}
-                              {order.status === "draft" && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSheet(order)} title="Edit">
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                              {order.converted_po_id && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printPurchaseInvoice(order)} title="Invoice PDF">
-                                  <FileText className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                              {order.converted_po_id && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printPurchaseDeliveryNote(order)} title="Delivery Note">
-                                  <Truck className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shareWhatsApp(order)} title="WhatsApp to Supplier">
-                                <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPreview(order)} title="Download PDF">
-                                <Download className="h-3.5 w-3.5" />
-                              </Button>
-                              {order.status === "draft" && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => promptDelete([order.id])}>
-                                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                </Button>
-                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem onClick={() => openPreview(order)}><Eye className="h-3.5 w-3.5 mr-2" /> View PDF</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => shareWhatsApp(order)}><MessageCircle className="h-3.5 w-3.5 mr-2 text-emerald-600" /> WhatsApp</DropdownMenuItem>
+                                  {order.converted_po_id && <DropdownMenuItem onClick={() => printPurchaseInvoice(order)}><FileText className="h-3.5 w-3.5 mr-2" /> Invoice PDF</DropdownMenuItem>}
+                                  {order.converted_po_id && <DropdownMenuItem onClick={() => printPurchaseDeliveryNote(order)}><Truck className="h-3.5 w-3.5 mr-2" /> Delivery Note</DropdownMenuItem>}
+                                  {order.status === "draft" && <DropdownMenuItem onClick={() => openEditSheet(order)}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>}
+                                  {(order.status === "ordered" || order.status === "confirmed") && <DropdownMenuItem onClick={() => promptVoid(order)} className="text-destructive"><RotateCcw className="h-3.5 w-3.5 mr-2" /> Void</DropdownMenuItem>}
+                                  {order.status === "draft" && <DropdownMenuItem onClick={() => promptDelete([order.id])} className="text-destructive"><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}
