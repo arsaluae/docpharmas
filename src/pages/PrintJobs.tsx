@@ -35,6 +35,7 @@ export default function PrintJobs() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
+  const pagination = usePagination();
 
   // Create form
   const [createOpen, setCreateOpen] = useState(false);
