@@ -311,11 +311,32 @@ export default function PurchaseProforma() {
     const sup = order.suppliers as any;
     const supName = sup?.name || "Supplier";
     const supPhone = sup?.phone || "";
-    const companyName = settings?.company_name || "PharmBooks";
+    const companyName = settings?.company_name || "DocPharmas";
     const { data: its } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
-    const text = `*Purchase Order ${order.proforma_number}*\n${companyName}\n\nSupplier: ${supName}\nDate: ${order.date}\n\n${(its || []).map((i: any) => `• ${i.products?.name || "Item"} × ${i.quantity_requested} @ ${Number(i.rate).toLocaleString()}`).join("\n")}\n\n*Total: PKR ${Number(order.total).toLocaleString()}*`;
+    const itemsList = (its || []).map((i: any, idx: number) => `${idx + 1}. ${i.products?.name || "Item"} × ${i.quantity_requested} @ PKR ${Number(i.rate).toLocaleString()}`).join("\n");
+    const text = [
+      `📋 *PURCHASE ORDER #${order.po_number || order.proforma_number}*`,
+      `🏢 ${companyName}`,
+      `━━━━━━━━━━━━━━━━━`,
+      `🏭 Supplier: ${supName}`,
+      `📅 Date: ${order.date}`,
+      ``,
+      `📦 *Items:*`,
+      itemsList,
+      ``,
+      `💰 *Total: PKR ${Number(order.total).toLocaleString()}*`,
+      ...(order.notes ? [``, `📝 ${order.notes}`] : []),
+      ``,
+      `Looking forward to your confirmation! 🤝`,
+    ].join("\n");
     const waNumber = supPhone ? supPhone.replace(/[^0-9]/g, "") : "";
-    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, "_blank");
+    const url = waNumber
+      ? `https://web.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(text)}`
+      : `https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    const waWindow = window.open(url, "_blank");
+    if (!waWindow || waWindow.closed) {
+      toast.info("Please allow popups or open WhatsApp Web in your browser first");
+    }
   };
 
   // ── MAKE PAYMENT ──
