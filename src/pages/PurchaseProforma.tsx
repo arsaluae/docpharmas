@@ -326,27 +326,42 @@ export default function PurchaseProforma() {
     const supPhone = sup?.phone || "";
     const companyName = settings?.company_name || "DocPharmas";
     const { data: its } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
-    const itemsList = (its || []).map((i: any, idx: number) => `${idx + 1}. ${i.products?.name || "Item"} × ${i.quantity_requested} @ PKR ${Number(i.rate).toLocaleString()}`).join("\n");
-    const text = [
-      `📋 *PURCHASE ORDER #${order.po_number || order.proforma_number}*`,
-      `🏢 ${companyName}`,
-      `━━━━━━━━━━━━━━━━━`,
-      `🏭 Supplier: ${supName}`,
-      `📅 Date: ${order.date}`,
-      ``,
-      `📦 *Items:*`,
-      itemsList,
-      ``,
-      `💰 *Total: PKR ${Number(order.total).toLocaleString()}*`,
-      ...(order.notes ? [``, `📝 ${order.notes}`] : []),
-      ``,
-      `Looking forward to your confirmation! 🤝`,
-    ].join("\n");
-    const waNumber = supPhone ? supPhone.replace(/[^0-9]/g, "") : "";
-    const url = waNumber
-      ? `https://api.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(text)}`
-      : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
+
+    // Generate PDF link
+    let pdfLink: string | undefined;
+    try {
+      const { uploadSharedDocument } = await import("@/lib/whatsapp-share");
+      const html = generatePdfHtml({
+        title: order.po_number ? "PURCHASE ORDER" : "PURCHASE PROFORMA",
+        documentNumber: order.po_number || order.proforma_number,
+        date: order.date, partyLabel: "Supplier", partyName: supName,
+        columns: [
+          { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+          { header: "Qty", key: "quantity", align: "right" as const },
+          { header: "Rate", key: "rate", align: "right" as const },
+          { header: "Amount", key: "amount", align: "right" as const },
+        ],
+        rows: (its || []).map((i: any, idx: number) => ({
+          idx: idx + 1, product_name: i.products?.name || "Item",
+          quantity: i.quantity_requested, rate: Number(i.rate).toLocaleString(),
+          amount: Number(i.amount).toLocaleString(),
+        })),
+        totals: [{ label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` }],
+        settings, template: getTemplate("purchase_order"),
+      });
+      pdfLink = await uploadSharedDocument(html, order.po_number || order.proforma_number) || undefined;
+    } catch (e) { console.error("PDF link error:", e); }
+
+    const { buildPurchaseOrderMessage, openWhatsApp } = await import("@/lib/whatsapp-share");
+    const message = buildPurchaseOrderMessage({
+      documentNumber: order.po_number || order.proforma_number,
+      companyName, supplierName: supName, supplierPhone: supPhone,
+      date: order.date,
+      items: (its || []).map((i: any) => ({ product_name: i.products?.name || "Item", quantity: i.quantity_requested, rate: i.rate })),
+      total: order.total,
+      notes: order.notes || undefined, pdfLink,
+    });
+    openWhatsApp(supPhone, message);
   };
 
   // ── MAKE PAYMENT ──
