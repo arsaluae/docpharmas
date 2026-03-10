@@ -27,6 +27,7 @@ interface DeliveryNote {
 export default function DeliveryNotes() {
   const [notes, setNotes] = useState<DeliveryNote[]>([]);
   const [search, setSearch] = useState("");
+  const pagination = usePagination();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
