@@ -167,8 +167,6 @@ export default function Payments() {
   const filtered = payments.filter(p => {
     const matchSearch = p.payment_number.toLowerCase().includes(search.toLowerCase()) ||
       (partyNames[p.party_id] || "").toLowerCase().includes(search.toLowerCase());
-    if (tab === "received") return matchSearch && p.type === "received";
-    if (tab === "made") return matchSearch && p.type === "made";
     return matchSearch;
   });
 
