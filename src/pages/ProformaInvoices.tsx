@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, MessageCircle, FileText, Loader2, X, Share2, Eye, FileEdit, Send, Truck, RotateCcw, DollarSign } from "lucide-react";
+import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, MessageCircle, FileText, Loader2, X, Share2, Eye, FileEdit, Send, Truck, RotateCcw, DollarSign, MoreHorizontal, BadgeDollarSign } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,6 +23,7 @@ import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
@@ -116,6 +117,18 @@ export default function ProformaInvoices() {
     };
     check(); load(); loadDeliveryNotes(); loadBankAccounts();
   }, [navigate]);
+
+  // Keyboard shortcut: Ctrl+N for new order
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "n") {
+        e.preventDefault();
+        setCreateOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const loadBankAccounts = async () => {
     const { data } = await supabase.from("bank_accounts").select("id, name, bank_name").order("is_default", { ascending: false });
@@ -360,38 +373,17 @@ export default function ProformaInvoices() {
   
   // ── RECEIVE PAYMENT ──
   const openPaymentDialog = async (order: SalesOrder) => {
-    // Calculate remaining balance by checking existing payments for this customer
-    const { data: existingPayments } = await supabase
+    if (!order.converted_invoice_id) { toast.error("No invoice linked"); return; }
+    // Get direct payments already linked to this specific invoice
+    const { data: directPayments } = await supabase
       .from("payments")
       .select("amount")
-      .eq("party_type", "customer")
-      .eq("party_id", order.customer_id!)
-      .eq("type", "received");
-    
-    const totalPaid = existingPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-    // Get total invoiced amount for this customer to calculate what's allocated to this invoice
-    const { data: allInvoices } = await supabase
-      .from("sales_invoices")
-      .select("id, total")
-      .eq("customer_id", order.customer_id!)
-      .order("date", { ascending: true });
-    
-    // Allocate payments to invoices oldest first (same as DB trigger)
-    let remaining = totalPaid;
-    let thisInvoiceRemaining = order.total;
-    if (allInvoices) {
-      for (const inv of allInvoices) {
-        const allocated = Math.min(Number(inv.total), Math.max(remaining, 0));
-        remaining -= Number(inv.total);
-        if (inv.id === order.converted_invoice_id) {
-          thisInvoiceRemaining = Math.max(Number(inv.total) - allocated, 0);
-          break;
-        }
-      }
-    }
+      .eq("invoice_id", order.converted_invoice_id);
+    const directPaid = directPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    const remaining = Math.max(Number(order.total) - directPaid, 0);
     
     setPaymentOrder(order);
-    setPaymentAmount(String(Math.max(thisInvoiceRemaining, 0)));
+    setPaymentAmount(String(remaining));
     setPaymentMethod("bank_transfer");
     const meezan = bankAccounts.find(b => b.bank_name.toLowerCase().includes("meezan"));
     setPaymentBankId(meezan?.id || bankAccounts[0]?.id || "");
@@ -413,7 +405,8 @@ export default function ProformaInvoices() {
       bank_account_id: paymentMethod === "cash" ? null : paymentBankId || null,
       date: new Date().toISOString().split("T")[0],
       reference: paymentOrder.invoice_number || paymentOrder.proforma_number,
-    });
+      invoice_id: paymentOrder.converted_invoice_id || null,
+    } as any);
     if (error) { toast.error("Payment failed: " + error.message); setPaymentSaving(false); return; }
     toast.success(`Payment PKR ${Number(paymentAmount).toLocaleString()} received`);
     setPaymentOpen(false); setPaymentSaving(false); load();
@@ -727,8 +720,8 @@ export default function ProformaInvoices() {
     const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
       ((p.customers as any)?.name || "").toLowerCase().includes(q) ||
       (p.invoice_number || "").toLowerCase().includes(q);
-    const matchStatus = statusFilter === "all" || p.status === statusFilter ||
-      (statusFilter === "invoiced" && (p.status === "invoiced" || p.status === "dispatched"));
+     const matchStatus = statusFilter === "all" || p.status === statusFilter ||
+      (statusFilter === "invoiced" && (p.status === "invoiced" || p.status === "dispatched" || p.status === "partial"));
     const dateStart = getDateFilter();
     const matchDate = !dateStart || p.date >= dateStart;
     return matchSearch && matchStatus && matchDate;
@@ -743,6 +736,8 @@ export default function ProformaInvoices() {
     count: orders.filter(d => d.status === "invoiced" || d.status === "dispatched").length, 
     value: orders.filter(d => d.status === "invoiced" || d.status === "dispatched").reduce((s, d) => s + Number(d.total), 0) 
   };
+  const paidStats = statsByStatus("paid");
+  const partialStats = statsByStatus("partial");
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
@@ -822,11 +817,12 @@ export default function ProformaInvoices() {
 
       <div className="space-y-4">
             {/* PREMIUM STATUS BUTTONS */}
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-5 gap-3">
               {[
                 { label: "All", ...allStats, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
                 { label: "Draft", ...draftStats, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
                 { label: "Invoice", ...invoicedAndDispatchedStats, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "invoiced" },
+                { label: "Paid", ...paidStats, icon: BadgeDollarSign, gradient: "from-emerald-500/8 to-emerald-600/15", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-400 to-emerald-600", textColor: "text-emerald-600", statusKey: "paid" },
                 { label: "Delivery Notes", count: deliveryNotes.length, value: 0, icon: Truck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "delivery_notes" },
               ].map(s => (
                 <button key={s.label} onClick={() => { setStatusFilter(s.statusKey); if (s.statusKey === "delivery_notes") loadDeliveryNotes(); }}
@@ -951,13 +947,14 @@ export default function ProformaInvoices() {
                         <TableHead className="font-semibold">Date</TableHead>
                         <TableHead className="font-semibold">Status</TableHead>
                         <TableHead className="text-right font-semibold">Total</TableHead>
+                        <TableHead className="text-right font-semibold">Balance</TableHead>
                         <TableHead className="font-semibold">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filtered.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-16">
+                          <TableCell colSpan={9} className="text-center py-16">
                             <FilePlus className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
                             <p className="text-muted-foreground font-medium">No sales invoices yet</p>
                             <p className="text-xs text-muted-foreground mt-1">Click "New Order" to create your first sales invoice</p>
@@ -967,8 +964,10 @@ export default function ProformaInvoices() {
                         const pfItems = getPfItems(order);
                         const itemNames = pfItems.map(i => i.product_name).filter(Boolean);
                         const itemsDisplay = itemNames.length <= 2 ? itemNames.join(", ") : `${itemNames.slice(0, 2).join(", ")} +${itemNames.length - 2} more`;
+                        const isPaid = order.status === "paid";
+                        const balance = order.status === "draft" ? null : (isPaid ? 0 : Number(order.total));
                         return (
-                        <TableRow key={order.id} className="group cursor-pointer hover:bg-muted/30 transition-colors" data-state={selected.has(order.id) ? "selected" : undefined}>
+                        <TableRow key={order.id} className={`group cursor-pointer hover:bg-muted/30 transition-colors ${isPaid ? "bg-emerald-500/5" : ""}`} data-state={selected.has(order.id) ? "selected" : undefined}>
                           <TableCell><Checkbox checked={selected.has(order.id)} onCheckedChange={() => toggleSelect(order.id)} /></TableCell>
                           <TableCell className="font-mono font-semibold text-sm" onClick={() => openPreview(order)}>{order.proforma_number}</TableCell>
                           <TableCell className="text-sm" onClick={() => openPreview(order)}>{(order.customers as any)?.name || "—"}</TableCell>
@@ -980,8 +979,12 @@ export default function ProformaInvoices() {
                           <TableCell className="text-right font-mono font-semibold text-sm" onClick={() => openPreview(order)}>
                             {Number(order.total).toLocaleString()}
                           </TableCell>
+                          <TableCell className={`text-right font-mono text-sm ${balance === 0 ? "text-emerald-600 font-semibold" : balance !== null ? "text-orange-600 font-semibold" : "text-muted-foreground"}`}>
+                            {balance !== null ? (balance === 0 ? "✓ Paid" : Number(balance).toLocaleString()) : "—"}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
+                              {/* Primary actions: Submit & Payment */}
                               {order.status === "draft" && (
                                 <Button size="sm" onClick={() => openSubmitDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-sm">
                                   <CheckCircle className="h-3 w-3" /> Submit
@@ -992,37 +995,50 @@ export default function ProformaInvoices() {
                                   <DollarSign className="h-3 w-3" /> Payment
                                 </Button>
                               )}
-                              {(order.status === "invoiced" || order.status === "dispatched") && (
-                                <Button size="sm" variant="outline" onClick={() => promptVoid(order)} className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10">
-                                  <RotateCcw className="h-3 w-3" /> Void
-                                </Button>
-                              )}
-                              {order.status === "draft" && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSheet(order)} title="Edit">
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shareWhatsApp(order)} title="WhatsApp to Customer">
-                                <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printOrder(order)} title="Download PDF">
-                                <Download className="h-3.5 w-3.5" />
-                              </Button>
-                              {order.converted_invoice_id && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printInvoice(order)} title="Invoice PDF">
-                                  <FileText className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                              {order.converted_invoice_id && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printDeliveryNote(order)} title="Delivery Note">
-                                  <Truck className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                              {order.status === "draft" && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => promptDelete([order.id])}>
-                                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                </Button>
-                              )}
+                              {/* Secondary actions in dropdown */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem onClick={() => openPreview(order)}>
+                                    <Eye className="h-3.5 w-3.5 mr-2" /> View PDF
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => shareWhatsApp(order)}>
+                                    <MessageCircle className="h-3.5 w-3.5 mr-2 text-emerald-600" /> WhatsApp
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => printOrder(order)}>
+                                    <Download className="h-3.5 w-3.5 mr-2" /> Download PDF
+                                  </DropdownMenuItem>
+                                  {order.converted_invoice_id && (
+                                    <DropdownMenuItem onClick={() => printInvoice(order)}>
+                                      <FileText className="h-3.5 w-3.5 mr-2" /> Invoice PDF
+                                    </DropdownMenuItem>
+                                  )}
+                                  {order.converted_invoice_id && (
+                                    <DropdownMenuItem onClick={() => printDeliveryNote(order)}>
+                                      <Truck className="h-3.5 w-3.5 mr-2" /> Delivery Note
+                                    </DropdownMenuItem>
+                                  )}
+                                  {order.status === "draft" && (
+                                    <DropdownMenuItem onClick={() => openEditSheet(order)}>
+                                      <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
+                                    </DropdownMenuItem>
+                                  )}
+                                  {(order.status === "invoiced" || order.status === "dispatched") && (
+                                    <DropdownMenuItem onClick={() => promptVoid(order)} className="text-destructive">
+                                      <RotateCcw className="h-3.5 w-3.5 mr-2" /> Void
+                                    </DropdownMenuItem>
+                                  )}
+                                  {order.status === "draft" && (
+                                    <DropdownMenuItem onClick={() => promptDelete([order.id])} className="text-destructive">
+                                      <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </TableCell>
                         </TableRow>
