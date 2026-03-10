@@ -58,7 +58,7 @@ export default function Payments() {
   const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [pagination.page, tab]);
 
   const load = async () => {
     const [pay, cust, sup, banks, prnt] = await Promise.all([
