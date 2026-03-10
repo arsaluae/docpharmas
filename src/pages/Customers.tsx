@@ -13,8 +13,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X } from "lucide-react";
+import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X, Store } from "lucide-react";
 import { toast } from "sonner";
+import { CustomerProfileDialog } from "@/components/CustomerProfileDialog";
 
 interface Customer {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
