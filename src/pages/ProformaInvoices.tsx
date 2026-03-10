@@ -56,6 +56,7 @@ export default function ProformaInvoices() {
   const [dateRange, setDateRange] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const pagination = usePagination();
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pdfHtml, setPdfHtml] = useState("");
