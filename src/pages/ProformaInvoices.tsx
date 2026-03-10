@@ -359,9 +359,39 @@ export default function ProformaInvoices() {
   };
   
   // ── RECEIVE PAYMENT ──
-  const openPaymentDialog = (order: SalesOrder) => {
+  const openPaymentDialog = async (order: SalesOrder) => {
+    // Calculate remaining balance by checking existing payments for this customer
+    const { data: existingPayments } = await supabase
+      .from("payments")
+      .select("amount")
+      .eq("party_type", "customer")
+      .eq("party_id", order.customer_id!)
+      .eq("type", "received");
+    
+    const totalPaid = existingPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    // Get total invoiced amount for this customer to calculate what's allocated to this invoice
+    const { data: allInvoices } = await supabase
+      .from("sales_invoices")
+      .select("id, total")
+      .eq("customer_id", order.customer_id!)
+      .order("date", { ascending: true });
+    
+    // Allocate payments to invoices oldest first (same as DB trigger)
+    let remaining = totalPaid;
+    let thisInvoiceRemaining = order.total;
+    if (allInvoices) {
+      for (const inv of allInvoices) {
+        const allocated = Math.min(Number(inv.total), Math.max(remaining, 0));
+        remaining -= Number(inv.total);
+        if (inv.id === order.converted_invoice_id) {
+          thisInvoiceRemaining = Math.max(Number(inv.total) - allocated, 0);
+          break;
+        }
+      }
+    }
+    
     setPaymentOrder(order);
-    setPaymentAmount(String(order.total));
+    setPaymentAmount(String(Math.max(thisInvoiceRemaining, 0)));
     setPaymentMethod("bank_transfer");
     const meezan = bankAccounts.find(b => b.bank_name.toLowerCase().includes("meezan"));
     setPaymentBankId(meezan?.id || bankAccounts[0]?.id || "");
