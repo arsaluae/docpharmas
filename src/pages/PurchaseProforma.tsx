@@ -823,6 +823,7 @@ export default function PurchaseProforma() {
     value: orders.filter(d => d.status === "ordered" || d.status === "confirmed").reduce((s, d) => s + Number(d.total), 0) 
   };
   const receivedStats = statsByStatus("received");
+  const paidStats = statsByStatus("paid");
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
