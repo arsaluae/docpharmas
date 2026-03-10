@@ -51,7 +51,7 @@ export default function CustomerLedger() {
       `*Outstanding Balance: PKR ${outstanding.toLocaleString()}*\n\n` +
       `As of ${new Date().toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}`;
     const num = customer.phone.replace(/[^0-9]/g, "");
-    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, "_blank");
+    window.open(`https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
   const headerActions = (
