@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,6 +35,7 @@ export default function PrintJobs() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
+  const pagination = usePagination();
 
   // Create form
   const [createOpen, setCreateOpen] = useState(false);
@@ -60,15 +63,19 @@ export default function PrintJobs() {
   const [printerNames, setPrinterNames] = useState<Record<string, string>>({});
   const [productNames, setProductNames] = useState<Record<string, string>>({});
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [pagination.page, tab]);
 
   const load = async () => {
+    let jobQuery = supabase.from("print_jobs").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (tab !== "all") jobQuery = jobQuery.eq("status", tab);
+    jobQuery = jobQuery.range(pagination.from, pagination.to);
     const [j, pr, prod] = await Promise.all([
-      supabase.from("print_jobs").select("*").order("created_at", { ascending: false }),
+      jobQuery,
       supabase.from("printers").select("id, name"),
       supabase.from("products").select("id, name"),
     ]);
     if (j.data) setJobs(j.data);
+    if (j.count !== null && j.count !== undefined) pagination.setTotalCount(j.count);
     if (pr.data) { setPrinters(pr.data); const n: Record<string, string> = {}; pr.data.forEach(p => n[p.id] = p.name); setPrinterNames(n); }
     if (prod.data) { setProducts(prod.data); const n: Record<string, string> = {}; prod.data.forEach(p => n[p.id] = p.name); setProductNames(n); }
   };
@@ -146,9 +153,6 @@ export default function PrintJobs() {
     const matchSearch = j.job_number.toLowerCase().includes(search.toLowerCase()) ||
       (printerNames[j.printer_id || ""] || "").toLowerCase().includes(search.toLowerCase()) ||
       (productNames[j.product_id || ""] || "").toLowerCase().includes(search.toLowerCase());
-    if (tab === "draft") return matchSearch && j.status === "draft";
-    if (tab === "delivered") return matchSearch && j.status === "delivered";
-    if (tab === "settled") return matchSearch && j.status === "settled";
     return matchSearch;
   });
 
@@ -278,6 +282,11 @@ export default function PrintJobs() {
                     ))}
                   </TableBody>
                 </Table>
+                <PaginationControls
+                  page={pagination.page} totalPages={pagination.totalPages} totalCount={pagination.totalCount}
+                  hasNext={pagination.hasNext} hasPrev={pagination.hasPrev}
+                  onNext={pagination.nextPage} onPrev={pagination.prevPage} pageSize={pagination.pageSize}
+                />
               </CardContent>
             </Card>
           </div>

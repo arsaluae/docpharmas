@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +46,7 @@ export default function Expenses() {
   const [catFilter, setCatFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("business");
   const [open, setOpen] = useState(false);
+  const pagination = usePagination();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingNumber, setEditingNumber] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -58,14 +61,18 @@ export default function Expenses() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [pagination.page, activeTab]);
 
   const load = async () => {
+    let expQuery = supabase.from("expenses").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (activeTab !== "all") expQuery = expQuery.eq("expense_type", activeTab);
+    expQuery = expQuery.range(pagination.from, pagination.to);
     const [exp, banks] = await Promise.all([
-      supabase.from("expenses").select("*").order("created_at", { ascending: false }),
+      expQuery,
       supabase.from("bank_accounts").select("id, name, bank_name"),
     ]);
     if (exp.data) setExpenses(exp.data as Expense[]);
+    if (exp.count !== null && exp.count !== undefined) pagination.setTotalCount(exp.count);
     if (banks.data) setBankAccounts(banks.data);
   };
 
@@ -157,8 +164,7 @@ export default function Expenses() {
     const matchSearch = e.expense_number.toLowerCase().includes(search.toLowerCase()) ||
       (e.description || "").toLowerCase().includes(search.toLowerCase());
     const matchCat = catFilter === "all" || e.category === catFilter;
-    const matchTab = activeTab === "all" || e.expense_type === activeTab;
-    return matchSearch && matchCat && matchTab;
+    return matchSearch && matchCat;
   });
 
   const totalBusiness = expenses.filter(e => e.expense_type === "business").reduce((s, e) => s + Number(e.amount), 0);
@@ -312,6 +318,11 @@ export default function Expenses() {
                     ))}
                   </TableBody>
                 </Table>
+                <PaginationControls
+                  page={pagination.page} totalPages={pagination.totalPages} totalCount={pagination.totalCount}
+                  hasNext={pagination.hasNext} hasPrev={pagination.hasPrev}
+                  onNext={pagination.nextPage} onPrev={pagination.prevPage} pageSize={pagination.pageSize}
+                />
               </CardContent>
             </Card>
           </div>

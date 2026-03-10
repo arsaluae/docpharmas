@@ -11,6 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, ArrowDownUp } from "lucide-react";
 import { toast } from "sonner";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 
 const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", "return_out", "adjustment", "adjustment_in", "adjustment_out", "opening", "damage", "expired"];
 
@@ -27,6 +29,7 @@ export default function StockMovements() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [open, setOpen] = useState(false);
+  const pagination = usePagination();
 
   const [productId, setProductId] = useState("");
   const [moveType, setMoveType] = useState("adjustment");
@@ -35,20 +38,26 @@ export default function StockMovements() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { loadProducts(); }, []);
+  useEffect(() => { load(); }, [pagination.page, typeFilter]);
 
-  const load = async () => {
-    const [mv, prod] = await Promise.all([
-      supabase.from("stock_movements").select("*").order("created_at", { ascending: false }),
-      supabase.from("products").select("id, name, stock_quantity"),
-    ]);
-    if (mv.data) setMovements(mv.data);
-    if (prod.data) {
-      setProducts(prod.data);
+  const loadProducts = async () => {
+    const { data } = await supabase.from("products").select("id, name, stock_quantity");
+    if (data) {
+      setProducts(data);
       const names: Record<string, string> = {};
-      prod.data.forEach(p => { names[p.id] = p.name; });
+      data.forEach(p => { names[p.id] = p.name; });
       setProductNames(names);
     }
+  };
+
+  const load = async () => {
+    let query = supabase.from("stock_movements").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (typeFilter !== "all") query = query.eq("movement_type", typeFilter);
+    query = query.range(pagination.from, pagination.to);
+    const { data, count } = await query;
+    if (data) setMovements(data);
+    if (count !== null) pagination.setTotalCount(count);
   };
 
   const handleSave = async () => {
@@ -59,13 +68,12 @@ export default function StockMovements() {
     });
     toast.success("Stock movement recorded");
     setOpen(false); setProductId(""); setMoveType("adjustment"); setQuantity(""); setBatchNumber(""); setNotes("");
-    load();
+    load(); loadProducts();
   };
 
   const filtered = movements.filter(m => {
     const matchSearch = (productNames[m.product_id] || "").toLowerCase().includes(search.toLowerCase()) ||
       (m.batch_number || "").toLowerCase().includes(search.toLowerCase());
-    if (typeFilter !== "all") return matchSearch && m.movement_type === typeFilter;
     return matchSearch;
   });
 
@@ -112,7 +120,7 @@ export default function StockMovements() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Search by product or batch..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
               </div>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <Select value={typeFilter} onValueChange={v => { setTypeFilter(v); pagination.resetPage(); }}>
                 <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
@@ -147,6 +155,11 @@ export default function StockMovements() {
                     ))}
                   </TableBody>
                 </Table>
+                <PaginationControls
+                  page={pagination.page} totalPages={pagination.totalPages} totalCount={pagination.totalCount}
+                  hasNext={pagination.hasNext} hasPrev={pagination.hasPrev}
+                  onNext={pagination.nextPage} onPrev={pagination.prevPage} pageSize={pagination.pageSize}
+                />
               </CardContent>
             </Card>
     </AppLayout>

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,17 +32,19 @@ export default function Suppliers() {
   const { settings } = useCompanySettings();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [search, setSearch] = useState("");
+  const pagination = usePagination();
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  useEffect(() => { loadSuppliers(); }, []);
+  useEffect(() => { loadSuppliers(); }, [pagination.page]);
 
   const loadSuppliers = async () => {
-    const { data } = await supabase.from("suppliers").select("*").order("created_at", { ascending: false });
+    const { data, count } = await supabase.from("suppliers").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
     if (data) setSuppliers(data);
+    if (count !== null) pagination.setTotalCount(count);
   };
 
   const handleSave = async () => {
@@ -199,6 +203,11 @@ export default function Suppliers() {
               ))}
             </TableBody>
           </Table>
+          <PaginationControls
+            page={pagination.page} totalPages={pagination.totalPages} totalCount={pagination.totalCount}
+            hasNext={pagination.hasNext} hasPrev={pagination.hasPrev}
+            onNext={pagination.nextPage} onPrev={pagination.prevPage} pageSize={pagination.pageSize}
+          />
         </CardContent>
       </Card>
     </AppLayout>

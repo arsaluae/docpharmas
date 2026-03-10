@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ interface DeliveryNote {
 export default function DeliveryNotes() {
   const [notes, setNotes] = useState<DeliveryNote[]>([]);
   const [search, setSearch] = useState("");
+  const pagination = usePagination();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
@@ -41,11 +44,12 @@ export default function DeliveryNotes() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [pagination.page]);
 
   const load = async () => {
-    const { data } = await supabase.from("delivery_notes").select("*, customers(name)").order("created_at", { ascending: false });
+    const { data, count } = await supabase.from("delivery_notes").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
     if (data) setNotes(data as any);
+    if (count !== null) pagination.setTotalCount(count);
   };
 
   const printDN = (dn: DeliveryNote) => {
@@ -183,6 +187,11 @@ export default function DeliveryNotes() {
                 ))}
               </TableBody>
             </Table>
+            <PaginationControls
+              page={pagination.page} totalPages={pagination.totalPages} totalCount={pagination.totalCount}
+              hasNext={pagination.hasNext} hasPrev={pagination.hasPrev}
+              onNext={pagination.nextPage} onPrev={pagination.prevPage} pageSize={pagination.pageSize}
+            />
           </CardContent>
         </Card>
       </div>

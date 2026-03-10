@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,6 +45,8 @@ export default function Products() {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
+  const productPagination = usePagination();
+  const movementPagination = usePagination();
   const [editId, setEditId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("catalog");
 
@@ -56,15 +60,20 @@ export default function Products() {
   const [moveNotes, setMoveNotes] = useState("");
   const [moveTypeFilter, setMoveTypeFilter] = useState("all");
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { loadAll(); }, [productPagination.page, movementPagination.page, moveTypeFilter]);
 
   const loadAll = async () => {
+    let moveQuery = supabase.from("stock_movements").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (moveTypeFilter !== "all") moveQuery = moveQuery.eq("movement_type", moveTypeFilter);
+    moveQuery = moveQuery.range(movementPagination.from, movementPagination.to);
     const [prodRes, moveRes] = await Promise.all([
-      supabase.from("products").select("*").order("created_at", { ascending: false }),
-      supabase.from("stock_movements").select("*").order("created_at", { ascending: false }),
+      supabase.from("products").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(productPagination.from, productPagination.to),
+      moveQuery,
     ]);
     if (prodRes.data) setProducts(prodRes.data);
+    if (prodRes.count !== null) productPagination.setTotalCount(prodRes.count);
     if (moveRes.data) setMovements(moveRes.data);
+    if (moveRes.count !== null) movementPagination.setTotalCount(moveRes.count);
   };
 
   const handleSave = async () => {
@@ -133,7 +142,6 @@ export default function Products() {
   const filteredMovements = movements.filter(m => {
     const matchSearch = (productNames[m.product_id] || "").toLowerCase().includes(search.toLowerCase()) ||
       (m.batch_number || "").toLowerCase().includes(search.toLowerCase());
-    if (moveTypeFilter !== "all") return matchSearch && m.movement_type === moveTypeFilter;
     return matchSearch;
   });
 
@@ -267,6 +275,11 @@ export default function Products() {
                         ))}
                       </TableBody>
                     </Table>
+                    <PaginationControls
+                      page={productPagination.page} totalPages={productPagination.totalPages} totalCount={productPagination.totalCount}
+                      hasNext={productPagination.hasNext} hasPrev={productPagination.hasPrev}
+                      onNext={productPagination.nextPage} onPrev={productPagination.prevPage} pageSize={productPagination.pageSize}
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -376,6 +389,11 @@ export default function Products() {
                         ))}
                       </TableBody>
                     </Table>
+                    <PaginationControls
+                      page={movementPagination.page} totalPages={movementPagination.totalPages} totalCount={movementPagination.totalCount}
+                      hasNext={movementPagination.hasNext} hasPrev={movementPagination.hasPrev}
+                      onNext={movementPagination.nextPage} onPrev={movementPagination.prevPage} pageSize={movementPagination.pageSize}
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>

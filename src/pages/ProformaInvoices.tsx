@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,6 +56,7 @@ export default function ProformaInvoices() {
   const [dateRange, setDateRange] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const pagination = usePagination();
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pdfHtml, setPdfHtml] = useState("");
@@ -143,8 +146,14 @@ export default function ProformaInvoices() {
   // ── SIMPLIFIED LOAD: proforma_invoices only ──
   const load = async () => {
     setLoading(true);
+    let pfQuery = supabase.from("proforma_invoices").select("*, customers(name, company, phone, address, area)", { count: "exact" }).order("created_at", { ascending: false });
+    if (statusFilter !== "all") {
+      if (statusFilter === "draft") pfQuery = pfQuery.eq("status", "draft");
+      else pfQuery = pfQuery.neq("status", "draft"); // simplified for server-side
+    }
+    pfQuery = pfQuery.range(pagination.from, pagination.to);
     const [pf, cust, prod] = await Promise.all([
-      supabase.from("proforma_invoices").select("*, customers(name, company, phone, address, area)").order("created_at", { ascending: false }),
+      pfQuery,
       supabase.from("customers").select("id, name, company, phone, address, area"),
       supabase.from("products").select("id, name, selling_price, gst_rate"),
     ]);
@@ -194,6 +203,7 @@ export default function ProformaInvoices() {
       });
     }
     setOrders(allOrders);
+    if (pf.count !== null && pf.count !== undefined) pagination.setTotalCount(pf.count);
     if (cust.data) setCustomers(cust.data as any);
     if (prod.data) setProducts(prod.data);
     setLoading(false);

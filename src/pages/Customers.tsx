@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +38,7 @@ export default function Customers() {
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
+  const pagination = usePagination();
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -49,11 +52,12 @@ export default function Customers() {
   const [editLicenseId, setEditLicenseId] = useState<string | null>(null);
   const [showLicenseForm, setShowLicenseForm] = useState(false);
 
-  useEffect(() => { loadCustomers(); }, []);
+  useEffect(() => { loadCustomers(); }, [pagination.page]);
 
   const loadCustomers = async () => {
-    const { data } = await supabase.from("customers").select("*").order("created_at", { ascending: false });
+    const { data, count } = await supabase.from("customers").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
     if (data) setCustomers(data);
+    if (count !== null) pagination.setTotalCount(count);
   };
 
   const handleSave = async () => {
@@ -270,6 +274,11 @@ export default function Customers() {
               ))}
             </TableBody>
           </Table>
+          <PaginationControls
+            page={pagination.page} totalPages={pagination.totalPages} totalCount={pagination.totalCount}
+            hasNext={pagination.hasNext} hasPrev={pagination.hasPrev}
+            onNext={pagination.nextPage} onPrev={pagination.prevPage} pageSize={pagination.pageSize}
+          />
         </CardContent>
       </Card>
 

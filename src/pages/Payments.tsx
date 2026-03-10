@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +38,7 @@ export default function Payments() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("all");
+  const pagination = usePagination();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingNumber, setEditingNumber] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -55,17 +58,22 @@ export default function Payments() {
   const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [pagination.page, tab]);
 
   const load = async () => {
+    let payQuery = supabase.from("payments").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (tab === "received") payQuery = payQuery.eq("type", "received");
+    if (tab === "made") payQuery = payQuery.eq("type", "made");
+    payQuery = payQuery.range(pagination.from, pagination.to);
     const [pay, cust, sup, banks, prnt] = await Promise.all([
-      supabase.from("payments").select("*").order("created_at", { ascending: false }),
+      payQuery,
       supabase.from("customers").select("id, name"),
       supabase.from("suppliers").select("id, name"),
       supabase.from("bank_accounts").select("id, name, bank_name"),
       supabase.from("printers").select("id, name"),
     ]);
     if (pay.data) setPayments(pay.data);
+    if (pay.count !== null && pay.count !== undefined) pagination.setTotalCount(pay.count);
     if (cust.data) setCustomers(cust.data);
     if (sup.data) setSuppliers(sup.data);
     if (banks.data) setBankAccounts(banks.data);
@@ -159,8 +167,6 @@ export default function Payments() {
   const filtered = payments.filter(p => {
     const matchSearch = p.payment_number.toLowerCase().includes(search.toLowerCase()) ||
       (partyNames[p.party_id] || "").toLowerCase().includes(search.toLowerCase());
-    if (tab === "received") return matchSearch && p.type === "received";
-    if (tab === "made") return matchSearch && p.type === "made";
     return matchSearch;
   });
 
@@ -296,6 +302,11 @@ export default function Payments() {
                     ))}
                   </TableBody>
                 </Table>
+                <PaginationControls
+                  page={pagination.page} totalPages={pagination.totalPages} totalCount={pagination.totalCount}
+                  hasNext={pagination.hasNext} hasPrev={pagination.hasPrev}
+                  onNext={pagination.nextPage} onPrev={pagination.prevPage} pageSize={pagination.pageSize}
+                />
               </CardContent>
             </Card>
 
