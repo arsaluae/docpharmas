@@ -296,7 +296,7 @@ export default function Landing() {
               { value: 500, suffix: "K+", label: "Products Tracked", color: "text-[#0EA5E9]" },
             ].map((stat) => (
               <div key={stat.label}>
-                <p className={`text-4xl md:text-5xl font-bold font-heading ${stat.color}`}>
+                <p className={`text-3xl sm:text-4xl md:text-5xl font-bold font-heading ${stat.color}`}>
                   <AnimatedCounter end={stat.value} suffix={stat.suffix} />
                 </p>
                 <p className="text-sm text-[#94A3B8] mt-2">{stat.label}</p>
