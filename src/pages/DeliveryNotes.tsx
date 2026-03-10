@@ -44,7 +44,7 @@ export default function DeliveryNotes() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [pagination.page]);
 
   const load = async () => {
     const { data } = await supabase.from("delivery_notes").select("*, customers(name)").order("created_at", { ascending: false });
