@@ -1,1 +1,4 @@
 project_id = "vkbvjlcmzlzqwrcesxta"
+
+[functions.send-approval-email]
+verify_jwt = false

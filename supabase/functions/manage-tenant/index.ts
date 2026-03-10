@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await createClient(
       supabaseUrl,
-      Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!
+      Deno.env.get("SUPABASE_ANON_KEY")!
     ).auth.getUser(token);
 
     if (authError || !user) {
@@ -231,11 +231,36 @@ Deno.serve(async (req) => {
       // Seed document counters + company settings
       await seedTenantData(supabaseAdmin, tenant.id);
 
+      // Confirm user's email so they can log in
+      await supabaseAdmin.auth.admin.updateUserById(signup.user_id, {
+        email_confirm: true,
+      });
+
       // Mark signup as approved
       await supabaseAdmin.from("pending_signups").update({
         status: "approved",
         reviewed_at: new Date().toISOString(),
       }).eq("id", signup_id);
+
+      // Send approval email (fire-and-forget)
+      try {
+        const emailPayload = {
+          email: signup.email,
+          company_name: signup.company_name,
+          trial_ends_at: trialEnd.toISOString(),
+        };
+        const funcUrl = `${supabaseUrl}/functions/v1/send-approval-email`;
+        await fetch(funcUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify(emailPayload),
+        });
+      } catch (emailErr) {
+        console.error("Failed to send approval email:", emailErr);
+      }
 
       return new Response(JSON.stringify({ success: true, tenant_id: tenant.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
