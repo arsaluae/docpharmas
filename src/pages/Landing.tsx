@@ -122,7 +122,7 @@ export default function Landing() {
                 Business with Confidence
               </span>
             </motion.h1>
-            <motion.p variants={fadeUp} className="text-lg md:text-xl text-[#64748B] max-w-2xl mx-auto mb-10 leading-relaxed">
+            <motion.p variants={fadeUp} className="text-base sm:text-lg md:text-xl text-[#64748B] max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed px-2">
               DocPharmas is the <strong className="text-[#1E293B]">only ERP built for Pakistan's pharma industry</strong>.
               Replace your ledgers, spreadsheets, and guesswork — starting today.
             </motion.p>
