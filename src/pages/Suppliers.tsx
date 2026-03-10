@@ -39,7 +39,7 @@ export default function Suppliers() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  useEffect(() => { loadSuppliers(); }, []);
+  useEffect(() => { loadSuppliers(); }, [pagination.page]);
 
   const loadSuppliers = async () => {
     const { data } = await supabase.from("suppliers").select("*").order("created_at", { ascending: false });
