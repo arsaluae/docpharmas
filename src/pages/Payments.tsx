@@ -40,6 +40,7 @@ export default function Payments() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("all");
   const pagination = usePagination();
+  const { settings } = useCompanySettings();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingNumber, setEditingNumber] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
