@@ -146,8 +146,14 @@ export default function ProformaInvoices() {
   // ── SIMPLIFIED LOAD: proforma_invoices only ──
   const load = async () => {
     setLoading(true);
+    let pfQuery = supabase.from("proforma_invoices").select("*, customers(name, company, phone, address, area)", { count: "exact" }).order("created_at", { ascending: false });
+    if (statusFilter !== "all") {
+      if (statusFilter === "draft") pfQuery = pfQuery.eq("status", "draft");
+      else pfQuery = pfQuery.neq("status", "draft"); // simplified for server-side
+    }
+    pfQuery = pfQuery.range(pagination.from, pagination.to);
     const [pf, cust, prod] = await Promise.all([
-      supabase.from("proforma_invoices").select("*, customers(name, company, phone, address, area)").order("created_at", { ascending: false }),
+      pfQuery,
       supabase.from("customers").select("id, name, company, phone, address, area"),
       supabase.from("products").select("id, name, selling_price, gst_rate"),
     ]);
