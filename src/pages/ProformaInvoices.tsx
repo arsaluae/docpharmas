@@ -797,7 +797,7 @@ export default function ProformaInvoices() {
               <Plus className="h-4 w-4" /> New Order
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+           <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle className="font-heading">Create Sales Invoice</DialogTitle></DialogHeader>
             <div className="grid grid-cols-3 gap-3 mt-3">
               <div>
