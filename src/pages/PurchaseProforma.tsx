@@ -354,40 +354,26 @@ export default function PurchaseProforma() {
 
   // ── MAKE PAYMENT ──
   const openPaymentDialog = async (order: PurchaseOrder) => {
-    // Calculate remaining balance
-    const { data: existingPayments } = await supabase
-      .from("payments")
-      .select("amount")
-      .eq("party_type", "supplier")
-      .eq("party_id", order.supplier_id!)
-      .eq("type", "made");
-    
-    const totalPaid = existingPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-    // Get all purchase invoices for this supplier to allocate payments oldest-first
-    const { data: allInvoices } = await supabase
-      .from("purchase_invoices")
-      .select("id, total, grn_id")
-      .eq("supplier_id", order.supplier_id!)
-      .order("date", { ascending: true });
-    
-    let remaining = totalPaid;
-    let thisOrderRemaining = order.total;
-    if (allInvoices && order.converted_po_id) {
-      // Find the GRN linked to this PO, then the invoice linked to that GRN
+    // Find the purchase invoice linked to this order's PO
+    let linkedInvoiceId: string | null = null;
+    let remaining = order.total;
+    if (order.converted_po_id) {
       const { data: grns } = await supabase.from("goods_received_notes").select("id").eq("po_id", order.converted_po_id);
       const grnIds = grns?.map(g => g.id) || [];
-      for (const inv of allInvoices) {
-        const allocated = Math.min(Number(inv.total), Math.max(remaining, 0));
-        remaining -= Number(inv.total);
-        if (inv.grn_id && grnIds.includes(inv.grn_id)) {
-          thisOrderRemaining = Math.max(Number(inv.total) - allocated, 0);
-          break;
+      if (grnIds.length > 0) {
+        const { data: bills } = await supabase.from("purchase_invoices").select("id, total").in("grn_id", grnIds).limit(1);
+        if (bills?.length) {
+          linkedInvoiceId = bills[0].id;
+          // Get direct payments for this specific invoice
+          const { data: directPayments } = await supabase.from("payments").select("amount").eq("invoice_id", bills[0].id);
+          const directPaid = directPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+          remaining = Math.max(Number(bills[0].total) - directPaid, 0);
         }
       }
     }
     
-    setPaymentOrder(order);
-    setPaymentAmount(String(Math.max(thisOrderRemaining, 0)));
+    setPaymentOrder({ ...order, _linkedInvoiceId: linkedInvoiceId } as any);
+    setPaymentAmount(String(Math.max(remaining, 0)));
     setPaymentMethod("bank_transfer");
     const meezan = bankAccounts.find(b => b.bank_name.toLowerCase().includes("meezan"));
     setPaymentBankId(meezan?.id || bankAccounts[0]?.id || "");
@@ -399,6 +385,7 @@ export default function PurchaseProforma() {
     setPaymentSaving(true);
     const { data: payNum } = await supabase.rpc("generate_document_number", { p_document_type: "payment" });
     if (!payNum) { toast.error("Failed to generate payment number"); setPaymentSaving(false); return; }
+    const linkedInvoiceId = (paymentOrder as any)._linkedInvoiceId || null;
     const { error } = await supabase.from("payments").insert({
       payment_number: payNum,
       party_type: "supplier",
@@ -409,7 +396,8 @@ export default function PurchaseProforma() {
       bank_account_id: paymentMethod === "cash" ? null : paymentBankId || null,
       date: new Date().toISOString().split("T")[0],
       reference: paymentOrder.po_number || paymentOrder.proforma_number,
-    });
+      invoice_id: linkedInvoiceId,
+    } as any);
     if (error) { toast.error("Payment failed: " + error.message); setPaymentSaving(false); return; }
     toast.success(`Payment PKR ${Number(paymentAmount).toLocaleString()} made`);
     setPaymentOpen(false); setPaymentSaving(false); load();
