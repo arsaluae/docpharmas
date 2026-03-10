@@ -52,6 +52,8 @@ export default function Customers() {
   const [licenseForm, setLicenseForm] = useState(emptyLicenseForm);
   const [editLicenseId, setEditLicenseId] = useState<string | null>(null);
   const [showLicenseForm, setShowLicenseForm] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileCustomer, setProfileCustomer] = useState<Customer | null>(null);
 
   useEffect(() => { loadCustomers(); }, [pagination.page]);
 
