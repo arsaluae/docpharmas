@@ -64,11 +64,15 @@ export default function Expenses() {
   useEffect(() => { load(); }, [pagination.page, activeTab]);
 
   const load = async () => {
+    let expQuery = supabase.from("expenses").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (activeTab !== "all") expQuery = expQuery.eq("expense_type", activeTab);
+    expQuery = expQuery.range(pagination.from, pagination.to);
     const [exp, banks] = await Promise.all([
-      supabase.from("expenses").select("*").order("created_at", { ascending: false }),
+      expQuery,
       supabase.from("bank_accounts").select("id, name, bank_name"),
     ]);
     if (exp.data) setExpenses(exp.data as Expense[]);
+    if (exp.count !== null && exp.count !== undefined) pagination.setTotalCount(exp.count);
     if (banks.data) setBankAccounts(banks.data);
   };
 
