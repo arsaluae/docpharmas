@@ -115,7 +115,7 @@ export default function Landing() {
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0EA5E9]/[0.08] border border-[#0EA5E9]/20 text-[#0EA5E9] text-sm font-medium mb-8">
               <Zap className="h-4 w-4" /> 7-Day Free Trial • No Credit Card Required
             </motion.div>
-            <motion.h1 variants={fadeUp} className="font-heading text-4xl md:text-6xl lg:text-7xl font-bold leading-[1.1] mb-6 text-[#1E293B]">
+            <motion.h1 variants={fadeUp} className="font-heading text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold leading-[1.1] mb-4 sm:mb-6 text-[#1E293B]">
               Grow Your Pharma
               <br />
               <span className="bg-gradient-to-r from-[#0EA5E9] to-[#8B5CF6] bg-clip-text text-transparent">
