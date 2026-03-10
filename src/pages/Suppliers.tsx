@@ -42,8 +42,9 @@ export default function Suppliers() {
   useEffect(() => { loadSuppliers(); }, [pagination.page]);
 
   const loadSuppliers = async () => {
-    const { data } = await supabase.from("suppliers").select("*").order("created_at", { ascending: false });
+    const { data, count } = await supabase.from("suppliers").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
     if (data) setSuppliers(data);
+    if (count !== null) pagination.setTotalCount(count);
   };
 
   const handleSave = async () => {
