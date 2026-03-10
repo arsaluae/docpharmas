@@ -179,7 +179,7 @@ export default function Landing() {
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                 {[
                   { label: "Sales Order", color: "bg-[#0EA5E9]" },
                   { label: "Invoice", color: "bg-[#10B981]" },
