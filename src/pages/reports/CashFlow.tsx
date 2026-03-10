@@ -16,7 +16,7 @@ export default function CashFlow() {
   const load = async () => {
     const [payments, expenses] = await Promise.all([
       supabase.from("payments").select("type, amount, date").gte("date", from).lte("date", to),
-      supabase.from("expenses").select("amount, date").gte("date", from).lte("date", to),
+      supabase.from("expenses").select("amount, date").eq("expense_type", "business").gte("date", from).lte("date", to),
     ]);
 
     const months: Record<string, { inflows: number; outflows: number }> = {};

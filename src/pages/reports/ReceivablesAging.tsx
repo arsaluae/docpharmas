@@ -17,7 +17,7 @@ export default function ReceivablesAging() {
 
   const load = async () => {
     const [inv, custs] = await Promise.all([
-      supabase.from("sales_invoices").select("invoice_number, customer_id, total, amount_paid, due_date").in("status", ["unpaid", "partial"]),
+      supabase.from("sales_invoices").select("invoice_number, customer_id, total, amount_paid, due_date").in("status", ["dispatched", "unpaid", "partial"]),
       supabase.from("customers").select("id, name"),
     ]);
     const nameMap: Record<string, string> = {};
