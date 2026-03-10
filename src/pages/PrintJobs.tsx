@@ -66,12 +66,16 @@ export default function PrintJobs() {
   useEffect(() => { load(); }, [pagination.page, tab]);
 
   const load = async () => {
+    let jobQuery = supabase.from("print_jobs").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (tab !== "all") jobQuery = jobQuery.eq("status", tab);
+    jobQuery = jobQuery.range(pagination.from, pagination.to);
     const [j, pr, prod] = await Promise.all([
-      supabase.from("print_jobs").select("*").order("created_at", { ascending: false }),
+      jobQuery,
       supabase.from("printers").select("id, name"),
       supabase.from("products").select("id, name"),
     ]);
     if (j.data) setJobs(j.data);
+    if (j.count !== null && j.count !== undefined) pagination.setTotalCount(j.count);
     if (pr.data) { setPrinters(pr.data); const n: Record<string, string> = {}; pr.data.forEach(p => n[p.id] = p.name); setPrinterNames(n); }
     if (prod.data) { setProducts(prod.data); const n: Record<string, string> = {}; prod.data.forEach(p => n[p.id] = p.name); setProductNames(n); }
   };
