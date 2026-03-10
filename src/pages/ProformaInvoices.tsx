@@ -38,6 +38,7 @@ interface SalesOrder {
   customers: { name: string; company?: string | null; phone?: string | null; address?: string | null; area?: string | null } | null;
   created_at: string;
   invoice_number?: string;
+  amount_paid?: number;
 }
 
 interface BatchOption { batch_number: string; available: number; expiry_date?: string; }
@@ -113,7 +114,7 @@ export default function ProformaInvoices() {
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate("/auth");
+      if (!session) navigate("/dashboard");
     };
     check(); load(); loadDeliveryNotes(); loadBankAccounts();
   }, [navigate]);
@@ -153,11 +154,14 @@ export default function ProformaInvoices() {
       // For invoiced orders, batch-fetch invoice numbers
       const invoicedIds = pf.data.filter((p: any) => p.converted_invoice_id).map((p: any) => p.converted_invoice_id);
       let invoiceMap: Record<string, string> = {};
+      let amountPaidMap: Record<string, number> = {};
       if (invoicedIds.length > 0) {
-        const { data: invs } = await supabase.from("sales_invoices").select("id, invoice_number, status").in("id", invoicedIds);
+        const { data: invs } = await supabase.from("sales_invoices").select("id, invoice_number, status, amount_paid").in("id", invoicedIds);
         if (invs) {
-          invs.forEach((inv: any) => { invoiceMap[inv.id] = inv.invoice_number; });
-          // Also update status from invoice
+          invs.forEach((inv: any) => { 
+            invoiceMap[inv.id] = inv.invoice_number;
+            amountPaidMap[inv.id] = Number(inv.amount_paid || 0);
+          });
           const statusMap: Record<string, string> = {};
           invs.forEach((inv: any) => { statusMap[inv.id] = inv.status; });
           pf.data.forEach((p: any) => {
@@ -177,6 +181,7 @@ export default function ProformaInvoices() {
         if (status === "approved") status = "draft";
         if (p.converted_invoice_id && status === "draft") status = "invoiced";
 
+        const amountPaid = p.converted_invoice_id ? (amountPaidMap[p.converted_invoice_id] || 0) : 0;
         allOrders.push({
           id: p.id, proforma_number: p.proforma_number, customer_id: p.customer_id, date: p.date,
           items: p.items, subtotal: p.subtotal, gst: p.gst, total: p.total, status,
@@ -184,6 +189,7 @@ export default function ProformaInvoices() {
           converted_invoice_id: p.converted_invoice_id, customers: p.customers as any,
           created_at: p.created_at,
           invoice_number: p.converted_invoice_id ? invoiceMap[p.converted_invoice_id] : undefined,
+          amount_paid: amountPaid,
         });
       });
     }
@@ -965,7 +971,8 @@ export default function ProformaInvoices() {
                         const itemNames = pfItems.map(i => i.product_name).filter(Boolean);
                         const itemsDisplay = itemNames.length <= 2 ? itemNames.join(", ") : `${itemNames.slice(0, 2).join(", ")} +${itemNames.length - 2} more`;
                         const isPaid = order.status === "paid";
-                        const balance = order.status === "draft" ? null : (isPaid ? 0 : Number(order.total));
+                        const amtPaid = Number(order.amount_paid || 0);
+                        const balance = order.status === "draft" ? null : (isPaid ? 0 : Math.max(Number(order.total) - amtPaid, 0));
                         return (
                         <TableRow key={order.id} className={`group cursor-pointer hover:bg-muted/30 transition-colors ${isPaid ? "bg-emerald-500/5" : ""}`} data-state={selected.has(order.id) ? "selected" : undefined}>
                           <TableCell><Checkbox checked={selected.has(order.id)} onCheckedChange={() => toggleSelect(order.id)} /></TableCell>

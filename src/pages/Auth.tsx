@@ -18,7 +18,7 @@ export default function Auth() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/");
+      if (session) navigate("/dashboard");
     });
   }, [navigate]);
 
@@ -30,7 +30,7 @@ export default function Auth() {
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate("/");
+        navigate("/dashboard");
       } else if (mode === "signup") {
         if (!companyName.trim()) {
           toast.error("Company name is required");

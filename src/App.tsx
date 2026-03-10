@@ -55,13 +55,14 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           {/* Public routes */}
+          <Route path="/" element={<Landing />} />
           <Route path="/landing" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected routes */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Index />} />
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/customers/:id/ledger" element={<CustomerLedger />} />

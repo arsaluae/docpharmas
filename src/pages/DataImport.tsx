@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Upload, Trash2, CheckCircle, XCircle, AlertTriangle, FileSpreadsheet, ChevronDown, Sparkles, ArrowRight, CloudUpload, X, FileCheck, RefreshCw, GitMerge } from "lucide-react";
+import { Upload, Trash2, CheckCircle, XCircle, AlertTriangle, FileSpreadsheet, ChevronDown, Sparkles, ArrowRight, CloudUpload, X, FileCheck, RefreshCw, GitMerge, Download } from "lucide-react";
 import { toast } from "sonner";
 
 type TabType = "customers" | "suppliers" | "products" | "inventory";
@@ -655,7 +655,33 @@ export default function DataImport() {
 
   return (
     <AppLayout title="Data Import" subtitle="Smart merge from 20+ software formats with duplicate detection">
-          <div className="max-w-5xl mx-auto">
+          <div className="max-w-5xl mx-auto space-y-6">
+            {/* Onboarding Banner */}
+            <div className="glass-card-glow rounded-2xl p-6 border border-primary/10">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-heading font-semibold text-foreground text-base mb-1">Welcome to Data Import</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Migrating from Tally, QuickBooks, SAP, Zoho, or Excel? Simply export your data as CSV or Excel, 
+                    upload it here, and our system will auto-map your columns. <strong>Smart Merge</strong> ensures existing records 
+                    are enriched — never duplicated.
+                  </p>
+                  <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">1</span> Select type</span>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">2</span> Upload file</span>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">3</span> Review mapping</span>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">4</span> Import</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <Tabs value={tab} onValueChange={v => { setTab(v as TabType); resetFile(); }}>
               {/* Premium Tab Pills */}
               <TabsList className="bg-secondary/50 p-1 rounded-xl mb-8 border border-border/50">
@@ -705,6 +731,29 @@ export default function DataImport() {
                             Drag & drop or click to browse · CSV, XLSX, XLS
                           </p>
                         </div>
+
+                        {/* Download Sample CSV */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const cols = TAB_COLUMNS[t];
+                            const csvContent = cols.join(",") + "\n";
+                            const blob = new Blob([csvContent], { type: "text/csv" });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `${t}_sample.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            toast.success("Sample CSV downloaded!");
+                          }}
+                        >
+                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                          Download Sample CSV
+                        </Button>
 
                         {/* Smart merge info */}
                         <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/5 border border-primary/10">
