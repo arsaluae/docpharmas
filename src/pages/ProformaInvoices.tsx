@@ -113,7 +113,7 @@ export default function ProformaInvoices() {
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate("/auth");
+      if (!session) navigate("/dashboard");
     };
     check(); load(); loadDeliveryNotes(); loadBankAccounts();
   }, [navigate]);
