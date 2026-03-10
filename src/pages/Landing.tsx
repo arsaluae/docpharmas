@@ -79,18 +79,20 @@ export default function Landing() {
     <div className="min-h-screen overflow-x-hidden bg-[#FAFBFD]">
       {/* NAVBAR — Light */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-[#E2E8F0]">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={docpharmasLogo} alt="DocPharmas" className="w-9 h-9 rounded-xl object-cover" />
-            <span className="font-heading font-bold text-xl tracking-tight text-[#1E293B]">DocPharmas</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <img src={docpharmasLogo} alt="DocPharmas" className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-cover" />
+            <span className="font-heading font-bold text-lg sm:text-xl tracking-tight text-[#1E293B]">DocPharmas</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={() => navigate("/auth")} className="text-sm text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9]">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button variant="ghost" onClick={() => navigate("/auth")} className="text-xs sm:text-sm text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9] px-2 sm:px-4">
               Login
             </Button>
             <Button onClick={() => window.open("https://wa.me/447477210590", "_blank")}
-              className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white text-sm font-semibold rounded-xl shadow-md shadow-[#0EA5E9]/20">
-              Start Free Trial <ArrowRight className="h-4 w-4 ml-1" />
+              className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white text-xs sm:text-sm font-semibold rounded-xl shadow-md shadow-[#0EA5E9]/20 px-3 sm:px-4">
+              <span className="hidden sm:inline">Start Free Trial</span>
+              <span className="sm:hidden">Free Trial</span>
+              <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-1" />
             </Button>
           </div>
         </div>
