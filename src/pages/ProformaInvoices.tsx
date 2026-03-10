@@ -327,33 +327,50 @@ export default function ProformaInvoices() {
   };
 
   // ── WHATSAPP ──
-  const shareWhatsApp = (order: SalesOrder) => {
+  const shareWhatsApp = async (order: SalesOrder) => {
     const cust = order.customers as any;
     const custName = cust?.name || "Customer";
     const custPhone = cust?.phone || "";
     const companyName = settings?.company_name || "DocPharmas";
     const pfItems = getPfItems(order);
-    const itemsList = pfItems.map((i, idx) => `${idx + 1}. ${i.product_name} × ${i.quantity} @ PKR ${Number(i.rate).toLocaleString()}`).join("\n");
-    const text = [
-      `📋 *SALES INVOICE #${order.invoice_number || order.proforma_number}*`,
-      `🏢 ${companyName}`,
-      `━━━━━━━━━━━━━━━━━`,
-      `👤 Customer: ${custName}`,
-      `📅 Date: ${order.date}`,
-      ``,
-      `📦 *Items:*`,
-      itemsList,
-      ``,
-      `💰 *Total: PKR ${Number(order.total).toLocaleString()}*`,
-      ...(order.payment_instructions ? [``, `💳 ${order.payment_instructions}`] : []),
-      ``,
-      `Thank you for your business! 🙏`,
-    ].join("\n");
-    const waNumber = custPhone ? custPhone.replace(/[^0-9]/g, "") : "";
-    const url = waNumber
-      ? `https://api.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(text)}`
-      : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
+
+    // Get bank details
+    const { data: banks } = await supabase.from("bank_accounts").select("name, bank_name, account_number").eq("is_default", true).limit(1);
+    const bank = banks?.[0];
+    const bankDetails = bank ? `${bank.bank_name}: ${bank.account_number || "N/A"}\n(${bank.name})` : undefined;
+
+    // Generate PDF link
+    let pdfLink: string | undefined;
+    try {
+      const { buildSalesInvoiceMessage, openWhatsApp, uploadSharedDocument } = await import("@/lib/whatsapp-share");
+      const html = generatePdfHtml({
+        title: order.status === "dispatched" || order.status === "paid" || order.status === "partial" ? "SALES INVOICE" : "SALES ORDER",
+        documentNumber: order.invoice_number || order.proforma_number,
+        date: order.date, partyLabel: "Customer", partyName: custName,
+        columns: [
+          { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+          { header: "Qty", key: "quantity", align: "right" as const },
+          { header: "Rate", key: "rate", align: "right" as const },
+          { header: "Amount", key: "amount", align: "right" as const },
+        ],
+        rows: pfItems.map((i, idx) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString() })),
+        totals: [{ label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` }],
+        settings, template: getTemplate("sales_invoice"),
+      });
+      pdfLink = await uploadSharedDocument(html, order.invoice_number || order.proforma_number) || undefined;
+    } catch (e) { console.error("PDF link error:", e); }
+
+    const { buildSalesInvoiceMessage, openWhatsApp } = await import("@/lib/whatsapp-share");
+    const message = buildSalesInvoiceMessage({
+      documentNumber: order.invoice_number || order.proforma_number,
+      companyName, customerName: custName, customerPhone: custPhone,
+      date: order.date,
+      items: pfItems.map(i => ({ product_name: i.product_name, quantity: i.quantity, rate: i.rate })),
+      total: order.total,
+      paymentInstructions: order.payment_instructions || undefined,
+      bankDetails, pdfLink,
+    });
+    openWhatsApp(custPhone, message);
   };
 
   // ── PDF ──

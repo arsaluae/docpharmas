@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, ShieldCheck, Trash2, X, Download, ArrowRight, ChevronLeft } from "lucide-react";
+import { Plus, Search, ShieldCheck, Trash2, X, Download, ArrowRight, ChevronLeft, MessageCircle } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -483,6 +483,53 @@ export default function WarrantyInvoices() {
                           setPdfHtml(wiHtml); setPdfTitle(`Warranty Invoice — ${inv.warranty_number}`); setPdfOpen(true);
                         }}>
                           <Download className="h-3 w-3" /> PDF
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async (e) => {
+                          e.stopPropagation();
+                          const { buildWarrantyInvoiceMessage, openWhatsApp, uploadSharedDocument } = await import("@/lib/whatsapp-share");
+                          const wiItems = Array.isArray(inv.items) ? inv.items as any[] : [];
+                          // Get customer phone
+                          let phone = "";
+                          if (inv.customer_id) {
+                            const { data } = await supabase.from("customers").select("phone").eq("id", inv.customer_id).single();
+                            phone = data?.phone || "";
+                          }
+                          // Generate PDF link
+                          let pdfLink: string | undefined;
+                          try {
+                            const template = getTemplate("warranty_invoice");
+                            const cols = template?.columns_config?.length ? template.columns_config : [
+                              { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+                              { header: "Batch", key: "batch_number" }, { header: "Qty", key: "quantity", align: "right" as const },
+                              { header: "MRP", key: "mrp", align: "right" as const },
+                              { header: "TP Rate", key: "tp_rate", align: "right" as const },
+                              { header: "Amount", key: "amount", align: "right" as const },
+                            ];
+                            const html = generatePdfHtml({
+                              title: "WARRANTY INVOICE", documentNumber: inv.warranty_number, date: inv.date,
+                              partyLabel: "Pharmacy / Distributor", partyName: inv.pharmacy_name,
+                              columns: cols as any,
+                              rows: wiItems.map((i: any, idx: number) => ({
+                                ...i, idx: idx + 1,
+                                mrp: Number(i.mrp || 0).toLocaleString(),
+                                tp_rate: Number(i.tp_rate || 0).toLocaleString(),
+                                amount: Number(i.amount).toLocaleString(),
+                              })),
+                              totals: [{ label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` }],
+                              settings, template,
+                            });
+                            pdfLink = await uploadSharedDocument(html, inv.warranty_number) || undefined;
+                          } catch (e) { console.error("PDF link error:", e); }
+                          const message = buildWarrantyInvoiceMessage({
+                            warrantyNumber: inv.warranty_number,
+                            companyName: settings?.company_name || "DocPharmas",
+                            pharmacyName: inv.pharmacy_name, customerPhone: phone, date: inv.date,
+                            items: wiItems.map((i: any) => ({ product_name: i.product_name, batch_number: i.batch_number, mrp: i.mrp, tp_rate: i.tp_rate, quantity: i.quantity })),
+                            total: inv.total, pdfLink,
+                          });
+                          openWhatsApp(phone, message);
+                        }} title="Share via WhatsApp">
+                          <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>

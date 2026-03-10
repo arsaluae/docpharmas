@@ -15,7 +15,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Wallet, ArrowDownLeft, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Wallet, ArrowDownLeft, ArrowUpRight, Pencil, Trash2, MessageCircle } from "lucide-react";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 
@@ -39,6 +40,7 @@ export default function Payments() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("all");
   const pagination = usePagination();
+  const { settings } = useCompanySettings();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingNumber, setEditingNumber] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -290,6 +292,33 @@ export default function Payments() {
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
+                              const { buildPaymentReceiptMessage, openWhatsApp } = await import("@/lib/whatsapp-share");
+                              const partyName = partyNames[p.party_id] || "Party";
+                              // Get party phone
+                              let phone = "";
+                              if (p.party_type === "customer") {
+                                const { data } = await supabase.from("customers").select("phone, balance").eq("id", p.party_id).single();
+                                phone = data?.phone || "";
+                              } else if (p.party_type === "supplier") {
+                                const { data } = await supabase.from("suppliers").select("phone, balance").eq("id", p.party_id).single();
+                                phone = data?.phone || "";
+                              }
+                              const bankAcc = bankAccounts.find(b => b.id === p.bank_account_id);
+                              const message = buildPaymentReceiptMessage({
+                                paymentNumber: p.payment_number,
+                                companyName: settings?.company_name || "DocPharmas",
+                                partyName, partyPhone: phone, date: p.date,
+                                type: p.type as "received" | "made", amount: p.amount,
+                                paymentMethod: p.payment_method,
+                                bankName: bankAcc ? `${bankAcc.bank_name} — ${bankAcc.name}` : undefined,
+                                chequeNumber: p.cheque_number || undefined,
+                                reference: p.reference || undefined,
+                              });
+                              openWhatsApp(phone, message);
+                            }} title="Share via WhatsApp">
+                              <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                            </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(p)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
