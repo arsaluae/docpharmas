@@ -46,6 +46,7 @@ export default function Expenses() {
   const [catFilter, setCatFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("business");
   const [open, setOpen] = useState(false);
+  const pagination = usePagination();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingNumber, setEditingNumber] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
