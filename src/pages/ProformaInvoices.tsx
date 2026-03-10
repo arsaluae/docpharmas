@@ -302,11 +302,32 @@ export default function ProformaInvoices() {
     const cust = order.customers as any;
     const custName = cust?.name || "Customer";
     const custPhone = cust?.phone || "";
-    const companyName = settings?.company_name || "PharmBooks";
+    const companyName = settings?.company_name || "DocPharmas";
     const pfItems = getPfItems(order);
-    const text = `*Sales Invoice ${order.proforma_number}*\n${companyName}\n\nCustomer: ${custName}\nDate: ${order.date}\n\n${pfItems.map(i => `• ${i.product_name} × ${i.quantity} @ ${Number(i.rate).toLocaleString()}`).join("\n")}\n\n*Total: PKR ${Number(order.total).toLocaleString()}*${order.payment_instructions ? `\n\n${order.payment_instructions}` : ""}`;
+    const itemsList = pfItems.map((i, idx) => `${idx + 1}. ${i.product_name} × ${i.quantity} @ PKR ${Number(i.rate).toLocaleString()}`).join("\n");
+    const text = [
+      `📋 *SALES INVOICE #${order.invoice_number || order.proforma_number}*`,
+      `🏢 ${companyName}`,
+      `━━━━━━━━━━━━━━━━━`,
+      `👤 Customer: ${custName}`,
+      `📅 Date: ${order.date}`,
+      ``,
+      `📦 *Items:*`,
+      itemsList,
+      ``,
+      `💰 *Total: PKR ${Number(order.total).toLocaleString()}*`,
+      ...(order.payment_instructions ? [``, `💳 ${order.payment_instructions}`] : []),
+      ``,
+      `Thank you for your business! 🙏`,
+    ].join("\n");
     const waNumber = custPhone ? custPhone.replace(/[^0-9]/g, "") : "";
-    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, "_blank");
+    const url = waNumber
+      ? `https://web.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(text)}`
+      : `https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    const waWindow = window.open(url, "_blank");
+    if (!waWindow || waWindow.closed) {
+      toast.info("Please allow popups or open WhatsApp Web in your browser first");
+    }
   };
 
   // ── PDF ──
