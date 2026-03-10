@@ -986,7 +986,7 @@ export default function ProformaInvoices() {
                                   <CheckCircle className="h-3 w-3" /> Submit
                                 </Button>
                               )}
-                              {(order.status === "invoiced" || order.status === "dispatched" || order.status === "partial") && order.status !== "paid" && order.customer_id && (
+                              {(order.status === "invoiced" || order.status === "dispatched" || order.status === "partial") && order.customer_id && (
                                 <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-600 to-green-700 text-white shadow-sm" title="Receive Payment">
                                   <DollarSign className="h-3 w-3" /> Payment
                                 </Button>
