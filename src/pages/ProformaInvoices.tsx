@@ -180,6 +180,7 @@ export default function ProformaInvoices() {
         if (status === "approved") status = "draft";
         if (p.converted_invoice_id && status === "draft") status = "invoiced";
 
+        const amountPaid = p.converted_invoice_id ? (amountPaidMap[p.converted_invoice_id] || 0) : 0;
         allOrders.push({
           id: p.id, proforma_number: p.proforma_number, customer_id: p.customer_id, date: p.date,
           items: p.items, subtotal: p.subtotal, gst: p.gst, total: p.total, status,
@@ -187,6 +188,7 @@ export default function ProformaInvoices() {
           converted_invoice_id: p.converted_invoice_id, customers: p.customers as any,
           created_at: p.created_at,
           invoice_number: p.converted_invoice_id ? invoiceMap[p.converted_invoice_id] : undefined,
+          amount_paid: amountPaid,
         });
       });
     }
