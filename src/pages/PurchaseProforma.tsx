@@ -951,13 +951,13 @@ export default function PurchaseProforma() {
                 { label: "Paid", ...paidStats, secondLine: `PKR ${paidStats.value.toLocaleString()}`, icon: BadgeDollarSign, gradient: "from-green-500/8 to-green-600/15", iconBg: "from-green-500 to-green-600", accent: "from-green-400 to-green-600", textColor: "text-green-600", statusKey: "paid" },
               ].map(s => (
                 <button key={s.label} onClick={() => setStatusFilter(s.statusKey)}
-                  className={`group relative flex flex-col items-center justify-center h-[120px] rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
-                  <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform duration-300`}>
-                    <s.icon className="h-4 w-4 text-white" />
+                  className={`group relative flex flex-col items-center justify-center h-[90px] sm:h-[120px] rounded-xl sm:rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
+                  <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-110 transition-transform duration-300`}>
+                    <s.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
                   </div>
-                  <span className={`text-lg font-bold font-heading ${s.textColor}`}>{s.count}</span>
-                  <span className="text-[9px] font-mono text-muted-foreground">{s.secondLine}</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{s.label}</span>
+                  <span className={`text-base sm:text-lg font-bold font-heading ${s.textColor}`}>{s.count}</span>
+                  <span className="text-[8px] sm:text-[9px] font-mono text-muted-foreground">{s.secondLine}</span>
+                  <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.1em] sm:tracking-[0.12em] text-muted-foreground">{s.label}</span>
                   <div className={`absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r ${s.accent} opacity-50 group-hover:opacity-100 transition-opacity`} />
                 </button>
               ))}
