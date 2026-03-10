@@ -344,12 +344,9 @@ export default function PurchaseProforma() {
     ].join("\n");
     const waNumber = supPhone ? supPhone.replace(/[^0-9]/g, "") : "";
     const url = waNumber
-      ? `https://web.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(text)}`
-      : `https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-    const waWindow = window.open(url, "_blank");
-    if (!waWindow || waWindow.closed) {
-      toast.info("Please allow popups or open WhatsApp Web in your browser first");
-    }
+      ? `https://api.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(text)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
   };
 
   // ── MAKE PAYMENT ──
