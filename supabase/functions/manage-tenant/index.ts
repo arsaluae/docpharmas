@@ -53,7 +53,56 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Verify caller is admin
+    const body = await req.json();
+    const { action } = body;
+
+    // Public action: create_pending_signup (no admin auth required)
+    if (action === "create_pending_signup") {
+      const { user_id, email, company_name, phone } = body;
+      if (!user_id || !email || !company_name) {
+        return new Response(JSON.stringify({ error: "Missing required fields" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Verify user exists in auth.users
+      const { data: authUser, error: authLookupErr } = await supabaseAdmin.auth.admin.getUserById(user_id);
+      if (authLookupErr || !authUser?.user) {
+        return new Response(JSON.stringify({ error: "Invalid user" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check for duplicate
+      const { data: existing } = await supabaseAdmin
+        .from("pending_signups")
+        .select("id")
+        .eq("user_id", user_id)
+        .limit(1);
+      if (existing && existing.length > 0) {
+        return new Response(JSON.stringify({ success: true, message: "Already registered" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: insertErr } = await supabaseAdmin.from("pending_signups").insert({
+        user_id,
+        email,
+        company_name,
+        phone: phone || null,
+      });
+      if (insertErr) {
+        return new Response(JSON.stringify({ error: insertErr.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // All other actions require admin auth
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await createClient(
@@ -67,16 +116,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin role
     const { data: isAdmin } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "admin" });
     if (!isAdmin) {
       return new Response(JSON.stringify({ error: "Admin access required" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const body = await req.json();
-    const { action } = body;
 
     if (action === "create_user") {
       const { tenant_id, email, password, role } = body;
