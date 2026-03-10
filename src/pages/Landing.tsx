@@ -99,9 +99,9 @@ export default function Landing() {
       </nav>
 
       {/* HERO — Light, soothing */}
-      <section className="relative py-24 md:py-36 bg-gradient-to-b from-[#FAFBFD] via-[#F0F7FF] to-[#FAFBFD] overflow-hidden">
-        {/* Soft floating shapes */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <section className="relative py-16 sm:py-24 md:py-36 bg-gradient-to-b from-[#FAFBFD] via-[#F0F7FF] to-[#FAFBFD] overflow-hidden">
+        {/* Soft floating shapes — hidden on mobile for performance */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden hidden sm:block">
           <div className="absolute top-20 left-[10%] w-24 h-24 rounded-full bg-[#0EA5E9]/[0.06] landing-float" />
           <div className="absolute top-40 right-[15%] w-16 h-16 rounded-full bg-[#8B5CF6]/[0.06] landing-float-delay" />
           <div className="absolute bottom-32 left-[20%] w-14 h-14 rounded-2xl rotate-45 bg-[#10B981]/[0.06] landing-float" />
@@ -110,7 +110,7 @@ export default function Landing() {
           <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-[#8B5CF6]/[0.03] rounded-full blur-3xl" />
         </div>
 
-        <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center relative z-10">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0EA5E9]/[0.08] border border-[#0EA5E9]/20 text-[#0EA5E9] text-sm font-medium mb-8">
               <Zap className="h-4 w-4" /> 7-Day Free Trial • No Credit Card Required
