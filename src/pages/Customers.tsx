@@ -13,8 +13,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X } from "lucide-react";
+import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X, Store } from "lucide-react";
 import { toast } from "sonner";
+import { CustomerProfileDialog } from "@/components/CustomerProfileDialog";
 
 interface Customer {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
@@ -51,6 +52,8 @@ export default function Customers() {
   const [licenseForm, setLicenseForm] = useState(emptyLicenseForm);
   const [editLicenseId, setEditLicenseId] = useState<string | null>(null);
   const [showLicenseForm, setShowLicenseForm] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileCustomer, setProfileCustomer] = useState<Customer | null>(null);
 
   useEffect(() => { loadCustomers(); }, [pagination.page]);
 
@@ -251,7 +254,7 @@ export default function Customers() {
                   <TableCell onClick={e => e.stopPropagation()}>
                     <Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
                   </TableCell>
-                  <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell className="font-medium cursor-pointer hover:text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setProfileCustomer(c); setProfileOpen(true); }}>{c.name}</TableCell>
                   <TableCell>{c.company || "—"}</TableCell>
                   <TableCell>{c.city || "—"}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{c.ntn || "—"}</TableCell>
@@ -260,6 +263,7 @@ export default function Customers() {
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/customers/${c.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setProfileCustomer(c); setProfileOpen(true); }} title="Profile & Distributors"><Store className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => openLicenses(c, e)} title="Medical Licenses"><Award className="h-3.5 w-3.5" /></Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
@@ -338,6 +342,12 @@ export default function Customers() {
           )}
         </DialogContent>
       </Dialog>
+      <CustomerProfileDialog 
+        open={profileOpen} 
+        onOpenChange={setProfileOpen} 
+        customerId={profileCustomer?.id || null} 
+        customerName={profileCustomer?.name || ""} 
+      />
     </AppLayout>
   );
 }
