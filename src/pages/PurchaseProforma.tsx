@@ -1025,17 +1025,17 @@ export default function PurchaseProforma() {
                             <div className="flex items-center gap-1">
                               {order.status === "draft" && (
                                 <Button variant="default" size="sm" onClick={() => handleConfirmOrder(order)} className="h-7 text-xs gap-1 shadow-sm">
-                                  <CheckCircle className="h-3 w-3" /> Confirm
+                                  <CheckCircle className="h-3 w-3" /> <span className="hidden sm:inline">Confirm</span>
                                 </Button>
                               )}
                               {(order.status === "ordered" || order.status === "confirmed") && (
                                 <Button variant="default" size="sm" onClick={() => openReceiveDialog(order)} className="h-7 text-xs gap-1 shadow-sm">
-                                  <PackageCheck className="h-3 w-3" /> Receive
+                                  <PackageCheck className="h-3 w-3" /> <span className="hidden sm:inline">Receive</span>
                                 </Button>
                               )}
                               {(order.status === "ordered" || order.status === "confirmed" || order.status === "received") && order.supplier_id && !isPaid && (
                                 <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-600 to-green-700 text-white shadow-sm" title="Make Payment">
-                                  <DollarSign className="h-3 w-3" /> Payment
+                                  <DollarSign className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
                                 </Button>
                               )}
                               {/* Quick WhatsApp */}

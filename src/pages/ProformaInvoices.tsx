@@ -1030,12 +1030,12 @@ export default function ProformaInvoices() {
                               {/* Primary actions: Submit & Payment */}
                               {order.status === "draft" && (
                                 <Button size="sm" onClick={() => openSubmitDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-sm">
-                                  <CheckCircle className="h-3 w-3" /> Submit
+                                  <CheckCircle className="h-3 w-3" /> <span className="hidden sm:inline">Submit</span>
                                 </Button>
                               )}
                               {(order.status === "invoiced" || order.status === "dispatched" || order.status === "partial") && order.customer_id && (
                                 <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 bg-gradient-to-r from-emerald-600 to-green-700 text-white shadow-sm" title="Receive Payment">
-                                  <DollarSign className="h-3 w-3" /> Payment
+                                  <DollarSign className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
                                 </Button>
                               )}
                               {/* Quick WhatsApp */}
