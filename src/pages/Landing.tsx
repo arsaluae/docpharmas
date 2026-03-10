@@ -419,7 +419,7 @@ export default function Landing() {
       </section>
 
       {/* FINAL CTA */}
-      <section className="py-24 bg-gradient-to-b from-[#F0F7FF] to-[#FAFBFD] relative overflow-hidden">
+      <section className="py-16 sm:py-24 bg-gradient-to-b from-[#F0F7FF] to-[#FAFBFD] relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#0EA5E9]/[0.04] rounded-full blur-3xl" />
         </div>
