@@ -1038,7 +1038,10 @@ export default function ProformaInvoices() {
                                   <DollarSign className="h-3 w-3" /> Payment
                                 </Button>
                               )}
-                              {/* Secondary actions in dropdown */}
+                              {/* Quick WhatsApp */}
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shareWhatsApp(order)} title="Share via WhatsApp">
+                                <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                              </Button>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-7 w-7">
