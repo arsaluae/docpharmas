@@ -1,34 +1,48 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Fix Payment Status + Power-User UX Overhaul
 
-## Two Changes
+## Root Cause: Payment Status Not Updating
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+I investigated the database and found the issue. The system allocates payments **oldest-first across ALL invoices** for a customer. Your customer has an older unpaid invoice (INV-0001, PKR 48,672 outstanding). When you pay PKR 220 against SI-0011, the money goes to INV-0001 first — so SI-0011 never shows "Paid."
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+**Fix**: Change payments to be **invoice-specific**. When you click "Receive Payment" on a specific invoice, that payment should apply to THAT invoice, not get lost in the oldest-first pool.
 
-## Files Changed
+## Changes
+
+### 1. Database: Invoice-Specific Payment Tracking
+- Add `invoice_id` column to `payments` table (nullable UUID)  
+- Update `recalc_customer_invoice_status` to first allocate invoice-specific payments, then distribute remainder oldest-first
+- Same for `recalc_supplier_invoice_status`
+
+### 2. Payment Code Fix (`ProformaInvoices.tsx` + `PurchaseProforma.tsx`)
+- Pass the linked `invoice_id` when inserting payment from the quick-pay button
+- After payment, the trigger now correctly marks THAT invoice as paid/partial
+- Show remaining balance per-invoice in the payment dialog header
+
+### 3. Add "Paid" Status Card to Grid
+- Currently 4 cards: All, Draft, Invoice, Delivery Notes
+- Add a 5th **"Paid"** card (emerald gradient) so paid invoices are visible at a glance
+
+### 4. Sidebar Rename
+- Change "Sales Orders" → "Sales Invoices" in `AppSidebar.tsx`
+
+### 5. Power-User UX (50+/day Operations)
+These changes eliminate unnecessary scrolling and clicks:
+
+- **Dropdown action menu**: Consolidate secondary actions (WhatsApp, PDF, DN, Edit) into a `...` dropdown. Keep only **Submit** and **Payment** as primary visible buttons — the 2 actions you do 50+ times
+- **Keyboard shortcut**: `Ctrl+N` opens "New Order" dialog instantly from anywhere on the page
+- **Auto-focus**: When create dialog opens, auto-focus the Customer field
+- **After payment → auto-scroll to next unpaid**: After receiving payment, highlight the next unpaid invoice briefly
+- **Remaining balance column**: Add a "Balance" column showing what's still owed per invoice (0 for draft, total-paid for invoiced)
+- **Row color coding**: Paid rows get a subtle green tint, overdue (if applicable) get subtle red
+
+### Files to Change
 
 | File | Changes |
 |------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
-
-No other files change. The template system and all callers remain the same.
+| **Migration SQL** | Add `invoice_id` to payments, update recalc functions |
+| `src/pages/ProformaInvoices.tsx` | Pass invoice_id in payment, add Paid card, dropdown actions, balance column, keyboard shortcut, auto-focus |
+| `src/pages/PurchaseProforma.tsx` | Mirror payment fix and UX improvements |
+| `src/components/AppSidebar.tsx` | Rename "Sales Orders" → "Sales Invoices" |
 
