@@ -361,38 +361,17 @@ export default function ProformaInvoices() {
   
   // ── RECEIVE PAYMENT ──
   const openPaymentDialog = async (order: SalesOrder) => {
-    // Calculate remaining balance by checking existing payments for this customer
-    const { data: existingPayments } = await supabase
+    if (!order.converted_invoice_id) { toast.error("No invoice linked"); return; }
+    // Get direct payments already linked to this specific invoice
+    const { data: directPayments } = await supabase
       .from("payments")
       .select("amount")
-      .eq("party_type", "customer")
-      .eq("party_id", order.customer_id!)
-      .eq("type", "received");
-    
-    const totalPaid = existingPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-    // Get total invoiced amount for this customer to calculate what's allocated to this invoice
-    const { data: allInvoices } = await supabase
-      .from("sales_invoices")
-      .select("id, total")
-      .eq("customer_id", order.customer_id!)
-      .order("date", { ascending: true });
-    
-    // Allocate payments to invoices oldest first (same as DB trigger)
-    let remaining = totalPaid;
-    let thisInvoiceRemaining = order.total;
-    if (allInvoices) {
-      for (const inv of allInvoices) {
-        const allocated = Math.min(Number(inv.total), Math.max(remaining, 0));
-        remaining -= Number(inv.total);
-        if (inv.id === order.converted_invoice_id) {
-          thisInvoiceRemaining = Math.max(Number(inv.total) - allocated, 0);
-          break;
-        }
-      }
-    }
+      .eq("invoice_id", order.converted_invoice_id);
+    const directPaid = directPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    const remaining = Math.max(Number(order.total) - directPaid, 0);
     
     setPaymentOrder(order);
-    setPaymentAmount(String(Math.max(thisInvoiceRemaining, 0)));
+    setPaymentAmount(String(remaining));
     setPaymentMethod("bank_transfer");
     const meezan = bankAccounts.find(b => b.bank_name.toLowerCase().includes("meezan"));
     setPaymentBankId(meezan?.id || bankAccounts[0]?.id || "");
@@ -414,7 +393,8 @@ export default function ProformaInvoices() {
       bank_account_id: paymentMethod === "cash" ? null : paymentBankId || null,
       date: new Date().toISOString().split("T")[0],
       reference: paymentOrder.invoice_number || paymentOrder.proforma_number,
-    });
+      invoice_id: paymentOrder.converted_invoice_id || null,
+    } as any);
     if (error) { toast.error("Payment failed: " + error.message); setPaymentSaving(false); return; }
     toast.success(`Payment PKR ${Number(paymentAmount).toLocaleString()} received`);
     setPaymentOpen(false); setPaymentSaving(false); load();
