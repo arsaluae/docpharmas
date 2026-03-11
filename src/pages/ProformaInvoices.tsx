@@ -209,6 +209,16 @@ export default function ProformaInvoices() {
     setLoading(false);
   };
 
+  // Load allocated products when customer changes
+  useEffect(() => {
+    if (!customerId) { setAllocatedProductIds(null); return; }
+    (async () => {
+      const { data } = await supabase.from("customer_products").select("product_id").eq("customer_id", customerId);
+      if (data && data.length > 0) setAllocatedProductIds(data.map(d => d.product_id));
+      else setAllocatedProductIds(null);
+    })();
+  }, [customerId]);
+
   // ── ITEMS HELPERS ──
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0 }]);
   useEffect(() => { if (createOpen && items.length === 0) addItem(); }, [createOpen]);
