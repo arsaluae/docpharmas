@@ -37,7 +37,9 @@ const allSections = [
   ]},
   { label: "Finance", icon: Wallet, staffVisible: false, items: [
     { title: "Payments", url: "/payments", icon: Wallet },
+    { title: "Credit Notes", url: "/credit-notes", icon: FileText },
     { title: "Expenses", url: "/expenses", icon: CreditCard },
+    { title: "Staff & Salaries", url: "/salaries", icon: Users },
     { title: "Bank Accounts", url: "/bank", icon: Landmark },
   ]},
   { label: "Reports", icon: BarChart3, staffVisible: false, items: [
