@@ -1,34 +1,63 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Product Allocation for Customers & Suppliers
 
-## Two Changes
+## What You Asked For
+Assign specific products to each customer and supplier so that when creating invoices/orders, only the relevant products appear. Each customer/supplier profile gets a "Products" tab to manage allocations.
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+## Database Changes
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+Two new junction tables:
 
-## Files Changed
+```sql
+CREATE TABLE customer_products (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id uuid NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  product_id uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  tenant_id uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(customer_id, product_id)
+);
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+CREATE TABLE supplier_products (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  supplier_id uuid NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+  product_id uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  tenant_id uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(supplier_id, product_id)
+);
+```
 
-No other files change. The template system and all callers remain the same.
+Both tables get RLS policies (tenant-scoped), `set_tenant_id` triggers, and standard CRUD policies matching the existing pattern.
+
+## UI Changes
+
+### Customer Profile Dialog (`CustomerProfileDialog.tsx`)
+Add an **"Allocated Products"** section below distributors:
+- Shows list of currently allocated products (name, code, category)
+- "Add Product" button opens a searchable product picker (excluding already-allocated ones)
+- Remove button to de-allocate a product
+
+### Supplier Page (`Suppliers.tsx`)
+Add a **Profile/Products** action button per supplier row (like customers have the Store icon). Opens a new `SupplierProfileDialog` with:
+- Supplier stats (total purchases, balance)
+- **"Allocated Products"** section — same pattern as customer: searchable add, list, remove
+
+### Sales Invoice Creation
+When a customer is selected, if that customer has allocated products, filter the product dropdown to show **only** those products. If no allocations exist, show all products (backward compatible).
+
+### Purchase Order / Proforma Creation
+Same logic for suppliers — filter products to supplier's allocated list when available.
+
+## Files to Change
+
+| File | Change |
+|------|--------|
+| DB migration | Create `customer_products` and `supplier_products` tables with RLS + triggers |
+| `src/components/CustomerProfileDialog.tsx` | Add allocated products section with add/remove |
+| `src/components/SupplierProfileDialog.tsx` | New component — supplier profile with allocated products |
+| `src/pages/Suppliers.tsx` | Add profile button in actions column, open SupplierProfileDialog |
+| Sales invoice page | Filter product picker by customer allocations when available |
+| Purchase proforma page | Filter product picker by supplier allocations when available |
 
