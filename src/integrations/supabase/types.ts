@@ -351,6 +351,7 @@ export type Database = {
           customer_id: string
           id: string
           product_id: string
+          rate: number
           tenant_id: string | null
         }
         Insert: {
@@ -358,6 +359,7 @@ export type Database = {
           customer_id: string
           id?: string
           product_id: string
+          rate?: number
           tenant_id?: string | null
         }
         Update: {
@@ -365,6 +367,7 @@ export type Database = {
           customer_id?: string
           id?: string
           product_id?: string
+          rate?: number
           tenant_id?: string | null
         }
         Relationships: [
@@ -2186,6 +2189,7 @@ export type Database = {
           created_at: string
           id: string
           product_id: string
+          rate: number
           supplier_id: string
           tenant_id: string | null
         }
@@ -2193,6 +2197,7 @@ export type Database = {
           created_at?: string
           id?: string
           product_id: string
+          rate?: number
           supplier_id: string
           tenant_id?: string | null
         }
@@ -2200,6 +2205,7 @@ export type Database = {
           created_at?: string
           id?: string
           product_id?: string
+          rate?: number
           supplier_id?: string
           tenant_id?: string | null
         }
