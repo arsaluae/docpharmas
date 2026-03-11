@@ -76,8 +76,8 @@ export default function ProformaInvoices() {
   const [validityDays, setValidityDays] = useState("30");
   const [paymentInstructions, setPaymentInstructions] = useState("");
   const [items, setItems] = useState<ProformaItem[]>([]);
+  const [allocatedProductIds, setAllocatedProductIds] = useState<string[] | null>(null);
 
-  // Edit Dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editOrder, setEditOrder] = useState<SalesOrder | null>(null);
   const [editCustomerId, setEditCustomerId] = useState("");
