@@ -55,8 +55,9 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
         product_id: d.product_id,
         product_name: p?.name || "Unknown",
         product_code: d.products?.product_code || null,
-        category: d.products?.category || "",
-      }))
+        product_code: p?.product_code || null,
+        category: p?.category || "",
+      };})
     );
   };
 
