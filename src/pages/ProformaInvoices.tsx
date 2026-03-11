@@ -804,10 +804,17 @@ export default function ProformaInvoices() {
           </DialogTrigger>
            <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle className="font-heading">Create Sales Invoice</DialogTitle></DialogHeader>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
               <div>
                 <Label className="text-xs font-medium text-muted-foreground">Customer *</Label>
                 <SearchableSelect options={customerOptions} value={customerId} onChange={setCustomerId} placeholder="Select customer..." searchPlaceholder="Search..." />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Sales Agent</Label>
+                <SearchableSelect
+                  options={agentsList.map(a => ({ value: a.id, label: a.name }))}
+                  value={agentId} onChange={setAgentId} placeholder="Auto / Select..."
+                />
               </div>
               <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={pfDate} onChange={e => setPfDate(e.target.value)} /></div>
               <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
