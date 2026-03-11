@@ -33,6 +33,10 @@ const emptyForm = {
   credit_limit: "0", credit_days: "30", opening_balance: "0",
 };
 
+interface CustomerWithCode extends Customer {
+  customer_code: string | null;
+}
+
 const emptyLicenseForm = { license_number: "", license_type: "drug_license", expiry_date: "", address: "", notes: "" };
 
 export default function Customers() {
