@@ -78,7 +78,9 @@ export default function ProformaInvoices() {
   const [paymentInstructions, setPaymentInstructions] = useState("");
   const [items, setItems] = useState<ProformaItem[]>([]);
   const [allocatedProductIds, setAllocatedProductIds] = useState<string[] | null>(null);
-
+  const [agentId, setAgentId] = useState("");
+  const [agentsList, setAgentsList] = useState<SalesAgentOption[]>([]);
+  const [editAgentId, setEditAgentId] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [editOrder, setEditOrder] = useState<SalesOrder | null>(null);
   const [editCustomerId, setEditCustomerId] = useState("");
