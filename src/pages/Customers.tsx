@@ -183,8 +183,8 @@ export default function Customers() {
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Customer</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-3 mt-2">
-            <div className="col-span-2"><Label>Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
-            <div><Label>Company</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} /></div>
+            <div className="col-span-2"><Label>Company Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Company / Business name" /></div>
+            <div><Label>Contact Person</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Contact name (optional)" /></div>
             <div><Label>City</Label><Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} /></div>
             <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} placeholder="National Tax Number" /></div>
             <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} placeholder="Sales Tax Reg." /></div>
