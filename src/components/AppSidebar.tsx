@@ -228,6 +228,7 @@ export function AppSidebar() {
             </div>
           </div>
         )}
+        <ThemeToggle collapsed={collapsed} />
         {!collapsed && <ShortcutsHelpDialog />}
         <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-all w-full press-scale">
           <LogOut className="h-4 w-4" />{!collapsed && <span>Logout</span>}
