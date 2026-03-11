@@ -440,6 +440,7 @@ export default function ProformaInvoices() {
         { label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` },
       ],
       notes: order.payment_instructions || undefined, settings,
+      template: getTemplate("sales_invoice"),
     });
     setPdfHtml(html); setPdfTitle(`Sales Invoice — ${order.proforma_number}`); setPdfOpen(true);
   };
