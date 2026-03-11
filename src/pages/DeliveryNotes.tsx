@@ -47,7 +47,7 @@ export default function DeliveryNotes() {
   useEffect(() => { load(); }, [pagination.page]);
 
   const load = async () => {
-    const { data, count } = await supabase.from("delivery_notes").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
+    const { data, count } = await supabase.from("delivery_notes").select("*, customers(name), suppliers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
     if (data) setNotes(data as any);
     if (count !== null) pagination.setTotalCount(count);
   };
@@ -158,7 +158,7 @@ export default function DeliveryNotes() {
                     <TableCell><Checkbox checked={selected.has(dn.id)} onCheckedChange={() => toggleSelect(dn.id)} /></TableCell>
                     <TableCell className="font-medium font-mono" onClick={() => openDetail(dn)}>{dn.dn_number}</TableCell>
                     <TableCell className="text-muted-foreground" onClick={() => openDetail(dn)}>{dn.date}</TableCell>
-                    <TableCell className="text-muted-foreground" onClick={() => openDetail(dn)}>{(dn as any).customers?.name || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground" onClick={() => openDetail(dn)}>{(dn as any).customers?.name || (dn as any).suppliers?.name || "—"}</TableCell>
                     <TableCell className="capitalize" onClick={() => openDetail(dn)}>{dn.reference_type.replace("_", " ")}</TableCell>
                     <TableCell onClick={() => openDetail(dn)}>
                       <Badge variant="outline" className={`text-[10px] font-semibold ${dn.status === "delivered" ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20" : "bg-amber-500/15 text-amber-600 border-amber-500/20"}`}>
