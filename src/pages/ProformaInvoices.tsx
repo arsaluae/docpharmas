@@ -334,7 +334,7 @@ export default function ProformaInvoices() {
     }
   };
 
-  const openEditSheet = (order: SalesOrder) => {
+  const openEditSheet = async (order: SalesOrder) => {
     setEditOrder(order);
     setEditCustomerId(order.customer_id || "");
     setEditDate(order.date);
@@ -342,6 +342,13 @@ export default function ProformaInvoices() {
     setEditPaymentInstr(order.payment_instructions || "");
     const pfItems = getPfItems(order);
     setEditItems(pfItems.map(i => ({ ...i })));
+    // Load existing agent for this order
+    if (order.customer_id) {
+      const { data } = await supabase.from("agent_customers").select("agent_id").eq("customer_id", order.customer_id).limit(1);
+      setEditAgentId(data && data.length > 0 ? data[0].agent_id : "");
+    } else {
+      setEditAgentId("");
+    }
     setEditOpen(true);
   };
 
@@ -367,6 +374,15 @@ export default function ProformaInvoices() {
     setEditItems([...u]);
   };
 
+  // Auto-lookup agent when editCustomerId changes
+  useEffect(() => {
+    if (!editCustomerId || !editOpen) return;
+    (async () => {
+      const { data } = await supabase.from("agent_customers").select("agent_id").eq("customer_id", editCustomerId).limit(1);
+      setEditAgentId(data && data.length > 0 ? data[0].agent_id : "");
+    })();
+  }, [editCustomerId]);
+
   const handleEditSave = async () => {
     if (!editOrder) return;
     setSaving(true);
@@ -374,7 +390,8 @@ export default function ProformaInvoices() {
     const { error } = await supabase.from("proforma_invoices").update({
       customer_id: editCustomerId || null, date: editDate, validity_days: Number(editValidity),
       payment_instructions: editPaymentInstr || null, items: JSON.stringify(editItems), subtotal, gst, total,
-    }).eq("id", editOrder.id);
+      agent_id: editAgentId || null,
+    } as any).eq("id", editOrder.id);
     if (error) { toast.error("Failed to update: " + error.message); setSaving(false); return; }
     toast.success("Order updated");
     setEditOpen(false); setSaving(false); load();
@@ -1063,6 +1080,13 @@ export default function ProformaInvoices() {
                     <div>
                       <Label className="text-xs font-medium text-muted-foreground">Customer</Label>
                       <SearchableSelect options={customerOptions} value={editCustomerId} onChange={setEditCustomerId} placeholder="Customer..." />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Sales Agent</Label>
+                      <SearchableSelect
+                        options={agentsList.map(a => ({ value: a.id, label: a.name }))}
+                        value={editAgentId} onChange={setEditAgentId} placeholder="Auto / Select..."
+                      />
                     </div>
                     <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} /></div>
                   </div>
