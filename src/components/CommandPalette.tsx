@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Truck, Package, FileText, ClipboardList, Wallet,
   CreditCard, Landmark, BarChart3, RotateCcw, Upload, Settings, Printer,
-  Shield, Plus, Clock, Search, Keyboard,
+  Shield, Plus, Clock,
 } from "lucide-react";
 import {
   CommandDialog, CommandInput, CommandList, CommandEmpty,
