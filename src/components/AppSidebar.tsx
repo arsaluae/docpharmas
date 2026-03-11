@@ -168,7 +168,7 @@ export function AppSidebar() {
               <CollapsibleContent>
                 <SidebarMenu className="ml-3 mt-0.5 border-l border-primary/10 pl-2">
                   {section.items.map((item) => {
-                    const isActive = location.pathname === item.url || (item.url !== "/" && location.pathname.startsWith(item.url));
+                    const isActive = matchUrl(item.url);
                     return (
                       <SidebarMenuItem key={item.url}>
                         <SidebarMenuButton asChild>
