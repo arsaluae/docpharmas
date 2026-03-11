@@ -62,8 +62,8 @@ export default function ProformaInvoices() {
   const [pdfHtml, setPdfHtml] = useState("");
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfTitle, setPdfTitle] = useState("");
-  const [deliveryNotes, setDeliveryNotes] = useState<DeliveryNoteRow[]>([]);
-  const [dnLoading, setDnLoading] = useState(false);
+
+
 
   // Post-submit document choice
   const [postSubmitOpen, setPostSubmitOpen] = useState(false);
@@ -119,7 +119,7 @@ export default function ProformaInvoices() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) navigate("/dashboard");
     };
-    check(); load(); loadDeliveryNotes(); loadBankAccounts();
+    check(); load(); loadBankAccounts();
   }, [navigate]);
 
   // Keyboard shortcut: Ctrl+N for new order
@@ -671,7 +671,7 @@ export default function ProformaInvoices() {
       setPostSubmitOrder({ ...submitOrder, converted_invoice_id: inv.id, invoice_number: invNumber });
       setPostSubmitInvoiceId(inv.id);
 
-      setSubmitOpen(false); setSubmitting(false); setPostSubmitOpen(true); load(); loadDeliveryNotes();
+      setSubmitOpen(false); setSubmitting(false); setPostSubmitOpen(true); load();
   };
 
   // ── VOID (Rollback) ──
@@ -719,85 +719,14 @@ export default function ProformaInvoices() {
     return null;
   };
 
-  // ── DELIVERY NOTES (tab) ──
-  const loadDeliveryNotes = async () => {
-    setDnLoading(true);
-    const { data } = await supabase.from("delivery_notes").select("*").eq("reference_type", "sales_invoice").order("created_at", { ascending: false });
-    if (data) {
-      // Fetch linked invoice numbers
-      const refIds = [...new Set(data.map(d => d.reference_id))];
-      let invMap: Record<string, string> = {};
-      if (refIds.length > 0) {
-        const { data: invs } = await supabase.from("sales_invoices").select("id, invoice_number").in("id", refIds);
-        if (invs) invs.forEach((inv: any) => { invMap[inv.id] = inv.invoice_number; });
-      }
-      // Filter to only DNs with valid invoices
-      const validDns = data.filter(d => invMap[d.reference_id]);
 
-      const custIds = [...new Set(validDns.filter(d => d.customer_id).map(d => d.customer_id!))];
-      let custMap: Record<string, string> = {};
-      if (custIds.length > 0) {
-        const { data: custs } = await supabase.from("customers").select("id, name").in("id", custIds);
-        if (custs) custs.forEach(c => { custMap[c.id] = c.name; });
-      }
-      setDeliveryNotes(validDns.map((d: any) => ({
-        ...d,
-        customer_name: d.customer_id ? custMap[d.customer_id] || "—" : "—",
-        invoice_number: invMap[d.reference_id] || "—",
-      })));
-    }
-    setDnLoading(false);
-  };
-
-  const viewDnPdf = (dn: DeliveryNoteRow) => {
-    const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]) || [];
-    const html = generatePdfHtml({
-      title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
-      partyLabel: "Customer", partyName: dn.customer_name || "—",
-      columns: [
-        { header: "#", key: "idx" },
-        { header: "Product", key: "product_name" },
-        { header: "Batch #", key: "batch_number" },
-        { header: "Expiry", key: "expiry_date" },
-        { header: "Qty", key: "quantity", align: "right" },
-      ],
-      rows: dnItems.map((i: any, idx: number) => ({
-        idx: idx + 1, product_name: i.product_name || "Item",
-        batch_number: i.batch_number || "—", expiry_date: i.expiry_date || "—", quantity: i.quantity,
-      })),
-      totals: [], settings, template: getTemplate("delivery_note"),
-    });
-    setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
-  };
-
-  // Cascade delete: DN → also delete linked invoice, items, stock movements, reset proforma
-  const voidFromDn = async (dn: DeliveryNoteRow) => {
-    const invoiceId = dn.reference_id;
-    // Find linked proforma
-    const { data: proforma } = await supabase.from("proforma_invoices")
-      .select("id").eq("converted_invoice_id", invoiceId).single();
-    // 1. Delete stock movements
-    await supabase.from("stock_movements").delete().eq("reference_id", invoiceId);
-    // 2. Delete invoice items
-    await supabase.from("sales_invoice_items").delete().eq("invoice_id", invoiceId);
-    // 3. Delete invoice (trigger reverses customer balance)
-    await supabase.from("sales_invoices").delete().eq("id", invoiceId);
-    // 4. Delete delivery note
-    await supabase.from("delivery_notes").delete().eq("id", dn.id);
-    // 5. Reset proforma to draft
-    if (proforma) {
-      await supabase.from("proforma_invoices").update({ status: "draft", converted_invoice_id: null }).eq("id", proforma.id);
-    }
-    toast.success(`Voided — invoice ${dn.invoice_number || ""}, delivery note & stock reversed`);
-    loadDeliveryNotes(); load();
-  };
   const filtered = orders.filter(p => {
     const q = search.toLowerCase();
     const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
       ((p.customers as any)?.name || "").toLowerCase().includes(q) ||
       (p.invoice_number || "").toLowerCase().includes(q);
      const matchStatus = statusFilter === "all" || p.status === statusFilter ||
-      (statusFilter === "invoiced" && (p.status === "invoiced" || p.status === "dispatched" || p.status === "partial"));
+      (statusFilter === "invoiced" && (p.status === "invoiced" || p.status === "dispatched" || p.status === "partial" || p.status === "paid"));
     const dateStart = getDateFilter();
     const matchDate = !dateStart || p.date >= dateStart;
     return matchSearch && matchStatus && matchDate;
@@ -822,27 +751,11 @@ export default function ProformaInvoices() {
   };
 
   const monthOrders = orders.filter(o => o.date.startsWith(statsMonth));
-  const statsByStatus = (status: string) => {
-    const list = monthOrders.filter(d => d.status === status);
-    return { count: list.length, value: list.reduce((s, d) => s + Number(d.total), 0) };
+  const draftStats = { count: monthOrders.filter(d => d.status === "draft").length, value: monthOrders.filter(d => d.status === "draft").reduce((s, d) => s + Number(d.total), 0) };
+  const invoiceStats = { 
+    count: monthOrders.filter(d => d.status !== "draft").length, 
+    value: monthOrders.filter(d => d.status !== "draft").reduce((s, d) => s + Number(d.total), 0) 
   };
-  const draftStats = statsByStatus("draft");
-  const invoicedAndDispatchedStats = { 
-    count: monthOrders.filter(d => d.status === "invoiced" || d.status === "dispatched").length, 
-    value: monthOrders.filter(d => d.status === "invoiced" || d.status === "dispatched").reduce((s, d) => s + Number(d.total), 0) 
-  };
-  const paidStats = { 
-    count: monthOrders.filter(d => d.status === "paid").length, 
-    value: monthOrders.filter(d => d.status === "paid").reduce((s, d) => s + Number(d.amount_paid || d.total), 0) 
-  };
-  const partialStats = statsByStatus("partial");
-
-  // DN stats for month
-  const monthDNs = deliveryNotes.filter(dn => dn.date.startsWith(statsMonth));
-  const dnUnitsDispatched = monthDNs.reduce((sum, dn) => {
-    const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]) || [];
-    return sum + dnItems.reduce((s: number, i: any) => s + Number(i.quantity || 0), 0);
-  }, 0);
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
@@ -934,15 +847,13 @@ export default function ProformaInvoices() {
             </div>
 
             {/* PREMIUM STATUS BUTTONS */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {[
                 { label: "All", ...allStats, secondLine: `PKR ${allStats.value.toLocaleString()}`, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
                 { label: "Draft", ...draftStats, secondLine: `PKR ${draftStats.value.toLocaleString()}`, icon: FileEdit, gradient: "from-amber-500/8 to-amber-600/15", iconBg: "from-amber-500 to-amber-600", accent: "from-amber-400 to-amber-600", textColor: "text-amber-600", statusKey: "draft" },
-                { label: "Invoice", ...invoicedAndDispatchedStats, secondLine: `PKR ${invoicedAndDispatchedStats.value.toLocaleString()}`, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "invoiced" },
-                { label: "Paid", ...paidStats, secondLine: `PKR ${paidStats.value.toLocaleString()}`, icon: BadgeDollarSign, gradient: "from-emerald-500/8 to-emerald-600/15", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-400 to-emerald-600", textColor: "text-emerald-600", statusKey: "paid" },
-                { label: "Delivery Notes", count: monthDNs.length, value: 0, secondLine: `${dnUnitsDispatched} units`, icon: Truck, gradient: "from-violet-500/8 to-violet-600/15", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-400 to-violet-600", textColor: "text-violet-600", statusKey: "delivery_notes" },
+                { label: "Invoice", ...invoiceStats, secondLine: `PKR ${invoiceStats.value.toLocaleString()}`, icon: Send, gradient: "from-blue-500/8 to-blue-600/15", iconBg: "from-blue-500 to-blue-600", accent: "from-blue-400 to-blue-600", textColor: "text-blue-600", statusKey: "invoiced" },
               ].map(s => (
-                <button key={s.label} onClick={() => { setStatusFilter(s.statusKey); if (s.statusKey === "delivery_notes") loadDeliveryNotes(); }}
+                <button key={s.label} onClick={() => setStatusFilter(s.statusKey)}
                   className={`group relative flex flex-col items-center justify-center h-[90px] sm:h-[120px] rounded-xl sm:rounded-2xl bg-gradient-to-br ${s.gradient} border border-border/50 backdrop-blur-sm hover:scale-[1.03] hover:shadow-lg transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40 shadow-lg" : ""}`}>
                   <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br ${s.iconBg} shadow-md flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-110 transition-transform duration-300`}>
                     <s.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
@@ -971,83 +882,7 @@ export default function ProformaInvoices() {
               </div>
             </div>
 
-            {/* TABLE or DELIVERY NOTES */}
-            {statusFilter === "delivery_notes" ? (
-              <Card className="glass-card overflow-hidden">
-                <CardContent className="p-0">
-                  {dnLoading ? (
-                    <div className="p-6 space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}</div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/30">
-                          <TableHead className="font-semibold">DN #</TableHead>
-                          <TableHead className="font-semibold">Invoice #</TableHead>
-                          <TableHead className="font-semibold">Customer</TableHead>
-                          <TableHead className="font-semibold">Date</TableHead>
-                          <TableHead className="font-semibold">Status</TableHead>
-                          <TableHead className="text-right font-semibold">Items</TableHead>
-                          <TableHead className="font-semibold">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {deliveryNotes.length === 0 ? (
-                          <TableRow><TableCell colSpan={7} className="text-center py-16">
-                            <Truck className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-                            <p className="text-muted-foreground font-medium">No delivery notes yet</p>
-                            <p className="text-xs text-muted-foreground/60 mt-1">Submit a Sales Order to auto-generate delivery notes</p>
-                          </TableCell></TableRow>
-                        ) : deliveryNotes.map(dn => {
-                          const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]) || [];
-                          return (
-                            <TableRow key={dn.id} className="hover:bg-muted/30 transition-colors group">
-                              <TableCell className="font-mono font-semibold text-sm cursor-pointer" onClick={() => viewDnPdf(dn)}>{dn.dn_number}</TableCell>
-                              <TableCell className="font-mono text-sm text-primary cursor-pointer" onClick={() => {
-                                const linkedOrder = orders.find(o => o.converted_invoice_id === dn.reference_id);
-                                if (linkedOrder) printInvoice(linkedOrder);
-                              }}>{dn.invoice_number || "—"}</TableCell>
-                              <TableCell className="text-sm">{dn.customer_name || "—"}</TableCell>
-                              <TableCell className="text-sm text-muted-foreground">{dn.date}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className={`text-[10px] font-semibold ${dn.status === "delivered" ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20" : "bg-amber-500/15 text-amber-600 border-amber-500/20"}`}>
-                                  {dn.status === "delivered" ? "Delivered" : "Issued"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right text-sm font-medium">{dnItems.length}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-1">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => viewDnPdf(dn)} title="View DN PDF">
-                                    <Eye className="h-3.5 w-3.5" />
-                                  </Button>
-                                  {dn.status === "issued" ? (
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
-                                      await supabase.from("delivery_notes").update({ status: "delivered" }).eq("id", dn.id);
-                                      toast.success("Marked as delivered"); loadDeliveryNotes();
-                                    }} title="Mark Delivered">
-                                      <Truck className="h-3.5 w-3.5 text-emerald-600" />
-                                    </Button>
-                                  ) : dn.status === "delivered" ? (
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
-                                      await supabase.from("delivery_notes").update({ status: "issued" }).eq("id", dn.id);
-                                      toast.success("Reverted to issued"); loadDeliveryNotes();
-                                    }} title="Undo Delivered">
-                                      <RotateCcw className="h-3.5 w-3.5 text-amber-600" />
-                                    </Button>
-                                  ) : null}
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => voidFromDn(dn)} title="Void (delete invoice + DN)">
-                                    <RotateCcw className="h-3.5 w-3.5 text-destructive" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            ) : (
+            {/* TABLE */}
             <Card className="glass-card overflow-hidden">
               <CardContent className="p-0">
                 {loading ? (
@@ -1171,7 +1006,6 @@ export default function ProformaInvoices() {
                 )}
               </CardContent>
             </Card>
-            )}
           </div>
 
           {/* BULK DELETE BAR */}

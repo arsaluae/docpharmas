@@ -47,6 +47,7 @@ import AIInsights from "./pages/AIInsights";
 import Subscription from "./pages/Subscription";
 import CreditNotes from "./pages/CreditNotes";
 import Salaries from "./pages/Salaries";
+import DeliveryNotes from "./pages/DeliveryNotes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -86,6 +87,7 @@ const App = () => (
             <Route path="/printers/:id/ledger" element={<PrinterLedger />} />
             <Route path="/print-jobs" element={<PrintJobs />} />
             <Route path="/import" element={<DataImport />} />
+            <Route path="/delivery-notes" element={<DeliveryNotes />} />
             <Route path="/settings" element={<Settings />} />
     {/* Delivery Notes now in Sales Orders page */}
             <Route path="/reports" element={<Reports />} />

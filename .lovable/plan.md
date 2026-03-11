@@ -1,47 +1,34 @@
 
 
-# Restructure Sales & Purchase Status Grid + Add Delivery Notes to Sidebar
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## What the user wants
+## Two Changes
 
-1. **Delivery Notes in the sidebar** (left navigation) — as its own page, not a tab inside Sales/Purchase Invoices
-2. **Sales Invoice status cards**: Only show **All**, **Draft**, **Invoice** at top. Under the "Invoice" filter, the table should display records with statuses: invoiced, dispatched, paid, partial — showing both "Paid" and "Dispatched" as badge labels in the status column
-3. **Purchase**: Same pattern — **All**, **Draft**, **Invoice** at top (3 cards only). "Invoice" filter shows ordered, confirmed, received, paid records
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-## Changes
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-### 1. `src/App.tsx`
-- Add route `/delivery-notes` pointing to the existing `DeliveryNotes` component (already exists as `src/pages/DeliveryNotes.tsx`)
-- Import DeliveryNotes
+## Files Changed
 
-### 2. `src/components/AppSidebar.tsx`
-- Add "Delivery Notes" nav item under **Sales** section (after Sales Invoices)
-- Add "Delivery Notes" nav item under **Purchase** section (after Purchase Orders) — pointing to same `/delivery-notes` page (it already shows both sales and purchase DNs)
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
 
-### 3. `src/pages/ProformaInvoices.tsx`
-- **Remove** the "Delivery Notes" status card from the grid (5th card)
-- **Remove** the "Paid" status card (4th card)
-- Keep only 3 cards: **All**, **Draft**, **Invoice**
-- The "Invoice" card stats should combine invoiced + dispatched + partial + paid counts
-- The "Invoice" filter (`statusFilter === "invoiced"`) should show all non-draft records (invoiced, dispatched, partial, paid)
-- **Remove** the entire delivery notes tab/table section (`statusFilter === "delivery_notes"` conditional)
-- Remove `loadDeliveryNotes`, `deliveryNotes` state, `dnLoading` state, and related DN tab code
-
-### 4. `src/pages/PurchaseProforma.tsx`
-- **Remove** "Received" and "Paid" status cards
-- Keep only 3 cards: **All**, **Draft**, **Invoice**
-- The "Invoice" card stats should combine ordered + confirmed + received + paid counts
-- The "Invoice" filter shows all non-draft records
-
-### Summary of status grid layout (both pages)
-
-```text
-┌─────────┐  ┌─────────┐  ┌─────────┐
-│   All   │  │  Draft  │  │ Invoice │
-│  count  │  │  count  │  │  count  │
-│  PKR x  │  │  PKR x  │  │  PKR x  │
-└─────────┘  └─────────┘  └─────────┘
-```
-
-The "Invoice" card acts as a catch-all for everything post-draft. Individual record statuses (Invoiced, Dispatched, Paid, Partial) still appear as badges in the table rows.
+No other files change. The template system and all callers remain the same.
 

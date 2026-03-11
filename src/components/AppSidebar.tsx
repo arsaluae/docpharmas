@@ -19,6 +19,7 @@ const allSections = [
   { label: "Sales", icon: FileText, staffVisible: true, items: [
     { title: "Customers", url: "/customers", icon: Users },
     { title: "Sales Invoices", url: "/proforma", icon: FileText },
+    { title: "Delivery Notes", url: "/delivery-notes", icon: Truck },
     { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList },
     { title: "Receive Payment", url: "/payments?tab=received", icon: Wallet },
     { title: "Returns", url: "/sales-returns", icon: RotateCcw },
@@ -26,6 +27,7 @@ const allSections = [
   { label: "Purchase", icon: Truck, staffVisible: false, items: [
     { title: "Suppliers", url: "/suppliers", icon: Truck },
     { title: "Purchase Orders", url: "/purchase-proforma", icon: FileText },
+    { title: "Delivery Notes", url: "/delivery-notes", icon: Truck },
     { title: "Make Payment", url: "/payments?tab=made", icon: Wallet },
     { title: "Returns", url: "/purchase-returns", icon: RotateCcw },
   ]},
