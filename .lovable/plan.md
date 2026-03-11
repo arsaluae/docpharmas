@@ -1,22 +1,34 @@
 
 
-# Fix: Missing Document Counters for Tenants
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## Root Cause
-When tenants `Mouj Pharmaceuticals` and `Medsal PK` were created, the `seedTenantData` function was called but the `credit_note` and `salary` counter types were added later via separate migration. Meanwhile, the core counters (purchase_proforma, purchase_order, etc.) exist for the demo tenant but are missing for these two tenants -- likely they were approved before the seed list was complete, or the seed insert silently failed.
+## Two Changes
 
-## Fix
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-### 1. Database Migration -- Backfill missing counters
-Run a SQL migration that inserts any missing document counters for all existing tenants. Uses `ON CONFLICT DO NOTHING` to be safe.
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-The full list of document types:
-- sales_invoice, proforma, warranty_invoice, purchase_proforma, purchase_order, purchase_invoice, grn, payment, expense, delivery_note, journal, sales_return, purchase_return, print_job, supplier, customer, product, credit_note, salary
+## Files Changed
 
-### 2. Update manage-tenant Edge Function
-Add `credit_note` and `salary` to `DOCUMENT_COUNTER_SEEDS` so future tenants get all counter types.
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
 
-### Files
-- `supabase/functions/manage-tenant/index.ts` -- Add 2 missing seed types
-- Database migration -- Backfill missing counters for all tenants
+No other files change. The template system and all callers remain the same.
 
