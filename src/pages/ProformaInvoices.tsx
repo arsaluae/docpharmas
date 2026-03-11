@@ -823,7 +823,10 @@ export default function ProformaInvoices() {
 
   const allStats = { count: monthOrders.length, value: monthOrders.reduce((s, d) => s + Number(d.total), 0) };
   const customerOptions = customers.map(c => ({ value: c.id, label: c.name }));
-  const productOptions = products.map(p => ({ value: p.id, label: p.name }));
+  const productOptions = (allocatedProductIds && allocatedProductIds.length > 0
+    ? products.filter(p => allocatedProductIds.includes(p.id))
+    : products
+  ).map(p => ({ value: p.id, label: p.name }));
 
   return (
     <AppLayout title="Sales Invoices" subtitle="Create invoices → confirm with batch → auto invoice + delivery note"
