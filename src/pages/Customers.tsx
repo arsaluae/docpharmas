@@ -72,7 +72,7 @@ export default function Customers() {
     const basePayload = {
       name: form.name, company: form.company || null, ntn: form.ntn || null, strn: form.strn || null,
       phone: form.phone || null, email: form.email || null, address: form.address || null, city: form.city || null,
-      credit_limit: Number(form.credit_limit), credit_days: Number(form.credit_days),
+      area: form.area || null, credit_limit: Number(form.credit_limit), credit_days: Number(form.credit_days),
       opening_balance: Number(form.opening_balance),
     };
     if (editId) {
