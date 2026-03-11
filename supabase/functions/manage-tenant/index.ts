@@ -116,6 +116,73 @@ Deno.serve(async (req) => {
       });
     }
 
+    // owner_create_user: tenant owners can create sub-users for their own tenant
+    if (action === "owner_create_user") {
+      const { tenant_id, email, password, role } = body;
+      if (!tenant_id || !email || !password) {
+        return new Response(JSON.stringify({ error: "Missing required fields" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Verify caller is owner of the specified tenant (or admin)
+      const { data: isAdmin } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      const { data: ownerRecord } = await supabaseAdmin
+        .from("tenant_users")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("tenant_id", tenant_id)
+        .eq("is_active", true)
+        .single();
+
+      if (!isAdmin && ownerRecord?.role !== "owner") {
+        return new Response(JSON.stringify({ error: "Only tenant owners can create users" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check tenant user limit
+      const { data: tenant } = await supabaseAdmin.from("tenants").select("max_users").eq("id", tenant_id).single();
+      const { data: existingUsers } = await supabaseAdmin.from("tenant_users").select("id").eq("tenant_id", tenant_id);
+      
+      if (tenant && existingUsers && existingUsers.length >= tenant.max_users) {
+        return new Response(JSON.stringify({ error: `User limit reached (${tenant.max_users} max)` }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Create auth user
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+
+      if (createError) {
+        return new Response(JSON.stringify({ error: createError.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Link to the specified tenant
+      const { error: tuError } = await supabaseAdmin.from("tenant_users").insert({
+        tenant_id,
+        user_id: newUser.user.id,
+        role: role || "staff",
+      });
+
+      if (tuError) {
+        return new Response(JSON.stringify({ error: tuError.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // All remaining actions require admin role
     const { data: isAdmin } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "admin" });
     if (!isAdmin) {
       return new Response(JSON.stringify({ error: "Admin access required" }), {
