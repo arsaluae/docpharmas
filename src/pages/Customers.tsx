@@ -41,7 +41,7 @@ const emptyLicenseForm = { license_number: "", license_type: "drug_license", exp
 
 export default function Customers() {
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<CustomerWithCode[]>([]);
   const [search, setSearch] = useState("");
   const pagination = usePagination();
   const [form, setForm] = useState(emptyForm);
