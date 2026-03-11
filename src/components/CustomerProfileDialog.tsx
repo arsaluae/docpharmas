@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,15 +43,12 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
   const loadProfile = async () => {
     if (!customerId) return;
 
-    // Load customer balance
     const { data: custData } = await supabase.from("customers").select("balance").eq("id", customerId).single();
     if (custData) setBalance(Number(custData.balance));
 
-    // Total sales
     const { data: salesData } = await supabase.from("sales_invoices").select("total").eq("customer_id", customerId);
     if (salesData) setTotalSales(salesData.reduce((s, i) => s + Number(i.total), 0));
 
-    // Top items (from sales_invoice_items via sales_invoices)
     const { data: invoices } = await supabase.from("sales_invoices").select("id").eq("customer_id", customerId);
     if (invoices && invoices.length > 0) {
       const invoiceIds = invoices.map(i => i.id);
@@ -60,7 +57,6 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
         .in("invoice_id", invoiceIds);
       
       if (itemsData) {
-        // Load products for names
         const productIds = [...new Set(itemsData.filter(i => i.product_id).map(i => i.product_id!))];
         const { data: products } = await supabase.from("products").select("id, name").in("id", productIds);
         const productMap = new Map(products?.map(p => [p.id, p.name]) || []);
@@ -81,7 +77,6 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
         setTopItems(top5);
       }
 
-      // Monthly sales (last 6 months)
       const { data: monthlyData } = await supabase.from("sales_invoices")
         .select("date, total")
         .eq("customer_id", customerId)
@@ -104,7 +99,6 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
       setMonthlySales([]);
     }
 
-    // Distributors
     await loadDistributors();
   };
 
@@ -156,6 +150,7 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> {customerName}</DialogTitle>
+          <DialogDescription>Customer profile, sales summary, allocated products & distributors</DialogDescription>
         </DialogHeader>
 
         {/* Stats cards */}

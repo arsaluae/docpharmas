@@ -1,37 +1,34 @@
 
 
-# Fix Customer Editing, Supplier Allocation & Sync Issues
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## Current State
-- Customer editing works by clicking the row, but there's no explicit "Edit" button in actions — users may not discover this
-- Supplier profile dialog already has `AllocatedProducts` with rate support
-- Console shows a React ref warning on the Suppliers page (SupplierProfileDialog)
-- Customer form is missing the `area` field (used by Vacant Areas report)
+## Two Changes
 
-## Changes
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-### 1. Add Edit button to Customer & Supplier action columns
-Add an explicit pencil/edit icon button in the actions column for both pages, making editing more discoverable.
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-### 2. Add `area` field to Customer form
-The `customers` table has an `area` column but it's not in the create/edit form. Add it alongside `city` so the Vacant Areas report has proper data.
+## Files Changed
 
-### 3. Fix SupplierProfileDialog ref warning
-The dialog content is a function component without `forwardRef`. Add `DialogDescription` (missing aria) and ensure no ref issues by wrapping properly.
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
 
-### 4. Add CustomerProfileDialog edit capability
-Add an "Edit Details" button inside the CustomerProfileDialog that opens the edit form directly, so users can edit from the profile view.
-
-### 5. Verify AllocatedProducts rate sync
-Ensure the rate column in `AllocatedProducts` properly saves/loads for both customer and supplier party types. The component already handles this but will verify the inline edit flow has no race conditions.
-
-## Files to Change
-
-| File | Change |
-|------|--------|
-| `src/pages/Customers.tsx` | Add Edit icon in actions, add `area` field to form |
-| `src/pages/Suppliers.tsx` | Add Edit icon in actions |
-| `src/components/SupplierProfileDialog.tsx` | Fix ref warning, add DialogDescription |
-| `src/components/CustomerProfileDialog.tsx` | Fix DialogDescription warning, add edit trigger |
-| `src/components/AllocatedProducts.tsx` | Minor: ensure rate edit saves correctly with no race conditions |
+No other files change. The template system and all callers remain the same.
 

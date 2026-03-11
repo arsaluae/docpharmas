@@ -13,13 +13,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X, Store } from "lucide-react";
+import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X, Store, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { CustomerProfileDialog } from "@/components/CustomerProfileDialog";
 
 interface Customer {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
-  phone: string | null; email: string | null; address: string | null; city: string | null;
+  phone: string | null; email: string | null; address: string | null; city: string | null; area: string | null;
   credit_limit: number; credit_days: number; opening_balance: number; balance: number; created_at: string;
 }
 
@@ -29,7 +29,7 @@ interface License {
 }
 
 const emptyForm = {
-  name: "", company: "", ntn: "", strn: "", phone: "", email: "", address: "", city: "",
+  name: "", company: "", ntn: "", strn: "", phone: "", email: "", address: "", city: "", area: "",
   credit_limit: "0", credit_days: "30", opening_balance: "0",
 };
 
@@ -72,7 +72,7 @@ export default function Customers() {
     const basePayload = {
       name: form.name, company: form.company || null, ntn: form.ntn || null, strn: form.strn || null,
       phone: form.phone || null, email: form.email || null, address: form.address || null, city: form.city || null,
-      credit_limit: Number(form.credit_limit), credit_days: Number(form.credit_days),
+      area: form.area || null, credit_limit: Number(form.credit_limit), credit_days: Number(form.credit_days),
       opening_balance: Number(form.opening_balance),
     };
     if (editId) {
@@ -93,7 +93,7 @@ export default function Customers() {
     setForm({
       name: c.name, company: c.company || "", ntn: c.ntn || "", strn: c.strn || "",
       phone: c.phone || "", email: c.email || "", address: c.address || "", city: c.city || "",
-      credit_limit: String(c.credit_limit), credit_days: String(c.credit_days), opening_balance: String(c.opening_balance),
+      area: c.area || "", credit_limit: String(c.credit_limit), credit_days: String(c.credit_days), opening_balance: String(c.opening_balance),
     });
     setOpen(true);
   };
@@ -186,6 +186,7 @@ export default function Customers() {
             <div className="col-span-2"><Label>Company Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Company / Business name" /></div>
             <div><Label>Contact Person</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Contact name (optional)" /></div>
             <div><Label>City</Label><Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} /></div>
+            <div><Label>Area</Label><Input value={form.area} onChange={e => setForm({...form, area: e.target.value})} placeholder="Area / Zone" /></div>
             <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} placeholder="National Tax Number" /></div>
             <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} placeholder="Sales Tax Reg." /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
@@ -269,6 +270,7 @@ export default function Customers() {
                   <TableCell className="text-right font-mono text-muted-foreground">{Number(c.credit_limit).toLocaleString()}</TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(c)} title="Edit Customer"><Edit className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/customers/${c.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setProfileCustomer(c); setProfileOpen(true); }} title="Profile & Distributors"><Store className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => openLicenses(c, e)} title="Medical Licenses"><Award className="h-3.5 w-3.5" /></Button>

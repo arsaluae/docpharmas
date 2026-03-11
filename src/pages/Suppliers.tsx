@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Truck, BookOpen, Trash2, Upload, Store } from "lucide-react";
+import { Plus, Search, Truck, BookOpen, Trash2, Upload, Store, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { SupplierProfileDialog } from "@/components/SupplierProfileDialog";
@@ -200,6 +200,7 @@ export default function Suppliers() {
                   <TableCell className="text-muted-foreground">{s.payment_terms_days}d</TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(s)} title="Edit Supplier"><Edit className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setProfileSupplier(s); setProfileOpen(true); }} title="Profile & Products"><Store className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/suppliers/${s.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
                       <AlertDialog>
