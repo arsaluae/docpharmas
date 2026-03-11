@@ -37,18 +37,20 @@ export default function PurchaseReturns() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState("all");
+  const pagination = usePagination();
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [pagination.page]);
 
   const loadData = async () => {
     setLoading(true);
-    const [{ data: r }, { data: s }, { data: inv }, { data: p }] = await Promise.all([
-      supabase.from("purchase_returns").select("*, suppliers(name)").order("created_at", { ascending: false }),
+    const [{ data: r, count }, { data: s }, { data: inv }, { data: p }] = await Promise.all([
+      supabase.from("purchase_returns").select("*, suppliers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to),
       supabase.from("suppliers").select("id, name"),
       supabase.from("purchase_invoices").select("id, bill_number, supplier_id"),
       supabase.from("products").select("id, name, cost_price"),
     ]);
     if (r) setReturns(r);
+    if (count !== null) pagination.setTotalCount(count);
     if (s) setSuppliers(s);
     if (inv) setPInvoices(inv);
     if (p) setProducts(p);
