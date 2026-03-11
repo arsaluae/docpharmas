@@ -1,35 +1,34 @@
 
 
-# Add Payment Links to Sales/Purchase + Fix Errors & Improvements
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## Issues Found
+## Two Changes
 
-1. **Console Error: PaginationControls ref warning** — `PaginationControls` is a function component but is being given a ref. Needs `React.forwardRef`.
-2. **No Payment link in Sales/Purchase sidebar** — Payments is only under Finance. User wants quick access from Sales ("Receive Payment") and Purchase ("Make Payment") menus.
-3. **Sales & Purchase pages already have inline payment buttons** — These work correctly. The request is for sidebar navigation convenience.
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-## Changes
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-### 1. Add Payment links to Sales & Purchase sidebar sections
-In `AppSidebar.tsx`, add:
-- "Payments" under Sales section (links to `/payments` with `received` filter)
-- "Payments" under Purchase section (links to `/payments` with `made` filter)
+## Files Changed
 
-### 2. Fix PaginationControls ref warning
-Wrap `PaginationControls` in `React.forwardRef` to eliminate the console warning that appears on every page using pagination.
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
 
-### 3. Add URL-based tab filtering to Payments page
-Support `?tab=received` and `?tab=made` query params so sidebar links can deep-link to the correct payment view. This way clicking "Payments" from the Sales section shows received payments, and from Purchase shows made payments.
-
-### 4. Minor UI improvements to Payments page
-- Add summary cards at top (total received, total made, net) matching the premium gradient style used elsewhere
-- Add `DialogDescription` to the payment dialog for accessibility
-
-## Files to Change
-
-| File | Change |
-|------|--------|
-| `src/components/PaginationControls.tsx` | Wrap with `React.forwardRef` |
-| `src/components/AppSidebar.tsx` | Add Payment links to Sales & Purchase sections |
-| `src/pages/Payments.tsx` | Support URL query param for tab, add summary cards, add `DialogDescription` |
+No other files change. The template system and all callers remain the same.
 

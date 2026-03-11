@@ -1,3 +1,4 @@
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -12,14 +13,14 @@ interface Props {
   pageSize: number;
 }
 
-export function PaginationControls({ page, totalPages, totalCount, hasNext, hasPrev, onNext, onPrev, pageSize }: Props) {
+export const PaginationControls = React.forwardRef<HTMLDivElement, Props>(function PaginationControls({ page, totalPages, totalCount, hasNext, hasPrev, onNext, onPrev, pageSize }, ref) {
   if (totalCount <= pageSize) return null;
   
   const from = page * pageSize + 1;
   const to = Math.min((page + 1) * pageSize, totalCount);
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+    <div ref={ref} className="flex items-center justify-between px-4 py-3 border-t border-border">
       <p className="text-xs text-muted-foreground">
         Showing {from}–{to} of {totalCount.toLocaleString()}
       </p>
@@ -36,4 +37,4 @@ export function PaginationControls({ page, totalPages, totalCount, hasNext, hasP
       </div>
     </div>
   );
-}
+});

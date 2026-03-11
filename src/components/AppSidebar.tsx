@@ -20,11 +20,13 @@ const allSections = [
     { title: "Customers", url: "/customers", icon: Users },
     { title: "Sales Invoices", url: "/proforma", icon: FileText },
     { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList },
+    { title: "Receive Payment", url: "/payments?tab=received", icon: Wallet },
     { title: "Returns", url: "/sales-returns", icon: RotateCcw },
   ]},
   { label: "Purchase", icon: Truck, staffVisible: false, items: [
     { title: "Suppliers", url: "/suppliers", icon: Truck },
     { title: "Purchase Orders", url: "/purchase-proforma", icon: FileText },
+    { title: "Make Payment", url: "/payments?tab=made", icon: Wallet },
     { title: "Returns", url: "/purchase-returns", icon: RotateCcw },
   ]},
   { label: "Inventory", icon: Package, staffVisible: false, items: [
@@ -60,12 +62,18 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { tenantRole, isAdmin, tenantName } = useTenant();
 
+  const matchUrl = (itemUrl: string) => {
+    const [path, qs] = itemUrl.split("?");
+    if (qs) return location.pathname === path && location.search === `?${qs}`;
+    return location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
+  };
+
   const sections = tenantRole === "staff" && !isAdmin
     ? allSections.filter(s => s.staffVisible)
     : allSections;
 
   const activeSectionIdx = sections.findIndex(s =>
-    s.items.some(i => location.pathname === i.url || (i.url !== "/" && location.pathname.startsWith(i.url)))
+    s.items.some(i => matchUrl(i.url))
   );
 
   const [openSections, setOpenSections] = useState<Record<number, boolean>>(() => {
@@ -125,13 +133,13 @@ export function AppSidebar() {
 
         {sections.map((section, idx) => {
           const isOpen = openSections[idx] || false;
-          const sectionActive = section.items.some(i => location.pathname === i.url || (i.url !== "/" && location.pathname.startsWith(i.url)));
+          const sectionActive = section.items.some(i => matchUrl(i.url));
 
           if (collapsed) {
             return (
               <SidebarMenu key={section.label}>
                 {section.items.map((item) => {
-                  const isActive = location.pathname === item.url || (item.url !== "/" && location.pathname.startsWith(item.url));
+                  const isActive = matchUrl(item.url);
                   return (
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton asChild>
@@ -160,7 +168,7 @@ export function AppSidebar() {
               <CollapsibleContent>
                 <SidebarMenu className="ml-3 mt-0.5 border-l border-primary/10 pl-2">
                   {section.items.map((item) => {
-                    const isActive = location.pathname === item.url || (item.url !== "/" && location.pathname.startsWith(item.url));
+                    const isActive = matchUrl(item.url);
                     return (
                       <SidebarMenuItem key={item.url}>
                         <SidebarMenuButton asChild>

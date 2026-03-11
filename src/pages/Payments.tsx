@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,14 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Wallet, ArrowDownLeft, ArrowUpRight, Pencil, Trash2, MessageCircle } from "lucide-react";
+import { Plus, Search, Wallet, ArrowDownLeft, ArrowUpRight, Pencil, Trash2, MessageCircle, TrendingUp, TrendingDown } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
@@ -32,13 +33,15 @@ interface Payment {
 }
 
 export default function Payments() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState("all");
+  const initialTab = searchParams.get("tab") || "all";
+  const [tab, setTab] = useState(initialTab);
   const pagination = usePagination();
   const { settings } = useCompanySettings();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -59,6 +62,14 @@ export default function Payments() {
   const [reference, setReference] = useState("");
   const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
+
+  // Sync tab from URL params on navigation
+  useEffect(() => {
+    const urlTab = searchParams.get("tab");
+    if (urlTab && (urlTab === "received" || urlTab === "made") && urlTab !== tab) {
+      setTab(urlTab);
+    }
+  }, [searchParams]);
 
   useEffect(() => { load(); }, [pagination.page, tab]);
 
@@ -176,7 +187,10 @@ export default function Payments() {
     <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else setOpen(true); }}>
       <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Payment</Button></DialogTrigger>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>{editingId ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{editingId ? "Edit Payment" : "Record Payment"}</DialogTitle>
+          <DialogDescription>Fill in the payment details below to record a transaction.</DialogDescription>
+        </DialogHeader>
         <div className="grid grid-cols-2 gap-3 mt-2">
           <div>
             <Label>Type</Label>
@@ -243,12 +257,57 @@ export default function Payments() {
 
   return (
     <AppLayout title="Payments" subtitle="Record payments received & made with cheque tracking" headerActions={headerActions}>
+            {/* Summary Cards */}
+            {payments.length > 0 && (() => {
+              const totalReceived = payments.filter(p => p.type === "received").reduce((s, p) => s + Number(p.amount), 0);
+              const totalMade = payments.filter(p => p.type === "made").reduce((s, p) => s + Number(p.amount), 0);
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                  <Card className="border-primary/20 bg-primary/5">
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <ArrowDownLeft className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium">Received</p>
+                        <p className="text-lg font-bold text-primary">₨ {totalReceived.toLocaleString()}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-destructive/20 bg-destructive/5">
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+                        <ArrowUpRight className="h-5 w-5 text-destructive" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium">Made</p>
+                        <p className="text-lg font-bold text-destructive">₨ {totalMade.toLocaleString()}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-border">
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center">
+                        <TrendingUp className="h-5 w-5 text-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium">Net</p>
+                        <p className={`text-lg font-bold ${totalReceived - totalMade >= 0 ? "text-primary" : "text-destructive"}`}>
+                          ₨ {(totalReceived - totalMade).toLocaleString()}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })()}
+
             <div className="flex items-center gap-4 mb-4">
               <div className="relative max-w-sm flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Search payments..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
               </div>
-              <Tabs value={tab} onValueChange={setTab}>
+              <Tabs value={tab} onValueChange={v => { setTab(v); if (v === "all") searchParams.delete("tab"); else searchParams.set("tab", v); setSearchParams(searchParams, { replace: true }); }}>
                 <TabsList>
                   <TabsTrigger value="all">All</TabsTrigger>
                   <TabsTrigger value="received">Received</TabsTrigger>
