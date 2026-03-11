@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +11,7 @@ import {
   FileText, CreditCard, Shield, Wallet,
   PackageCheck, Flame, Users, AlertTriangle, MessageCircle, Brain,
   Package, Printer, Receipt, Landmark, ArrowRightLeft, RotateCcw,
-  CircleDollarSign, Clock,
+  CircleDollarSign, Clock, Sparkles,
 } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { toast } from "sonner";
@@ -30,6 +30,37 @@ const CHART_COLORS = [
   "hsl(210, 40%, 60%)", // steel
 ];
 
+// Animated counter component
+function AnimatedCounter({ value, prefix = "", suffix = "", duration = 800 }: { value: number; prefix?: string; suffix?: string; duration?: number }) {
+  const [display, setDisplay] = useState(0);
+  const prevValue = useRef(0);
+
+  useEffect(() => {
+    const start = prevValue.current;
+    const end = value;
+    if (start === end) return;
+    const startTime = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setDisplay(Math.round(start + (end - start) * eased));
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+    requestAnimationFrame(animate);
+    prevValue.current = end;
+  }, [value, duration]);
+
+  return <>{prefix}{display.toLocaleString()}{suffix}</>;
+}
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good Morning";
+  if (h < 17) return "Good Afternoon";
+  return "Good Evening";
+}
+
 export default function Index() {
   const navigate = useNavigate();
   const { settings } = useCompanySettings();
@@ -42,7 +73,6 @@ export default function Index() {
   const [reorderAlerts, setReorderAlerts] = useState<any[]>([]);
   const [loadingReorder, setLoadingReorder] = useState(false);
 
-  // New chart states
   const [dailySales, setDailySales] = useState<{ date: string; amount: number }[]>([]);
   const [expensesByCategory, setExpensesByCategory] = useState<{ name: string; value: number }[]>([]);
   const [lastMonthSales, setLastMonthSales] = useState(0);
@@ -64,13 +94,11 @@ export default function Index() {
     weekStart.setDate(today.getDate() - mondayOffset);
     const weekStartStr = weekStart.toISOString().split("T")[0];
 
-    // Last month range
     const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
     const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const lastMonthStartStr = lastMonthStart.toISOString().split("T")[0];
     const lastMonthEndStr = lastMonthEnd.toISOString().split("T")[0];
 
-    // 30 days ago for trend chart
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 29);
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
@@ -100,23 +128,19 @@ export default function Index() {
     setWeekSales(ws);
     setMonthSales(ms);
 
-    // Last month total
     setLastMonthSales((lastMonthInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0));
 
-    // 30-day trend chart — group by date
     const dailyMap: Record<string, number> = {};
     (trendInv.data || []).forEach(inv => {
       dailyMap[inv.date] = (dailyMap[inv.date] || 0) + Number(inv.subtotal);
     });
-    // Fill gaps for all 30 days
     const dailyArr: { date: string; amount: number }[] = [];
     for (let d = new Date(thirtyDaysAgo); d <= today; d.setDate(d.getDate() + 1)) {
       const ds = d.toISOString().split("T")[0];
-      dailyArr.push({ date: ds.slice(5), amount: dailyMap[ds] || 0 }); // "MM-DD"
+      dailyArr.push({ date: ds.slice(5), amount: dailyMap[ds] || 0 });
     }
     setDailySales(dailyArr);
 
-    // Expense pie
     const catMap: Record<string, number> = {};
     (expenses.data || []).forEach(e => { catMap[e.category] = (catMap[e.category] || 0) + Number(e.amount); });
     setExpensesByCategory(
@@ -126,16 +150,13 @@ export default function Index() {
         .slice(0, 6)
     );
 
-    // Overdue invoices
     const od = overdueInv.data || [];
     setOverdueCount(od.length);
     setOverdueAmount(od.reduce((s, i) => s + Number(i.total), 0));
 
-    // Receivables & Payables
     setTotalReceivables((custBalances.data || []).reduce((s, c) => s + Math.max(Number(c.balance), 0), 0));
     setTotalPayables((suppBalances.data || []).reduce((s, s2) => s + Math.max(Number(s2.balance), 0), 0));
 
-    // Fetch month invoice IDs then items filtered by those IDs
     const { data: monthInvIds } = await supabase.from("sales_invoices").select("id").gte("date", monthStart).lte("date", todayStr);
     const allMonthIds = (monthInvIds || []).map(inv => inv.id);
 
@@ -221,6 +242,7 @@ export default function Index() {
     { label: "Purchase Order", path: "/purchase-proforma", icon: FileText, gradient: "from-emerald-500/8 to-emerald-600/18", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-500 to-emerald-400", shadow: "shadow-emerald-500/20" },
     { label: "Print Jobs", path: "/print-jobs", icon: Printer, gradient: "from-fuchsia-500/8 to-purple-600/18", iconBg: "from-fuchsia-500 to-purple-600", accent: "from-fuchsia-500 to-purple-400", shadow: "shadow-fuchsia-500/20" },
     { label: "Expenses", path: "/expenses", icon: Receipt, gradient: "from-rose-500/8 to-rose-600/18", iconBg: "from-rose-500 to-rose-600", accent: "from-rose-500 to-rose-400", shadow: "shadow-rose-500/20" },
+    { label: "Credit Notes", path: "/credit-notes", icon: CreditCard, gradient: "from-slate-500/8 to-slate-600/18", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-500 to-slate-400", shadow: "shadow-slate-500/20" },
   ];
 
   const rpData = [
@@ -228,57 +250,92 @@ export default function Index() {
     { name: "Payables", value: totalPayables },
   ];
 
+  const kpiCards = [
+    {
+      label: "This Week",
+      value: weekSales,
+      icon: TrendingUp,
+      iconColor: "text-primary",
+      iconBg: "bg-primary/10",
+      glowColor: "shadow-[0_0_20px_hsl(199,89%,48%,0.12)]",
+    },
+    {
+      label: "This Month",
+      value: monthSales,
+      icon: CalendarDays,
+      iconColor: "text-emerald-600",
+      iconBg: "bg-emerald-500/10",
+      glowColor: "shadow-[0_0_20px_hsl(160,84%,39%,0.12)]",
+      extra: lastMonthSales > 0 ? (
+        <p className={`text-[10px] mt-1 font-mono flex items-center gap-1 ${monthGrowth >= 0 ? "text-emerald-600" : "text-destructive"}`}>
+          {monthGrowth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+          {monthGrowth >= 0 ? "+" : ""}{monthGrowth.toFixed(1)}% vs last month
+        </p>
+      ) : null,
+    },
+    {
+      label: "Gross Margin",
+      value: Math.abs(grossMargin),
+      icon: CircleDollarSign,
+      iconColor: grossMargin >= 0 ? "text-primary" : "text-destructive",
+      iconBg: grossMargin >= 0 ? "bg-primary/10" : "bg-destructive/10",
+      glowColor: grossMargin >= 0 ? "shadow-[0_0_20px_hsl(199,89%,48%,0.12)]" : "shadow-[0_0_20px_hsl(0,72%,51%,0.12)]",
+      extra: <p className="text-[10px] text-muted-foreground mt-0.5">Sale − Cost Price</p>,
+    },
+    {
+      label: "Overdue Invoices",
+      value: overdueCount > 0 ? overdueAmount : 0,
+      icon: Clock,
+      iconColor: overdueCount > 0 ? "text-destructive" : "text-emerald-600",
+      iconBg: overdueCount > 0 ? "bg-destructive/10" : "bg-emerald-500/10",
+      glowColor: overdueCount > 0 ? "shadow-[0_0_20px_hsl(0,72%,51%,0.12)]" : "",
+      displayOverride: overdueCount === 0 ? "None" : undefined,
+      extra: overdueCount > 0 ? (
+        <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-1">
+          <Clock className="h-3 w-3" /> {overdueCount} invoice{overdueCount > 1 ? "s" : ""} past due
+        </p>
+      ) : null,
+    },
+  ];
+
   return (
     <AppLayout title="Dashboard" subtitle="Business overview">
       <div className="space-y-6">
         <TrialBanner />
 
-        {/* KPI Row — 4 cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-l-4 border-l-primary hover:shadow-md transition-all">
-            <CardContent className="p-5">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">This Week</p>
-              <p className="text-2xl font-bold text-foreground mt-1 font-heading">PKR {weekSales.toLocaleString()}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-emerald-500 hover:shadow-md transition-all">
-            <CardContent className="p-5">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">This Month</p>
-              <p className="text-2xl font-bold text-foreground mt-1 font-heading">PKR {monthSales.toLocaleString()}</p>
-              {lastMonthSales > 0 && (
-                <p className={`text-[10px] mt-1 font-mono flex items-center gap-1 ${monthGrowth >= 0 ? "text-emerald-600" : "text-destructive"}`}>
-                  {monthGrowth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  {monthGrowth >= 0 ? "+" : ""}{monthGrowth.toFixed(1)}% vs last month
-                </p>
-              )}
-            </CardContent>
-          </Card>
-          <Card className={`border-l-4 hover:shadow-md transition-all ${grossMargin >= 0 ? "border-l-primary" : "border-l-destructive"}`}>
-            <CardContent className="p-5">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Gross Margin</p>
-              <p className={`text-2xl font-bold mt-1 font-heading ${grossMargin >= 0 ? "text-primary" : "text-destructive"}`}>
-                PKR {Math.abs(grossMargin).toLocaleString()}
+        {/* Greeting Banner */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <h2 className="text-xl sm:text-2xl font-bold font-heading text-foreground flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              {getGreeting()}!
+            </h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Here's your business at a glance — {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long" })}
+            </p>
+          </div>
+        </div>
+
+        {/* KPI Row — Glass cards with animated counters */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger-children">
+          {kpiCards.map((kpi) => (
+            <div key={kpi.label} className={`glass-kpi p-4 sm:p-5 ${kpi.glowColor}`}>
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">{kpi.label}</p>
+                <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${kpi.iconBg}`}>
+                  <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
+                </div>
+              </div>
+              <p className={`text-xl sm:text-2xl font-bold mt-1 font-heading tabular-nums ${kpi.iconColor}`}>
+                {kpi.displayOverride || <>PKR <AnimatedCounter value={kpi.value} /></>}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Sale − Cost Price</p>
-            </CardContent>
-          </Card>
-          <Card className={`border-l-4 hover:shadow-md transition-all ${overdueCount > 0 ? "border-l-destructive" : "border-l-emerald-500"}`}>
-            <CardContent className="p-5">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Overdue Invoices</p>
-              <p className={`text-2xl font-bold mt-1 font-heading ${overdueCount > 0 ? "text-destructive" : "text-emerald-600"}`}>
-                {overdueCount > 0 ? `PKR ${overdueAmount.toLocaleString()}` : "None"}
-              </p>
-              {overdueCount > 0 && (
-                <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> {overdueCount} invoice{overdueCount > 1 ? "s" : ""} past due
-                </p>
-              )}
-            </CardContent>
-          </Card>
+              {kpi.extra}
+            </div>
+          ))}
         </div>
 
         {/* 30-Day Sales Trend */}
-        <Card>
+        <Card className="glass-card overflow-hidden">
           <CardHeader className="pb-2 pt-4 px-5">
             <CardTitle className="text-sm font-heading flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" /> 30-Day Sales Trend
@@ -299,7 +356,7 @@ export default function Index() {
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                   <YAxis hide />
                   <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(214, 32%, 91%)" }}
+                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)" }}
                     formatter={(value: number) => [`PKR ${value.toLocaleString()}`, "Sales"]}
                   />
                   <Area type="monotone" dataKey="amount" stroke="hsl(199, 89%, 48%)" strokeWidth={2} fill="url(#salesGrad)" />
@@ -309,18 +366,18 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-2 sm:gap-4">
+        {/* Quick Actions — 4x2 Grid */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 stagger-children">
           {quickActions.map((action) => (
             <button
               key={action.label}
               onClick={() => navigate(action.path)}
-              className={`group relative flex flex-col items-center justify-center gap-1.5 sm:gap-3 h-[85px] sm:h-[120px] rounded-xl sm:rounded-2xl bg-gradient-to-br ${action.gradient} border border-border/50 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-lg ${action.shadow} overflow-hidden`}
+              className={`group relative flex flex-col items-center justify-center gap-1.5 sm:gap-3 h-[80px] sm:h-[110px] rounded-xl sm:rounded-2xl bg-gradient-to-br ${action.gradient} border border-border/50 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-lg ${action.shadow} overflow-hidden press-scale`}
             >
-              <div className={`flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br ${action.iconBg} shadow-md transition-transform duration-300 group-hover:scale-110`}>
-                <action.icon className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+              <div className={`flex items-center justify-center w-8 h-8 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-gradient-to-br ${action.iconBg} shadow-md transition-transform duration-300 group-hover:scale-110`}>
+                <action.icon className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-white" />
               </div>
-              <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-[0.1em] sm:tracking-[0.15em] text-foreground/80 font-heading group-hover:text-foreground transition-colors text-center leading-tight px-1">
+              <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.08em] sm:tracking-[0.12em] text-foreground/80 font-heading group-hover:text-foreground transition-colors text-center leading-tight px-0.5">
                 {action.label}
               </span>
               <div className={`absolute bottom-0 left-0 right-0 h-[2px] sm:h-[3px] bg-gradient-to-r ${action.accent} opacity-60 group-hover:opacity-100 transition-opacity`} />
@@ -330,7 +387,7 @@ export default function Index() {
 
         {/* Month Comparison + Expense Pie */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <Card>
+          <Card className="glass-card overflow-hidden">
             <CardHeader className="pb-2 pt-4 px-5">
               <CardTitle className="text-sm font-heading flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-primary" /> Monthly Comparison
@@ -342,20 +399,26 @@ export default function Index() {
                   { name: "Last Month", sales: lastMonthSales },
                   { name: "This Month", sales: monthSales },
                 ]} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(199, 89%, 48%)" stopOpacity={1} />
+                      <stop offset="100%" stopColor="hsl(199, 89%, 38%)" stopOpacity={0.8} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(214, 32%, 91%)" />
                   <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
                   <YAxis hide />
                   <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(214, 32%, 91%)" }}
+                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "rgba(255,255,255,0.9)" }}
                     formatter={(value: number) => [`PKR ${value.toLocaleString()}`, "Sales"]}
                   />
-                  <Bar dataKey="sales" radius={[6, 6, 0, 0]} fill="hsl(199, 89%, 48%)" barSize={60} />
+                  <Bar dataKey="sales" radius={[8, 8, 0, 0]} fill="url(#barGrad)" barSize={60} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="glass-card overflow-hidden">
             <CardHeader className="pb-2 pt-4 px-5">
               <CardTitle className="text-sm font-heading flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-destructive" /> Expense Breakdown (This Month)
@@ -363,7 +426,10 @@ export default function Index() {
             </CardHeader>
             <CardContent className="px-4 pb-4 flex items-center justify-center">
               {expensesByCategory.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">No expenses this month</p>
+                <div className="text-center py-8">
+                  <Receipt className="h-8 w-8 mx-auto mb-2 text-muted-foreground/20" />
+                  <p className="text-sm text-muted-foreground">No expenses this month</p>
+                </div>
               ) : (
                 <div className="flex items-center gap-4 w-full">
                   <ResponsiveContainer width="50%" height={180}>
@@ -380,7 +446,7 @@ export default function Index() {
                         ))}
                       </Pie>
                       <Tooltip
-                        contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid hsl(214, 32%, 91%)" }}
+                        contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "rgba(255,255,255,0.9)" }}
                         formatter={(value: number) => [`PKR ${value.toLocaleString()}`, ""]}
                       />
                     </PieChart>
@@ -390,7 +456,7 @@ export default function Index() {
                       <div key={cat.name} className="flex items-center gap-2 text-xs">
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }} />
                         <span className="capitalize text-muted-foreground truncate flex-1">{cat.name}</span>
-                        <span className="font-mono text-foreground">{(cat.value / 1000).toFixed(0)}k</span>
+                        <span className="font-mono tabular-nums text-foreground">{(cat.value / 1000).toFixed(0)}k</span>
                       </div>
                     ))}
                   </div>
@@ -402,7 +468,7 @@ export default function Index() {
 
         {/* Stock + Top Selling */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <Card>
+          <Card className="glass-card overflow-hidden">
             <CardHeader className="pb-2 pt-4 px-5">
               <CardTitle className="text-sm font-heading flex items-center gap-2">
                 <PackageCheck className="h-4 w-4 text-primary" /> New Stock In
@@ -410,14 +476,17 @@ export default function Index() {
             </CardHeader>
             <CardContent className="px-5 pb-4">
               {recentStock.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">No recent stock received</p>
+                <div className="text-center py-6">
+                  <PackageCheck className="h-8 w-8 mx-auto mb-2 text-muted-foreground/20" />
+                  <p className="text-sm text-muted-foreground">No recent stock received</p>
+                </div>
               ) : (
                 <div className="space-y-2.5">
                   {recentStock.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50">
+                    <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors">
                       <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{item.name}</span>
                       <div className="flex items-center gap-3">
-                        <Badge variant="secondary" className="font-mono text-xs">{item.quantity} units</Badge>
+                        <Badge variant="secondary" className="font-mono text-xs tabular-nums">{item.quantity} units</Badge>
                         <span className="text-[10px] text-muted-foreground">{item.date}</span>
                       </div>
                     </div>
@@ -426,7 +495,7 @@ export default function Index() {
               )}
             </CardContent>
           </Card>
-          <Card>
+          <Card className="glass-card overflow-hidden">
             <CardHeader className="pb-2 pt-4 px-5">
               <CardTitle className="text-sm font-heading flex items-center gap-2">
                 <Flame className="h-4 w-4 text-destructive" /> Top Selling Items (This Month)
@@ -434,18 +503,21 @@ export default function Index() {
             </CardHeader>
             <CardContent className="px-5 pb-4">
               {topSelling.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">No sales data this month</p>
+                <div className="text-center py-6">
+                  <Flame className="h-8 w-8 mx-auto mb-2 text-muted-foreground/20" />
+                  <p className="text-sm text-muted-foreground">No sales data this month</p>
+                </div>
               ) : (
                 <div className="space-y-2.5">
                   {topSelling.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50">
+                    <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors">
                       <div className="flex items-center gap-2.5">
                         <span className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white ${idx === 0 ? "bg-amber-500" : idx === 1 ? "bg-slate-400" : idx === 2 ? "bg-amber-700" : "bg-muted-foreground/30"}`}>
                           {idx + 1}
                         </span>
                         <span className="text-sm font-medium text-foreground truncate max-w-[50%]">{item.name}</span>
                       </div>
-                      <Badge variant="outline" className="font-mono text-xs">{item.qty} sold</Badge>
+                      <Badge variant="outline" className="font-mono text-xs tabular-nums">{item.qty} sold</Badge>
                     </div>
                   ))}
                 </div>
@@ -456,8 +528,7 @@ export default function Index() {
 
         {/* Receivables/Payables + Top Customers */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Receivables vs Payables Donut */}
-          <Card>
+          <Card className="glass-card overflow-hidden">
             <CardHeader className="pb-2 pt-4 px-5">
               <CardTitle className="text-sm font-heading flex items-center gap-2">
                 <CircleDollarSign className="h-4 w-4 text-primary" /> Receivables vs Payables
@@ -465,7 +536,10 @@ export default function Index() {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               {totalReceivables === 0 && totalPayables === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">No outstanding balances</p>
+                <div className="text-center py-8">
+                  <CircleDollarSign className="h-8 w-8 mx-auto mb-2 text-muted-foreground/20" />
+                  <p className="text-sm text-muted-foreground">No outstanding balances</p>
+                </div>
               ) : (
                 <div className="flex flex-col items-center">
                   <ResponsiveContainer width="100%" height={160}>
@@ -481,7 +555,7 @@ export default function Index() {
                         <Cell fill="hsl(0, 72%, 51%)" />
                       </Pie>
                       <Tooltip
-                        contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid hsl(214, 32%, 91%)" }}
+                        contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "rgba(255,255,255,0.9)" }}
                         formatter={(value: number) => [`PKR ${value.toLocaleString()}`, ""]}
                       />
                     </PieChart>
@@ -490,12 +564,12 @@ export default function Index() {
                     <div className="flex items-center gap-1.5">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "hsl(199, 89%, 48%)" }} />
                       <span className="text-muted-foreground">Receivable</span>
-                      <span className="font-mono font-semibold text-foreground">PKR {totalReceivables.toLocaleString()}</span>
+                      <span className="font-mono font-semibold tabular-nums text-foreground">PKR {totalReceivables.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "hsl(0, 72%, 51%)" }} />
                       <span className="text-muted-foreground">Payable</span>
-                      <span className="font-mono font-semibold text-foreground">PKR {totalPayables.toLocaleString()}</span>
+                      <span className="font-mono font-semibold tabular-nums text-foreground">PKR {totalPayables.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -503,8 +577,7 @@ export default function Index() {
             </CardContent>
           </Card>
 
-          {/* Top Customers */}
-          <Card className="lg:col-span-2">
+          <Card className="lg:col-span-2 glass-card overflow-hidden">
             <CardHeader className="pb-2 pt-4 px-5">
               <CardTitle className="text-sm font-heading flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" /> Top Customers
@@ -512,7 +585,10 @@ export default function Index() {
             </CardHeader>
             <CardContent className="px-2 pb-4">
               {topCustomers.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">No customer data yet</p>
+                <div className="text-center py-6">
+                  <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/20" />
+                  <p className="text-sm text-muted-foreground">No customer data yet</p>
+                </div>
               ) : (
                 <Table>
                   <TableHeader>
@@ -524,10 +600,10 @@ export default function Index() {
                   </TableHeader>
                   <TableBody>
                     {topCustomers.map((c, idx) => (
-                      <TableRow key={idx}>
+                      <TableRow key={idx} className="table-row-hover">
                         <TableCell className="font-medium text-sm">{c.name}</TableCell>
-                        <TableCell className="text-right font-mono text-sm">PKR {c.monthSale.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-mono text-sm">PKR {c.yearlySale.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-mono text-sm tabular-nums">PKR {c.monthSale.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-mono text-sm tabular-nums">PKR {c.yearlySale.toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -538,13 +614,13 @@ export default function Index() {
         </div>
 
         {/* Reorder Alerts */}
-        <Card className="border-destructive/20">
+        <Card className="glass-card border-destructive/20 overflow-hidden">
           <CardHeader className="pb-2 pt-4 px-5">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-heading flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-destructive" /> Smart Reorder Alerts
               </CardTitle>
-              <Button size="sm" variant="outline" onClick={generateReorderAlerts} disabled={loadingReorder} className="text-xs h-7">
+              <Button size="sm" variant="outline" onClick={generateReorderAlerts} disabled={loadingReorder} className="text-xs h-7 press-scale">
                 {loadingReorder ? "Analyzing..." : "Refresh"}
               </Button>
             </div>
@@ -552,14 +628,14 @@ export default function Index() {
           <CardContent className="px-5 pb-4">
             {reorderAlerts.length === 0 ? (
               <div className="text-center py-6">
-                <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+                <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-muted-foreground/20" />
                 <p className="text-sm text-muted-foreground">No reorder alerts</p>
                 <p className="text-xs text-muted-foreground mt-1">Click Refresh to analyze stock levels</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {reorderAlerts.map((alert, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-muted/50 border border-border/50">
+                  <div key={idx} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-muted/50 border border-border/50 hover:bg-muted/80 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${alert.severity === "critical" ? "bg-destructive animate-pulse" : alert.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} />
@@ -579,7 +655,7 @@ export default function Index() {
                   </div>
                 ))}
                 {settings?.whatsapp_number && (
-                  <Button size="sm" variant="outline" className="w-full mt-2 text-xs gap-1.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/5" onClick={generateReorderAlerts}>
+                  <Button size="sm" variant="outline" className="w-full mt-2 text-xs gap-1.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/5 press-scale" onClick={generateReorderAlerts}>
                     <MessageCircle className="h-3.5 w-3.5" /> Send WhatsApp Alert
                   </Button>
                 )}
@@ -589,7 +665,7 @@ export default function Index() {
         </Card>
 
         {/* AI Insights CTA */}
-        <Card className="overflow-hidden cursor-pointer hover:shadow-md transition-all" onClick={() => navigate("/insights")}>
+        <Card className="glass-card overflow-hidden cursor-pointer hover:shadow-lg transition-all press-scale" onClick={() => navigate("/insights")}>
           <CardContent className="p-0">
             <div className="flex items-center gap-5 bg-gradient-to-r from-violet-600/10 to-primary/10 p-5">
               <div className="p-3 rounded-xl bg-violet-600/20">
