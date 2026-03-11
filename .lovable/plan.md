@@ -1,34 +1,45 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# System Error Audit Results
 
-## Two Changes
+After reviewing the CSS, routing, auth flow, sidebar, command palette, keyboard shortcuts, theme toggle, and tenant logic, here is the status:
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+---
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+## No Critical Errors Found
 
-## Files Changed
+The build is passing, there are no console errors, and no network request failures. The CSS brace-matching issue from earlier has been resolved.
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+---
 
-No other files change. The template system and all callers remain the same.
+## Minor Issues Worth Addressing
+
+### 1. Unused import in `CommandPalette.tsx` (line 6)
+- `Search` and `Keyboard` are imported from lucide-react but never used in the component JSX.
+
+### 2. Comment typo in `App.tsx` (line 31)
+- `// DeliveryNotes moved into ProformaInvoices page as a tabas a tab` — "tabas a tab" is a typo for "tab".
+
+### 3. ThemeToggle creates a separate `useTheme` hook instance per component
+- Both `ThemeToggle` in the sidebar footer and any other component that imports `useTheme` will each run their own `useState` + `useEffect`. This works fine because they all sync via `document.documentElement.classList`, but it means multiple redundant localStorage writes. Not a bug, but slightly wasteful.
+
+### 4. Sidebar duplicate "Delivery Notes" link
+- In `AppSidebar.tsx`, "Delivery Notes" appears in both the **Sales** section (line 24) and the **Purchase** section (line 32), both pointing to `/delivery-notes`. This could confuse users.
+
+### 5. `matchUrl` false positives possible
+- `matchUrl` in `AppSidebar.tsx` (line 72) uses `startsWith`, meaning `/products` would also highlight if someone navigates to a hypothetical `/products-something` route. Low risk given current routes, but worth noting.
+
+---
+
+## Recommended Fixes
+
+| # | Fix | Effort |
+|---|-----|--------|
+| 1 | Remove unused imports from CommandPalette | 1 min |
+| 2 | Fix typo in App.tsx comment | 1 min |
+| 3 | No change needed (cosmetic) | — |
+| 4 | Differentiate Delivery Notes links or remove duplicate | 2 min |
+| 5 | No change needed (low risk) | — |
+
+All five are minor polish items. No functional bugs, security issues, or build errors were found.
 
