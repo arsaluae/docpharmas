@@ -312,10 +312,11 @@ export default function ProformaInvoices() {
         proforma_number: pfNumber, customer_id: customerId, date: pfDate,
         validity_days: Number(validityDays), items: JSON.stringify(items), subtotal, gst, total,
         status: "draft", payment_instructions: paymentInstructions || null,
-      });
+        agent_id: agentId || null,
+      } as any);
       if (error) { console.error("Insert error:", error); toast.error("Failed to create order: " + error.message); setSaving(false); return; }
       toast.success(`Sales Invoice ${pfNumber} created`);
-      setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); load();
+      setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); setAgentId(""); load();
     } catch (err: any) {
       console.error("Unexpected error creating sales order:", err);
       toast.error("Unexpected error: " + (err?.message || "Please try again"));
