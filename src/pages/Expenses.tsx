@@ -318,24 +318,18 @@ export default function Expenses() {
           <>
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 stagger-children">
-              <Card className="glass-card">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center"><Briefcase className="h-5 w-5 text-primary" /></div>
-                  <div><p className="text-xs text-muted-foreground">Business</p><p className="text-lg font-bold font-mono text-foreground">PKR {totalBusiness.toLocaleString()}</p></div>
-                </CardContent>
-              </Card>
-              <Card className="glass-card">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-secondary/50 flex items-center justify-center"><User className="h-5 w-5 text-secondary-foreground" /></div>
-                  <div><p className="text-xs text-muted-foreground">Personal</p><p className="text-lg font-bold font-mono text-foreground">PKR {totalPersonal.toLocaleString()}</p></div>
-                </CardContent>
-              </Card>
-              <Card className="glass-card">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center"><Wallet className="h-5 w-5 text-accent-foreground" /></div>
-                  <div><p className="text-xs text-muted-foreground">Grand Total</p><p className="text-lg font-bold font-mono text-foreground">PKR {(totalBusiness + totalPersonal).toLocaleString()}</p></div>
-                </CardContent>
-              </Card>
+              <div className="summary-card p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center"><Briefcase className="h-5 w-5 text-primary" /></div>
+                <div><p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Business</p><p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {totalBusiness.toLocaleString()}</p></div>
+              </div>
+              <div className="summary-card p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-secondary/50 flex items-center justify-center"><User className="h-5 w-5 text-secondary-foreground" /></div>
+                <div><p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Personal</p><p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {totalPersonal.toLocaleString()}</p></div>
+              </div>
+              <div className="summary-card p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center"><Wallet className="h-5 w-5 text-accent-foreground" /></div>
+                <div><p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Grand Total</p><p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {(totalBusiness + totalPersonal).toLocaleString()}</p></div>
+              </div>
             </div>
 
             {/* Ledger quick-access cards */}
