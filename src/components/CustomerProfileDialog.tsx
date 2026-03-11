@@ -123,10 +123,12 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
       notes: distForm.notes || null,
     };
     if (editDistId) {
-      await supabase.from("customer_distributors").update(payload).eq("id", editDistId);
+      const { error } = await supabase.from("customer_distributors").update(payload).eq("id", editDistId);
+      if (error) { toast.error("Failed to update: " + error.message); return; }
       toast.success("Distributor updated");
     } else {
-      await supabase.from("customer_distributors").insert(payload);
+      const { error } = await supabase.from("customer_distributors").insert(payload);
+      if (error) { toast.error("Failed to add: " + error.message); return; }
       toast.success("Distributor added");
     }
     setShowDistForm(false); setEditDistId(null); setDistForm(emptyDistForm);

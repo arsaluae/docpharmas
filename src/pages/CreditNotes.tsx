@@ -156,7 +156,7 @@ export default function CreditNotes() {
               <SearchableSelect
                 options={partyOptions}
                 value={partyId}
-                onValueChange={setPartyId}
+                onChange={setPartyId}
                 placeholder={`Select ${partyType}...`}
               />
             </div>
