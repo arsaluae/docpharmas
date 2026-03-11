@@ -34,17 +34,26 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
   }, [partyId]);
 
   const loadAllocated = async () => {
-    const { data } = await supabase
-      .from(tableName)
-      .select("id, product_id, products(name, product_code, category)")
-      .eq(fkColumn, partyId)
-      .order("created_at") as any;
+    let rows: any[] = [];
+    if (partyType === "customer") {
+      const { data } = await supabase.from("customer_products").select("id, product_id").eq("customer_id", partyId).order("created_at");
+      rows = data || [];
+    } else {
+      const { data } = await supabase.from("supplier_products").select("id, product_id").eq("supplier_id", partyId).order("created_at");
+      rows = data || [];
+    }
+    if (rows.length === 0) { setAllocated([]); return; }
+    const productIds = rows.map((r: any) => r.product_id);
+    const { data: prods } = await supabase.from("products").select("id, name, product_code, category").in("id", productIds);
+    const prodMap = new Map((prods || []).map(p => [p.id, p]));
     
     setAllocated(
-      (data || []).map((d: any) => ({
+      rows.map((d: any) => {
+        const p = prodMap.get(d.product_id);
+        return {
         id: d.id,
         product_id: d.product_id,
-        product_name: d.products?.name || "Unknown",
+        product_name: p?.name || "Unknown",
         product_code: d.products?.product_code || null,
         category: d.products?.category || "",
       }))
