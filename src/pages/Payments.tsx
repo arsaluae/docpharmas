@@ -262,50 +262,44 @@ export default function Payments() {
               const totalReceived = payments.filter(p => p.type === "received").reduce((s, p) => s + Number(p.amount), 0);
               const totalMade = payments.filter(p => p.type === "made").reduce((s, p) => s + Number(p.amount), 0);
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                  <Card className="border-primary/20 bg-primary/5">
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                        <ArrowDownLeft className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground font-medium">Received</p>
-                        <p className="text-lg font-bold text-primary">₨ {totalReceived.toLocaleString()}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-destructive/20 bg-destructive/5">
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-                        <ArrowUpRight className="h-5 w-5 text-destructive" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground font-medium">Made</p>
-                        <p className="text-lg font-bold text-destructive">₨ {totalMade.toLocaleString()}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-border">
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center">
-                        <TrendingUp className="h-5 w-5 text-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground font-medium">Net</p>
-                        <p className={`text-lg font-bold ${totalReceived - totalMade >= 0 ? "text-primary" : "text-destructive"}`}>
-                          ₨ {(totalReceived - totalMade).toLocaleString()}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 stagger-children">
+                  <div className="summary-card p-4 flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <ArrowDownLeft className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">Received</p>
+                      <p className="text-lg font-bold text-primary font-mono tabular-nums">₨ {totalReceived.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="summary-card p-4 flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+                      <ArrowUpRight className="h-5 w-5 text-destructive" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">Made</p>
+                      <p className="text-lg font-bold text-destructive font-mono tabular-nums">₨ {totalMade.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="summary-card p-4 flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center">
+                      <TrendingUp className="h-5 w-5 text-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">Net</p>
+                      <p className={`text-lg font-bold font-mono tabular-nums ${totalReceived - totalMade >= 0 ? "text-primary" : "text-destructive"}`}>
+                        ₨ {(totalReceived - totalMade).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               );
             })()}
 
             <div className="flex items-center gap-4 mb-4">
-              <div className="relative max-w-sm flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search payments..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+              <div className="relative max-w-sm flex-1 search-pill">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search payments..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
               </div>
               <Tabs value={tab} onValueChange={v => { setTab(v); if (v === "all") searchParams.delete("tab"); else searchParams.set("tab", v); setSearchParams(searchParams, { replace: true }); }}>
                 <TabsList>

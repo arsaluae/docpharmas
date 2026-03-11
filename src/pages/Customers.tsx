@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X, Store, Edit } from "lucide-react";
+import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X, Store, Edit, Wallet, Shield, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { CustomerProfileDialog } from "@/components/CustomerProfileDialog";
 
@@ -202,11 +202,54 @@ export default function Customers() {
     </>
   );
 
+  const totalBalance = customers.reduce((s, c) => s + Number(c.balance), 0);
+  const totalCreditLimit = customers.reduce((s, c) => s + Number(c.credit_limit), 0);
+
   return (
     <AppLayout title="Customers" subtitle="Manage customer accounts, credit terms & ledgers" headerActions={headerActions}>
-      <div className="mb-4 relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search customers..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+      {/* Summary Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 stagger-children">
+        <div className="summary-card p-4 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Users className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Total</p>
+            <p className="text-lg font-bold font-mono tabular-nums text-foreground">{customers.length}</p>
+          </div>
+        </div>
+        <div className="summary-card p-4 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+            <Wallet className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Receivables</p>
+            <p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {totalBalance.toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="summary-card p-4 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-warning/10 flex items-center justify-center">
+            <Shield className="h-4 w-4 text-warning" />
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Credit Limit</p>
+            <p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {totalCreditLimit.toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="summary-card p-4 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-destructive/10 flex items-center justify-center">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Over Limit</p>
+            <p className="text-lg font-bold font-mono tabular-nums text-foreground">{customers.filter(c => Number(c.balance) > Number(c.credit_limit) && Number(c.credit_limit) > 0).length}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4 relative max-w-sm search-pill">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Search customers..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
       {selectedIds.size > 0 && (
@@ -257,7 +300,7 @@ export default function Customers() {
                   </TableCell>
                 </TableRow>
               ) : filtered.map(c => (
-                <TableRow key={c.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(c)}>
+                <TableRow key={c.id} className="cursor-pointer table-row-hover" onClick={() => handleEdit(c)}>
                   <TableCell onClick={e => e.stopPropagation()}>
                     <Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
                   </TableCell>

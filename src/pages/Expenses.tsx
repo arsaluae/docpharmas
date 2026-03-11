@@ -317,25 +317,19 @@ export default function Expenses() {
         {!selectedLedger && (
           <>
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Card className="glass-card">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center"><Briefcase className="h-5 w-5 text-primary" /></div>
-                  <div><p className="text-xs text-muted-foreground">Business</p><p className="text-lg font-bold font-mono text-foreground">PKR {totalBusiness.toLocaleString()}</p></div>
-                </CardContent>
-              </Card>
-              <Card className="glass-card">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-secondary/50 flex items-center justify-center"><User className="h-5 w-5 text-secondary-foreground" /></div>
-                  <div><p className="text-xs text-muted-foreground">Personal</p><p className="text-lg font-bold font-mono text-foreground">PKR {totalPersonal.toLocaleString()}</p></div>
-                </CardContent>
-              </Card>
-              <Card className="glass-card">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center"><Wallet className="h-5 w-5 text-accent-foreground" /></div>
-                  <div><p className="text-xs text-muted-foreground">Grand Total</p><p className="text-lg font-bold font-mono text-foreground">PKR {(totalBusiness + totalPersonal).toLocaleString()}</p></div>
-                </CardContent>
-              </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 stagger-children">
+              <div className="summary-card p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center"><Briefcase className="h-5 w-5 text-primary" /></div>
+                <div><p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Business</p><p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {totalBusiness.toLocaleString()}</p></div>
+              </div>
+              <div className="summary-card p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-secondary/50 flex items-center justify-center"><User className="h-5 w-5 text-secondary-foreground" /></div>
+                <div><p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Personal</p><p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {totalPersonal.toLocaleString()}</p></div>
+              </div>
+              <div className="summary-card p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center"><Wallet className="h-5 w-5 text-accent-foreground" /></div>
+                <div><p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Grand Total</p><p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {(totalBusiness + totalPersonal).toLocaleString()}</p></div>
+              </div>
             </div>
 
             {/* Ledger quick-access cards */}
@@ -362,9 +356,9 @@ export default function Expenses() {
         )}
 
         <div className="flex items-center gap-4">
-          <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search expenses..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <div className="relative max-w-sm flex-1 search-pill">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search expenses..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           {!selectedLedger && (
             <Select value={catFilter} onValueChange={setCatFilter}>

@@ -87,6 +87,42 @@
       0 4px 20px rgba(0, 0, 0, 0.08);
   }
 
+  /* Premium KPI card with glassmorphism */
+  .glass-kpi {
+    @apply relative overflow-hidden rounded-xl border border-border/60;
+    background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.6) 100%);
+    backdrop-filter: blur(12px);
+    box-shadow: 
+      0 1px 3px rgba(0, 0, 0, 0.04),
+      0 8px 24px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .glass-kpi:hover {
+    box-shadow: 
+      0 2px 6px rgba(0, 0, 0, 0.06),
+      0 12px 32px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+
+  /* Summary card for listing pages */
+  .summary-card {
+    @apply relative overflow-hidden rounded-xl border border-border/50 bg-card;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s ease;
+  }
+  .summary-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+  }
+
+  /* Search pill input */
+  .search-pill {
+    @apply rounded-full border-border/60 bg-card shadow-sm transition-all duration-300;
+  }
+  .search-pill:focus-within {
+    @apply ring-2 ring-primary/20 border-primary/40 shadow-md;
+  }
+
   .floating-row {
     @apply bg-card rounded-lg px-4 py-3 mb-2 border border-border/60;
     box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
@@ -139,12 +175,97 @@
     );
   }
 
+  /* Table row hover glow */
+  .table-row-hover {
+    @apply transition-all duration-150;
+  }
+  .table-row-hover:hover {
+    background: hsl(var(--primary) / 0.02);
+    box-shadow: 0 1px 4px hsl(var(--primary) / 0.06);
+  }
+
+  /* Staggered entrance animation for children */
+  .stagger-children > * {
+    opacity: 0;
+    animation: stagger-fade-up 0.4s ease-out forwards;
+  }
+  .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+  .stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+  .stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+  .stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+  .stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+  .stagger-children > *:nth-child(7) { animation-delay: 360ms; }
+  .stagger-children > *:nth-child(8) { animation-delay: 420ms; }
+
+  /* Button press effect */
+  .press-scale {
+    @apply transition-transform duration-100;
+  }
+  .press-scale:active {
+    transform: scale(0.97);
+  }
+
+  /* Dialog gradient top accent */
+  .dialog-accent {
+    @apply relative;
+  }
+  .dialog-accent::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 9999px 9999px 0 0;
+    background: linear-gradient(90deg, 
+      hsl(var(--pharma-teal)) 0%, 
+      hsl(var(--pharma-violet)) 50%, 
+      hsl(var(--pharma-sage)) 100%
+    );
+  }
+
   /* Mobile-friendly table wrapper */
   .mobile-table-wrap {
     @apply -mx-3 sm:mx-0;
   }
   .mobile-table-wrap > div {
     @apply overflow-x-auto;
+  }
+
+  /* Gradient button */
+  .btn-gradient {
+    @apply text-white font-semibold shadow-md;
+    background: linear-gradient(135deg, 
+      hsl(var(--pharma-teal)) 0%, 
+      hsl(199 89% 42%) 100%
+    );
+    transition: all 0.2s ease;
+  }
+  .btn-gradient:hover {
+    box-shadow: 0 4px 16px hsl(var(--pharma-teal) / 0.3);
+    transform: translateY(-1px);
+  }
+
+  /* Shimmer animation for accent lines */
+  .shimmer-line {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer-line::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: shimmer 3s ease-in-out infinite;
+  }
+
+  /* Input focus glow */
+  input:focus, select:focus, textarea:focus {
+    box-shadow: 0 0 0 3px hsl(var(--ring) / 0.12);
   }
 }
 
@@ -163,6 +284,23 @@
   0%, 100% { transform: translateY(0px) rotate(0deg); }
   33% { transform: translateY(-15px) rotate(2deg); }
   66% { transform: translateY(-8px) rotate(-1deg); }
+}
+
+@keyframes stagger-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  50% { left: 100%; }
+  100% { left: 100%; }
 }
 
 /* Custom scrollbar */

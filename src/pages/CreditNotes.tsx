@@ -187,44 +187,38 @@ export default function CreditNotes() {
     <AppLayout title="Credit Notes" headerActions={headerActions}>
       <div className="space-y-4">
         {/* Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="glass-card">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <FileText className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Total Credit Notes</p>
-                <p className="text-lg font-bold font-mono text-foreground">{notes.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                <Truck className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Supplier Notes</p>
-                <p className="text-lg font-bold font-mono text-foreground">
-                  PKR {notes.filter(n => n.party_type === 'supplier').reduce((s, n) => s + Number(n.amount), 0).toLocaleString()}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center">
-                <Users className="h-5 w-5 text-accent-foreground" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Customer Notes</p>
-                <p className="text-lg font-bold font-mono text-foreground">
-                  PKR {notes.filter(n => n.party_type === 'customer').reduce((s, n) => s + Number(n.amount), 0).toLocaleString()}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 stagger-children">
+          <div className="summary-card p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Total Credit Notes</p>
+              <p className="text-lg font-bold font-mono tabular-nums text-foreground">{notes.length}</p>
+            </div>
+          </div>
+          <div className="summary-card p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+              <Truck className="h-5 w-5 text-destructive" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Supplier Notes</p>
+              <p className="text-lg font-bold font-mono tabular-nums text-foreground">
+                PKR {notes.filter(n => n.party_type === 'supplier').reduce((s, n) => s + Number(n.amount), 0).toLocaleString()}
+              </p>
+            </div>
+          </div>
+          <div className="summary-card p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center">
+              <Users className="h-5 w-5 text-accent-foreground" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Customer Notes</p>
+              <p className="text-lg font-bold font-mono tabular-nums text-foreground">
+                PKR {notes.filter(n => n.party_type === 'customer').reduce((s, n) => s + Number(n.amount), 0).toLocaleString()}
+              </p>
+            </div>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -236,9 +230,9 @@ export default function CreditNotes() {
         </Tabs>
 
         <div className="flex items-center gap-4">
-          <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search credit notes..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <div className="relative max-w-sm flex-1 search-pill">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search credit notes..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <p className="text-sm text-muted-foreground whitespace-nowrap">
             Total: PKR {totalAmount.toLocaleString()} ({filtered.length})
