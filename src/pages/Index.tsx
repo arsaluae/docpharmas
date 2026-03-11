@@ -334,16 +334,25 @@ export default function Index() {
       <div className="space-y-6">
         <TrialBanner />
 
-        {/* Greeting Banner */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <h2 className="text-xl sm:text-2xl font-bold font-heading text-foreground flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              {getGreeting()}!
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Here's your business at a glance — {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long" })}
-            </p>
+        {/* Hero Greeting — Mesh gradient */}
+        <div className="mesh-hero p-5 sm:p-7">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-primary/60 mb-1 flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5" />
+                {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+              </p>
+              <h2 className="text-xl sm:text-2xl font-bold font-heading text-foreground">
+                {getGreeting()}{settings?.company_name ? `, ${settings.company_name}` : ""}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Here's your business at a glance
+              </p>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/60 border border-border/40 backdrop-blur-sm">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              <span className="text-[11px] font-mono text-muted-foreground">Live</span>
+            </div>
           </div>
         </div>
 
