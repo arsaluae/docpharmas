@@ -628,7 +628,7 @@ export default function PurchaseProforma() {
     setReceiving(true);
 
     const poId = receivePO.converted_po_id || receivePO.id;
-    const { data: grnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "goods_received_note" });
+    const { data: grnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "grn" });
     if (!grnNumber) { toast.error("Failed to generate GRN number"); setReceiving(false); return; }
 
     const { data: grn } = await supabase.from("goods_received_notes").insert({
