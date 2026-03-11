@@ -279,6 +279,9 @@ export default function Salaries() {
           <TabsList>
             <TabsTrigger value="staff">Staff List</TabsTrigger>
             <TabsTrigger value="payments">Payment History</TabsTrigger>
+            <TabsTrigger value="commissions" onClick={() => navigate("/sales-agents")}>
+              <BadgeDollarSign className="h-3.5 w-3.5 mr-1" /> Sales Commissions
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
