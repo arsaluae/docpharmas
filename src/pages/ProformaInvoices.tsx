@@ -374,6 +374,15 @@ export default function ProformaInvoices() {
     setEditItems([...u]);
   };
 
+  // Auto-lookup agent when editCustomerId changes
+  useEffect(() => {
+    if (!editCustomerId || !editOpen) return;
+    (async () => {
+      const { data } = await supabase.from("agent_customers").select("agent_id").eq("customer_id", editCustomerId).limit(1);
+      setEditAgentId(data && data.length > 0 ? data[0].agent_id : "");
+    })();
+  }, [editCustomerId]);
+
   const handleEditSave = async () => {
     if (!editOrder) return;
     setSaving(true);
@@ -381,7 +390,8 @@ export default function ProformaInvoices() {
     const { error } = await supabase.from("proforma_invoices").update({
       customer_id: editCustomerId || null, date: editDate, validity_days: Number(editValidity),
       payment_instructions: editPaymentInstr || null, items: JSON.stringify(editItems), subtotal, gst, total,
-    }).eq("id", editOrder.id);
+      agent_id: editAgentId || null,
+    } as any).eq("id", editOrder.id);
     if (error) { toast.error("Failed to update: " + error.message); setSaving(false); return; }
     toast.success("Order updated");
     setEditOpen(false); setSaving(false); load();
