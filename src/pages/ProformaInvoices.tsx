@@ -268,17 +268,25 @@ export default function ProformaInvoices() {
   const handleSave = async () => {
     if (!customerId || items.length === 0 || items.every(i => !i.product_id)) { toast.error("Customer and at least one product required"); return; }
     setSaving(true);
-    const { subtotal, gst, total } = calcTotals(items);
-    const { data: pfNumber } = await supabase.rpc("generate_document_number", { p_document_type: "proforma_invoice" });
-    if (!pfNumber) { toast.error("Failed to generate number"); setSaving(false); return; }
-    const { error } = await supabase.from("proforma_invoices").insert({
-      proforma_number: pfNumber, customer_id: customerId, date: pfDate,
-      validity_days: Number(validityDays), items: JSON.stringify(items), subtotal, gst, total,
-      status: "draft", payment_instructions: paymentInstructions || null,
-    });
-    if (error) { toast.error("Failed to create order: " + error.message); setSaving(false); return; }
-    toast.success(`Sales Invoice ${pfNumber} created`);
-    setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); setSaving(false); load();
+    try {
+      const { subtotal, gst, total } = calcTotals(items);
+      const { data: pfNumber, error: rpcErr } = await supabase.rpc("generate_document_number", { p_document_type: "proforma_invoice" });
+      if (rpcErr) { console.error("RPC error:", rpcErr); toast.error("Failed to generate number: " + rpcErr.message); setSaving(false); return; }
+      if (!pfNumber) { toast.error("Failed to generate document number"); setSaving(false); return; }
+      const { error } = await supabase.from("proforma_invoices").insert({
+        proforma_number: pfNumber, customer_id: customerId, date: pfDate,
+        validity_days: Number(validityDays), items: JSON.stringify(items), subtotal, gst, total,
+        status: "draft", payment_instructions: paymentInstructions || null,
+      });
+      if (error) { console.error("Insert error:", error); toast.error("Failed to create order: " + error.message); setSaving(false); return; }
+      toast.success(`Sales Invoice ${pfNumber} created`);
+      setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); load();
+    } catch (err: any) {
+      console.error("Unexpected error creating sales order:", err);
+      toast.error("Unexpected error: " + (err?.message || "Please try again"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── PREVIEW (opens PDF popup directly) ──
