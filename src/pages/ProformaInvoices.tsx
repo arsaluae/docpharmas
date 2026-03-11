@@ -119,7 +119,7 @@ export default function ProformaInvoices() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) navigate("/dashboard");
     };
-    check(); load(); loadDeliveryNotes(); loadBankAccounts();
+    check(); load(); loadBankAccounts();
   }, [navigate]);
 
   // Keyboard shortcut: Ctrl+N for new order
