@@ -317,7 +317,7 @@ export default function Expenses() {
         {!selectedLedger && (
           <>
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 stagger-children">
               <Card className="glass-card">
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center"><Briefcase className="h-5 w-5 text-primary" /></div>

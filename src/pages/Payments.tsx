@@ -297,9 +297,9 @@ export default function Payments() {
             })()}
 
             <div className="flex items-center gap-4 mb-4">
-              <div className="relative max-w-sm flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search payments..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+              <div className="relative max-w-sm flex-1 search-pill">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search payments..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
               </div>
               <Tabs value={tab} onValueChange={v => { setTab(v); if (v === "all") searchParams.delete("tab"); else searchParams.set("tab", v); setSearchParams(searchParams, { replace: true }); }}>
                 <TabsList>

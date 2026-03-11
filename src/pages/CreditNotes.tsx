@@ -230,9 +230,9 @@ export default function CreditNotes() {
         </Tabs>
 
         <div className="flex items-center gap-4">
-          <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search credit notes..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <div className="relative max-w-sm flex-1 search-pill">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search credit notes..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <p className="text-sm text-muted-foreground whitespace-nowrap">
             Total: PKR {totalAmount.toLocaleString()} ({filtered.length})

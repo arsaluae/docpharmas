@@ -280,9 +280,9 @@ export default function Salaries() {
           </TabsList>
         </Tabs>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="relative max-w-sm search-pill">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
 
         {activeTab === "staff" ? (
