@@ -406,21 +406,21 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions — 4x2 Grid */}
+        {/* Quick Actions — Premium grid */}
         <div className="grid grid-cols-4 gap-2 sm:gap-3 stagger-children">
           {quickActions.map((action) => (
             <button
               key={action.label}
               onClick={() => navigate(action.path)}
-              className={`group relative flex flex-col items-center justify-center gap-1.5 sm:gap-3 h-[80px] sm:h-[110px] rounded-xl sm:rounded-2xl bg-gradient-to-br ${action.gradient} border border-border/50 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-lg ${action.shadow} overflow-hidden press-scale`}
+              className="quick-action-card group h-[80px] sm:h-[110px] press-scale"
+              style={{ "--action-accent": `linear-gradient(90deg, var(--tw-gradient-stops))` } as any}
             >
-              <div className={`flex items-center justify-center w-8 h-8 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-gradient-to-br ${action.iconBg} shadow-md transition-transform duration-300 group-hover:scale-110`}>
+              <div className={`flex items-center justify-center w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br ${action.iconBg} shadow-md transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg ${action.shadow}`}>
                 <action.icon className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-white" />
               </div>
-              <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.08em] sm:tracking-[0.12em] text-foreground/80 font-heading group-hover:text-foreground transition-colors text-center leading-tight px-0.5">
+              <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.08em] sm:tracking-[0.12em] text-foreground/70 font-heading group-hover:text-foreground transition-colors text-center leading-tight px-0.5">
                 {action.label}
               </span>
-              <div className={`absolute bottom-0 left-0 right-0 h-[2px] sm:h-[3px] bg-gradient-to-r ${action.accent} opacity-60 group-hover:opacity-100 transition-opacity`} />
             </button>
           ))}
         </div>
