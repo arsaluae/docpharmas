@@ -45,6 +45,8 @@ import VacantAreas from "./pages/reports/VacantAreas";
 import Reports from "./pages/Reports";
 import AIInsights from "./pages/AIInsights";
 import Subscription from "./pages/Subscription";
+import CreditNotes from "./pages/CreditNotes";
+import Salaries from "./pages/Salaries";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
