@@ -55,6 +55,55 @@
     --pharma-violet: 263 70% 50%;
     --pharma-sage: 160 84% 39%;
   }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 20% 92%;
+
+    --card: 222 40% 11%;
+    --card-foreground: 210 20% 92%;
+
+    --popover: 222 40% 11%;
+    --popover-foreground: 210 20% 92%;
+
+    --primary: 199 89% 48%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 30% 16%;
+    --secondary-foreground: 215 16% 65%;
+
+    --muted: 222 30% 16%;
+    --muted-foreground: 215 16% 55%;
+
+    --accent: 222 30% 18%;
+    --accent-foreground: 210 20% 92%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 263 70% 60%;
+    --warning-foreground: 0 0% 100%;
+
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 222 20% 20%;
+    --input: 222 20% 20%;
+    --ring: 199 89% 48%;
+
+    --sidebar-background: 222 40% 9%;
+    --sidebar-foreground: 215 16% 55%;
+    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 30% 15%;
+    --sidebar-accent-foreground: 210 20% 92%;
+    --sidebar-border: 222 20% 18%;
+    --sidebar-ring: 199 89% 48%;
+
+    --pharma-teal: 199 89% 52%;
+    --pharma-violet: 263 70% 60%;
+    --pharma-sage: 160 84% 45%;
+  }
 }
 
 @layer base {
