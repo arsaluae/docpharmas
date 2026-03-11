@@ -87,6 +87,7 @@ const App = () => (
             <Route path="/printers/:id/ledger" element={<PrinterLedger />} />
             <Route path="/print-jobs" element={<PrintJobs />} />
             <Route path="/import" element={<DataImport />} />
+            <Route path="/delivery-notes" element={<DeliveryNotes />} />
             <Route path="/settings" element={<Settings />} />
     {/* Delivery Notes now in Sales Orders page */}
             <Route path="/reports" element={<Reports />} />
