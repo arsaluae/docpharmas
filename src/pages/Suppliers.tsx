@@ -40,6 +40,8 @@ export default function Suppliers() {
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileSupplier, setProfileSupplier] = useState<Supplier | null>(null);
 
   useEffect(() => { loadSuppliers(); }, [pagination.page]);
 
