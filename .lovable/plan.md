@@ -1,31 +1,34 @@
 
 
-# Fix: PDF Download Not Working
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## Root Cause
-The `PdfPreviewDialog` uses `iframe.contentWindow.print()` inside a sandboxed iframe. On mobile browsers (especially Android WebView / Chrome), this fails silently because:
-1. The `sandbox` attribute restricts print access even with `allow-modals`
-2. Many mobile browsers don't support `window.print()` from within iframes at all
-3. The Lovable preview iframe itself adds another layer of sandboxing
+## Two Changes
 
-## Fix
-Change the "Download / Print" button to open the full HTML in a **new browser tab** instead of trying to print from within the iframe. This works reliably on both desktop and mobile:
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-```
-handlePrint → opens new window → writes HTML → user can print/save from there
-```
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-Also add a **"Share" button** that creates a Blob URL for downloading the HTML file directly (useful on mobile where print dialogs are clunky).
+## Files Changed
 
-## Document Counters: Verified
-All 19 document types are confirmed present for Mouj Pharmaceuticals tenant:
-- `proforma`, `sales_invoice`, `delivery_note`, `purchase_proforma`, `purchase_order`, `purchase_invoice`, `grn`, `payment`, `expense`, `warranty_invoice`, `credit_note`, `salary`, `sales_return`, `purchase_return`, `print_job`, `journal`, `supplier`, `customer`, `product`
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
 
-No document number generation issues remain.
-
-## File Changed
-
-| File | Change |
-|------|--------|
-| `src/components/PdfPreviewDialog.tsx` | Replace `iframe.contentWindow.print()` with `window.open()` approach that works on mobile |
+No other files change. The template system and all callers remain the same.
 
