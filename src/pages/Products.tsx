@@ -248,7 +248,7 @@ export default function Products() {
                       </TableHeader>
                       <TableBody>
                         {filtered.length === 0 ? (
-                          <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={10} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
                         ) : filtered.map(p => (
                           <TableRow key={p.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(p)}>
                             <TableCell className="font-medium">{p.name}</TableCell>
