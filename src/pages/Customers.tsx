@@ -300,7 +300,7 @@ export default function Customers() {
                   </TableCell>
                 </TableRow>
               ) : filtered.map(c => (
-                <TableRow key={c.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(c)}>
+                <TableRow key={c.id} className="cursor-pointer table-row-hover" onClick={() => handleEdit(c)}>
                   <TableCell onClick={e => e.stopPropagation()}>
                     <Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
                   </TableCell>
