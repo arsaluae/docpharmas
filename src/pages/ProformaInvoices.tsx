@@ -155,11 +155,13 @@ export default function ProformaInvoices() {
       else pfQuery = pfQuery.neq("status", "draft"); // simplified for server-side
     }
     pfQuery = pfQuery.range(pagination.from, pagination.to);
-    const [pf, cust, prod] = await Promise.all([
+    const [pf, cust, prod, agentsRes] = await Promise.all([
       pfQuery,
       supabase.from("customers").select("id, name, company, phone, address, area"),
       supabase.from("products").select("id, name, selling_price, gst_rate"),
+      supabase.from("sales_agents").select("id, name").eq("status", "active"),
     ]);
+    if (agentsRes.data) setAgentsList(agentsRes.data as SalesAgentOption[]);
 
     const allOrders: SalesOrder[] = [];
     if (pf.data) {
