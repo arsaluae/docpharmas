@@ -222,6 +222,13 @@ export default function Suppliers() {
           />
         </CardContent>
       </Card>
+
+      <SupplierProfileDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        supplierId={profileSupplier?.id || null}
+        supplierName={profileSupplier?.name || ""}
+      />
     </AppLayout>
   );
 }
