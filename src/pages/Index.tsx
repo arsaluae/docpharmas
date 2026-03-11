@@ -84,7 +84,7 @@ export default function Index() {
   // Expiry alerts
   const [expiryAlerts, setExpiryAlerts] = useState<{ critical: number; warning: number; info: number; items: { name: string; batch: string; expiry: string; qty: number; severity: string }[] }>({ critical: 0, warning: 0, info: 0, items: [] });
 
-  useEffect(() => { loadDashboard(); loadReorderAlerts(); }, []);
+  useEffect(() => { loadDashboard(); loadReorderAlerts(); loadExpiryAlerts(); }, []);
 
   const loadDashboard = async () => {
     const today = new Date();
