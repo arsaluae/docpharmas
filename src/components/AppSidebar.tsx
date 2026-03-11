@@ -20,11 +20,13 @@ const allSections = [
     { title: "Customers", url: "/customers", icon: Users },
     { title: "Sales Invoices", url: "/proforma", icon: FileText },
     { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList },
+    { title: "Receive Payment", url: "/payments?tab=received", icon: Wallet },
     { title: "Returns", url: "/sales-returns", icon: RotateCcw },
   ]},
   { label: "Purchase", icon: Truck, staffVisible: false, items: [
     { title: "Suppliers", url: "/suppliers", icon: Truck },
     { title: "Purchase Orders", url: "/purchase-proforma", icon: FileText },
+    { title: "Make Payment", url: "/payments?tab=made", icon: Wallet },
     { title: "Returns", url: "/purchase-returns", icon: RotateCcw },
   ]},
   { label: "Inventory", icon: Package, staffVisible: false, items: [

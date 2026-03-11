@@ -20,7 +20,7 @@ export const PaginationControls = React.forwardRef<HTMLDivElement, Props>(functi
   const to = Math.min((page + 1) * pageSize, totalCount);
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+    <div ref={ref} className="flex items-center justify-between px-4 py-3 border-t border-border">
       <p className="text-xs text-muted-foreground">
         Showing {from}–{to} of {totalCount.toLocaleString()}
       </p>
@@ -37,4 +37,4 @@ export const PaginationControls = React.forwardRef<HTMLDivElement, Props>(functi
       </div>
     </div>
   );
-}
+});
