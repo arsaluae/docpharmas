@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Package } from "lucide-react";
+import { Plus, Trash2, Package, Check } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 
@@ -12,6 +13,7 @@ interface AllocatedProduct {
   product_name: string;
   product_code: string | null;
   category: string;
+  rate: number;
 }
 
 interface AllocatedProductsProps {
@@ -24,9 +26,9 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
   const [allProducts, setAllProducts] = useState<{ id: string; name: string; product_code: string | null; category: string }[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState("");
-
-  const tableName = partyType === "customer" ? "customer_products" : "supplier_products";
-  const fkColumn = partyType === "customer" ? "customer_id" : "supplier_id";
+  const [newRate, setNewRate] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editRate, setEditRate] = useState("");
 
   useEffect(() => {
     loadAllocated();
@@ -36,10 +38,10 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
   const loadAllocated = async () => {
     let rows: any[] = [];
     if (partyType === "customer") {
-      const { data } = await supabase.from("customer_products").select("id, product_id").eq("customer_id", partyId).order("created_at");
+      const { data } = await supabase.from("customer_products").select("id, product_id, rate").eq("customer_id", partyId).order("created_at");
       rows = data || [];
     } else {
-      const { data } = await supabase.from("supplier_products").select("id, product_id").eq("supplier_id", partyId).order("created_at");
+      const { data } = await supabase.from("supplier_products").select("id, product_id, rate").eq("supplier_id", partyId).order("created_at");
       rows = data || [];
     }
     if (rows.length === 0) { setAllocated([]); return; }
@@ -51,12 +53,14 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
       rows.map((d: any) => {
         const p = prodMap.get(d.product_id);
         return {
-        id: d.id,
-        product_id: d.product_id,
-        product_name: p?.name || "Unknown",
-        product_code: p?.product_code || null,
-        category: p?.category || "",
-      };})
+          id: d.id,
+          product_id: d.product_id,
+          product_name: p?.name || "Unknown",
+          product_code: p?.product_code || null,
+          category: p?.category || "",
+          rate: d.rate || 0,
+        };
+      })
     );
   };
 
@@ -71,12 +75,13 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
 
   const handleAdd = async () => {
     if (!selectedProductId) return;
+    const rateVal = parseFloat(newRate) || 0;
     let error: any = null;
     if (partyType === "customer") {
-      const res = await supabase.from("customer_products").insert({ product_id: selectedProductId, customer_id: partyId });
+      const res = await supabase.from("customer_products").insert({ product_id: selectedProductId, customer_id: partyId, rate: rateVal });
       error = res.error;
     } else {
-      const res = await supabase.from("supplier_products").insert({ product_id: selectedProductId, supplier_id: partyId });
+      const res = await supabase.from("supplier_products").insert({ product_id: selectedProductId, supplier_id: partyId, rate: rateVal });
       error = res.error;
     }
     if (error) {
@@ -86,6 +91,7 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
     }
     toast.success("Product allocated");
     setSelectedProductId("");
+    setNewRate("");
     setShowAdd(false);
     loadAllocated();
   };
@@ -97,6 +103,19 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
       await supabase.from("supplier_products").delete().eq("id", id);
     }
     toast.success("Product removed");
+    loadAllocated();
+  };
+
+  const handleSaveRate = async (id: string) => {
+    const rateVal = parseFloat(editRate) || 0;
+    const table = partyType === "customer" ? "customer_products" : "supplier_products";
+    if (partyType === "customer") {
+      await supabase.from("customer_products").update({ rate: rateVal }).eq("id", id);
+    } else {
+      await supabase.from("supplier_products").update({ rate: rateVal }).eq("id", id);
+    }
+    toast.success("Rate updated");
+    setEditingId(null);
     loadAllocated();
   };
 
@@ -126,11 +145,19 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
             searchPlaceholder="Type product name or code..."
             emptyMessage="No unallocated products found."
           />
+          <Input
+            type="number"
+            placeholder="Rate (price)"
+            value={newRate}
+            onChange={(e) => setNewRate(e.target.value)}
+            min={0}
+            step="0.01"
+          />
           <div className="flex gap-2">
             <Button size="sm" onClick={handleAdd} disabled={!selectedProductId} className="flex-1">
               Allocate Product
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setShowAdd(false); setSelectedProductId(""); }}>
+            <Button size="sm" variant="ghost" onClick={() => { setShowAdd(false); setSelectedProductId(""); setNewRate(""); }}>
               Cancel
             </Button>
           </div>
@@ -143,7 +170,7 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
             <TableRow>
               <TableHead>Code</TableHead>
               <TableHead>Product</TableHead>
-              <TableHead>Category</TableHead>
+              <TableHead>Rate</TableHead>
               <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>
@@ -152,7 +179,32 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
               <TableRow key={a.id}>
                 <TableCell className="text-xs font-mono text-muted-foreground">{a.product_code || "—"}</TableCell>
                 <TableCell className="text-sm font-medium">{a.product_name}</TableCell>
-                <TableCell className="text-xs text-muted-foreground capitalize">{a.category}</TableCell>
+                <TableCell>
+                  {editingId === a.id ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        className="h-7 w-24 text-xs"
+                        value={editRate}
+                        onChange={(e) => setEditRate(e.target.value)}
+                        min={0}
+                        step="0.01"
+                        autoFocus
+                        onKeyDown={(e) => e.key === "Enter" && handleSaveRate(a.id)}
+                      />
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleSaveRate(a.id)}>
+                        <Check className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <span
+                      className="text-sm cursor-pointer hover:text-primary"
+                      onClick={() => { setEditingId(a.id); setEditRate(String(a.rate)); }}
+                    >
+                      {a.rate > 0 ? a.rate.toLocaleString() : "—"}
+                    </span>
+                  )}
+                </TableCell>
                 <TableCell>
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemove(a.id)}>
                     <Trash2 className="h-3 w-3" />

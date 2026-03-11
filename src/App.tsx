@@ -98,6 +98,8 @@ const App = () => (
             <Route path="/reports/batch-wise" element={<BatchWiseReport />} />
             <Route path="/reports/customer-wise" element={<CustomerWiseReport />} />
             <Route path="/reports/supplier-wise" element={<SupplierWiseReport />} />
+            <Route path="/reports/allocations" element={<ProductAllocationReport />} />
+            <Route path="/reports/vacant-areas" element={<VacantAreas />} />
             <Route path="/insights" element={<AIInsights />} />
             <Route path="/subscription" element={<Subscription />} />
           </Route>
