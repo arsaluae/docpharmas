@@ -47,6 +47,7 @@ import AIInsights from "./pages/AIInsights";
 import Subscription from "./pages/Subscription";
 import CreditNotes from "./pages/CreditNotes";
 import Salaries from "./pages/Salaries";
+import SalesAgents from "./pages/SalesAgents";
 import DeliveryNotes from "./pages/DeliveryNotes";
 import NotFound from "./pages/NotFound";
 
