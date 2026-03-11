@@ -179,7 +179,10 @@ export default function Payments() {
     <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else setOpen(true); }}>
       <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Payment</Button></DialogTrigger>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>{editingId ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{editingId ? "Edit Payment" : "Record Payment"}</DialogTitle>
+          <DialogDescription>Fill in the payment details below to record a transaction.</DialogDescription>
+        </DialogHeader>
         <div className="grid grid-cols-2 gap-3 mt-2">
           <div>
             <Label>Type</Label>
