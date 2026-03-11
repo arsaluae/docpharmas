@@ -33,13 +33,15 @@ interface Payment {
 }
 
 export default function Payments() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState("all");
+  const initialTab = searchParams.get("tab") || "all";
+  const [tab, setTab] = useState(initialTab);
   const pagination = usePagination();
   const { settings } = useCompanySettings();
   const [editingId, setEditingId] = useState<string | null>(null);
