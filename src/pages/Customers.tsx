@@ -186,6 +186,7 @@ export default function Customers() {
             <div className="col-span-2"><Label>Company Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Company / Business name" /></div>
             <div><Label>Contact Person</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Contact name (optional)" /></div>
             <div><Label>City</Label><Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} /></div>
+            <div><Label>Area</Label><Input value={form.area} onChange={e => setForm({...form, area: e.target.value})} placeholder="Area / Zone" /></div>
             <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} placeholder="National Tax Number" /></div>
             <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} placeholder="Sales Tax Reg." /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
