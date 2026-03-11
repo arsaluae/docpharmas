@@ -891,13 +891,11 @@ export default function PurchaseProforma() {
     const list = monthOrders.filter(d => d.status === status);
     return { count: list.length, value: list.reduce((s, d) => s + Number(d.total), 0) };
   };
-  const draftStats = statsByStatus("draft");
+  const draftStats = { count: monthOrders.filter(d => d.status === "draft").length, value: monthOrders.filter(d => d.status === "draft").reduce((s, d) => s + Number(d.total), 0) };
   const invoiceStats = { 
-    count: monthOrders.filter(d => d.status === "ordered" || d.status === "confirmed").length, 
-    value: monthOrders.filter(d => d.status === "ordered" || d.status === "confirmed").reduce((s, d) => s + Number(d.total), 0) 
+    count: monthOrders.filter(d => d.status !== "draft").length, 
+    value: monthOrders.filter(d => d.status !== "draft").reduce((s, d) => s + Number(d.total), 0) 
   };
-  const receivedStats = statsByStatus("received");
-  const paidStats = statsByStatus("paid");
 
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
