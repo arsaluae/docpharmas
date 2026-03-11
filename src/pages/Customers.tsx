@@ -238,8 +238,9 @@ export default function Customers() {
                 <TableHead className="w-10">
                   <Checkbox checked={filtered.length > 0 && selectedIds.size === filtered.length} onCheckedChange={toggleAll} />
                 </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Company</TableHead>
+                <TableHead>Code</TableHead>
+                <TableHead>Company Name</TableHead>
+                <TableHead>Contact</TableHead>
                 <TableHead>City</TableHead>
                 <TableHead>NTN</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
