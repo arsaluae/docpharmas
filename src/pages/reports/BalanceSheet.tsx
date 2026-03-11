@@ -19,38 +19,61 @@ export default function BalanceSheet() {
   useEffect(() => { load(); }, [asOfDate]);
 
   const load = async () => {
-    const [banks, custs, prods, sups, printers, salesInv, purchInv, expenses, payments, sReturns, pReturns] = await Promise.all([
-      supabase.from("bank_accounts").select("balance"),
-      supabase.from("customers").select("balance"),
+    const [banks, custs, prods, sups, printers, salesInv, purchInv, expenses, payments, sReturns, pReturns, salaryPay] = await Promise.all([
+      supabase.from("bank_accounts").select("opening_balance"),
+      supabase.from("customers").select("opening_balance"),
       supabase.from("products").select("cost_price, stock_quantity"),
-      supabase.from("suppliers").select("balance"),
-      supabase.from("printers").select("balance"),
-      supabase.from("sales_invoices").select("gst_amount, subtotal").lte("date", asOfDate),
-      supabase.from("purchase_invoices").select("gst, subtotal").lte("date", asOfDate),
-      supabase.from("expenses").select("amount, expense_type").lte("date", asOfDate),
-      supabase.from("payments").select("type, amount").lte("date", asOfDate),
-      supabase.from("sales_returns").select("total").lte("date", asOfDate),
-      supabase.from("purchase_returns").select("total").lte("date", asOfDate),
+      supabase.from("suppliers").select("opening_balance"),
+      supabase.from("printers").select("opening_balance"),
+      supabase.from("sales_invoices").select("gst_amount, subtotal, total, customer_id").lte("date", asOfDate),
+      supabase.from("purchase_invoices").select("gst, subtotal, total, supplier_id").lte("date", asOfDate),
+      supabase.from("expenses").select("amount, expense_type, bank_account_id").lte("date", asOfDate),
+      supabase.from("payments").select("type, amount, party_type, party_id, bank_account_id").lte("date", asOfDate),
+      supabase.from("sales_returns").select("total, customer_id").lte("date", asOfDate),
+      supabase.from("purchase_returns").select("total, supplier_id").lte("date", asOfDate),
+      supabase.from("salary_payments").select("amount, bank_account_id").lte("date", asOfDate),
     ]);
-    setBankTotal((banks.data || []).reduce((s, b) => s + Number(b.balance), 0));
-    setReceivables((custs.data || []).reduce((s, c) => s + Number(c.balance), 0));
+
+    // Calculate bank balances from transactions
+    const bankOpenings = (banks.data || []).reduce((s, b) => s + Number(b.opening_balance), 0);
+    const bankPaymentsIn = (payments.data || []).filter(p => p.bank_account_id && p.type === "received").reduce((s, p) => s + Number(p.amount), 0);
+    const bankPaymentsOut = (payments.data || []).filter(p => p.bank_account_id && p.type === "made").reduce((s, p) => s + Number(p.amount), 0);
+    const bankExpenses = (expenses.data || []).filter(e => e.bank_account_id).reduce((s, e) => s + Number(e.amount), 0);
+    const bankSalaries = (salaryPay.data || []).filter(s => s.bank_account_id).reduce((s, sal) => s + Number(sal.amount), 0);
+    setBankTotal(bankOpenings + bankPaymentsIn - bankPaymentsOut - bankExpenses - bankSalaries);
+
+    // Calculate receivables from transactions
+    const custOpenings = (custs.data || []).reduce((s, c) => s + Number(c.opening_balance), 0);
+    const custInvoices = (salesInv.data || []).reduce((s, i) => s + Number(i.total), 0);
+    const custPayments = (payments.data || []).filter(p => p.party_type === "customer" && p.type === "received").reduce((s, p) => s + Number(p.amount), 0);
+    const custReturns = (sReturns.data || []).reduce((s, r) => s + Number(r.total), 0);
+    setReceivables(custOpenings + custInvoices - custPayments - custReturns);
+
     setInventory((prods.data || []).reduce((s, p) => s + Number(p.cost_price) * Number(p.stock_quantity), 0));
-    setPayables((sups.data || []).reduce((s, su) => s + Number(su.balance), 0));
-    setPrinterPayables((printers.data || []).reduce((s, pr) => s + Number(pr.balance), 0));
+
+    // Calculate payables from transactions
+    const supOpenings = (sups.data || []).reduce((s, su) => s + Number(su.opening_balance), 0);
+    const supInvoices = (purchInv.data || []).reduce((s, i) => s + Number(i.total), 0);
+    const supPayments = (payments.data || []).filter(p => p.party_type === "supplier" && p.type === "made").reduce((s, p) => s + Number(p.amount), 0);
+    const supReturns = (pReturns.data || []).reduce((s, r) => s + Number(r.total), 0);
+    setPayables(supOpenings + supInvoices - supPayments - supReturns);
+
+    const prtOpenings = (printers.data || []).reduce((s, pr) => s + Number(pr.opening_balance), 0);
+    const prtPayments = (payments.data || []).filter(p => p.party_type === "printer" && p.type === "made").reduce((s, p) => s + Number(p.amount), 0);
+    setPrinterPayables(prtOpenings - prtPayments);
 
     const salesReturnTotal = (sReturns.data || []).reduce((s, i) => s + Number(i.total), 0);
     const purchReturnTotal = (pReturns.data || []).reduce((s, i) => s + Number(i.total), 0);
 
-    // GST: account for returns — sales returns reduce output GST, purchase returns reduce input GST
     const gstOut = (salesInv.data || []).reduce((s, i) => s + Number(i.gst_amount), 0);
     const gstIn = (purchInv.data || []).reduce((s, i) => s + Number(i.gst), 0);
     setTaxPayable((gstOut - salesReturnTotal * 0.17) - (gstIn - purchReturnTotal * 0.17));
 
-    // Retained Earnings = Revenue - Sales Returns - COGS + Purchase Returns - Business Expenses
     const totalRevenue = (salesInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0);
     const totalCOGS = (purchInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0);
     const totalBizExpenses = (expenses.data || []).filter(e => e.expense_type === 'business').reduce((s, e) => s + Number(e.amount), 0);
-    setRetainedEarnings((totalRevenue - salesReturnTotal) - (totalCOGS - purchReturnTotal) - totalBizExpenses);
+    const totalSalaries = (salaryPay.data || []).reduce((s, sal) => s + Number(sal.amount), 0);
+    setRetainedEarnings((totalRevenue - salesReturnTotal) - (totalCOGS - purchReturnTotal) - totalBizExpenses - totalSalaries);
   };
 
   const totalAssets = bankTotal + receivables + inventory;
