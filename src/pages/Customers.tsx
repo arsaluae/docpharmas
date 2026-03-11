@@ -274,8 +274,8 @@ export default function Customers() {
         </div>
       )}
 
-      <Card className="glass-card">
-        <CardContent className="p-0">
+      <Card className="premium-table-card">
+        <CardContent className="p-0 pt-1">
           <Table>
             <TableHeader>
               <TableRow>
