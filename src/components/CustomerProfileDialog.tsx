@@ -204,6 +204,9 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
           </div>
         )}
 
+        {/* Allocated Products */}
+        {customerId && <AllocatedProducts partyId={customerId} partyType="customer" />}
+
         {/* Distributors */}
         <div>
           <div className="flex items-center justify-between mb-2">
