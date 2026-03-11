@@ -240,6 +240,59 @@ export type Database = {
           },
         ]
       }
+      credit_notes: {
+        Row: {
+          amount: number
+          created_at: string
+          credit_note_number: string
+          date: string
+          id: string
+          notes: string | null
+          party_id: string
+          party_type: string
+          reason: string | null
+          reference: string | null
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          credit_note_number: string
+          date?: string
+          id?: string
+          notes?: string | null
+          party_id: string
+          party_type: string
+          reason?: string | null
+          reference?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credit_note_number?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          party_id?: string
+          party_type?: string
+          reason?: string | null
+          reference?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_distributors: {
         Row: {
           address: string | null
@@ -520,19 +573,19 @@ export type Database = {
           current_value: number
           document_type: string
           prefix: string
-          tenant_id: string | null
+          tenant_id: string
         }
         Insert: {
           current_value?: number
           document_type: string
           prefix: string
-          tenant_id?: string | null
+          tenant_id: string
         }
         Update: {
           current_value?: number
           document_type?: string
           prefix?: string
-          tenant_id?: string | null
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -660,6 +713,41 @@ export type Database = {
           },
         ]
       }
+      expense_ledgers: {
+        Row: {
+          created_at: string
+          description: string | null
+          expense_type: string
+          id: string
+          name: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          expense_type?: string
+          id?: string
+          name: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          expense_type?: string
+          id?: string
+          name?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_ledgers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           account_id: string | null
@@ -673,6 +761,7 @@ export type Database = {
           expense_type: string
           gst_amount: number
           id: string
+          ledger_id: string | null
           notes: string | null
           payment_method: string
           tenant_id: string | null
@@ -689,6 +778,7 @@ export type Database = {
           expense_type?: string
           gst_amount?: number
           id?: string
+          ledger_id?: string | null
           notes?: string | null
           payment_method?: string
           tenant_id?: string | null
@@ -705,6 +795,7 @@ export type Database = {
           expense_type?: string
           gst_amount?: number
           id?: string
+          ledger_id?: string | null
           notes?: string | null
           payment_method?: string
           tenant_id?: string | null
@@ -722,6 +813,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "expense_ledgers"
             referencedColumns: ["id"]
           },
           {
@@ -1878,6 +1976,70 @@ export type Database = {
           },
         ]
       }
+      salary_payments: {
+        Row: {
+          amount: number
+          bank_account_id: string | null
+          created_at: string
+          date: string
+          id: string
+          month: string
+          notes: string | null
+          payment_method: string
+          salary_number: string
+          staff_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          amount?: number
+          bank_account_id?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          month: string
+          notes?: string | null
+          payment_method?: string
+          salary_number: string
+          staff_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          month?: string
+          notes?: string | null
+          payment_method?: string
+          salary_number?: string
+          staff_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_payments_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_payments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_invoice_items: {
         Row: {
           amount: number
@@ -2120,6 +2282,50 @@ export type Database = {
           },
           {
             foreignKeyName: "sales_returns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff: {
+        Row: {
+          created_at: string
+          designation: string | null
+          id: string
+          joining_date: string | null
+          name: string
+          phone: string | null
+          salary: number
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          designation?: string | null
+          id?: string
+          joining_date?: string | null
+          name: string
+          phone?: string | null
+          salary?: number
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          designation?: string | null
+          id?: string
+          joining_date?: string | null
+          name?: string
+          phone?: string | null
+          salary?: number
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
