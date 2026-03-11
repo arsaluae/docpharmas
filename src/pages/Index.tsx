@@ -334,26 +334,35 @@ export default function Index() {
       <div className="space-y-6">
         <TrialBanner />
 
-        {/* Greeting Banner */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <h2 className="text-xl sm:text-2xl font-bold font-heading text-foreground flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              {getGreeting()}!
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Here's your business at a glance — {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long" })}
-            </p>
+        {/* Hero Greeting — Mesh gradient */}
+        <div className="mesh-hero p-5 sm:p-7">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-primary/60 mb-1 flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5" />
+                {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+              </p>
+              <h2 className="text-xl sm:text-2xl font-bold font-heading text-foreground">
+                {getGreeting()}{settings?.company_name ? `, ${settings.company_name}` : ""}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Here's your business at a glance
+              </p>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/60 border border-border/40 backdrop-blur-sm">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              <span className="text-[11px] font-mono text-muted-foreground">Live</span>
+            </div>
           </div>
         </div>
 
-        {/* KPI Row — Glass cards with animated counters */}
+        {/* KPI Row — Premium glass cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger-children">
           {kpiCards.map((kpi) => (
-            <div key={kpi.label} className={`glass-kpi p-4 sm:p-5 ${kpi.glowColor}`}>
-              <div className="flex items-start justify-between mb-2">
-                <p className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">{kpi.label}</p>
-                <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${kpi.iconBg}`}>
+            <div key={kpi.label} className={`glass-kpi gradient-border p-4 sm:p-5 ${kpi.glowColor}`}>
+              <div className="flex items-start justify-between mb-3">
+                <p className="text-[10px] sm:text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em]">{kpi.label}</p>
+                <div className={`icon-ring w-9 h-9 sm:w-11 sm:h-11 rounded-2xl ${kpi.iconBg}`}>
                   <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
                 </div>
               </div>
@@ -397,21 +406,21 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions — 4x2 Grid */}
+        {/* Quick Actions — Premium grid */}
         <div className="grid grid-cols-4 gap-2 sm:gap-3 stagger-children">
           {quickActions.map((action) => (
             <button
               key={action.label}
               onClick={() => navigate(action.path)}
-              className={`group relative flex flex-col items-center justify-center gap-1.5 sm:gap-3 h-[80px] sm:h-[110px] rounded-xl sm:rounded-2xl bg-gradient-to-br ${action.gradient} border border-border/50 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-lg ${action.shadow} overflow-hidden press-scale`}
+              className="quick-action-card group h-[80px] sm:h-[110px] press-scale"
+              style={{ "--action-accent": `linear-gradient(90deg, var(--tw-gradient-stops))` } as any}
             >
-              <div className={`flex items-center justify-center w-8 h-8 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-gradient-to-br ${action.iconBg} shadow-md transition-transform duration-300 group-hover:scale-110`}>
+              <div className={`flex items-center justify-center w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br ${action.iconBg} shadow-md transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg ${action.shadow}`}>
                 <action.icon className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-white" />
               </div>
-              <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.08em] sm:tracking-[0.12em] text-foreground/80 font-heading group-hover:text-foreground transition-colors text-center leading-tight px-0.5">
+              <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.08em] sm:tracking-[0.12em] text-foreground/70 font-heading group-hover:text-foreground transition-colors text-center leading-tight px-0.5">
                 {action.label}
               </span>
-              <div className={`absolute bottom-0 left-0 right-0 h-[2px] sm:h-[3px] bg-gradient-to-r ${action.accent} opacity-60 group-hover:opacity-100 transition-opacity`} />
             </button>
           ))}
         </div>
@@ -737,20 +746,21 @@ export default function Index() {
         </Card>
 
         {/* AI Insights CTA */}
-        <Card className="glass-card overflow-hidden cursor-pointer hover:shadow-lg transition-all press-scale" onClick={() => navigate("/insights")}>
-          <CardContent className="p-0">
-            <div className="flex items-center gap-5 bg-gradient-to-r from-violet-600/10 to-primary/10 p-5">
-              <div className="p-3 rounded-xl bg-violet-600/20">
-                <Brain className="h-6 w-6 text-violet-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold text-foreground font-heading">AI Business Insights</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Demand forecasting, reorder alerts, margin analysis & more</p>
-              </div>
-              <span className="text-xs font-semibold text-primary">View Insights →</span>
+        <div className="ai-cta-card cursor-pointer press-scale" onClick={() => navigate("/insights")}>
+          <div className="flex items-center gap-5 p-5 sm:p-6">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-violet-500/20 to-primary/10 shadow-sm">
+              <Brain className="h-6 w-6 text-violet-600" />
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-foreground font-heading flex items-center gap-2">
+                AI Business Insights
+                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest rounded-full bg-violet-500/10 text-violet-600">Beta</span>
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Demand forecasting, reorder alerts, margin analysis & more</p>
+            </div>
+            <span className="text-xs font-bold text-primary hidden sm:block">View Insights →</span>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );

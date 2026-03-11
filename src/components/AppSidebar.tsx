@@ -88,7 +88,6 @@ export function AppSidebar() {
 
   const handleLogout = async () => { await supabase.auth.signOut(); navigate("/auth"); };
 
-  // Get initials for user avatar
   const getInitials = () => {
     if (tenantName) return tenantName.slice(0, 2).toUpperCase();
     return tenantRole === "owner" ? "AD" : "ST";
@@ -96,16 +95,21 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-      {/* Brand header with gradient overlay */}
-      <div className="relative p-4 flex items-center gap-3 border-b border-border/50">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.04] to-transparent pointer-events-none" />
-        <div className="relative w-9 h-9 rounded-xl overflow-hidden shadow-md ring-2 ring-primary/20">
+      {/* Brand header */}
+      <div className="relative p-4 flex items-center gap-3 border-b border-border/40">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.04] via-transparent to-transparent pointer-events-none" />
+        <div className="relative w-10 h-10 rounded-2xl overflow-hidden shadow-md ring-2 ring-primary/15 transition-transform duration-300 hover:scale-105">
           <img src={docpharmasLogo} alt="DocPharmas" className="w-full h-full object-cover" />
         </div>
         {!collapsed && (
           <div className="relative flex-1 min-w-0">
-            <span className="font-heading font-bold text-foreground text-lg tracking-tight block">DocPharmas</span>
-            {tenantName && <span className="text-[10px] text-muted-foreground truncate block">{tenantName}</span>}
+            <span className="font-heading font-bold text-foreground text-lg tracking-tight block leading-tight">DocPharmas</span>
+            {tenantName && (
+              <span className="text-[10px] text-muted-foreground truncate block mt-0.5 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />
+                {tenantName}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -116,7 +120,7 @@ export function AppSidebar() {
               <NavLink to="/dashboard" end
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${location.pathname === "/dashboard" ? "pharma-sidebar-active text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
                 activeClassName="pharma-sidebar-active text-primary font-medium">
-                <LayoutDashboard className={`h-4 w-4 ${location.pathname === "/dashboard" ? "text-primary" : ""}`} />
+                <LayoutDashboard className={`h-4 w-4 transition-colors ${location.pathname === "/dashboard" ? "text-primary" : ""}`} />
                 {!collapsed && <span>Dashboard</span>}
               </NavLink>
             </SidebarMenuButton>
@@ -130,7 +134,7 @@ export function AppSidebar() {
                 <NavLink to="/admin"
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${location.pathname === "/admin" ? "pharma-sidebar-active text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
                   activeClassName="pharma-sidebar-active text-primary font-medium">
-                  <Shield className={`h-4 w-4 ${location.pathname === "/admin" ? "text-primary" : ""}`} />
+                  <Shield className={`h-4 w-4 transition-colors ${location.pathname === "/admin" ? "text-primary" : ""}`} />
                   {!collapsed && <span>Admin Panel</span>}
                 </NavLink>
               </SidebarMenuButton>
@@ -153,7 +157,7 @@ export function AppSidebar() {
                         <NavLink to={item.url}
                           className={`flex items-center justify-center px-2 py-2 rounded-xl transition-all ${isActive ? "pharma-sidebar-active text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent"}`}
                           activeClassName="pharma-sidebar-active text-primary">
-                          <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
+                          <item.icon className={`h-4 w-4 transition-colors ${isActive ? "text-primary" : ""}`} />
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -165,14 +169,15 @@ export function AppSidebar() {
 
           return (
             <div key={section.label}>
-              {idx > 0 && <div className="mx-3 my-1.5 h-px bg-border/40" />}
+              {idx > 0 && <div className="mx-3 my-2 h-px bg-border/30" />}
               <Collapsible open={isOpen} onOpenChange={() => toggleSection(idx)}>
                 <CollapsibleTrigger className={`flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer select-none ${sectionActive ? "text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}>
-                  <div className={`flex items-center justify-center w-6 h-6 rounded-lg ${sectionActive ? "bg-primary/10" : "bg-muted"}`}>
-                    <section.icon className={`h-3.5 w-3.5 ${sectionActive ? "text-primary" : "text-muted-foreground"}`} />
+                  <div className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors ${sectionActive ? "bg-primary/10" : "bg-muted"}`}>
+                    <section.icon className={`h-3.5 w-3.5 transition-colors ${sectionActive ? "text-primary" : "text-muted-foreground"}`} />
                   </div>
-                  <span className="flex-1 text-left text-xs uppercase tracking-widest">{section.label}</span>
-                  <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                  <span className="flex-1 text-left text-[10px] uppercase tracking-[0.15em] font-bold">{section.label}</span>
+                  {sectionActive && <span className="w-1.5 h-1.5 rounded-full bg-primary mr-1" />}
+                  <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <SidebarMenu className="ml-3 mt-0.5 border-l-2 border-primary/10 pl-2">
@@ -187,7 +192,7 @@ export function AppSidebar() {
                               {isActive && (
                                 <div className="absolute left-[-10px] top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full pharma-accent-line" />
                               )}
-                              <item.icon className={`h-3.5 w-3.5 ${isActive ? "text-primary" : ""}`} />
+                              <item.icon className={`h-3.5 w-3.5 transition-colors ${isActive ? "text-primary" : ""}`} />
                               <span>{item.title}</span>
                               {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
                             </NavLink>
@@ -202,17 +207,18 @@ export function AppSidebar() {
           );
         })}
       </SidebarContent>
-      <SidebarFooter className="p-3 border-t border-border/50">
+      <SidebarFooter className="p-3 border-t border-border/40">
         {tenantRole && !collapsed && (
-          <div className="flex items-center gap-2.5 px-3 py-2 mb-1">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground text-[10px] font-bold shadow-sm">
+          <div className="flex items-center gap-2.5 px-3 py-2.5 mb-1 rounded-xl bg-muted/50">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground text-[11px] font-bold shadow-sm">
               {getInitials()}
             </div>
             <div className="flex-1 min-w-0">
               <span className="text-[11px] font-semibold text-foreground block truncate">
                 {tenantName || "My Company"}
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-widest text-primary/60">
+              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary/60 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-success" />
                 {tenantRole === "owner" ? "Admin" : "Staff"}
               </span>
             </div>
