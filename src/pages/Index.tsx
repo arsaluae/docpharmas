@@ -356,13 +356,13 @@ export default function Index() {
           </div>
         </div>
 
-        {/* KPI Row — Glass cards with animated counters */}
+        {/* KPI Row — Premium glass cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger-children">
           {kpiCards.map((kpi) => (
-            <div key={kpi.label} className={`glass-kpi p-4 sm:p-5 ${kpi.glowColor}`}>
-              <div className="flex items-start justify-between mb-2">
-                <p className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">{kpi.label}</p>
-                <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${kpi.iconBg}`}>
+            <div key={kpi.label} className={`glass-kpi gradient-border p-4 sm:p-5 ${kpi.glowColor}`}>
+              <div className="flex items-start justify-between mb-3">
+                <p className="text-[10px] sm:text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em]">{kpi.label}</p>
+                <div className={`icon-ring w-9 h-9 sm:w-11 sm:h-11 rounded-2xl ${kpi.iconBg}`}>
                   <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
                 </div>
               </div>
