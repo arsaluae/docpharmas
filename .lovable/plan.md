@@ -1,34 +1,57 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# UI Overhaul — Premium Branded Experience
 
-## Two Changes
+## Problem
+The current UI uses basic glass-card styling and standard component layouts. While functional, it lacks the visual craft, depth, and brand identity that makes a product feel premium. The dashboard, sidebar, listing pages, and global styling all need refinement.
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+## Design Direction
+Elevate from "functional tool" to "crafted product" through:
+- **Depth & layering**: Refined shadows, subtle gradients, animated borders on key elements
+- **Brand presence**: DocPharmas identity woven into every surface (accent meshes, branded empty states, logo echoes)
+- **Micro-polish**: Better spacing rhythms, refined typography hierarchy, purposeful color usage
+- **Motion with intent**: Smooth transitions that feel intentional, not decorative
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+## Changes
 
-## Files Changed
+### 1. Global CSS — New Premium Utilities (`src/index.css`)
+- Add animated gradient border utility (`.gradient-border`) for KPI cards
+- Add mesh gradient background utility for dashboard hero section
+- Add refined card hover with directional shadow shift
+- Add subtle dot-pattern overlay for empty states
+- Improve table row hover with left-edge accent reveal
+- Add frosted toolbar effect for sticky headers
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+### 2. Dashboard (`src/pages/Index.tsx`)
+- **Hero greeting**: Replace plain text with a branded section — mesh gradient background, company name prominent, date in a refined pill
+- **KPI cards**: Add animated gradient border on hover, refine internal layout with better visual hierarchy
+- **Quick actions grid**: Improve with subtle mesh bg per card, better icon presentation with ring effects
+- **Charts**: Better container styling with subtle header underlines
+- **AI Insights CTA**: Make it more visually striking with animated gradient border
 
-No other files change. The template system and all callers remain the same.
+### 3. Sidebar (`src/components/AppSidebar.tsx`)
+- Add subtle gradient mesh to brand header area
+- Improve section dividers with labeled badges
+- Add smooth icon transition on active state
+- Better footer user card with status indicator
+
+### 4. App Header (`src/components/AppLayout.tsx`)
+- Refined header with better title typography
+- Subtle breadcrumb-style subtitle treatment
+- Better date badge with gradient accent
+
+### 5. Listing Pages Pattern (Customers as reference)
+- Improve summary strip cards with icon rings and subtle gradients
+- Better search bar with floating label effect
+- Refine table card with top accent line
+- Better empty state illustrations
+
+## Files to Edit
+| File | Change |
+|------|--------|
+| `src/index.css` | Add 8-10 new premium utility classes |
+| `src/pages/Index.tsx` | Redesign dashboard hero, KPI cards, quick actions, CTA |
+| `src/components/AppSidebar.tsx` | Polish brand header, section labels, footer |
+| `src/components/AppLayout.tsx` | Refine header styling and date badge |
+| `src/pages/Customers.tsx` | Upgrade summary strip and table card as reference pattern |
 
