@@ -295,7 +295,7 @@ export default function ProformaInvoices() {
       }
 
       const { subtotal, gst, total } = calcTotals(items);
-      const { data: pfNumber, error: rpcErr } = await supabase.rpc("generate_document_number", { p_document_type: "proforma_invoice" });
+      const { data: pfNumber, error: rpcErr } = await supabase.rpc("generate_document_number", { p_document_type: "proforma" });
       if (rpcErr) { console.error("RPC error:", rpcErr); toast.error("Failed to generate number: " + rpcErr.message); setSaving(false); return; }
       if (!pfNumber) { toast.error("Failed to generate document number"); setSaving(false); return; }
       const { error } = await supabase.from("proforma_invoices").insert({
