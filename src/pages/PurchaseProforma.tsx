@@ -470,7 +470,8 @@ export default function PurchaseProforma() {
       );
     }
 
-    // Auto-create Purchase Invoice (Bill)
+    // Auto-create Purchase Invoice (Bill) linked to PO
+    let createdBillId: string | null = null;
     try {
       const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
       if (billNumber) {
@@ -478,11 +479,12 @@ export default function PurchaseProforma() {
         const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
         const whtAmount = settings?.wht_enabled ? Number(order.subtotal) * whtRate / 100 : 0;
         const netTotal = Number(order.subtotal) + Number(order.gst) - whtAmount;
-        await supabase.from("purchase_invoices").insert({
+        const { data: bill } = await supabase.from("purchase_invoices").insert({
           bill_number: billNumber, supplier_id: order.supplier_id,
           date: po.date, subtotal: Number(order.subtotal), gst: Number(order.gst),
           wht_amount: whtAmount, total: netTotal, status: "unpaid",
-        });
+        }).select("id").single();
+        if (bill) createdBillId = bill.id;
       }
     } catch { /* bill generation is best-effort */ }
 
