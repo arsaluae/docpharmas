@@ -54,7 +54,6 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
         id: d.id,
         product_id: d.product_id,
         product_name: p?.name || "Unknown",
-        product_code: d.products?.product_code || null,
         product_code: p?.product_code || null,
         category: p?.category || "",
       };})
