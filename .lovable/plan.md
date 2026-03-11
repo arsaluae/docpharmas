@@ -1,46 +1,34 @@
 
 
-# Fix: User Creation Scoped to Wrong Tenant + Missing Owner Authorization
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## Problem
-Two bugs in user creation from the Subscription page:
+## Two Changes
 
-1. **The `create_user` edge function action requires `admin` role** — so tenant owners can't create sub-users at all (it fails with "Admin access required"). Only the super admin can create users.
-2. **When the admin tests "Add User" from the Subscription page**, new users get added to the admin's own tenant (PharmaZen Demo) because `tenantId` comes from `useTenant()` — not the Mouj tenant.
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-Result: Raja Munir was likely created by the admin and landed in the admin's tenant instead of Mouj's.
-
-## Fix
-
-### 1. Add `owner_create_user` action to the edge function
-A new action in `manage-tenant` that:
-- Validates the caller is an **owner** of the specified tenant (not just admin)
-- Checks user limit for that tenant
-- Creates the auth user and links to the correct tenant
-- No admin role required — just ownership verification
-
-### 2. Update `Subscription.tsx` to use `owner_create_user`
-Change `handleCreateUser` to call the new action instead of `create_user`.
-
-### 3. Keep existing `create_user` for Admin Panel
-The admin-only `create_user` action stays unchanged for the Admin Panel.
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `supabase/functions/manage-tenant/index.ts` | Add `owner_create_user` action with ownership verification |
-| `src/pages/Subscription.tsx` | Switch to `owner_create_user` action |
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
 
-## Edge Function Logic (new action)
-```text
-owner_create_user:
-  1. Authenticate caller via JWT
-  2. Verify caller is owner of the given tenant_id via tenant_users
-  3. Check max_users limit
-  4. Create auth user (admin API)
-  5. Insert tenant_users row with correct tenant_id
-```
-
-No database migration needed.
+No other files change. The template system and all callers remain the same.
 

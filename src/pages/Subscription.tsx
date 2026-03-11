@@ -112,7 +112,7 @@ export default function Subscription() {
       const res = await supabase.functions.invoke("manage-tenant", {
         headers: { Authorization: `Bearer ${token}` },
         body: {
-          action: "create_user",
+          action: "owner_create_user",
           tenant_id: tenantId,
           email: newEmail,
           password: newPassword,
