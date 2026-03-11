@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Truck, DollarSign, TrendingUp } from "lucide-react";
 import { AllocatedProducts } from "@/components/AllocatedProducts";
 
@@ -33,6 +33,7 @@ export function SupplierProfileDialog({ open, onOpenChange, supplierId, supplier
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Truck className="h-5 w-5" /> {supplierName}</DialogTitle>
+          <DialogDescription>Supplier profile, purchases summary & allocated products</DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-3">
