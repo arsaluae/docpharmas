@@ -1006,7 +1006,6 @@ export default function ProformaInvoices() {
                 )}
               </CardContent>
             </Card>
-            )}
           </div>
 
           {/* BULK DELETE BAR */}
