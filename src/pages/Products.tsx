@@ -88,7 +88,8 @@ export default function Products() {
       await supabase.from("products").update(payload).eq("id", editId);
       toast.success("Product updated");
     } else {
-      await supabase.from("products").insert(payload);
+      const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "product" });
+      await supabase.from("products").insert({ ...payload, product_code: code || null } as any);
       toast.success("Product created");
     }
     setOpen(false); setForm(emptyForm); setEditId(null); loadAll();
