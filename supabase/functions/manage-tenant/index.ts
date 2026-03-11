@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // All other actions require admin auth
+    // All other actions require authenticated user
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await createClient(
