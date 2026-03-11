@@ -29,7 +29,6 @@ const allSections = [
   { label: "Purchase", icon: Truck, staffVisible: false, items: [
     { title: "Suppliers", url: "/suppliers", icon: Truck },
     { title: "Purchase Orders", url: "/purchase-proforma", icon: FileText },
-    { title: "Delivery Notes", url: "/delivery-notes", icon: Truck },
     { title: "Make Payment", url: "/payments?tab=made", icon: Wallet },
     { title: "Returns", url: "/purchase-returns", icon: RotateCcw },
   ]},
