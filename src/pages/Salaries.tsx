@@ -34,6 +34,7 @@ interface SalaryPayment {
 interface BankAccount { id: string; name: string; bank_name: string; }
 
 export default function Salaries() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("staff");
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [payments, setPayments] = useState<SalaryPayment[]>([]);
