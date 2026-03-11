@@ -29,7 +29,7 @@ interface License {
 }
 
 const emptyForm = {
-  name: "", company: "", ntn: "", strn: "", phone: "", email: "", address: "", city: "",
+  name: "", company: "", ntn: "", strn: "", phone: "", email: "", address: "", city: "", area: "",
   credit_limit: "0", credit_days: "30", opening_balance: "0",
 };
 
