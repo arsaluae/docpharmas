@@ -20,6 +20,9 @@ const DOCUMENT_COUNTER_SEEDS = [
   { document_type: "sales_return", prefix: "SR-" },
   { document_type: "purchase_return", prefix: "PR-" },
   { document_type: "print_job", prefix: "PJ-" },
+  { document_type: "supplier", prefix: "SUP-" },
+  { document_type: "customer", prefix: "CUS-" },
+  { document_type: "product", prefix: "PRD-" },
 ];
 
 async function seedTenantData(supabaseAdmin: any, tenantId: string) {

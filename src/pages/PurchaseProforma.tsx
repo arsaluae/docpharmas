@@ -633,10 +633,14 @@ export default function PurchaseProforma() {
 
       await supabase.from("purchase_orders").update({ status: "received" }).eq("id", poId);
 
-      // Only create bill at receive if one wasn't already created at confirm stage
+      // Find the bill linked to this specific PO (created at confirm stage)
+      const poId2 = receivePO.converted_po_id || receivePO.id;
+      // Look for bills that match this PO's supplier AND were created on the same date as the PO
+      const { data: poData2 } = await supabase.from("purchase_orders").select("date, supplier_id").eq("id", poId2).single();
       const { data: existingBill } = await supabase.from("purchase_invoices")
         .select("id")
-        .eq("supplier_id", receivePO.supplier_id || "")
+        .eq("supplier_id", poData2?.supplier_id || receivePO.supplier_id || "")
+        .eq("date", poData2?.date || "")
         .is("grn_id", null)
         .limit(1);
       
