@@ -243,40 +243,34 @@ export default function Salaries() {
     <AppLayout title="Staff & Salaries" headerActions={staffActions}>
       <div className="space-y-4">
         {/* Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="glass-card">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Active Staff</p>
-                <p className="text-lg font-bold font-mono text-foreground">{staffList.filter(s => s.status === "active").length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                <Wallet className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Monthly Payroll</p>
-                <p className="text-lg font-bold font-mono text-foreground">PKR {totalMonthlySalary.toLocaleString()}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center">
-                <UserCheck className="h-5 w-5 text-accent-foreground" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Paid This Month</p>
-                <p className="text-lg font-bold font-mono text-foreground">PKR {totalPaidThisMonth.toLocaleString()}</p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 stagger-children">
+          <div className="summary-card p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Users className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Active Staff</p>
+              <p className="text-lg font-bold font-mono tabular-nums text-foreground">{staffList.filter(s => s.status === "active").length}</p>
+            </div>
+          </div>
+          <div className="summary-card p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+              <Wallet className="h-5 w-5 text-destructive" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Monthly Payroll</p>
+              <p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {totalMonthlySalary.toLocaleString()}</p>
+            </div>
+          </div>
+          <div className="summary-card p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center">
+              <UserCheck className="h-5 w-5 text-accent-foreground" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Paid This Month</p>
+              <p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {totalPaidThisMonth.toLocaleString()}</p>
+            </div>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={v => { setActiveTab(v); setSearch(""); }}>
