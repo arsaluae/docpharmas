@@ -62,12 +62,18 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { tenantRole, isAdmin, tenantName } = useTenant();
 
+  const matchUrl = (itemUrl: string) => {
+    const [path, qs] = itemUrl.split("?");
+    if (qs) return location.pathname === path && location.search === `?${qs}`;
+    return location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
+  };
+
   const sections = tenantRole === "staff" && !isAdmin
     ? allSections.filter(s => s.staffVisible)
     : allSections;
 
   const activeSectionIdx = sections.findIndex(s =>
-    s.items.some(i => location.pathname === i.url || (i.url !== "/" && location.pathname.startsWith(i.url)))
+    s.items.some(i => matchUrl(i.url))
   );
 
   const [openSections, setOpenSections] = useState<Record<number, boolean>>(() => {
