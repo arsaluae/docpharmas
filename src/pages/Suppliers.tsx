@@ -240,7 +240,15 @@ export default function Suppliers() {
                   <TableCell className="text-xs">{s.license_number || "—"}</TableCell>
                   {settings?.wht_enabled && <TableCell><span className="status-pill bg-warning/10 text-warning">{s.wht_rate}%</span></TableCell>}
                   <TableCell className="text-right font-mono">{Number(s.balance).toLocaleString()}</TableCell>
-                  <TableCell className="text-muted-foreground">{s.payment_terms_days}d</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {s.payment_terms_days}d
+                    {Number(s.balance) > 0 && (() => {
+                      const dueDate = new Date(s.created_at);
+                      dueDate.setDate(dueDate.getDate() + s.payment_terms_days);
+                      const isOverdue = dueDate < new Date();
+                      return isOverdue ? <span className="ml-1 text-destructive text-[10px] font-semibold">OVERDUE</span> : null;
+                    })()}
+                  </TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(s)} title="Edit Supplier"><Edit className="h-3.5 w-3.5" /></Button>
