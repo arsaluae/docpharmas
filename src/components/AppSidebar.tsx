@@ -15,6 +15,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import docpharmasLogo from "@/assets/docpharmas-logo.jpg";
 import { ShortcutsHelpDialog } from "@/components/KeyboardShortcuts";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const allSections = [
   { label: "Sales", icon: FileText, staffVisible: true, items: [
