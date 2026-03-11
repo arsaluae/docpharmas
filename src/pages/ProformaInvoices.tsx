@@ -334,7 +334,7 @@ export default function ProformaInvoices() {
     }
   };
 
-  const openEditSheet = (order: SalesOrder) => {
+  const openEditSheet = async (order: SalesOrder) => {
     setEditOrder(order);
     setEditCustomerId(order.customer_id || "");
     setEditDate(order.date);
@@ -342,6 +342,13 @@ export default function ProformaInvoices() {
     setEditPaymentInstr(order.payment_instructions || "");
     const pfItems = getPfItems(order);
     setEditItems(pfItems.map(i => ({ ...i })));
+    // Load existing agent for this order
+    if (order.customer_id) {
+      const { data } = await supabase.from("agent_customers").select("agent_id").eq("customer_id", order.customer_id).limit(1);
+      setEditAgentId(data && data.length > 0 ? data[0].agent_id : "");
+    } else {
+      setEditAgentId("");
+    }
     setEditOpen(true);
   };
 
