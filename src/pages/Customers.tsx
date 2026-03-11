@@ -207,41 +207,41 @@ export default function Customers() {
 
   return (
     <AppLayout title="Customers" subtitle="Manage customer accounts, credit terms & ledgers" headerActions={headerActions}>
-      {/* Summary Strip */}
+      {/* Summary Strip — Premium */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 stagger-children">
         <div className="summary-card p-4 flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Users className="h-4 w-4 text-primary" />
+          <div className="icon-ring h-10 w-10 rounded-2xl bg-primary/10 text-primary">
+            <Users className="h-4.5 w-4.5" />
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Total</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-bold">Total</p>
             <p className="text-lg font-bold font-mono tabular-nums text-foreground">{customers.length}</p>
           </div>
         </div>
         <div className="summary-card p-4 flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-            <Wallet className="h-4 w-4 text-emerald-600" />
+          <div className="icon-ring h-10 w-10 rounded-2xl bg-emerald-500/10 text-emerald-600">
+            <Wallet className="h-4.5 w-4.5" />
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Receivables</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-bold">Receivables</p>
             <p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {totalBalance.toLocaleString()}</p>
           </div>
         </div>
         <div className="summary-card p-4 flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-warning/10 flex items-center justify-center">
-            <Shield className="h-4 w-4 text-warning" />
+          <div className="icon-ring h-10 w-10 rounded-2xl bg-warning/10 text-warning">
+            <Shield className="h-4.5 w-4.5" />
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Credit Limit</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-bold">Credit Limit</p>
             <p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {totalCreditLimit.toLocaleString()}</p>
           </div>
         </div>
         <div className="summary-card p-4 flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-destructive/10 flex items-center justify-center">
-            <AlertTriangle className="h-4 w-4 text-destructive" />
+          <div className="icon-ring h-10 w-10 rounded-2xl bg-destructive/10 text-destructive">
+            <AlertTriangle className="h-4.5 w-4.5" />
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Over Limit</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-bold">Over Limit</p>
             <p className="text-lg font-bold font-mono tabular-nums text-foreground">{customers.filter(c => Number(c.balance) > Number(c.credit_limit) && Number(c.credit_limit) > 0).length}</p>
           </div>
         </div>
