@@ -63,6 +63,14 @@ export default function Payments() {
   const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
+  // Sync tab from URL params on navigation
+  useEffect(() => {
+    const urlTab = searchParams.get("tab");
+    if (urlTab && (urlTab === "received" || urlTab === "made") && urlTab !== tab) {
+      setTab(urlTab);
+    }
+  }, [searchParams]);
+
   useEffect(() => { load(); }, [pagination.page, tab]);
 
   const load = async () => {
