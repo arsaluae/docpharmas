@@ -215,6 +215,34 @@ export default function Index() {
     if (data) setReorderAlerts(data as any);
   };
 
+  const loadExpiryAlerts = async () => {
+    const today = new Date();
+    const ninetyDaysLater = new Date(today);
+    ninetyDaysLater.setDate(today.getDate() + 90);
+    const { data: grnItems } = await supabase
+      .from("grn_items")
+      .select("product_id, batch_number, expiry_date, quantity_received")
+      .not("expiry_date", "is", null)
+      .lte("expiry_date", ninetyDaysLater.toISOString().split("T")[0]);
+    const { data: prods } = await supabase.from("products").select("id, name");
+    if (!grnItems || !prods) return;
+    const prodMap = new Map(prods.map((p: any) => [p.id, p.name]));
+    let critical = 0, warning = 0, info = 0;
+    const items: { name: string; batch: string; expiry: string; qty: number; severity: string }[] = [];
+    grnItems.forEach((g: any) => {
+      if (!g.expiry_date) return;
+      const diff = (new Date(g.expiry_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+      let severity = "info";
+      if (diff <= 0) { severity = "expired"; critical++; }
+      else if (diff <= 30) { severity = "critical"; critical++; }
+      else if (diff <= 60) { severity = "warning"; warning++; }
+      else { severity = "info"; info++; }
+      items.push({ name: prodMap.get(g.product_id) || "Unknown", batch: g.batch_number || "N/A", expiry: g.expiry_date, qty: Number(g.quantity_received), severity });
+    });
+    items.sort((a, b) => new Date(a.expiry).getTime() - new Date(b.expiry).getTime());
+    setExpiryAlerts({ critical, warning, info, items: items.slice(0, 8) });
+  };
+
   const generateReorderAlerts = async () => {
     setLoadingReorder(true);
     try {
