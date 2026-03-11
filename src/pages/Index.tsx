@@ -81,6 +81,9 @@ export default function Index() {
   const [totalReceivables, setTotalReceivables] = useState(0);
   const [totalPayables, setTotalPayables] = useState(0);
 
+  // Expiry alerts
+  const [expiryAlerts, setExpiryAlerts] = useState<{ critical: number; warning: number; info: number; items: { name: string; batch: string; expiry: string; qty: number; severity: string }[] }>({ critical: 0, warning: 0, info: 0, items: [] });
+
   useEffect(() => { loadDashboard(); loadReorderAlerts(); }, []);
 
   const loadDashboard = async () => {
