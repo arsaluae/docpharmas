@@ -644,6 +644,47 @@ export default function Index() {
           </Card>
         </div>
 
+        {/* Expiry Alerts Widget */}
+        {(expiryAlerts.critical > 0 || expiryAlerts.warning > 0 || expiryAlerts.info > 0) && (
+          <Card className="glass-card border-amber-500/20 overflow-hidden">
+            <CardHeader className="pb-2 pt-4 px-5">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-heading flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-amber-600" /> Expiry Alerts
+                </CardTitle>
+                <div className="flex gap-2">
+                  {expiryAlerts.critical > 0 && <Badge variant="destructive" className="text-[10px]">{expiryAlerts.critical} Critical</Badge>}
+                  {expiryAlerts.warning > 0 && <Badge className="bg-amber-500 text-white text-[10px]">{expiryAlerts.warning} Warning</Badge>}
+                  {expiryAlerts.info > 0 && <Badge variant="secondary" className="text-[10px]">{expiryAlerts.info} Soon</Badge>}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="px-5 pb-4">
+              <div className="space-y-2">
+                {expiryAlerts.items.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50 border border-border/50">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${item.severity === "expired" || item.severity === "critical" ? "bg-destructive animate-pulse" : item.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} />
+                        <span className="text-sm font-medium truncate">{item.name}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground ml-4">Batch: {item.batch} • Qty: {item.qty}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-xs font-mono ${item.severity === "expired" ? "text-destructive font-bold" : item.severity === "critical" ? "text-destructive" : item.severity === "warning" ? "text-amber-600" : "text-muted-foreground"}`}>
+                        {item.severity === "expired" ? "EXPIRED" : item.expiry}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Button size="sm" variant="outline" className="w-full mt-3 text-xs press-scale" onClick={() => navigate("/reports/batch-wise")}>
+                View Full Batch Report →
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Reorder Alerts */}
         <Card className="glass-card border-destructive/20 overflow-hidden">
           <CardHeader className="pb-2 pt-4 px-5">
