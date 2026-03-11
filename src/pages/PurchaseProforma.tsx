@@ -204,6 +204,16 @@ export default function PurchaseProforma() {
     setLoading(false);
   };
 
+  // Load allocated products when supplier changes
+  useEffect(() => {
+    if (!supplierId) { setAllocatedProductIds(null); return; }
+    (async () => {
+      const { data } = await supabase.from("supplier_products").select("product_id").eq("supplier_id", supplierId);
+      if (data && data.length > 0) setAllocatedProductIds(data.map(d => d.product_id));
+      else setAllocatedProductIds(null);
+    })();
+  }, [supplierId]);
+
   // ── ITEMS ──
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }]);
   useEffect(() => { if (createOpen && items.length === 0) addItem(); }, [createOpen]);
