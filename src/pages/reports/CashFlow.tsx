@@ -14,9 +14,10 @@ export default function CashFlow() {
   useEffect(() => { load(); }, [from, to]);
 
   const load = async () => {
-    const [payments, expenses] = await Promise.all([
+    const [payments, expenses, salaries] = await Promise.all([
       supabase.from("payments").select("type, amount, date").gte("date", from).lte("date", to),
       supabase.from("expenses").select("amount, date").eq("expense_type", "business").gte("date", from).lte("date", to),
+      supabase.from("salary_payments").select("amount, date").gte("date", from).lte("date", to),
     ]);
 
     const months: Record<string, { inflows: number; outflows: number }> = {};
@@ -33,6 +34,11 @@ export default function CashFlow() {
       const m = addMonth(e.date);
       ensure(m);
       months[m].outflows += Number(e.amount);
+    });
+    (salaries.data || []).forEach(s => {
+      const m = addMonth(s.date);
+      ensure(m);
+      months[m].outflows += Number(s.amount);
     });
 
     const sorted = Object.entries(months).sort(([a], [b]) => a.localeCompare(b)).map(([month, v]) => ({
