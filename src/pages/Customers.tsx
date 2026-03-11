@@ -68,7 +68,7 @@ export default function Customers() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { toast.error("Name is required"); return; }
+    if (!form.name.trim()) { toast.error("Company Name is required"); return; }
     const basePayload = {
       name: form.name, company: form.company || null, ntn: form.ntn || null, strn: form.strn || null,
       phone: form.phone || null, email: form.email || null, address: form.address || null, city: form.city || null,
@@ -80,7 +80,8 @@ export default function Customers() {
       if (error) { toast.error("Failed to update: " + error.message); return; }
       toast.success("Customer updated");
     } else {
-      const { error } = await supabase.from("customers").insert({ ...basePayload, balance: Number(form.opening_balance) });
+      const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "customer" });
+      const { error } = await supabase.from("customers").insert({ ...basePayload, balance: Number(form.opening_balance), customer_code: code || null } as any);
       if (error) { toast.error("Failed to create: " + error.message); return; }
       toast.success("Customer created");
     }
