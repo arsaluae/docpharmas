@@ -133,13 +133,13 @@ export function AppSidebar() {
 
         {sections.map((section, idx) => {
           const isOpen = openSections[idx] || false;
-          const sectionActive = section.items.some(i => location.pathname === i.url || (i.url !== "/" && location.pathname.startsWith(i.url)));
+          const sectionActive = section.items.some(i => matchUrl(i.url));
 
           if (collapsed) {
             return (
               <SidebarMenu key={section.label}>
                 {section.items.map((item) => {
-                  const isActive = location.pathname === item.url || (item.url !== "/" && location.pathname.startsWith(item.url));
+                  const isActive = matchUrl(item.url);
                   return (
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton asChild>
