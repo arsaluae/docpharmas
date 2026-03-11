@@ -19,7 +19,7 @@ import { CustomerProfileDialog } from "@/components/CustomerProfileDialog";
 
 interface Customer {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
-  phone: string | null; email: string | null; address: string | null; city: string | null;
+  phone: string | null; email: string | null; address: string | null; city: string | null; area: string | null;
   credit_limit: number; credit_days: number; opening_balance: number; balance: number; created_at: string;
 }
 
