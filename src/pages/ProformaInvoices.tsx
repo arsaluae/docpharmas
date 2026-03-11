@@ -613,11 +613,16 @@ export default function ProformaInvoices() {
     const { data: invNumber } = await supabase.rpc("generate_document_number", { p_document_type: "sales_invoice" });
     if (!invNumber) { toast.error("Failed to generate invoice number"); setSubmitting(false); return; }
 
+    // Get agent_id from the proforma
+    const { data: pfData } = await supabase.from("proforma_invoices").select("agent_id").eq("id", submitOrder.id).single();
+    const orderAgentId = (pfData as any)?.agent_id || null;
+
     const { data: inv, error: invErr } = await supabase.from("sales_invoices").insert({
       invoice_number: invNumber, customer_id: submitOrder.customer_id,
       date: new Date().toISOString().split("T")[0],
       subtotal: submitOrder.subtotal, gst_amount: submitOrder.gst, total: submitOrder.total, status: "dispatched",
-    }).select("*, customers(name)").single();
+      agent_id: orderAgentId,
+    } as any).select("*, customers(name)").single();
 
     if (invErr || !inv) { toast.error("Failed to create invoice: " + (invErr?.message || "Unknown error")); setSubmitting(false); return; }
       const lineItems = submitItems.map((i: any) => ({
