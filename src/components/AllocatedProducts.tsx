@@ -72,9 +72,14 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
 
   const handleAdd = async () => {
     if (!selectedProductId) return;
-    const payload: any = { product_id: selectedProductId };
-    payload[fkColumn] = partyId;
-    const { error } = await supabase.from(tableName).insert(payload);
+    let error: any = null;
+    if (partyType === "customer") {
+      const res = await supabase.from("customer_products").insert({ product_id: selectedProductId, customer_id: partyId });
+      error = res.error;
+    } else {
+      const res = await supabase.from("supplier_products").insert({ product_id: selectedProductId, supplier_id: partyId });
+      error = res.error;
+    }
     if (error) {
       if (error.code === "23505") toast.error("Product already allocated");
       else toast.error("Failed to add: " + error.message);
