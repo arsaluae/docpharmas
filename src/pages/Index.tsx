@@ -81,7 +81,10 @@ export default function Index() {
   const [totalReceivables, setTotalReceivables] = useState(0);
   const [totalPayables, setTotalPayables] = useState(0);
 
-  useEffect(() => { loadDashboard(); loadReorderAlerts(); }, []);
+  // Expiry alerts
+  const [expiryAlerts, setExpiryAlerts] = useState<{ critical: number; warning: number; info: number; items: { name: string; batch: string; expiry: string; qty: number; severity: string }[] }>({ critical: 0, warning: 0, info: 0, items: [] });
+
+  useEffect(() => { loadDashboard(); loadReorderAlerts(); loadExpiryAlerts(); }, []);
 
   const loadDashboard = async () => {
     const today = new Date();
@@ -210,6 +213,34 @@ export default function Index() {
   const loadReorderAlerts = async () => {
     const { data } = await supabase.from("reorder_alerts").select("*").order("days_until_stockout", { ascending: true }).limit(5);
     if (data) setReorderAlerts(data as any);
+  };
+
+  const loadExpiryAlerts = async () => {
+    const today = new Date();
+    const ninetyDaysLater = new Date(today);
+    ninetyDaysLater.setDate(today.getDate() + 90);
+    const { data: grnItems } = await supabase
+      .from("grn_items")
+      .select("product_id, batch_number, expiry_date, quantity_received")
+      .not("expiry_date", "is", null)
+      .lte("expiry_date", ninetyDaysLater.toISOString().split("T")[0]);
+    const { data: prods } = await supabase.from("products").select("id, name");
+    if (!grnItems || !prods) return;
+    const prodMap = new Map(prods.map((p: any) => [p.id, p.name]));
+    let critical = 0, warning = 0, info = 0;
+    const items: { name: string; batch: string; expiry: string; qty: number; severity: string }[] = [];
+    grnItems.forEach((g: any) => {
+      if (!g.expiry_date) return;
+      const diff = (new Date(g.expiry_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+      let severity = "info";
+      if (diff <= 0) { severity = "expired"; critical++; }
+      else if (diff <= 30) { severity = "critical"; critical++; }
+      else if (diff <= 60) { severity = "warning"; warning++; }
+      else { severity = "info"; info++; }
+      items.push({ name: prodMap.get(g.product_id) || "Unknown", batch: g.batch_number || "N/A", expiry: g.expiry_date, qty: Number(g.quantity_received), severity });
+    });
+    items.sort((a, b) => new Date(a.expiry).getTime() - new Date(b.expiry).getTime());
+    setExpiryAlerts({ critical, warning, info, items: items.slice(0, 8) });
   };
 
   const generateReorderAlerts = async () => {
@@ -612,6 +643,47 @@ export default function Index() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Expiry Alerts Widget */}
+        {(expiryAlerts.critical > 0 || expiryAlerts.warning > 0 || expiryAlerts.info > 0) && (
+          <Card className="glass-card border-amber-500/20 overflow-hidden">
+            <CardHeader className="pb-2 pt-4 px-5">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-heading flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-amber-600" /> Expiry Alerts
+                </CardTitle>
+                <div className="flex gap-2">
+                  {expiryAlerts.critical > 0 && <Badge variant="destructive" className="text-[10px]">{expiryAlerts.critical} Critical</Badge>}
+                  {expiryAlerts.warning > 0 && <Badge className="bg-amber-500 text-white text-[10px]">{expiryAlerts.warning} Warning</Badge>}
+                  {expiryAlerts.info > 0 && <Badge variant="secondary" className="text-[10px]">{expiryAlerts.info} Soon</Badge>}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="px-5 pb-4">
+              <div className="space-y-2">
+                {expiryAlerts.items.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50 border border-border/50">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${item.severity === "expired" || item.severity === "critical" ? "bg-destructive animate-pulse" : item.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} />
+                        <span className="text-sm font-medium truncate">{item.name}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground ml-4">Batch: {item.batch} • Qty: {item.qty}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-xs font-mono ${item.severity === "expired" ? "text-destructive font-bold" : item.severity === "critical" ? "text-destructive" : item.severity === "warning" ? "text-amber-600" : "text-muted-foreground"}`}>
+                        {item.severity === "expired" ? "EXPIRED" : item.expiry}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Button size="sm" variant="outline" className="w-full mt-3 text-xs press-scale" onClick={() => navigate("/reports/batch-wise")}>
+                View Full Batch Report →
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Reorder Alerts */}
         <Card className="glass-card border-destructive/20 overflow-hidden">

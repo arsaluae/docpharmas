@@ -309,7 +309,12 @@ export default function Customers() {
                   <TableCell>{c.company || "—"}</TableCell>
                   <TableCell>{c.city || "—"}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{c.ntn || "—"}</TableCell>
-                  <TableCell className="text-right font-mono">{Number(c.balance).toLocaleString()}</TableCell>
+                  <TableCell className={`text-right font-mono ${Number(c.balance) > Number(c.credit_limit) && Number(c.credit_limit) > 0 ? "text-destructive font-bold" : ""}`}>
+                    {Number(c.balance).toLocaleString()}
+                    {Number(c.balance) > Number(c.credit_limit) && Number(c.credit_limit) > 0 && (
+                      <AlertTriangle className="inline h-3 w-3 ml-1 text-destructive" />
+                    )}
+                  </TableCell>
                   <TableCell className="text-right font-mono text-muted-foreground">{Number(c.credit_limit).toLocaleString()}</TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>

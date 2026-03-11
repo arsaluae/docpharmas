@@ -269,6 +269,31 @@ export default function ProformaInvoices() {
     if (!customerId || items.length === 0 || items.every(i => !i.product_id)) { toast.error("Customer and at least one product required"); return; }
     setSaving(true);
     try {
+      // Credit limit check
+      const customer = customers.find(c => c.id === customerId);
+      if (customer) {
+        const { data: custData } = await supabase.from("customers").select("balance, credit_limit, credit_days").eq("id", customerId).single();
+        if (custData && Number(custData.credit_limit) > 0) {
+          const { subtotal: newSubtotal } = calcTotals(items);
+          const newBalance = Number(custData.balance) + newSubtotal;
+          if (newBalance > Number(custData.credit_limit)) {
+            toast.warning(`⚠️ Credit limit exceeded! Balance will be PKR ${newBalance.toLocaleString()} vs limit PKR ${Number(custData.credit_limit).toLocaleString()}`, { duration: 6000 });
+          }
+        }
+      }
+
+      // Duplicate detection: check if same customer has order in last 24 hours
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+      const { data: recentOrders } = await supabase.from("proforma_invoices")
+        .select("proforma_number, created_at")
+        .eq("customer_id", customerId)
+        .gte("created_at", oneDayAgo.toISOString())
+        .limit(1);
+      if (recentOrders && recentOrders.length > 0) {
+        toast.warning(`⚠️ Duplicate alert: ${customer?.name || "Customer"} already has order ${recentOrders[0].proforma_number} in the last 24 hours`, { duration: 6000 });
+      }
+
       const { subtotal, gst, total } = calcTotals(items);
       const { data: pfNumber, error: rpcErr } = await supabase.rpc("generate_document_number", { p_document_type: "proforma_invoice" });
       if (rpcErr) { console.error("RPC error:", rpcErr); toast.error("Failed to generate number: " + rpcErr.message); setSaving(false); return; }

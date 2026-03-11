@@ -149,11 +149,54 @@ export default function Suppliers() {
     </>
   );
 
+  const totalBalance = suppliers.reduce((s, sup) => s + Number(sup.balance), 0);
+  const totalPayable = suppliers.filter(s => Number(s.balance) > 0).length;
+
   return (
     <AppLayout title="Suppliers" subtitle="RM & packing material suppliers with WHT tracking" headerActions={headerActions}>
-      <div className="mb-4 relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search suppliers..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+      {/* Summary Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 stagger-children">
+        <div className="summary-card p-4 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Truck className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Total</p>
+            <p className="text-lg font-bold font-mono tabular-nums text-foreground">{suppliers.length}</p>
+          </div>
+        </div>
+        <div className="summary-card p-4 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-destructive/10 flex items-center justify-center">
+            <Store className="h-4 w-4 text-destructive" />
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Payables</p>
+            <p className="text-lg font-bold font-mono tabular-nums text-foreground">PKR {totalBalance.toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="summary-card p-4 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
+            <BookOpen className="h-4 w-4 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">With Balance</p>
+            <p className="text-lg font-bold font-mono tabular-nums text-foreground">{totalPayable}</p>
+          </div>
+        </div>
+        <div className="summary-card p-4 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+            <Upload className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Avg Terms</p>
+            <p className="text-lg font-bold font-mono tabular-nums text-foreground">{suppliers.length > 0 ? Math.round(suppliers.reduce((s, sup) => s + sup.payment_terms_days, 0) / suppliers.length) : 0}d</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4 relative max-w-sm search-pill">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Search suppliers..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
       {selectedIds.size > 0 && (
@@ -197,7 +240,15 @@ export default function Suppliers() {
                   <TableCell className="text-xs">{s.license_number || "—"}</TableCell>
                   {settings?.wht_enabled && <TableCell><span className="status-pill bg-warning/10 text-warning">{s.wht_rate}%</span></TableCell>}
                   <TableCell className="text-right font-mono">{Number(s.balance).toLocaleString()}</TableCell>
-                  <TableCell className="text-muted-foreground">{s.payment_terms_days}d</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {s.payment_terms_days}d
+                    {Number(s.balance) > 0 && (() => {
+                      const dueDate = new Date(s.created_at);
+                      dueDate.setDate(dueDate.getDate() + s.payment_terms_days);
+                      const isOverdue = dueDate < new Date();
+                      return isOverdue ? <span className="ml-1 text-destructive text-[10px] font-semibold">OVERDUE</span> : null;
+                    })()}
+                  </TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(s)} title="Edit Supplier"><Edit className="h-3.5 w-3.5" /></Button>

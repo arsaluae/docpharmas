@@ -257,6 +257,19 @@ export default function PurchaseProforma() {
     if (!supplierId || items.length === 0) { toast.error("Supplier and items required"); return; }
     setSaving(true);
     try {
+      // Duplicate detection: check if same supplier has order in last 24 hours
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+      const { data: recentOrders } = await supabase.from("purchase_proformas")
+        .select("proforma_number, created_at")
+        .eq("supplier_id", supplierId)
+        .gte("created_at", oneDayAgo.toISOString())
+        .limit(1);
+      if (recentOrders && recentOrders.length > 0) {
+        const sup = suppliers.find(s => s.id === supplierId);
+        toast.warning(`⚠️ Duplicate alert: ${sup?.name || "Supplier"} already has order ${recentOrders[0].proforma_number} in the last 24 hours`, { duration: 6000 });
+      }
+
       const { subtotal, gst, total } = calcTotals(items);
       const { data: ppNumber, error: rpcErr } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_proforma" });
       if (rpcErr) { console.error("RPC error:", rpcErr); toast.error("Failed to generate number: " + rpcErr.message); setSaving(false); return; }
