@@ -746,20 +746,21 @@ export default function Index() {
         </Card>
 
         {/* AI Insights CTA */}
-        <Card className="glass-card overflow-hidden cursor-pointer hover:shadow-lg transition-all press-scale" onClick={() => navigate("/insights")}>
-          <CardContent className="p-0">
-            <div className="flex items-center gap-5 bg-gradient-to-r from-violet-600/10 to-primary/10 p-5">
-              <div className="p-3 rounded-xl bg-violet-600/20">
-                <Brain className="h-6 w-6 text-violet-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold text-foreground font-heading">AI Business Insights</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Demand forecasting, reorder alerts, margin analysis & more</p>
-              </div>
-              <span className="text-xs font-semibold text-primary">View Insights →</span>
+        <div className="ai-cta-card cursor-pointer press-scale" onClick={() => navigate("/insights")}>
+          <div className="flex items-center gap-5 p-5 sm:p-6">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-violet-500/20 to-primary/10 shadow-sm">
+              <Brain className="h-6 w-6 text-violet-600" />
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-foreground font-heading flex items-center gap-2">
+                AI Business Insights
+                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest rounded-full bg-violet-500/10 text-violet-600">Beta</span>
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Demand forecasting, reorder alerts, margin analysis & more</p>
+            </div>
+            <span className="text-xs font-bold text-primary hidden sm:block">View Insights →</span>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );
