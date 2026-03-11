@@ -64,6 +64,7 @@ export default function PurchaseProforma() {
   const [costDesc, setCostDesc] = useState("");
   const [costAmount, setCostAmount] = useState("");
   const [costVendorId, setCostVendorId] = useState("");
+  const [allocatedProductIds, setAllocatedProductIds] = useState<string[] | null>(null);
 
   // Preview items (for PDF generation)
   const [previewItems, setPreviewItems] = useState<any[]>([]);
