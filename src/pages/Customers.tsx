@@ -260,6 +260,7 @@ export default function Customers() {
                   <TableCell onClick={e => e.stopPropagation()}>
                     <Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
                   </TableCell>
+                  <TableCell className="text-xs font-mono text-muted-foreground">{(c as any).customer_code || "—"}</TableCell>
                   <TableCell className="font-medium cursor-pointer hover:text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setProfileCustomer(c); setProfileOpen(true); }}>{c.name}</TableCell>
                   <TableCell>{c.company || "—"}</TableCell>
                   <TableCell>{c.city || "—"}</TableCell>
