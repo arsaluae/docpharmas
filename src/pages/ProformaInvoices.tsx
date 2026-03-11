@@ -76,8 +76,8 @@ export default function ProformaInvoices() {
   const [validityDays, setValidityDays] = useState("30");
   const [paymentInstructions, setPaymentInstructions] = useState("");
   const [items, setItems] = useState<ProformaItem[]>([]);
+  const [allocatedProductIds, setAllocatedProductIds] = useState<string[] | null>(null);
 
-  // Edit Dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editOrder, setEditOrder] = useState<SalesOrder | null>(null);
   const [editCustomerId, setEditCustomerId] = useState("");
@@ -208,6 +208,16 @@ export default function ProformaInvoices() {
     if (prod.data) setProducts(prod.data);
     setLoading(false);
   };
+
+  // Load allocated products when customer changes
+  useEffect(() => {
+    if (!customerId) { setAllocatedProductIds(null); return; }
+    (async () => {
+      const { data } = await supabase.from("customer_products").select("product_id").eq("customer_id", customerId);
+      if (data && data.length > 0) setAllocatedProductIds(data.map(d => d.product_id));
+      else setAllocatedProductIds(null);
+    })();
+  }, [customerId]);
 
   // ── ITEMS HELPERS ──
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0 }]);
@@ -813,7 +823,10 @@ export default function ProformaInvoices() {
 
   const allStats = { count: monthOrders.length, value: monthOrders.reduce((s, d) => s + Number(d.total), 0) };
   const customerOptions = customers.map(c => ({ value: c.id, label: c.name }));
-  const productOptions = products.map(p => ({ value: p.id, label: p.name }));
+  const productOptions = (allocatedProductIds && allocatedProductIds.length > 0
+    ? products.filter(p => allocatedProductIds.includes(p.id))
+    : products
+  ).map(p => ({ value: p.id, label: p.name }));
 
   return (
     <AppLayout title="Sales Invoices" subtitle="Create invoices → confirm with batch → auto invoice + delivery note"

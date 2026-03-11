@@ -64,6 +64,7 @@ export default function PurchaseProforma() {
   const [costDesc, setCostDesc] = useState("");
   const [costAmount, setCostAmount] = useState("");
   const [costVendorId, setCostVendorId] = useState("");
+  const [allocatedProductIds, setAllocatedProductIds] = useState<string[] | null>(null);
 
   // Preview items (for PDF generation)
   const [previewItems, setPreviewItems] = useState<any[]>([]);
@@ -202,6 +203,16 @@ export default function PurchaseProforma() {
     if (prod.data) setProducts(prod.data);
     setLoading(false);
   };
+
+  // Load allocated products when supplier changes
+  useEffect(() => {
+    if (!supplierId) { setAllocatedProductIds(null); return; }
+    (async () => {
+      const { data } = await supabase.from("supplier_products").select("product_id").eq("supplier_id", supplierId);
+      if (data && data.length > 0) setAllocatedProductIds(data.map(d => d.product_id));
+      else setAllocatedProductIds(null);
+    })();
+  }, [supplierId]);
 
   // ── ITEMS ──
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }]);
@@ -808,7 +819,10 @@ export default function PurchaseProforma() {
   // ── FILTERS ──
   const { subtotal, gst, total } = calcTotals(items);
   const supplierOptions = suppliers.map(s => ({ value: s.id, label: s.name }));
-  const productOptions = products.map(p => ({ value: p.id, label: p.name }));
+  const productOptions = (allocatedProductIds && allocatedProductIds.length > 0
+    ? products.filter(p => allocatedProductIds.includes(p.id))
+    : products
+  ).map(p => ({ value: p.id, label: p.name }));
 
   const getDateFilter = () => {
     const now = new Date();

@@ -12,9 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Truck, BookOpen, Trash2, Upload } from "lucide-react";
+import { Plus, Search, Truck, BookOpen, Trash2, Upload, Store } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { SupplierProfileDialog } from "@/components/SupplierProfileDialog";
 
 interface Supplier {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
@@ -39,6 +40,8 @@ export default function Suppliers() {
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileSupplier, setProfileSupplier] = useState<Supplier | null>(null);
 
   useEffect(() => { loadSuppliers(); }, [pagination.page]);
 
@@ -197,6 +200,7 @@ export default function Suppliers() {
                   <TableCell className="text-muted-foreground">{s.payment_terms_days}d</TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setProfileSupplier(s); setProfileOpen(true); }} title="Profile & Products"><Store className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/suppliers/${s.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
@@ -218,6 +222,13 @@ export default function Suppliers() {
           />
         </CardContent>
       </Card>
+
+      <SupplierProfileDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        supplierId={profileSupplier?.id || null}
+        supplierName={profileSupplier?.name || ""}
+      />
     </AppLayout>
   );
 }

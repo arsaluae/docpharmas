@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, X, Edit, Users, TrendingUp, DollarSign, Package } from "lucide-react";
+import { AllocatedProducts } from "@/components/AllocatedProducts";
 import { toast } from "sonner";
 
 interface CustomerProfileDialogProps {
@@ -202,6 +203,9 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
             </div>
           </div>
         )}
+
+        {/* Allocated Products */}
+        {customerId && <AllocatedProducts partyId={customerId} partyType="customer" />}
 
         {/* Distributors */}
         <div>
