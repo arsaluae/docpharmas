@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Share2 } from "lucide-react";
+import { Download, X } from "lucide-react";
 import { useRef } from "react";
 
 interface PdfPreviewDialogProps {
@@ -14,24 +14,14 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title }: PdfPreview
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const handlePrint = () => {
-    // Open in new tab — works reliably on mobile and desktop
     const win = window.open("", "_blank");
     if (win) {
       win.document.write(html);
       win.document.close();
+      win.onload = () => { win.print(); };
+      // fallback for browsers that don't fire onload for document.write
+      setTimeout(() => { try { win.print(); } catch(e) {} }, 600);
     }
-  };
-
-  const handleDownload = () => {
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${title || "Document"}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   // Strip toolbar from embedded view and inject fit-to-width CSS
@@ -58,18 +48,18 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title }: PdfPreview
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-none w-[98vw] h-[95vh] p-0 gap-0 overflow-hidden flex flex-col">
+      <DialogContent className="max-w-none w-[98vw] h-[95vh] p-0 gap-0 overflow-hidden flex flex-col [&>button.absolute]:hidden">
         <DialogTitle className="sr-only">{title || "Document Preview"}</DialogTitle>
         <DialogDescription className="sr-only">Preview of {title || "document"}</DialogDescription>
         {/* Header bar */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
           <span className="text-sm font-semibold truncate">{title || "Document Preview"}</span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleDownload}>
-              <Share2 className="h-3.5 w-3.5" /> Save
-            </Button>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handlePrint}>
               <Download className="h-3.5 w-3.5" /> Download / Print
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>
+              <X className="h-4 w-4" />
             </Button>
           </div>
         </div>

@@ -1,32 +1,34 @@
 
 
-# Fix PDF Preview Dialog Issues
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## Problems Identified
-1. **"Sales Order" title** — The WhatsApp share path (line 390) conditionally uses "SALES ORDER". The `printOrder` function doesn't pass a template, so the template title doesn't apply. Need to ensure all paths use "SALES INVOICE".
-2. **Close button overlaps Download/Print** — The dialog's built-in X close button (positioned `right-4 top-4`) overlaps with the header action buttons.
-3. **Download/Print opens new tab** — Currently opens a blank window and writes HTML. Should trigger `window.print()` on the iframe content directly, or open the new tab and auto-trigger print.
-4. **SR# and Product Name hidden in preview** — The embedded iframe strips the toolbar but the table columns get compressed. The `#` and `Product` columns need minimum widths in the PDF HTML.
+## Two Changes
 
-## Changes
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-### File 1: `src/components/PdfPreviewDialog.tsx`
-- Move close button into the custom header bar (right side, after action buttons) and hide the default dialog close button
-- Change `handlePrint`: Open in new tab AND auto-call `window.print()` after load
-- Merge Save + Download/Print into a single "Download / Print" button that opens new tab with auto-print
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-### File 2: `src/components/ui/dialog.tsx`
-- No change needed — we'll use a custom className on PdfPreviewDialog's DialogContent to hide the default close button via CSS
+## Files Changed
 
-### File 3: `src/pages/ProformaInvoices.tsx`
-- Line 390: Change `"SALES ORDER"` to `"SALES INVOICE"` (WhatsApp share path)
-- Line 427: Pass `template: getTemplate("sales_invoice")` to `printOrder` so template columns apply
-- Line 310: Update console log text
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
 
-### File 4: `src/lib/pdf-generator.ts`
-- Add `min-width` to first two columns (SR# and Product Name) in the table header and body cells so they don't collapse
-- Ensure Product Name column gets `min-width: 140px` and SR# gets `min-width: 40px`
-
-### File 5: `src/pages/PurchaseProforma.tsx`
-- Same pattern: ensure all `generatePdfHtml` calls pass the correct template and title
+No other files change. The template system and all callers remain the same.
 

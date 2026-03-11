@@ -137,15 +137,21 @@ function buildPdfHtml(opts: PdfOptions): string {
 
   const thAlign = (c: PdfColumn) => c.align || "left";
 
-  const headerCells = columns.map(c =>
-    `<th style="padding:10px 10px;text-align:${thAlign(c)};font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:#e2e8f0;border-bottom:2px solid ${C.primary};">${c.header}</th>`
+  const colMinWidth = (c: PdfColumn, idx: number) => {
+    if (idx === 0) return "min-width:40px;max-width:50px;";
+    if (idx === 1) return "min-width:160px;";
+    return "";
+  };
+
+  const headerCells = columns.map((c, idx) =>
+    `<th style="padding:10px 10px;text-align:${thAlign(c)};font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:#e2e8f0;border-bottom:2px solid ${C.primary};${colMinWidth(c, idx)}">${c.header}</th>`
   ).join("");
 
   const bodyRows = opts.rows.map((row, i) => {
     const bg = i % 2 === 0 ? "#ffffff" : C.rowAlt;
-    const cells = columns.map(c => {
+    const cells = columns.map((c, cIdx) => {
       const isNum = c.align === "right";
-      return `<td style="padding:9px 10px;font-size:11.5px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};${isNum ? "font-family:'Courier New',monospace;font-weight:500;letter-spacing:0.5px;" : "font-weight:400;"}">${row[c.key] ?? ""}</td>`;
+      return `<td style="padding:9px 10px;font-size:11.5px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};${colMinWidth(c, cIdx)}${isNum ? "font-family:'Courier New',monospace;font-weight:500;letter-spacing:0.5px;" : "font-weight:400;"}">${row[c.key] ?? ""}</td>`;
     }).join("");
     return `<tr style="background:${bg};">${cells}</tr>`;
   }).join("");

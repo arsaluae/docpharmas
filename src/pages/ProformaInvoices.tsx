@@ -387,7 +387,7 @@ export default function ProformaInvoices() {
     try {
       const { buildSalesInvoiceMessage, openWhatsApp, uploadSharedDocument } = await import("@/lib/whatsapp-share");
       const html = generatePdfHtml({
-        title: order.status === "dispatched" || order.status === "paid" || order.status === "partial" ? "SALES INVOICE" : "SALES ORDER",
+        title: "SALES INVOICE",
         documentNumber: order.invoice_number || order.proforma_number,
         date: order.date, partyLabel: "Customer", partyName: custName,
         columns: [
@@ -440,6 +440,7 @@ export default function ProformaInvoices() {
         { label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` },
       ],
       notes: order.payment_instructions || undefined, settings,
+      template: getTemplate("sales_invoice"),
     });
     setPdfHtml(html); setPdfTitle(`Sales Invoice — ${order.proforma_number}`); setPdfOpen(true);
   };
