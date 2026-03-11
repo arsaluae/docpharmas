@@ -1,34 +1,24 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Fix: Sales Order "Failed to generate number" Error
 
-## Two Changes
+## Root Cause
+Two document type strings in the frontend code don't match the `document_counters` table values:
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+| File | Code uses | DB has |
+|------|-----------|--------|
+| `ProformaInvoices.tsx` line 298 | `"proforma_invoice"` | `"proforma"` |
+| `PurchaseProforma.tsx` line 631 | `"goods_received_note"` | `"grn"` |
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+The `generate_document_number` function raises an exception when it can't find the document type, causing the "Failed to generate number" error.
 
-## Files Changed
+## Fix (2 one-line changes)
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+**File: `src/pages/ProformaInvoices.tsx` (line 298)**
+Change `p_document_type: "proforma_invoice"` to `p_document_type: "proforma"`
 
-No other files change. The template system and all callers remain the same.
+**File: `src/pages/PurchaseProforma.tsx` (line 631)**
+Change `p_document_type: "goods_received_note"` to `p_document_type: "grn"`
+
+No database changes needed. All other document type strings (`sales_invoice`, `purchase_proforma`, `purchase_order`, `purchase_invoice`, `delivery_note`, `payment`, `expense`, `warranty_invoice`, `credit_note`, `salary`, `supplier`, `customer`, `product`) are already correct.
 
