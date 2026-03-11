@@ -47,7 +47,7 @@ export default function DeliveryNotes() {
   useEffect(() => { load(); }, [pagination.page]);
 
   const load = async () => {
-    const { data, count } = await supabase.from("delivery_notes").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
+    const { data, count } = await supabase.from("delivery_notes").select("*, customers(name), suppliers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
     if (data) setNotes(data as any);
     if (count !== null) pagination.setTotalCount(count);
   };
