@@ -1,34 +1,37 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Fix Purchase Order Creation Error + Improvements
 
-## Two Changes
+## Investigation Results
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+I checked the database schema, triggers, RLS policies, and document counters — everything is properly configured. The triggers for `set_tenant_id` exist on all tables, and the `purchase_proforma` document counter has the correct entry.
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+The console shows a **DropdownMenu ref warning** on the ProformaInvoices page — this is a cosmetic React warning but doesn't block functionality.
 
-## Files Changed
+The most likely issue is **insufficient error surfacing** — if the `generate_document_number` RPC or subsequent insert fails, the error toast may not show the real cause. I'll add robust error handling and ensure both pages work correctly.
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+## Changes
 
-No other files change. The template system and all callers remain the same.
+### 1. Add error handling & logging to PurchaseProforma create flow
+- Add `try/catch` around the entire `handleSave` to catch unexpected failures
+- Log actual Supabase error details to console for debugging
+- Show more descriptive error toasts
+
+### 2. Add error handling to ProformaInvoices (sales) create flow
+- Same treatment for the sales order creation
+
+### 3. Fix DropdownMenu ref warning
+- The warning comes from Radix v1 internals; suppress by ensuring `DropdownMenuContent` doesn't receive stale refs from parent components. The component already uses `forwardRef` — the issue is likely from the Radix Portal layer. Will update the component.
+
+### 4. Verify both pages end-to-end
+- Ensure product selection, rate lookup, totals calculation, and document number generation all work
+- Ensure items insert includes all required fields
+
+## Files to Change
+
+| File | Change |
+|------|--------|
+| `src/pages/PurchaseProforma.tsx` | Wrap handleSave in try/catch, better error messages |
+| `src/pages/ProformaInvoices.tsx` | Same error handling improvements |
+| `src/components/ui/dropdown-menu.tsx` | Fix ref warning |
 
