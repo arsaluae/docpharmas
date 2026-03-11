@@ -20,11 +20,12 @@ interface Supplier {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
   phone: string | null; email: string | null; address: string | null; city: string | null;
   payment_terms_days: number; wht_rate: number; opening_balance: number; balance: number; created_at: string;
+  supplier_code: string | null; license_number: string | null;
 }
 
 const emptyForm = {
   name: "", company: "", ntn: "", strn: "", phone: "", email: "", address: "", city: "",
-  payment_terms_days: "30", wht_rate: "4.5", opening_balance: "0",
+  payment_terms_days: "30", wht_rate: "4.5", opening_balance: "0", license_number: "",
 };
 
 export default function Suppliers() {
@@ -43,24 +44,26 @@ export default function Suppliers() {
 
   const loadSuppliers = async () => {
     const { data, count } = await supabase.from("suppliers").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
-    if (data) setSuppliers(data);
+    if (data) setSuppliers(data as any);
     if (count !== null) pagination.setTotalCount(count);
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { toast.error("Name is required"); return; }
-    const basePayload = {
+    if (!form.name.trim()) { toast.error("Company Name is required"); return; }
+    const basePayload: any = {
       name: form.name, company: form.company || null, ntn: form.ntn || null, strn: form.strn || null,
       phone: form.phone || null, email: form.email || null, address: form.address || null, city: form.city || null,
       payment_terms_days: Number(form.payment_terms_days), wht_rate: Number(form.wht_rate),
-      opening_balance: Number(form.opening_balance),
+      opening_balance: Number(form.opening_balance), license_number: form.license_number || null,
     };
     if (editId) {
       const { error } = await supabase.from("suppliers").update(basePayload).eq("id", editId);
       if (error) { toast.error("Failed to update: " + error.message); return; }
       toast.success("Supplier updated");
     } else {
-      const { error } = await supabase.from("suppliers").insert({ ...basePayload, balance: Number(form.opening_balance) });
+      // Generate auto-code for new suppliers
+      const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "supplier" });
+      const { error } = await supabase.from("suppliers").insert({ ...basePayload, balance: Number(form.opening_balance), supplier_code: code || null } as any);
       if (error) { toast.error("Failed to create: " + error.message); return; }
       toast.success("Supplier created");
     }
@@ -73,6 +76,7 @@ export default function Suppliers() {
       name: s.name, company: s.company || "", ntn: s.ntn || "", strn: s.strn || "",
       phone: s.phone || "", email: s.email || "", address: s.address || "", city: s.city || "",
       payment_terms_days: String(s.payment_terms_days), wht_rate: String(s.wht_rate), opening_balance: String(s.opening_balance),
+      license_number: s.license_number || "",
     });
     setOpen(true);
   };
@@ -112,7 +116,7 @@ export default function Suppliers() {
   };
 
   const filtered = suppliers.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) || (s.company || "").toLowerCase().includes(search.toLowerCase())
+    s.name.toLowerCase().includes(search.toLowerCase()) || (s.company || "").toLowerCase().includes(search.toLowerCase()) || (s.supplier_code || "").toLowerCase().includes(search.toLowerCase())
   );
 
   const headerActions = (
@@ -123,8 +127,9 @@ export default function Suppliers() {
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Supplier</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-3 mt-2">
-            <div className="col-span-2"><Label>Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
-            <div><Label>Company</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} /></div>
+            <div className="col-span-2"><Label>Company Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Company / Business name" /></div>
+            <div><Label>Contact Person</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Contact name (optional)" /></div>
+            <div><Label>License Number</Label><Input value={form.license_number} onChange={e => setForm({...form, license_number: e.target.value})} placeholder="Drug license #" /></div>
             <div><Label>City</Label><Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} /></div>
             <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} /></div>
             <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} /></div>
@@ -170,20 +175,23 @@ export default function Suppliers() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selectedIds.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                <TableHead>Name</TableHead><TableHead>Company</TableHead><TableHead>City</TableHead>
+                <TableHead>Code</TableHead><TableHead>Company Name</TableHead><TableHead>Contact</TableHead><TableHead>City</TableHead>
+                <TableHead>License #</TableHead>
                 {settings?.wht_enabled && <TableHead>WHT %</TableHead>}<TableHead className="text-right">Balance</TableHead>
                 <TableHead>Terms</TableHead><TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={settings?.wht_enabled ? 8 : 7} className="text-center py-12 text-muted-foreground"><Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />No suppliers yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={settings?.wht_enabled ? 10 : 9} className="text-center py-12 text-muted-foreground"><Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />No suppliers yet.</TableCell></TableRow>
               ) : filtered.map(s => (
                 <TableRow key={s.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(s)}>
                   <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selectedIds.has(s.id)} onCheckedChange={() => toggleSelect(s.id)} /></TableCell>
+                  <TableCell className="text-xs font-mono text-muted-foreground">{s.supplier_code || "—"}</TableCell>
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell>{s.company || "—"}</TableCell>
                   <TableCell>{s.city || "—"}</TableCell>
+                  <TableCell className="text-xs">{s.license_number || "—"}</TableCell>
                   {settings?.wht_enabled && <TableCell><span className="status-pill bg-warning/10 text-warning">{s.wht_rate}%</span></TableCell>}
                   <TableCell className="text-right font-mono">{Number(s.balance).toLocaleString()}</TableCell>
                   <TableCell className="text-muted-foreground">{s.payment_terms_days}d</TableCell>

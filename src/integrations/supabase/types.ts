@@ -355,6 +355,7 @@ export type Database = {
           created_at: string
           credit_days: number
           credit_limit: number
+          customer_code: string | null
           email: string | null
           id: string
           name: string
@@ -373,6 +374,7 @@ export type Database = {
           created_at?: string
           credit_days?: number
           credit_limit?: number
+          customer_code?: string | null
           email?: string | null
           id?: string
           name: string
@@ -391,6 +393,7 @@ export type Database = {
           created_at?: string
           credit_days?: number
           credit_limit?: number
+          customer_code?: string | null
           email?: string | null
           id?: string
           name?: string
@@ -1206,6 +1209,7 @@ export type Database = {
           mrp: number
           name: string
           pack_size: string | null
+          product_code: string | null
           reorder_level: number
           selling_price: number
           sku: string | null
@@ -1223,6 +1227,7 @@ export type Database = {
           mrp?: number
           name: string
           pack_size?: string | null
+          product_code?: string | null
           reorder_level?: number
           selling_price?: number
           sku?: string | null
@@ -1240,6 +1245,7 @@ export type Database = {
           mrp?: number
           name?: string
           pack_size?: string | null
+          product_code?: string | null
           reorder_level?: number
           selling_price?: number
           sku?: string | null
@@ -2138,12 +2144,14 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          license_number: string | null
           name: string
           ntn: string | null
           opening_balance: number
           payment_terms_days: number
           phone: string | null
           strn: string | null
+          supplier_code: string | null
           tenant_id: string | null
           wht_rate: number
         }
@@ -2155,12 +2163,14 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          license_number?: string | null
           name: string
           ntn?: string | null
           opening_balance?: number
           payment_terms_days?: number
           phone?: string | null
           strn?: string | null
+          supplier_code?: string | null
           tenant_id?: string | null
           wht_rate?: number
         }
@@ -2172,12 +2182,14 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          license_number?: string | null
           name?: string
           ntn?: string | null
           opening_balance?: number
           payment_terms_days?: number
           phone?: string | null
           strn?: string | null
+          supplier_code?: string | null
           tenant_id?: string | null
           wht_rate?: number
         }

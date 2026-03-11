@@ -470,7 +470,8 @@ export default function PurchaseProforma() {
       );
     }
 
-    // Auto-create Purchase Invoice (Bill)
+    // Auto-create Purchase Invoice (Bill) linked to PO
+    let createdBillId: string | null = null;
     try {
       const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
       if (billNumber) {
@@ -478,11 +479,12 @@ export default function PurchaseProforma() {
         const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
         const whtAmount = settings?.wht_enabled ? Number(order.subtotal) * whtRate / 100 : 0;
         const netTotal = Number(order.subtotal) + Number(order.gst) - whtAmount;
-        await supabase.from("purchase_invoices").insert({
+        const { data: bill } = await supabase.from("purchase_invoices").insert({
           bill_number: billNumber, supplier_id: order.supplier_id,
           date: po.date, subtotal: Number(order.subtotal), gst: Number(order.gst),
           wht_amount: whtAmount, total: netTotal, status: "unpaid",
-        });
+        }).select("id").single();
+        if (bill) createdBillId = bill.id;
       }
     } catch { /* bill generation is best-effort */ }
 
@@ -631,10 +633,14 @@ export default function PurchaseProforma() {
 
       await supabase.from("purchase_orders").update({ status: "received" }).eq("id", poId);
 
-      // Only create bill at receive if one wasn't already created at confirm stage
+      // Find the bill linked to this specific PO (created at confirm stage)
+      const poId2 = receivePO.converted_po_id || receivePO.id;
+      // Look for bills that match this PO's supplier AND were created on the same date as the PO
+      const { data: poData2 } = await supabase.from("purchase_orders").select("date, supplier_id").eq("id", poId2).single();
       const { data: existingBill } = await supabase.from("purchase_invoices")
         .select("id")
-        .eq("supplier_id", receivePO.supplier_id || "")
+        .eq("supplier_id", poData2?.supplier_id || receivePO.supplier_id || "")
+        .eq("date", poData2?.date || "")
         .is("grn_id", null)
         .limit(1);
       

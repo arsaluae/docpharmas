@@ -88,7 +88,8 @@ export default function Products() {
       await supabase.from("products").update(payload).eq("id", editId);
       toast.success("Product updated");
     } else {
-      await supabase.from("products").insert(payload);
+      const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "product" });
+      await supabase.from("products").insert({ ...payload, product_code: code || null } as any);
       toast.success("Product created");
     }
     setOpen(false); setForm(emptyForm); setEditId(null); loadAll();
@@ -239,7 +240,7 @@ export default function Products() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead><TableHead>SKU</TableHead><TableHead>Category</TableHead><TableHead>DRAP</TableHead>
+                          <TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>SKU</TableHead><TableHead>Category</TableHead><TableHead>DRAP</TableHead>
                           <TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Price</TableHead>
                           <TableHead className="text-right">Margin</TableHead><TableHead className="text-right">Stock</TableHead>
                           <TableHead className="text-center">Actions</TableHead>
@@ -247,9 +248,10 @@ export default function Products() {
                       </TableHeader>
                       <TableBody>
                         {filtered.length === 0 ? (
-                          <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={10} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
                         ) : filtered.map(p => (
                           <TableRow key={p.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(p)}>
+                            <TableCell className="text-xs font-mono text-muted-foreground">{(p as any).product_code || "—"}</TableCell>
                             <TableCell className="font-medium">{p.name}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">{p.sku || "—"}</TableCell>
                             <TableCell><span className="status-pill bg-violet-50 text-violet-700 capitalize">{p.category}</span></TableCell>

@@ -33,11 +33,15 @@ const emptyForm = {
   credit_limit: "0", credit_days: "30", opening_balance: "0",
 };
 
+interface CustomerWithCode extends Customer {
+  customer_code: string | null;
+}
+
 const emptyLicenseForm = { license_number: "", license_type: "drug_license", expiry_date: "", address: "", notes: "" };
 
 export default function Customers() {
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<CustomerWithCode[]>([]);
   const [search, setSearch] = useState("");
   const pagination = usePagination();
   const [form, setForm] = useState(emptyForm);
@@ -64,7 +68,7 @@ export default function Customers() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { toast.error("Name is required"); return; }
+    if (!form.name.trim()) { toast.error("Company Name is required"); return; }
     const basePayload = {
       name: form.name, company: form.company || null, ntn: form.ntn || null, strn: form.strn || null,
       phone: form.phone || null, email: form.email || null, address: form.address || null, city: form.city || null,
@@ -76,7 +80,8 @@ export default function Customers() {
       if (error) { toast.error("Failed to update: " + error.message); return; }
       toast.success("Customer updated");
     } else {
-      const { error } = await supabase.from("customers").insert({ ...basePayload, balance: Number(form.opening_balance) });
+      const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "customer" });
+      const { error } = await supabase.from("customers").insert({ ...basePayload, balance: Number(form.opening_balance), customer_code: code || null } as any);
       if (error) { toast.error("Failed to create: " + error.message); return; }
       toast.success("Customer created");
     }
@@ -178,8 +183,8 @@ export default function Customers() {
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Customer</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-3 mt-2">
-            <div className="col-span-2"><Label>Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
-            <div><Label>Company</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} /></div>
+            <div className="col-span-2"><Label>Company Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Company / Business name" /></div>
+            <div><Label>Contact Person</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Contact name (optional)" /></div>
             <div><Label>City</Label><Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} /></div>
             <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} placeholder="National Tax Number" /></div>
             <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} placeholder="Sales Tax Reg." /></div>
@@ -233,8 +238,9 @@ export default function Customers() {
                 <TableHead className="w-10">
                   <Checkbox checked={filtered.length > 0 && selectedIds.size === filtered.length} onCheckedChange={toggleAll} />
                 </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Company</TableHead>
+                <TableHead>Code</TableHead>
+                <TableHead>Company Name</TableHead>
+                <TableHead>Contact</TableHead>
                 <TableHead>City</TableHead>
                 <TableHead>NTN</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
@@ -245,7 +251,7 @@ export default function Customers() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                     <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />No customers yet.
                   </TableCell>
                 </TableRow>
@@ -254,6 +260,7 @@ export default function Customers() {
                   <TableCell onClick={e => e.stopPropagation()}>
                     <Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
                   </TableCell>
+                  <TableCell className="text-xs font-mono text-muted-foreground">{(c as any).customer_code || "—"}</TableCell>
                   <TableCell className="font-medium cursor-pointer hover:text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setProfileCustomer(c); setProfileOpen(true); }}>{c.name}</TableCell>
                   <TableCell>{c.company || "—"}</TableCell>
                   <TableCell>{c.city || "—"}</TableCell>
