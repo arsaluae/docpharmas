@@ -681,15 +681,17 @@ export default function ProformaInvoices() {
     const invoiceId = voidOrder.converted_invoice_id;
     // 1. Delete stock movements (trigger restores inventory)
     await supabase.from("stock_movements").delete().eq("reference_id", invoiceId);
-    // 2. Delete invoice items
+    // 2. Delete linked payments (trigger reverses customer & bank balances)
+    await supabase.from("payments").delete().eq("invoice_id", invoiceId);
+    // 3. Delete invoice items
     await supabase.from("sales_invoice_items").delete().eq("invoice_id", invoiceId);
-    // 3. Delete invoice (trigger reverses customer balance)
+    // 4. Delete invoice (trigger reverses customer balance)
     await supabase.from("sales_invoices").delete().eq("id", invoiceId);
-    // 4. Delete delivery note
+    // 5. Delete delivery note
     await supabase.from("delivery_notes").delete().eq("reference_id", invoiceId);
-    // 5. Reset proforma to draft
+    // 6. Reset proforma to draft
     await supabase.from("proforma_invoices").update({ status: "draft", converted_invoice_id: null }).eq("id", voidOrder.id);
-    toast.success(`Order ${voidOrder.proforma_number} voided — invoice, delivery note & stock reversed`);
+    toast.success(`Order ${voidOrder.proforma_number} voided — invoice, payments, delivery note & stock reversed`);
     setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); load();
   };
 

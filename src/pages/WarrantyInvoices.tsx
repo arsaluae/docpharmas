@@ -557,6 +557,7 @@ export default function WarrantyInvoices() {
                 ))}
               </TableBody>
             </Table>
+            <PaginationControls page={pagination.page} totalPages={pagination.totalPages} totalCount={pagination.totalCount} hasNext={pagination.hasNext} hasPrev={pagination.hasPrev} onNext={pagination.nextPage} onPrev={pagination.prevPage} pageSize={pagination.pageSize} />
           </CardContent>
         </Card>
       </div>

@@ -137,7 +137,7 @@ export default function BalanceSheet() {
                 <p className="text-2xl font-bold font-mono text-primary">PKR {(totalLiabilities + equity).toLocaleString()}</p>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground text-center mt-4">⚠️ Note: Bank balances, receivables, payables & inventory reflect current live balances. Only retained earnings are filtered by the "As of" date.</p>
+            <p className="text-xs text-muted-foreground text-center mt-4">⚠️ Note: Inventory reflects current live stock. All other figures are calculated from transactions up to the "As of" date.</p>
           </CardContent>
         </Card>
       </div>
