@@ -71,6 +71,112 @@ export type Database = {
           },
         ]
       }
+      agent_commissions: {
+        Row: {
+          agent_id: string
+          commission_amount: number
+          commission_rate: number
+          commission_type: string
+          created_at: string
+          id: string
+          month: string
+          notes: string | null
+          payment_id: string | null
+          status: string
+          tenant_id: string | null
+          total_sales: number
+        }
+        Insert: {
+          agent_id: string
+          commission_amount?: number
+          commission_rate?: number
+          commission_type?: string
+          created_at?: string
+          id?: string
+          month: string
+          notes?: string | null
+          payment_id?: string | null
+          status?: string
+          tenant_id?: string | null
+          total_sales?: number
+        }
+        Update: {
+          agent_id?: string
+          commission_amount?: number
+          commission_rate?: number
+          commission_type?: string
+          created_at?: string
+          id?: string
+          month?: string
+          notes?: string | null
+          payment_id?: string | null
+          status?: string
+          tenant_id?: string | null
+          total_sales?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_commissions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "sales_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_commissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_customers: {
+        Row: {
+          agent_id: string
+          created_at: string
+          customer_id: string
+          id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_customers_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "sales_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_customers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_accounts: {
         Row: {
           account_number: string | null
@@ -1412,6 +1518,7 @@ export type Database = {
       }
       proforma_invoices: {
         Row: {
+          agent_id: string | null
           converted_invoice_id: string | null
           created_at: string
           customer_id: string | null
@@ -1428,6 +1535,7 @@ export type Database = {
           validity_days: number
         }
         Insert: {
+          agent_id?: string | null
           converted_invoice_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -1444,6 +1552,7 @@ export type Database = {
           validity_days?: number
         }
         Update: {
+          agent_id?: string | null
           converted_invoice_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -1460,6 +1569,13 @@ export type Database = {
           validity_days?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "proforma_invoices_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "sales_agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proforma_invoices_converted_invoice_id_fkey"
             columns: ["converted_invoice_id"]
@@ -2040,6 +2156,53 @@ export type Database = {
           },
         ]
       }
+      sales_agents: {
+        Row: {
+          address: string | null
+          commission_rate: number
+          commission_type: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          commission_rate?: number
+          commission_type?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          commission_rate?: number
+          commission_type?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_agents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_invoice_items: {
         Row: {
           amount: number
@@ -2103,6 +2266,7 @@ export type Database = {
       }
       sales_invoices: {
         Row: {
+          agent_id: string | null
           amount_paid: number
           created_at: string
           created_by: string | null
@@ -2121,6 +2285,7 @@ export type Database = {
           total: number
         }
         Insert: {
+          agent_id?: string | null
           amount_paid?: number
           created_at?: string
           created_by?: string | null
@@ -2139,6 +2304,7 @@ export type Database = {
           total?: number
         }
         Update: {
+          agent_id?: string | null
           amount_paid?: number
           created_at?: string
           created_by?: string | null
@@ -2157,6 +2323,13 @@ export type Database = {
           total?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_invoices_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "sales_agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_invoices_customer_id_fkey"
             columns: ["customer_id"]

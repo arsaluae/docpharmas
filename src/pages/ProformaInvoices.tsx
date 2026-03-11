@@ -31,6 +31,7 @@ interface Customer { id: string; name: string; company: string | null; phone: st
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
 interface ProformaItem { product_id: string; product_name: string; quantity: number; rate: number; gst_rate: number; amount: number; last_price?: number | null; }
 interface DeliveryNoteRow { id: string; dn_number: string; date: string; customer_id: string | null; items: any; status: string; reference_id: string; created_at: string; customer_name?: string; invoice_number?: string; }
+interface SalesAgentOption { id: string; name: string; }
 
 interface SalesOrder {
   id: string; proforma_number: string; customer_id: string | null; date: string;
@@ -77,7 +78,9 @@ export default function ProformaInvoices() {
   const [paymentInstructions, setPaymentInstructions] = useState("");
   const [items, setItems] = useState<ProformaItem[]>([]);
   const [allocatedProductIds, setAllocatedProductIds] = useState<string[] | null>(null);
-
+  const [agentId, setAgentId] = useState("");
+  const [agentsList, setAgentsList] = useState<SalesAgentOption[]>([]);
+  const [editAgentId, setEditAgentId] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [editOrder, setEditOrder] = useState<SalesOrder | null>(null);
   const [editCustomerId, setEditCustomerId] = useState("");
@@ -152,11 +155,13 @@ export default function ProformaInvoices() {
       else pfQuery = pfQuery.neq("status", "draft"); // simplified for server-side
     }
     pfQuery = pfQuery.range(pagination.from, pagination.to);
-    const [pf, cust, prod] = await Promise.all([
+    const [pf, cust, prod, agentsRes] = await Promise.all([
       pfQuery,
       supabase.from("customers").select("id, name, company, phone, address, area"),
       supabase.from("products").select("id, name, selling_price, gst_rate"),
+      supabase.from("sales_agents").select("id, name").eq("status", "active"),
     ]);
+    if (agentsRes.data) setAgentsList(agentsRes.data as SalesAgentOption[]);
 
     const allOrders: SalesOrder[] = [];
     if (pf.data) {
@@ -209,13 +214,18 @@ export default function ProformaInvoices() {
     setLoading(false);
   };
 
-  // Load allocated products when customer changes
+  // Load allocated products + auto-select agent when customer changes
   useEffect(() => {
-    if (!customerId) { setAllocatedProductIds(null); return; }
+    if (!customerId) { setAllocatedProductIds(null); setAgentId(""); return; }
     (async () => {
-      const { data } = await supabase.from("customer_products").select("product_id").eq("customer_id", customerId);
-      if (data && data.length > 0) setAllocatedProductIds(data.map(d => d.product_id));
+      const [prodRes, agentRes] = await Promise.all([
+        supabase.from("customer_products").select("product_id").eq("customer_id", customerId),
+        supabase.from("agent_customers").select("agent_id").eq("customer_id", customerId).limit(1),
+      ]);
+      if (prodRes.data && prodRes.data.length > 0) setAllocatedProductIds(prodRes.data.map(d => d.product_id));
       else setAllocatedProductIds(null);
+      if (agentRes.data && agentRes.data.length > 0) setAgentId(agentRes.data[0].agent_id);
+      else setAgentId("");
     })();
   }, [customerId]);
 
@@ -302,10 +312,11 @@ export default function ProformaInvoices() {
         proforma_number: pfNumber, customer_id: customerId, date: pfDate,
         validity_days: Number(validityDays), items: JSON.stringify(items), subtotal, gst, total,
         status: "draft", payment_instructions: paymentInstructions || null,
-      });
+        agent_id: agentId || null,
+      } as any);
       if (error) { console.error("Insert error:", error); toast.error("Failed to create order: " + error.message); setSaving(false); return; }
       toast.success(`Sales Invoice ${pfNumber} created`);
-      setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); load();
+      setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); setAgentId(""); load();
     } catch (err: any) {
       console.error("Unexpected error creating sales order:", err);
       toast.error("Unexpected error: " + (err?.message || "Please try again"));
@@ -602,11 +613,16 @@ export default function ProformaInvoices() {
     const { data: invNumber } = await supabase.rpc("generate_document_number", { p_document_type: "sales_invoice" });
     if (!invNumber) { toast.error("Failed to generate invoice number"); setSubmitting(false); return; }
 
+    // Get agent_id from the proforma
+    const { data: pfData } = await supabase.from("proforma_invoices").select("agent_id").eq("id", submitOrder.id).single();
+    const orderAgentId = (pfData as any)?.agent_id || null;
+
     const { data: inv, error: invErr } = await supabase.from("sales_invoices").insert({
       invoice_number: invNumber, customer_id: submitOrder.customer_id,
       date: new Date().toISOString().split("T")[0],
       subtotal: submitOrder.subtotal, gst_amount: submitOrder.gst, total: submitOrder.total, status: "dispatched",
-    }).select("*, customers(name)").single();
+      agent_id: orderAgentId,
+    } as any).select("*, customers(name)").single();
 
     if (invErr || !inv) { toast.error("Failed to create invoice: " + (invErr?.message || "Unknown error")); setSubmitting(false); return; }
       const lineItems = submitItems.map((i: any) => ({
@@ -788,10 +804,17 @@ export default function ProformaInvoices() {
           </DialogTrigger>
            <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle className="font-heading">Create Sales Invoice</DialogTitle></DialogHeader>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
               <div>
                 <Label className="text-xs font-medium text-muted-foreground">Customer *</Label>
                 <SearchableSelect options={customerOptions} value={customerId} onChange={setCustomerId} placeholder="Select customer..." searchPlaceholder="Search..." />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Sales Agent</Label>
+                <SearchableSelect
+                  options={agentsList.map(a => ({ value: a.id, label: a.name }))}
+                  value={agentId} onChange={setAgentId} placeholder="Auto / Select..."
+                />
               </div>
               <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={pfDate} onChange={e => setPfDate(e.target.value)} /></div>
               <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>

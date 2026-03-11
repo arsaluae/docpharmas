@@ -47,6 +47,7 @@ import AIInsights from "./pages/AIInsights";
 import Subscription from "./pages/Subscription";
 import CreditNotes from "./pages/CreditNotes";
 import Salaries from "./pages/Salaries";
+import SalesAgents from "./pages/SalesAgents";
 import DeliveryNotes from "./pages/DeliveryNotes";
 import NotFound from "./pages/NotFound";
 
@@ -107,6 +108,7 @@ const App = () => (
             <Route path="/insights" element={<AIInsights />} />
             <Route path="/credit-notes" element={<CreditNotes />} />
             <Route path="/salaries" element={<Salaries />} />
+            <Route path="/sales-agents" element={<SalesAgents />} />
             <Route path="/subscription" element={<Subscription />} />
           </Route>
 
