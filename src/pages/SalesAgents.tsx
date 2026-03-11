@@ -29,6 +29,7 @@ export default function SalesAgents() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [allocations, setAllocations] = useState<AgentCustomer[]>([]);
   const [search, setSearch] = useState("");
+  const [statusFilterAgents, setStatusFilterAgents] = useState("all");
 
   // Agent form
   const [agentOpen, setAgentOpen] = useState(false);
@@ -39,11 +40,13 @@ export default function SalesAgents() {
   const [address, setAddress] = useState("");
   const [commType, setCommType] = useState("percentage");
   const [commRate, setCommRate] = useState("");
+  const [agentStatus, setAgentStatus] = useState("active");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Allocation form
   const [allocAgent, setAllocAgent] = useState("");
   const [allocCustomers, setAllocCustomers] = useState<string[]>([]);
+  const [allocSearch, setAllocSearch] = useState("");
 
   // Commission report
   const [reportMonth, setReportMonth] = useState(() => {
@@ -56,7 +59,11 @@ export default function SalesAgents() {
   const [loadingReport, setLoadingReport] = useState(false);
 
   useEffect(() => { load(); }, [activeTab]);
-  useEffect(() => { if (activeTab === "report") loadCommissionReport(); }, [reportMonth, activeTab]);
+  
+  // Load commission data on mount AND when reportMonth changes
+  useEffect(() => { 
+    if (agents.length > 0) loadCommissionReport(); 
+  }, [reportMonth, agents]);
 
   const load = async () => {
     const [agRes, custRes, allocRes] = await Promise.all([
@@ -75,6 +82,7 @@ export default function SalesAgents() {
     const payload = {
       name, phone: phone || null, email: email || null, address: address || null,
       commission_type: commType, commission_rate: Number(commRate) || 0,
+      status: agentStatus,
     };
     if (editId) {
       const { error } = await supabase.from("sales_agents").update(payload).eq("id", editId);
@@ -91,6 +99,7 @@ export default function SalesAgents() {
   const handleEdit = (a: SalesAgent) => {
     setEditId(a.id); setName(a.name); setPhone(a.phone || ""); setEmail(a.email || "");
     setAddress(a.address || ""); setCommType(a.commission_type); setCommRate(String(a.commission_rate));
+    setAgentStatus(a.status);
     setAgentOpen(true);
   };
 
@@ -103,13 +112,12 @@ export default function SalesAgents() {
 
   const resetForm = () => {
     setAgentOpen(false); setEditId(null); setName(""); setPhone(""); setEmail("");
-    setAddress(""); setCommType("percentage"); setCommRate("");
+    setAddress(""); setCommType("percentage"); setCommRate(""); setAgentStatus("active");
   };
 
   // Allocation
   const handleAllocate = async () => {
     if (!allocAgent || allocCustomers.length === 0) { toast.error("Select agent and customers"); return; }
-    // Remove existing allocations for these customers from other agents
     for (const cid of allocCustomers) {
       await supabase.from("agent_customers").delete().eq("customer_id", cid);
     }
@@ -167,6 +175,13 @@ export default function SalesAgents() {
   };
 
   const issueCommission = async (agentId: string, totalSales: number, commission: number, agent: SalesAgent) => {
+    // Duplicate check
+    const { data: existing } = await supabase.from("agent_commissions")
+      .select("id").eq("agent_id", agentId).eq("month", reportMonth).eq("status", "paid").limit(1);
+    if (existing && existing.length > 0) {
+      toast.error(`Commission already paid to ${agent.name} for ${reportMonth}`);
+      return;
+    }
     const { error } = await supabase.from("agent_commissions").insert({
       agent_id: agentId, month: reportMonth, total_sales: totalSales,
       commission_amount: commission, commission_type: agent.commission_type,
@@ -181,12 +196,22 @@ export default function SalesAgents() {
   const customerNameMap = new Map(customers.map(c => [c.id, c.name]));
   const allocatedCustomerIds = new Set(allocations.map(a => a.customer_id));
 
-  const filteredAgents = agents.filter(a => a.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredAgents = agents.filter(a => {
+    const matchesSearch = a.name.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilterAgents === "all" || a.status === statusFilterAgents;
+    return matchesSearch && matchesStatus;
+  });
 
   const filteredAllocations = allocations.filter(a => {
     const q = search.toLowerCase();
     return (agentNameMap.get(a.agent_id) || "").toLowerCase().includes(q) ||
       (customerNameMap.get(a.customer_id) || "").toLowerCase().includes(q);
+  });
+
+  const filteredAllocCustomers = customers.filter(c => {
+    if (!allocSearch) return true;
+    const q = allocSearch.toLowerCase();
+    return c.name.toLowerCase().includes(q) || (c.company || "").toLowerCase().includes(q);
   });
 
   const agentActions = (
@@ -218,6 +243,16 @@ export default function SalesAgents() {
             <div>
               <Label>{commType === "percentage" ? "Rate (%)" : "Fixed Amount (PKR)"}</Label>
               <Input type="number" value={commRate} onChange={e => setCommRate(e.target.value)} />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={agentStatus} onValueChange={setAgentStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <Button onClick={handleSaveAgent} className="w-full mt-4">{editId ? "Update" : "Add"} Agent</Button>
@@ -268,9 +303,21 @@ export default function SalesAgents() {
           </TabsList>
         </Tabs>
 
-        <div className="relative max-w-sm search-pill">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="flex items-center gap-3">
+          <div className="relative max-w-sm search-pill flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          {activeTab === "agents" && (
+            <Select value={statusFilterAgents} onValueChange={setStatusFilterAgents}>
+              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {activeTab === "agents" && (
@@ -290,7 +337,7 @@ export default function SalesAgents() {
                 <TableBody>
                   {filteredAgents.length === 0 ? (
                     <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                      <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />No agents added yet.
+                      <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />No agents found.
                     </TableCell></TableRow>
                   ) : filteredAgents.map(a => (
                     <TableRow key={a.id}>
@@ -336,8 +383,14 @@ export default function SalesAgents() {
                   </div>
                   <div className="sm:col-span-2">
                     <Label className="text-xs text-muted-foreground">Customers (select multiple)</Label>
+                    <Input
+                      placeholder="Filter customers..."
+                      value={allocSearch}
+                      onChange={e => setAllocSearch(e.target.value)}
+                      className="mb-2 h-8 text-xs"
+                    />
                     <div className="border rounded-md p-2 max-h-40 overflow-y-auto space-y-1">
-                      {customers.map(c => (
+                      {filteredAllocCustomers.map(c => (
                         <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 p-1 rounded">
                           <Checkbox
                             checked={allocCustomers.includes(c.id)}
@@ -353,6 +406,9 @@ export default function SalesAgents() {
                           )}
                         </label>
                       ))}
+                      {filteredAllocCustomers.length === 0 && (
+                        <p className="text-xs text-muted-foreground text-center py-2">No customers match filter</p>
+                      )}
                     </div>
                   </div>
                 </div>

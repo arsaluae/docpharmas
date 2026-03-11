@@ -1081,6 +1081,13 @@ export default function ProformaInvoices() {
                       <Label className="text-xs font-medium text-muted-foreground">Customer</Label>
                       <SearchableSelect options={customerOptions} value={editCustomerId} onChange={setEditCustomerId} placeholder="Customer..." />
                     </div>
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Sales Agent</Label>
+                      <SearchableSelect
+                        options={agentsList.map(a => ({ value: a.id, label: a.name }))}
+                        value={editAgentId} onChange={setEditAgentId} placeholder="Auto / Select..."
+                      />
+                    </div>
                     <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} /></div>
                   </div>
                   <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={editValidity} onChange={e => setEditValidity(e.target.value)} /></div>
