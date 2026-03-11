@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, Scale, BarChart3, Clock, DollarSign, Package, ShieldCheck, Layers, Boxes, UserCheck, Truck } from "lucide-react";
+import { TrendingUp, Scale, BarChart3, Clock, DollarSign, Package, ShieldCheck, Layers, Boxes, UserCheck, Truck, ClipboardList, MapPin } from "lucide-react";
 
 const reportSections = [
   { label: "Financial", items: [
@@ -21,6 +21,10 @@ const reportSections = [
   { label: "Party Reports", items: [
     { title: "Customer-wise", desc: "Sales & balance by customer", url: "/reports/customer-wise", icon: UserCheck, color: "text-primary" },
     { title: "Supplier-wise", desc: "Purchases & balance by supplier", url: "/reports/supplier-wise", icon: Truck, color: "text-primary" },
+    { title: "Product Allocations", desc: "Products allocated to parties with rates", url: "/reports/allocations", icon: ClipboardList, color: "text-warning" },
+  ]},
+  { label: "Coverage", items: [
+    { title: "Vacant Areas", desc: "Cities without product coverage", url: "/reports/vacant-areas", icon: MapPin, color: "text-destructive" },
   ]},
   { label: "Compliance", items: [
     { title: "Tax & DRAP", desc: "GST, WHT & DRAP compliance", url: "/reports/tax", icon: ShieldCheck, color: "text-destructive" },

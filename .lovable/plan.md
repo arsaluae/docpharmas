@@ -1,45 +1,34 @@
 
 
-# Product Rate in Allocations + Allocation Report + Vacant Area Analysis
+# Plan: Premium Pharma PDF Template + Preview-First Download Flow
 
-## 1. Add Rate to Product Allocations
+## Two Changes
 
-**Database**: Add a `rate` column to both `customer_products` and `supplier_products` tables.
+### 1. New Color Palette (No Gold)
+Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
+- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
+- Light accent: `#99f6e4` (soft mint)
+- Header background: `#0f172a` (deep slate) with teal accent line
+- Section labels: `#0e7490` instead of gold `#c9a84c`
+- Borders: `#e2e8f0` (cool gray) instead of warm ivory
+- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
+- Corner ornaments: teal instead of gold
+- Gradient dividers: teal gradient instead of gold gradient
+- Party card border-left: teal
+- Overall feel: clinical, clean, pharmaceutical-grade premium
 
-```sql
-ALTER TABLE customer_products ADD COLUMN rate numeric NOT NULL DEFAULT 0;
-ALTER TABLE supplier_products ADD COLUMN rate numeric NOT NULL DEFAULT 0;
-```
+### 2. Preview-First Flow (No Auto-Print)
+Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
+- Open the document as a styled preview page
+- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
+- Button triggers `window.print()` on click
+- User sees the beautiful document first, then clicks to download/print
 
-**UI (`AllocatedProducts.tsx`)**: Add a rate input field when allocating a product, and show the rate column in the allocated products table. Allow inline editing of rate.
+## Files Changed
 
-## 2. New Report: Product Allocation Report
+| File | Changes |
+|------|---------|
+| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
 
-Create `src/pages/reports/ProductAllocationReport.tsx` — a new report page showing:
-- **By Product view**: Each product row expands to show which customers and suppliers it's allocated to, with their rates
-- **By Customer/Supplier view**: Each party row shows their allocated products and rates
-- Filterable by product, customer, or supplier
-
-Add it to `Reports.tsx` under the "Party Reports" section and register the route in `App.tsx`.
-
-## 3. Vacant Area Analysis
-
-Add a new report `src/pages/reports/VacantAreas.tsx` that:
-- Fetches all distinct `city` values from `customers` table
-- For each product, checks which cities have a customer with that product allocated
-- Shows a matrix/list of products vs cities, highlighting **vacant areas** (cities where no customer has that product allocated)
-- This helps identify which areas still need coverage for each product
-
-Add to `Reports.tsx` under a new "Coverage" section and register route in `App.tsx`.
-
-## Files to Change
-
-| File | Change |
-|------|--------|
-| DB migration | Add `rate` column to both junction tables |
-| `src/components/AllocatedProducts.tsx` | Add rate input on add, show rate column, allow edit |
-| `src/pages/reports/ProductAllocationReport.tsx` | New — allocation report by product/party |
-| `src/pages/reports/VacantAreas.tsx` | New — vacant area analysis |
-| `src/pages/Reports.tsx` | Add 2 new report cards |
-| `src/App.tsx` | Register 2 new routes |
+No other files change. The template system and all callers remain the same.
 

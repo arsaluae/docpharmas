@@ -40,6 +40,8 @@ import ItemWiseReport from "./pages/reports/ItemWiseReport";
 import BatchWiseReport from "./pages/reports/BatchWiseReport";
 import CustomerWiseReport from "./pages/reports/CustomerWiseReport";
 import SupplierWiseReport from "./pages/reports/SupplierWiseReport";
+import ProductAllocationReport from "./pages/reports/ProductAllocationReport";
+import VacantAreas from "./pages/reports/VacantAreas";
 import Reports from "./pages/Reports";
 import AIInsights from "./pages/AIInsights";
 import Subscription from "./pages/Subscription";
@@ -96,6 +98,8 @@ const App = () => (
             <Route path="/reports/batch-wise" element={<BatchWiseReport />} />
             <Route path="/reports/customer-wise" element={<CustomerWiseReport />} />
             <Route path="/reports/supplier-wise" element={<SupplierWiseReport />} />
+            <Route path="/reports/allocations" element={<ProductAllocationReport />} />
+            <Route path="/reports/vacant-areas" element={<VacantAreas />} />
             <Route path="/insights" element={<AIInsights />} />
             <Route path="/subscription" element={<Subscription />} />
           </Route>
