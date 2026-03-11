@@ -37,18 +37,20 @@ export default function SalesReturns() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState("all");
+  const pagination = usePagination();
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [pagination.page]);
 
   const loadData = async () => {
     setLoading(true);
-    const [{ data: r }, { data: c }, { data: inv }, { data: p }] = await Promise.all([
-      supabase.from("sales_returns").select("*, customers(name)").order("created_at", { ascending: false }),
+    const [{ data: r, count }, { data: c }, { data: inv }, { data: p }] = await Promise.all([
+      supabase.from("sales_returns").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to),
       supabase.from("customers").select("id, name"),
       supabase.from("sales_invoices").select("id, invoice_number, customer_id"),
       supabase.from("products").select("id, name, selling_price"),
     ]);
     if (r) setReturns(r);
+    if (count !== null) pagination.setTotalCount(count);
     if (c) setCustomers(c);
     if (inv) setInvoices(inv);
     if (p) setProducts(p);
