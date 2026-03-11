@@ -17,7 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, UserCheck, Wallet, Trash2, Pencil, Users } from "lucide-react";
+import { Plus, Search, UserCheck, Wallet, Trash2, Pencil, Users, BadgeDollarSign } from "lucide-react";
 import { toast } from "sonner";
 
 const METHODS = ["cash", "cheque", "bank_transfer", "online"];
