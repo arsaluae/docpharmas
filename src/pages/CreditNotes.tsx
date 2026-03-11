@@ -1,0 +1,315 @@
+import { useEffect, useState } from "react";
+import { AppLayout } from "@/components/AppLayout";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Search, FileText, Trash2, Users, Truck } from "lucide-react";
+import { toast } from "sonner";
+import { SearchableSelect } from "@/components/SearchableSelect";
+
+interface Party { id: string; name: string; company?: string | null; }
+interface CreditNote {
+  id: string; credit_note_number: string; party_type: string; party_id: string;
+  date: string; amount: number; reason: string | null; reference: string | null;
+  notes: string | null; status: string; created_at: string;
+}
+
+export default function CreditNotes() {
+  const [notes, setNotes] = useState<CreditNote[]>([]);
+  const [customers, setCustomers] = useState<Party[]>([]);
+  const [suppliers, setSuppliers] = useState<Party[]>([]);
+  const [activeTab, setActiveTab] = useState("all");
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const pagination = usePagination();
+
+  // Form state
+  const [partyType, setPartyType] = useState("supplier");
+  const [partyId, setPartyId] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [reference, setReference] = useState("");
+  const [formNotes, setFormNotes] = useState("");
+
+  // Party name cache
+  const [partyNames, setPartyNames] = useState<Record<string, string>>({});
+
+  useEffect(() => { load(); }, [pagination.page, activeTab]);
+
+  const load = async () => {
+    let query = supabase.from("credit_notes").select("*", { count: "exact" })
+      .order("created_at", { ascending: false });
+    if (activeTab === "customer") query = query.eq("party_type", "customer");
+    if (activeTab === "supplier") query = query.eq("party_type", "supplier");
+    query = query.range(pagination.from, pagination.to);
+
+    const [res, custs, supps] = await Promise.all([
+      query,
+      supabase.from("customers").select("id, name, company"),
+      supabase.from("suppliers").select("id, name, company"),
+    ]);
+
+    if (res.data) setNotes(res.data as CreditNote[]);
+    if (res.count !== null && res.count !== undefined) pagination.setTotalCount(res.count);
+    if (custs.data) setCustomers(custs.data);
+    if (supps.data) setSuppliers(supps.data);
+
+    // Build name map
+    const nameMap: Record<string, string> = {};
+    custs.data?.forEach(c => { nameMap[c.id] = c.company || c.name; });
+    supps.data?.forEach(s => { nameMap[s.id] = s.company || s.name; });
+    setPartyNames(nameMap);
+  };
+
+  const handleSave = async () => {
+    if (!partyId) { toast.error("Select a party"); return; }
+    if (!amount || Number(amount) <= 0) { toast.error("Amount is required"); return; }
+
+    const { data: cnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "credit_note" });
+    if (!cnNumber) { toast.error("Failed to generate credit note number"); return; }
+
+    const { error } = await supabase.from("credit_notes").insert({
+      credit_note_number: cnNumber,
+      party_type: partyType,
+      party_id: partyId,
+      date,
+      amount: Number(amount),
+      reason: reason || null,
+      reference: reference || null,
+      notes: formNotes || null,
+    });
+
+    if (error) { toast.error("Failed to save: " + error.message); return; }
+    toast.success(`Credit Note ${cnNumber} created`);
+    resetForm();
+    load();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const { error } = await supabase.from("credit_notes").delete().eq("id", deleteId);
+    if (error) { toast.error("Failed to delete"); } else { toast.success("Credit note deleted & balance reversed"); }
+    setDeleteId(null);
+    load();
+  };
+
+  const resetForm = () => {
+    setOpen(false); setPartyType("supplier"); setPartyId("");
+    setAmount(""); setReason(""); setReference(""); setFormNotes("");
+  };
+
+  const currentParties = partyType === "customer" ? customers : suppliers;
+  const partyOptions = currentParties.map(p => ({ value: p.id, label: p.company || p.name }));
+
+  const filtered = notes.filter(n =>
+    n.credit_note_number.toLowerCase().includes(search.toLowerCase()) ||
+    (n.reason || "").toLowerCase().includes(search.toLowerCase()) ||
+    (partyNames[n.party_id] || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const totalAmount = filtered.reduce((s, n) => s + Number(n.amount), 0);
+
+  const headerActions = (
+    <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else setOpen(true); }}>
+      <DialogTrigger asChild>
+        <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Issue Credit Note</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Issue Credit Note</DialogTitle>
+          <DialogDescription>Create a credit note to adjust balance for damaged goods or returns</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 mt-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Party Type</Label>
+              <Select value={partyType} onValueChange={v => { setPartyType(v); setPartyId(""); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="supplier">Supplier (Received)</SelectItem>
+                  <SelectItem value="customer">Customer (Issued)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Date</Label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <Label>{partyType === "customer" ? "Customer" : "Supplier"} *</Label>
+              <SearchableSelect
+                options={partyOptions}
+                value={partyId}
+                onValueChange={setPartyId}
+                placeholder={`Select ${partyType}...`}
+              />
+            </div>
+            <div>
+              <Label>Amount (PKR) *</Label>
+              <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 30,000" />
+            </div>
+            <div>
+              <Label>Reference</Label>
+              <Input value={reference} onChange={e => setReference(e.target.value)} placeholder="Invoice # or PO #" />
+            </div>
+            <div className="col-span-2">
+              <Label>Reason</Label>
+              <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. 1000 damaged units out of 5000" />
+            </div>
+            <div className="col-span-2">
+              <Label>Notes</Label>
+              <Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={2} />
+            </div>
+          </div>
+        </div>
+        <Button onClick={handleSave} className="w-full mt-2">Save Credit Note</Button>
+      </DialogContent>
+    </Dialog>
+  );
+
+  return (
+    <AppLayout title="Credit Notes" headerActions={headerActions}>
+      <div className="space-y-4">
+        {/* Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="glass-card">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total Credit Notes</p>
+                <p className="text-lg font-bold font-mono text-foreground">{notes.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-card">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Truck className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Supplier Notes</p>
+                <p className="text-lg font-bold font-mono text-foreground">
+                  PKR {notes.filter(n => n.party_type === 'supplier').reduce((s, n) => s + Number(n.amount), 0).toLocaleString()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-card">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center">
+                <Users className="h-5 w-5 text-accent-foreground" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Customer Notes</p>
+                <p className="text-lg font-bold font-mono text-foreground">
+                  PKR {notes.filter(n => n.party_type === 'customer').reduce((s, n) => s + Number(n.amount), 0).toLocaleString()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="supplier">From Suppliers</TabsTrigger>
+            <TabsTrigger value="customer">To Customers</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="flex items-center gap-4">
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search credit notes..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <p className="text-sm text-muted-foreground whitespace-nowrap">
+            Total: PKR {totalAmount.toLocaleString()} ({filtered.length})
+          </p>
+        </div>
+
+        <Card className="glass-card">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>CN #</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Party</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-center w-16">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                      <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No credit notes yet.
+                    </TableCell>
+                  </TableRow>
+                ) : filtered.map(cn => (
+                  <TableRow key={cn.id}>
+                    <TableCell className="font-medium font-mono">{cn.credit_note_number}</TableCell>
+                    <TableCell>
+                      <Badge variant={cn.party_type === "supplier" ? "default" : "secondary"} className="capitalize">
+                        {cn.party_type === "supplier" ? "Received" : "Issued"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">{partyNames[cn.party_id] || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground max-w-48 truncate">{cn.reason || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground font-mono text-xs">{cn.reference || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{cn.date}</TableCell>
+                    <TableCell className="text-right font-mono font-medium text-primary">PKR {Number(cn.amount).toLocaleString()}</TableCell>
+                    <TableCell className="text-center">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(cn.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <PaginationControls
+              page={pagination.page} totalPages={pagination.totalPages} totalCount={pagination.totalCount}
+              hasNext={pagination.hasNext} hasPrev={pagination.hasPrev}
+              onNext={pagination.nextPage} onPrev={pagination.prevPage} pageSize={pagination.pageSize}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <AlertDialog open={!!deleteId} onOpenChange={o => { if (!o) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Credit Note?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently delete this credit note and reverse the balance adjustment.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </AppLayout>
+  );
+}
