@@ -11,6 +11,8 @@ import { Plus, Trash2, RotateCcw, Search, Loader2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
 
 interface ReturnItem { product_id: string; batch_number: string; quantity: string; rate: string; }
 
