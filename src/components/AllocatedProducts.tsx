@@ -92,7 +92,11 @@ export function AllocatedProducts({ partyId, partyType }: AllocatedProductsProps
   };
 
   const handleRemove = async (id: string) => {
-    await supabase.from(tableName).delete().eq("id", id);
+    if (partyType === "customer") {
+      await supabase.from("customer_products").delete().eq("id", id);
+    } else {
+      await supabase.from("supplier_products").delete().eq("id", id);
+    }
     toast.success("Product removed");
     loadAllocated();
   };
