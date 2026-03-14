@@ -325,11 +325,11 @@ export default function Settings() {
             )}
           </TabsContent>
 
-          <TabsContent value="backup" className="max-w-2xl">
+          <TabsContent value="backup" className="max-w-2xl space-y-6">
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Database className="h-5 w-5 text-primary" /> Data Backup
+                  <Database className="h-5 w-5 text-primary" /> Manual Backup
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -337,7 +337,7 @@ export default function Settings() {
                   <Download className="h-12 w-12 text-primary mx-auto mb-4" />
                   <h3 className="font-heading font-semibold text-lg text-foreground mb-2">Export All Data</h3>
                   <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-                    Download a complete backup of your data as an Excel file. Includes customers, suppliers, products, invoices, payments, expenses, and more.
+                    Download a complete backup of your data as an Excel file. Includes {BACKUP_TABLES.length} tables covering all business data.
                   </p>
                   <Button onClick={handleBackup} disabled={backupLoading} size="lg" className="px-8">
                     <Download className="h-4 w-4 mr-2" />
@@ -345,7 +345,7 @@ export default function Settings() {
                   </Button>
                   {lastBackup && (
                     <p className="text-xs text-muted-foreground mt-4">
-                      Last backup: {lastBackup}
+                      Last manual backup: {lastBackup}
                     </p>
                   )}
                 </div>
@@ -353,10 +353,11 @@ export default function Settings() {
                   <p>• Backup includes {BACKUP_TABLES.length} data tables with all records</p>
                   <p>• Each table is exported as a separate sheet in the Excel file</p>
                   <p>• Data is filtered to your company only (tenant-isolated)</p>
-                  <p>• We recommend taking regular backups for safety</p>
                 </div>
               </CardContent>
             </Card>
+
+            <AutomatedBackupCard />
           </TabsContent>
         </Tabs>
       </div>
