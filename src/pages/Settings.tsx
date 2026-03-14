@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Save, Upload, FileText, Plus, Trash2, MessageCircle, Download, Database } from "lucide-react";
+import { Save, Upload, FileText, Plus, Trash2, MessageCircle, Download, Database, Cloud, RefreshCw, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useDocumentTemplates, DocumentTemplate } from "@/hooks/useDocumentTemplates";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,14 +33,40 @@ const BACKUP_TABLES = [
   { table: "sales_invoices", sheet: "Sales Invoices" },
   { table: "sales_invoice_items", sheet: "Sales Invoice Items" },
   { table: "purchase_proformas", sheet: "Purchase Proformas" },
+  { table: "purchase_proforma_items", sheet: "Purchase Proforma Items" },
   { table: "purchase_orders", sheet: "Purchase Orders" },
+  { table: "purchase_order_items", sheet: "PO Items" },
   { table: "purchase_invoices", sheet: "Purchase Invoices" },
   { table: "payments", sheet: "Payments" },
   { table: "expenses", sheet: "Expenses" },
+  { table: "expense_ledgers", sheet: "Expense Ledgers" },
   { table: "bank_accounts", sheet: "Bank Accounts" },
   { table: "delivery_notes", sheet: "Delivery Notes" },
   { table: "print_jobs", sheet: "Print Jobs" },
   { table: "printers", sheet: "Printers" },
+  { table: "sales_agents", sheet: "Sales Agents" },
+  { table: "agent_customers", sheet: "Agent Customers" },
+  { table: "agent_commissions", sheet: "Agent Commissions" },
+  { table: "credit_notes", sheet: "Credit Notes" },
+  { table: "salary_payments", sheet: "Salary Payments" },
+  { table: "stock_movements", sheet: "Stock Movements" },
+  { table: "sales_returns", sheet: "Sales Returns" },
+  { table: "sales_return_items", sheet: "Sales Return Items" },
+  { table: "purchase_returns", sheet: "Purchase Returns" },
+  { table: "purchase_return_items", sheet: "Purchase Return Items" },
+  { table: "document_templates", sheet: "Doc Templates" },
+  { table: "document_counters", sheet: "Doc Counters" },
+  { table: "company_settings", sheet: "Company Settings" },
+  { table: "customer_products", sheet: "Customer Products" },
+  { table: "customer_licenses", sheet: "Customer Licenses" },
+  { table: "customer_distributors", sheet: "Customer Distributors" },
+  { table: "chart_of_accounts", sheet: "Chart of Accounts" },
+  { table: "journal_entries", sheet: "Journal Entries" },
+  { table: "journal_lines", sheet: "Journal Lines" },
+  { table: "goods_received_notes", sheet: "GRN" },
+  { table: "grn_items", sheet: "GRN Items" },
+  { table: "drap_registrations", sheet: "DRAP Registrations" },
+  { table: "additional_costs", sheet: "Additional Costs" },
 ] as const;
 
 export default function Settings() {
@@ -299,11 +325,11 @@ export default function Settings() {
             )}
           </TabsContent>
 
-          <TabsContent value="backup" className="max-w-2xl">
+          <TabsContent value="backup" className="max-w-2xl space-y-6">
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Database className="h-5 w-5 text-primary" /> Data Backup
+                  <Database className="h-5 w-5 text-primary" /> Manual Backup
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -311,7 +337,7 @@ export default function Settings() {
                   <Download className="h-12 w-12 text-primary mx-auto mb-4" />
                   <h3 className="font-heading font-semibold text-lg text-foreground mb-2">Export All Data</h3>
                   <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-                    Download a complete backup of your data as an Excel file. Includes customers, suppliers, products, invoices, payments, expenses, and more.
+                    Download a complete backup of your data as an Excel file. Includes {BACKUP_TABLES.length} tables covering all business data.
                   </p>
                   <Button onClick={handleBackup} disabled={backupLoading} size="lg" className="px-8">
                     <Download className="h-4 w-4 mr-2" />
@@ -319,7 +345,7 @@ export default function Settings() {
                   </Button>
                   {lastBackup && (
                     <p className="text-xs text-muted-foreground mt-4">
-                      Last backup: {lastBackup}
+                      Last manual backup: {lastBackup}
                     </p>
                   )}
                 </div>
@@ -327,14 +353,125 @@ export default function Settings() {
                   <p>• Backup includes {BACKUP_TABLES.length} data tables with all records</p>
                   <p>• Each table is exported as a separate sheet in the Excel file</p>
                   <p>• Data is filtered to your company only (tenant-isolated)</p>
-                  <p>• We recommend taking regular backups for safety</p>
                 </div>
               </CardContent>
             </Card>
+
+            <AutomatedBackupCard />
           </TabsContent>
         </Tabs>
       </div>
     </AppLayout>
+  );
+}
+
+function AutomatedBackupCard() {
+  const [backups, setBackups] = useState<{ name: string; created_at: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [triggerLoading, setTriggerLoading] = useState(false);
+
+  useEffect(() => { loadBackups(); }, []);
+
+  const loadBackups = async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: tu } = await (supabase as any).from("tenant_users").select("tenant_id").eq("user_id", user.id).eq("is_active", true).limit(1).single();
+      if (!tu) return;
+      const tenantId = tu.tenant_id;
+      const { data: files } = await supabase.storage.from("tenant-backups").list(tenantId, { sortBy: { column: "created_at", order: "desc" }, limit: 10 });
+      setBackups(files || []);
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  const handleDownload = async (fileName: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: tu } = await (supabase as any).from("tenant_users").select("tenant_id").eq("user_id", user.id).eq("is_active", true).limit(1).single();
+    if (!tu) return;
+    const tenantId = tu.tenant_id;
+    const { data, error } = await supabase.storage.from("tenant-backups").download(`${tenantId}/${fileName}`);
+    if (error || !data) { toast.error("Download failed"); return; }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Backup downloaded");
+  };
+
+  const handleTriggerBackup = async () => {
+    setTriggerLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke("weekly-backup");
+      if (error) throw error;
+      toast.success("Automated backup triggered successfully!");
+      await loadBackups();
+    } catch (err: any) {
+      toast.error("Backup failed: " + err.message);
+    }
+    setTriggerLoading(false);
+  };
+
+  return (
+    <Card className="glass-card border-primary/20">
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Cloud className="h-5 w-5 text-primary" /> Automated Cloud Backups
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+          <div>
+            <p className="font-medium text-sm text-foreground">Weekly Automated Backup</p>
+            <p className="text-xs text-muted-foreground">Runs every Sunday at midnight · 8-week rolling retention</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Active
+            </span>
+            <Button size="sm" variant="outline" onClick={handleTriggerBackup} disabled={triggerLoading}>
+              <RefreshCw className={`h-3 w-3 mr-1 ${triggerLoading ? "animate-spin" : ""}`} />
+              {triggerLoading ? "Running..." : "Run Now"}
+            </Button>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
+            <Clock className="h-4 w-4" /> Backup History
+          </h4>
+          {loading ? (
+            <p className="text-xs text-muted-foreground">Loading...</p>
+          ) : backups.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No automated backups yet. Click "Run Now" to create the first one.</p>
+          ) : (
+            <div className="space-y-2">
+              {backups.map((b) => (
+                <div key={b.name} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{b.name.replace("backup_", "").replace(".json", "").replace(/-/g, " ").slice(0, 19)}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(b.created_at).toLocaleString()}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => handleDownload(b.name)}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p>• Automated backups store all {BACKUP_TABLES.length} tables as JSON in secure cloud storage</p>
+          <p>• Only the last 8 backups are retained (rolling 2-month window)</p>
+          <p>• Each backup is isolated to your company data only</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
