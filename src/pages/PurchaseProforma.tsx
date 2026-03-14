@@ -961,8 +961,14 @@ export default function PurchaseProforma() {
                   <Select value={costType} onValueChange={setCostType}>
                     <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="printing">Printing</SelectItem><SelectItem value="packaging">Packaging</SelectItem>
-                      <SelectItem value="freight_in">Freight In</SelectItem><SelectItem value="freight_out">Freight Out</SelectItem>
+                      <SelectItem value="packaging">Packaging</SelectItem>
+                      <SelectItem value="printing">Printing</SelectItem>
+                      <SelectItem value="freight">Freight / Transport</SelectItem>
+                      <SelectItem value="clearing">Clearing / Customs</SelectItem>
+                      <SelectItem value="insurance">Insurance</SelectItem>
+                      <SelectItem value="storage">Storage / Cold-chain</SelectItem>
+                      <SelectItem value="registration">DRAP Registration</SelectItem>
+                      <SelectItem value="testing">QC / Lab Testing</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
@@ -1198,8 +1204,14 @@ export default function PurchaseProforma() {
                   <Select value={costType} onValueChange={setCostType}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="printing">Printing</SelectItem><SelectItem value="packaging">Packaging</SelectItem>
-                      <SelectItem value="freight_in">Freight In</SelectItem><SelectItem value="freight_out">Freight Out</SelectItem>
+                      <SelectItem value="packaging">Packaging</SelectItem>
+                      <SelectItem value="printing">Printing</SelectItem>
+                      <SelectItem value="freight">Freight / Transport</SelectItem>
+                      <SelectItem value="clearing">Clearing / Customs</SelectItem>
+                      <SelectItem value="insurance">Insurance</SelectItem>
+                      <SelectItem value="storage">Storage / Cold-chain</SelectItem>
+                      <SelectItem value="registration">DRAP Registration</SelectItem>
+                      <SelectItem value="testing">QC / Lab Testing</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, Users, Truck, Package, LogOut, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
-  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown, Shield, CreditCard as SubIcon,
+  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown, Shield, CreditCard as SubIcon, DollarSign,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -36,6 +36,7 @@ const allSections = [
   { label: "Inventory", icon: Package, staffVisible: false, items: [
     { title: "Products & Stock", url: "/products", icon: Package },
     { title: "Stock Movements", url: "/stock", icon: RotateCcw },
+    { title: "Landed Costs", url: "/landed-costs", icon: DollarSign },
   ]},
   { label: "Printing", icon: Printer, staffVisible: false, items: [
     { title: "Printers", url: "/printers", icon: Printer },

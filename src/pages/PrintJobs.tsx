@@ -15,8 +15,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, ClipboardCheck, Package, Truck, CheckCircle2, Trash2 } from "lucide-react";
+import { Plus, Search, ClipboardCheck, Package, Truck, CheckCircle2, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { generatePdfHtml } from "@/lib/pdf-generator";
+import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 
 interface PrinterEntity { id: string; name: string; }
 interface Product { id: string; name: string; }
@@ -62,6 +65,12 @@ export default function PrintJobs() {
   // Names lookup
   const [printerNames, setPrinterNames] = useState<Record<string, string>>({});
   const [productNames, setProductNames] = useState<Record<string, string>>({});
+
+  // PDF preview
+  const [pdfHtml, setPdfHtml] = useState("");
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const { settings } = useCompanySettings();
 
   useEffect(() => { load(); }, [pagination.page, tab]);
 
@@ -138,8 +147,55 @@ export default function PrintJobs() {
       our_share_amount: ourShare, total_cost: finalTotal, status: "settled",
     }).eq("id", settleJob.id);
     if (error) { toast.error("Failed to settle"); return; }
+
+    // Auto-sync: create landed cost record for this print job
+    if (settleJob.product_id) {
+      await supabase.from("additional_costs").insert({
+        reference_type: "print_job", reference_id: settleJob.id,
+        cost_type: "printing", description: `Print Job ${settleJob.job_number} — packaging cost`,
+        amount: finalTotal, vendor_id: settleJob.printer_id || null,
+        date: new Date().toISOString().split("T")[0],
+      });
+    }
+
     toast.success(`Job settled — Printer bears PKR ${printerShare.toLocaleString()}, You bear PKR ${ourShare.toLocaleString()}`);
     setSettleJob(null); setPrinterSharePct("60"); load();
+  };
+
+  const previewJob = (job: PrintJob) => {
+    const printerName = printerNames[job.printer_id || ""] || "—";
+    const productName = productNames[job.product_id || ""] || "—";
+    const html = generatePdfHtml({
+      title: "PRINT JOB ORDER", documentNumber: job.job_number, date: job.date,
+      partyLabel: "Printer", partyName: printerName,
+      statusTheme: job.status === "settled" ? "paid" : job.status === "delivered" ? "dispatched" : "draft",
+      columns: [
+        { header: "Product", key: "product" },
+        { header: "Qty Ordered", key: "qty_ordered", align: "right" },
+        { header: "Qty Delivered", key: "qty_delivered", align: "right" },
+        { header: "Qty Rejected", key: "qty_rejected", align: "right" },
+        { header: "Cost/Unit", key: "cost_unit", align: "right" },
+        { header: "Total Cost", key: "total_cost", align: "right" },
+      ],
+      rows: [{
+        product: productName,
+        qty_ordered: Number(job.quantity_ordered).toLocaleString(),
+        qty_delivered: Number(job.quantity_delivered).toLocaleString(),
+        qty_rejected: Number(job.quantity_rejected).toLocaleString(),
+        cost_unit: `PKR ${Number(job.cost_per_unit).toLocaleString()}`,
+        total_cost: `PKR ${Number(job.total_cost).toLocaleString()}`,
+      }],
+      totals: [
+        { label: "Total Cost", value: `PKR ${Number(job.total_cost).toLocaleString()}` },
+        ...(job.status === "settled" ? [
+          { label: "Printer Share", value: `PKR ${Number(job.printer_share_amount).toLocaleString()} (${job.printer_share_percent}%)` },
+          { label: "Our Share", value: `PKR ${Number(job.our_share_amount).toLocaleString()}` },
+        ] : []),
+      ],
+      notes: [job.notes, job.rejection_reason ? `Rejection: ${job.rejection_reason}` : null].filter(Boolean).join("\n") || undefined,
+      settings,
+    });
+    setPdfHtml(html); setPdfTitle(`Print Job — ${job.job_number}`); setPdfOpen(true);
   };
 
   const handleDelete = async () => {
@@ -251,6 +307,9 @@ export default function PrintJobs() {
                         <TableCell className="text-right font-mono font-medium">PKR {Number(j.total_cost).toLocaleString()}</TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => previewJob(j)} title="Preview PDF">
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
                             {j.status === "draft" && (
                               <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
                                 setDeliverJob(j);
@@ -268,6 +327,15 @@ export default function PrintJobs() {
                             {j.status === "delivered" && Number(j.quantity_rejected) === 0 && (
                               <Button variant="outline" size="sm" className="h-7 text-xs" onClick={async () => {
                                 await supabase.from("print_jobs").update({ status: "settled", printer_share_percent: 0, printer_share_amount: 0, our_share_amount: 0 }).eq("id", j.id);
+                                // Auto-sync: create landed cost record
+                                if (j.product_id) {
+                                  await supabase.from("additional_costs").insert({
+                                    reference_type: "print_job", reference_id: j.id,
+                                    cost_type: "printing", description: `Print Job ${j.job_number} — packaging cost`,
+                                    amount: j.total_cost, vendor_id: j.printer_id || null,
+                                    date: new Date().toISOString().split("T")[0],
+                                  });
+                                }
                                 toast.success("Job settled (no rejections)"); load();
                               }}>
                                 <CheckCircle2 className="h-3 w-3 mr-1" /> Settle
@@ -358,6 +426,7 @@ export default function PrintJobs() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );
 }

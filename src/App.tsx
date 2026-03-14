@@ -23,6 +23,7 @@ import Payments from "./pages/Payments";
 import Expenses from "./pages/Expenses";
 import BankAccounts from "./pages/BankAccounts";
 import StockMovements from "./pages/StockMovements";
+import LandedCosts from "./pages/LandedCosts";
 import Printers from "./pages/Printers";
 import PrinterLedger from "./pages/PrinterLedger";
 import PrintJobs from "./pages/PrintJobs";
@@ -84,6 +85,7 @@ const App = () => (
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/bank" element={<BankAccounts />} />
             <Route path="/stock" element={<StockMovements />} />
+            <Route path="/landed-costs" element={<LandedCosts />} />
             <Route path="/printers" element={<Printers />} />
             <Route path="/printers/:id/ledger" element={<PrinterLedger />} />
             <Route path="/print-jobs" element={<PrintJobs />} />

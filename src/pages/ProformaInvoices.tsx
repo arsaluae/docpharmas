@@ -29,7 +29,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
-interface ProformaItem { product_id: string; product_name: string; quantity: number; rate: number; gst_rate: number; amount: number; last_price?: number | null; }
+interface ProformaItem { product_id: string; product_name: string; quantity: number; rate: number; gst_rate: number; amount: number; last_price?: number | null; discount_pct?: number; }
 interface DeliveryNoteRow { id: string; dn_number: string; date: string; customer_id: string | null; items: any; status: string; reference_id: string; created_at: string; customer_name?: string; invoice_number?: string; }
 interface SalesAgentOption { id: string; name: string; }
 
@@ -230,7 +230,7 @@ export default function ProformaInvoices() {
   }, [customerId]);
 
   // ── ITEMS HELPERS ──
-  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0 }]);
+  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0, discount_pct: 0 }]);
   useEffect(() => { if (createOpen && items.length === 0) addItem(); }, [createOpen]);
 
   const lookupLastPrice = async (productId: string, custId: string): Promise<number | null> => {
@@ -263,14 +263,24 @@ export default function ProformaInvoices() {
         if (lastRate !== null) u[idx].rate = lastRate;
       }
     }
-    const line = Number(u[idx].quantity) * Number(u[idx].rate);
-    u[idx].amount = line + (settings?.gst_enabled ? (line * Number(u[idx].gst_rate) / 100) : 0);
+    const lineGross = Number(u[idx].quantity) * Number(u[idx].rate);
+    const discPct = Number(u[idx].discount_pct || 0);
+    const lineAfterDisc = lineGross - (lineGross * discPct / 100);
+    u[idx].amount = lineAfterDisc + (settings?.gst_enabled ? (lineAfterDisc * Number(u[idx].gst_rate) / 100) : 0);
     setItems([...u]);
   };
 
   const calcTotals = (list: ProformaItem[]) => {
-    const subtotal = list.reduce((s, i) => s + Number(i.quantity) * Number(i.rate), 0);
-    const gst = settings?.gst_enabled ? list.reduce((s, i) => s + (Number(i.quantity) * Number(i.rate) * Number(i.gst_rate) / 100), 0) : 0;
+    const subtotal = list.reduce((s, i) => {
+      const gross = Number(i.quantity) * Number(i.rate);
+      const disc = gross * Number(i.discount_pct || 0) / 100;
+      return s + (gross - disc);
+    }, 0);
+    const gst = settings?.gst_enabled ? list.reduce((s, i) => {
+      const gross = Number(i.quantity) * Number(i.rate);
+      const disc = gross * Number(i.discount_pct || 0) / 100;
+      return s + ((gross - disc) * Number(i.gst_rate) / 100);
+    }, 0) : 0;
     return { subtotal, gst, total: subtotal + gst };
   };
 
@@ -369,8 +379,10 @@ export default function ProformaInvoices() {
         if (lastRate !== null) u[idx].rate = lastRate;
       }
     }
-    const line = Number(u[idx].quantity) * Number(u[idx].rate);
-    u[idx].amount = line + (settings?.gst_enabled ? (line * Number(u[idx].gst_rate) / 100) : 0);
+    const lineGross = Number(u[idx].quantity) * Number(u[idx].rate);
+    const discPct = Number(u[idx].discount_pct || 0);
+    const lineAfterDisc = lineGross - (lineGross * discPct / 100);
+    u[idx].amount = lineAfterDisc + (settings?.gst_enabled ? (lineAfterDisc * Number(u[idx].gst_rate) / 100) : 0);
     setEditItems([...u]);
   };
 
@@ -458,10 +470,11 @@ export default function ProformaInvoices() {
       columns: [
         { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
         { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+        { header: "Disc%", key: "discount_pct", align: "right" },
         ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
         { header: "Amount", key: "amount", align: "right" },
       ],
-      rows: pfItems.map((i: any, idx: number) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString() })),
+      rows: pfItems.map((i: any, idx: number) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(), discount_pct: Number(i.discount_pct || 0) })),
       totals: [
         { label: "Subtotal", value: `PKR ${Number(order.subtotal).toLocaleString()}` },
         ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(order.gst).toLocaleString()}` }] : []),
@@ -847,18 +860,19 @@ export default function ProformaInvoices() {
             </div>
             {items.map((item, idx) => (
               <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
-                <div className="col-span-4">
+                <div className="col-span-3">
                   <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
                 </div>
-                <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
+                <div className="col-span-1"><Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
                 <div className="col-span-2 relative">
                   <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
                   {item.last_price !== undefined && item.last_price !== null && (
                     <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number(item.last_price).toLocaleString()}</span>
                   )}
                 </div>
+                <div className="col-span-1"><Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="text-xs" placeholder="Disc%" /></div>
                 {settings?.gst_enabled && <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" placeholder="GST%" /></div>}
-                <div className={`${settings?.gst_enabled ? "col-span-2" : "col-span-3"} text-right text-sm font-mono pt-2 text-foreground`}>{item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}</div>
+                <div className={`${settings?.gst_enabled ? "col-span-3" : "col-span-4"} text-right text-sm font-mono pt-2 text-foreground`}>{item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}</div>
                 <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
               </div>
             ))}
@@ -1095,19 +1109,20 @@ export default function ProformaInvoices() {
                   <Separator />
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-semibold">Items</Label>
-                    <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: 17, amount: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
+                    <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: 17, amount: 0, discount_pct: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
                   </div>
                   {editItems.map((item, idx) => (
                     <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-5"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
-                      <div className="col-span-2"><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
+                      <div className="col-span-3"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
+                      <div className="col-span-1"><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
                       <div className="col-span-2 relative">
                         <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
                         {item.last_price !== undefined && item.last_price !== null && (
                           <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number(item.last_price).toLocaleString()}</span>
                         )}
                       </div>
-                      <div className="col-span-2 text-right text-xs font-mono pt-2">{item.amount.toLocaleString()}</div>
+                      <div className="col-span-1"><Input type="number" value={item.discount_pct || 0} onChange={e => updateEditItem(idx, "discount_pct", e.target.value)} className="text-xs" placeholder="Disc%" /></div>
+                      <div className="col-span-3 text-right text-xs font-mono pt-2">{item.amount.toLocaleString()}</div>
                       <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
                     </div>
                   ))}
