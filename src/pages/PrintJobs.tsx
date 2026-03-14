@@ -162,6 +162,42 @@ export default function PrintJobs() {
     setSettleJob(null); setPrinterSharePct("60"); load();
   };
 
+  const previewJob = (job: PrintJob) => {
+    const printerName = printerNames[job.printer_id || ""] || "—";
+    const productName = productNames[job.product_id || ""] || "—";
+    const html = generatePdfHtml({
+      title: "PRINT JOB ORDER", documentNumber: job.job_number, date: job.date,
+      partyLabel: "Printer", partyName: printerName,
+      statusTheme: job.status === "settled" ? "paid" : job.status === "delivered" ? "dispatched" : "draft",
+      columns: [
+        { header: "Product", key: "product" },
+        { header: "Qty Ordered", key: "qty_ordered", align: "right" },
+        { header: "Qty Delivered", key: "qty_delivered", align: "right" },
+        { header: "Qty Rejected", key: "qty_rejected", align: "right" },
+        { header: "Cost/Unit", key: "cost_unit", align: "right" },
+        { header: "Total Cost", key: "total_cost", align: "right" },
+      ],
+      rows: [{
+        product: productName,
+        qty_ordered: Number(job.quantity_ordered).toLocaleString(),
+        qty_delivered: Number(job.quantity_delivered).toLocaleString(),
+        qty_rejected: Number(job.quantity_rejected).toLocaleString(),
+        cost_unit: `PKR ${Number(job.cost_per_unit).toLocaleString()}`,
+        total_cost: `PKR ${Number(job.total_cost).toLocaleString()}`,
+      }],
+      totals: [
+        { label: "Total Cost", value: `PKR ${Number(job.total_cost).toLocaleString()}` },
+        ...(job.status === "settled" ? [
+          { label: "Printer Share", value: `PKR ${Number(job.printer_share_amount).toLocaleString()} (${job.printer_share_percent}%)` },
+          { label: "Our Share", value: `PKR ${Number(job.our_share_amount).toLocaleString()}` },
+        ] : []),
+      ],
+      notes: [job.notes, job.rejection_reason ? `Rejection: ${job.rejection_reason}` : null].filter(Boolean).join("\n") || undefined,
+      settings,
+    });
+    setPdfHtml(html); setPdfTitle(`Print Job — ${job.job_number}`); setPdfOpen(true);
+  };
+
   const handleDelete = async () => {
     if (!deleteId) return;
     const { error } = await supabase.from("print_jobs").delete().eq("id", deleteId);
