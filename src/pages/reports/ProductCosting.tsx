@@ -69,12 +69,6 @@ export default function ProductCosting() {
       });
     }
 
-    // Also add settled print job costs directly (from print_jobs table) as "printing" costs
-    if (printJobsRes.data) {
-      printJobsRes.data.forEach((pj: any) => {
-        if (pj.product_id) addCost(pj.product_id, "printing", Number(pj.total_cost));
-      });
-    }
 
     setProductCostMap(costMap);
   };
