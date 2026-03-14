@@ -29,7 +29,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
-interface ProformaItem { product_id: string; product_name: string; quantity: number; rate: number; gst_rate: number; amount: number; last_price?: number | null; }
+interface ProformaItem { product_id: string; product_name: string; quantity: number; rate: number; gst_rate: number; amount: number; last_price?: number | null; discount_pct?: number; }
 interface DeliveryNoteRow { id: string; dn_number: string; date: string; customer_id: string | null; items: any; status: string; reference_id: string; created_at: string; customer_name?: string; invoice_number?: string; }
 interface SalesAgentOption { id: string; name: string; }
 
