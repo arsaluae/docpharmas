@@ -138,6 +138,17 @@ export default function PrintJobs() {
       our_share_amount: ourShare, total_cost: finalTotal, status: "settled",
     }).eq("id", settleJob.id);
     if (error) { toast.error("Failed to settle"); return; }
+
+    // Auto-sync: create landed cost record for this print job
+    if (settleJob.product_id) {
+      await supabase.from("additional_costs").insert({
+        reference_type: "print_job", reference_id: settleJob.id,
+        cost_type: "printing", description: `Print Job ${settleJob.job_number} — packaging cost`,
+        amount: finalTotal, vendor_id: settleJob.printer_id || null,
+        date: new Date().toISOString().split("T")[0],
+      });
+    }
+
     toast.success(`Job settled — Printer bears PKR ${printerShare.toLocaleString()}, You bear PKR ${ourShare.toLocaleString()}`);
     setSettleJob(null); setPrinterSharePct("60"); load();
   };
