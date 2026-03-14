@@ -426,6 +426,7 @@ export default function PrintJobs() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );
 }
