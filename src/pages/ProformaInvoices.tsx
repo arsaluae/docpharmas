@@ -470,10 +470,11 @@ export default function ProformaInvoices() {
       columns: [
         { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
         { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+        { header: "Disc%", key: "discount_pct", align: "right" },
         ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
         { header: "Amount", key: "amount", align: "right" },
       ],
-      rows: pfItems.map((i: any, idx: number) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString() })),
+      rows: pfItems.map((i: any, idx: number) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(), discount_pct: Number(i.discount_pct || 0) })),
       totals: [
         { label: "Subtotal", value: `PKR ${Number(order.subtotal).toLocaleString()}` },
         ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(order.gst).toLocaleString()}` }] : []),
