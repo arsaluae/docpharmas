@@ -1,34 +1,30 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Fix: Remove Print Job Double-Counting in Product Costing
 
-## Two Changes
+## Problem
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+Printing costs are counted **twice** in the Product Costing report:
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+1. Once from `additional_costs` table (where settled print jobs auto-insert a record via `handleSettle()`)
+2. Again directly from the `print_jobs` table (lines 72-76 of ProductCosting.tsx add `total_cost` as "printing")
 
-## Files Changed
+Since the settle flow already syncs print job costs into `additional_costs`, the direct `print_jobs` query in ProductCosting is redundant and inflates margins incorrectly.
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+## Fix
 
-No other files change. The template system and all callers remain the same.
+**File: `src/pages/reports/ProductCosting.tsx`**
+
+- Remove the `print_jobs` query from the `Promise.all` call (no longer needed)
+- Remove lines 72-76 that add `print_jobs.total_cost` directly as "printing" costs
+- Keep the `additional_costs` processing for `reference_type === "print_job"` (this already captures settled print job costs correctly)
+- For the PO item distribution logic that references `printJobsRes`, update to resolve `print_job` reference types by querying `print_jobs` only for the product_id lookup (or better: add `product_id` context when inserting the `additional_costs` record from PrintJobs settle, eliminating the need entirely)
+
+**Simpler approach**: Since `additional_costs` for print jobs don't currently store `product_id` directly (they use `reference_id` pointing to the print job), we still need the `print_jobs` query for the product lookup — but we must remove the separate "also add settled print job costs" block (lines 72-76).
+
+### Changes
+
+1. **`src/pages/reports/ProductCosting.tsx`**: Remove lines 72-76 (the block that adds `pj.total_cost` as duplicate "printing" costs). Keep the `print_jobs` query only for resolving `product_id` from `reference_type === "print_job"` additional costs.
+
+One file, ~5 lines removed. No other changes needed.
 
