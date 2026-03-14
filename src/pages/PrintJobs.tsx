@@ -279,6 +279,15 @@ export default function PrintJobs() {
                             {j.status === "delivered" && Number(j.quantity_rejected) === 0 && (
                               <Button variant="outline" size="sm" className="h-7 text-xs" onClick={async () => {
                                 await supabase.from("print_jobs").update({ status: "settled", printer_share_percent: 0, printer_share_amount: 0, our_share_amount: 0 }).eq("id", j.id);
+                                // Auto-sync: create landed cost record
+                                if (j.product_id) {
+                                  await supabase.from("additional_costs").insert({
+                                    reference_type: "print_job", reference_id: j.id,
+                                    cost_type: "printing", description: `Print Job ${j.job_number} — packaging cost`,
+                                    amount: j.total_cost, vendor_id: j.printer_id || null,
+                                    date: new Date().toISOString().split("T")[0],
+                                  });
+                                }
                                 toast.success("Job settled (no rejections)"); load();
                               }}>
                                 <CheckCircle2 className="h-3 w-3 mr-1" /> Settle
