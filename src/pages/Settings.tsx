@@ -467,7 +467,7 @@ function AutomatedBackupCard() {
 
         <div className="text-xs text-muted-foreground space-y-1">
           <p>• Automated backups store all {BACKUP_TABLES.length} tables as JSON in secure cloud storage</p>
-          <p>• Only the last 8 backups are retained (rolling 2-month window)</p>
+          <p>• Only the last 4 backups are retained (rolling 1-month window)</p>
           <p>• Each backup is isolated to your company data only</p>
         </div>
       </CardContent>
