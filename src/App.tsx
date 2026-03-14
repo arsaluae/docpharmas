@@ -23,6 +23,7 @@ import Payments from "./pages/Payments";
 import Expenses from "./pages/Expenses";
 import BankAccounts from "./pages/BankAccounts";
 import StockMovements from "./pages/StockMovements";
+import LandedCosts from "./pages/LandedCosts";
 import Printers from "./pages/Printers";
 import PrinterLedger from "./pages/PrinterLedger";
 import PrintJobs from "./pages/PrintJobs";
