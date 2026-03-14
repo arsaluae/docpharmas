@@ -427,7 +427,7 @@ function AutomatedBackupCard() {
         <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
           <div>
             <p className="font-medium text-sm text-foreground">Weekly Automated Backup</p>
-            <p className="text-xs text-muted-foreground">Runs every Sunday at midnight · 8-week rolling retention</p>
+            <p className="text-xs text-muted-foreground">Runs every Sunday at midnight · 1-month rolling retention</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -467,7 +467,7 @@ function AutomatedBackupCard() {
 
         <div className="text-xs text-muted-foreground space-y-1">
           <p>• Automated backups store all {BACKUP_TABLES.length} tables as JSON in secure cloud storage</p>
-          <p>• Only the last 8 backups are retained (rolling 2-month window)</p>
+          <p>• Only the last 4 backups are retained (rolling 1-month window)</p>
           <p>• Each backup is isolated to your company data only</p>
         </div>
       </CardContent>

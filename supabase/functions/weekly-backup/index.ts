@@ -50,7 +50,7 @@ const BACKUP_TABLES = [
   "additional_costs",
 ];
 
-const MAX_BACKUPS = 8; // 8-week rolling retention
+const MAX_BACKUPS = 4; // 4-week (1-month) rolling retention
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
