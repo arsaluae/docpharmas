@@ -307,6 +307,9 @@ export default function PrintJobs() {
                         <TableCell className="text-right font-mono font-medium">PKR {Number(j.total_cost).toLocaleString()}</TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => previewJob(j)} title="Preview PDF">
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
                             {j.status === "draft" && (
                               <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
                                 setDeliverJob(j);
