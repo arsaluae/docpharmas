@@ -365,6 +365,116 @@ export default function Settings() {
   );
 }
 
+function AutomatedBackupCard() {
+  const [backups, setBackups] = useState<{ name: string; created_at: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [triggerLoading, setTriggerLoading] = useState(false);
+
+  useEffect(() => { loadBackups(); }, []);
+
+  const loadBackups = async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: tu } = await (supabase as any).from("tenant_users").select("tenant_id").eq("user_id", user.id).eq("is_active", true).limit(1).single();
+      if (!tu) return;
+      const tenantId = tu.tenant_id;
+      const { data: files } = await supabase.storage.from("tenant-backups").list(tenantId, { sortBy: { column: "created_at", order: "desc" }, limit: 10 });
+      setBackups(files || []);
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  const handleDownload = async (fileName: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: tu } = await (supabase as any).from("tenant_users").select("tenant_id").eq("user_id", user.id).eq("is_active", true).limit(1).single();
+    if (!tu) return;
+    const tenantId = tu.tenant_id;
+    const { data, error } = await supabase.storage.from("tenant-backups").download(`${tenantId}/${fileName}`);
+    if (error || !data) { toast.error("Download failed"); return; }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Backup downloaded");
+  };
+
+  const handleTriggerBackup = async () => {
+    setTriggerLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke("weekly-backup");
+      if (error) throw error;
+      toast.success("Automated backup triggered successfully!");
+      await loadBackups();
+    } catch (err: any) {
+      toast.error("Backup failed: " + err.message);
+    }
+    setTriggerLoading(false);
+  };
+
+  return (
+    <Card className="glass-card border-primary/20">
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Cloud className="h-5 w-5 text-primary" /> Automated Cloud Backups
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+          <div>
+            <p className="font-medium text-sm text-foreground">Weekly Automated Backup</p>
+            <p className="text-xs text-muted-foreground">Runs every Sunday at midnight · 8-week rolling retention</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Active
+            </span>
+            <Button size="sm" variant="outline" onClick={handleTriggerBackup} disabled={triggerLoading}>
+              <RefreshCw className={`h-3 w-3 mr-1 ${triggerLoading ? "animate-spin" : ""}`} />
+              {triggerLoading ? "Running..." : "Run Now"}
+            </Button>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
+            <Clock className="h-4 w-4" /> Backup History
+          </h4>
+          {loading ? (
+            <p className="text-xs text-muted-foreground">Loading...</p>
+          ) : backups.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No automated backups yet. Click "Run Now" to create the first one.</p>
+          ) : (
+            <div className="space-y-2">
+              {backups.map((b) => (
+                <div key={b.name} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{b.name.replace("backup_", "").replace(".json", "").replace(/-/g, " ").slice(0, 19)}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(b.created_at).toLocaleString()}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => handleDownload(b.name)}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p>• Automated backups store all {BACKUP_TABLES.length} tables as JSON in secure cloud storage</p>
+          <p>• Only the last 8 backups are retained (rolling 2-month window)</p>
+          <p>• Each backup is isolated to your company data only</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function TemplateCard({ template, onUpdate }: { template: DocumentTemplate; onUpdate: (id: string, u: Partial<DocumentTemplate>) => Promise<void> }) {
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(template.title);
