@@ -271,8 +271,16 @@ export default function ProformaInvoices() {
   };
 
   const calcTotals = (list: ProformaItem[]) => {
-    const subtotal = list.reduce((s, i) => s + Number(i.quantity) * Number(i.rate), 0);
-    const gst = settings?.gst_enabled ? list.reduce((s, i) => s + (Number(i.quantity) * Number(i.rate) * Number(i.gst_rate) / 100), 0) : 0;
+    const subtotal = list.reduce((s, i) => {
+      const gross = Number(i.quantity) * Number(i.rate);
+      const disc = gross * Number(i.discount_pct || 0) / 100;
+      return s + (gross - disc);
+    }, 0);
+    const gst = settings?.gst_enabled ? list.reduce((s, i) => {
+      const gross = Number(i.quantity) * Number(i.rate);
+      const disc = gross * Number(i.discount_pct || 0) / 100;
+      return s + ((gross - disc) * Number(i.gst_rate) / 100);
+    }, 0) : 0;
     return { subtotal, gst, total: subtotal + gst };
   };
 
