@@ -66,6 +66,12 @@ export default function PrintJobs() {
   const [printerNames, setPrinterNames] = useState<Record<string, string>>({});
   const [productNames, setProductNames] = useState<Record<string, string>>({});
 
+  // PDF preview
+  const [pdfHtml, setPdfHtml] = useState("");
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const { settings } = useCompanySettings();
+
   useEffect(() => { load(); }, [pagination.page, tab]);
 
   const load = async () => {
