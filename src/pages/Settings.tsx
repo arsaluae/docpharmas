@@ -427,7 +427,7 @@ function AutomatedBackupCard() {
         <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
           <div>
             <p className="font-medium text-sm text-foreground">Weekly Automated Backup</p>
-            <p className="text-xs text-muted-foreground">Runs every Sunday at midnight · 8-week rolling retention</p>
+            <p className="text-xs text-muted-foreground">Runs every Sunday at midnight · 1-month rolling retention</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
