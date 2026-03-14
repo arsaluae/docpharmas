@@ -263,8 +263,10 @@ export default function ProformaInvoices() {
         if (lastRate !== null) u[idx].rate = lastRate;
       }
     }
-    const line = Number(u[idx].quantity) * Number(u[idx].rate);
-    u[idx].amount = line + (settings?.gst_enabled ? (line * Number(u[idx].gst_rate) / 100) : 0);
+    const lineGross = Number(u[idx].quantity) * Number(u[idx].rate);
+    const discPct = Number(u[idx].discount_pct || 0);
+    const lineAfterDisc = lineGross - (lineGross * discPct / 100);
+    u[idx].amount = lineAfterDisc + (settings?.gst_enabled ? (lineAfterDisc * Number(u[idx].gst_rate) / 100) : 0);
     setItems([...u]);
   };
 
