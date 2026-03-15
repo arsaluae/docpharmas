@@ -1,34 +1,25 @@
 
 
-# Plan: Premium Pharma PDF Template + Preview-First Download Flow
+# Merge "Printing" into "Inventory" Section
 
-## Two Changes
+## Problem
+"Printing" still appears as its own sidebar section even though printing costs now flow through Landed Costs. This creates redundancy and confusion.
 
-### 1. New Color Palette (No Gold)
-Replace the gold/navy scheme with a pharma-grade **teal + slate** palette:
-- Primary accent: `#0e7490` (deep teal — medical/pharma feel)
-- Light accent: `#99f6e4` (soft mint)
-- Header background: `#0f172a` (deep slate) with teal accent line
-- Section labels: `#0e7490` instead of gold `#c9a84c`
-- Borders: `#e2e8f0` (cool gray) instead of warm ivory
-- Alternating rows: `#f8fafc` / `#ffffff` (cool whites)
-- Corner ornaments: teal instead of gold
-- Gradient dividers: teal gradient instead of gold gradient
-- Party card border-left: teal
-- Overall feel: clinical, clean, pharmaceutical-grade premium
+## Fix
+Move "Printers" and "Print Jobs" into the **Inventory** section and remove the standalone "Printing" section entirely.
 
-### 2. Preview-First Flow (No Auto-Print)
-Currently `generatePdf()` opens a new window and auto-triggers `print()` after 600ms. Change to:
-- Open the document as a styled preview page
-- Add a floating **Download / Print** button bar at the top (hidden on print via `@media print`)
-- Button triggers `window.print()` on click
-- User sees the beautiful document first, then clicks to download/print
+**File: `src/components/AppSidebar.tsx`**
 
-## Files Changed
+Update `allSections`:
+- Add `Printers` and `Print Jobs` items to the Inventory section (after Landed Costs)
+- Delete the entire `{ label: "Printing", ... }` section object
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdf-generator.ts` | Full color palette swap (gold→teal), add download toolbar, remove auto-print |
+Result — Inventory section will contain:
+1. Products & Stock
+2. Stock Movements
+3. Landed Costs
+4. Printers
+5. Print Jobs
 
-No other files change. The template system and all callers remain the same.
+One file, ~5 lines changed.
 
