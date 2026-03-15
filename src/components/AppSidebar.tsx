@@ -37,8 +37,6 @@ const allSections = [
     { title: "Products & Stock", url: "/products", icon: Package },
     { title: "Stock Movements", url: "/stock", icon: RotateCcw },
     { title: "Landed Costs", url: "/landed-costs", icon: DollarSign },
-  ]},
-  { label: "Printing", icon: Printer, staffVisible: false, items: [
     { title: "Printers", url: "/printers", icon: Printer },
     { title: "Print Jobs", url: "/print-jobs", icon: ClipboardList },
   ]},
