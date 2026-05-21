@@ -237,31 +237,20 @@ export function AppSidebar() {
         </DialogContent>
       </Dialog>
 
-      <SidebarFooter className="p-2 border-t border-sidebar-border/60">
+      <SidebarFooter className="mouj-footer">
         {!collapsed ? (
-          <div className="flex items-center gap-1.5 px-1">
-            {/* Tenant chip */}
-            <div className="flex items-center gap-2 flex-1 min-w-0 px-2 py-1.5 rounded-lg hover:bg-sidebar-accent/60 transition-colors">
-              <div className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                {getInitials()}
-              </div>
+          <div className="flex items-center gap-1">
+            <div className="mouj-tenant">
+              <div className="mouj-avatar">{getInitials()}</div>
               <div className="flex-1 min-w-0">
-                <span className="text-[12px] font-medium text-foreground block truncate leading-tight">
-                  {tenantName || "My Company"}
-                </span>
-                <span className="text-[10px] text-muted-foreground capitalize">
-                  {tenantRole === "owner" ? "Admin" : "Staff"}
-                </span>
+                <span className="mouj-tenant-name">{tenantName || "My Company"}</span>
+                <span className="mouj-tenant-role">{tenantRole === "owner" ? "Admin" : "Staff"}</span>
               </div>
             </div>
 
-            {/* Settings popover */}
             <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
               <PopoverTrigger asChild>
-                <button
-                  className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
-                  title="Settings"
-                >
+                <button className="mouj-icon-btn" title="Settings">
                   <Settings className="h-4 w-4" />
                 </button>
               </PopoverTrigger>
@@ -273,58 +262,36 @@ export function AppSidebar() {
                   <Upload className="h-4 w-4 opacity-70" /> Data Import
                 </button>
                 <div className="my-1 h-px bg-border/60" />
-                <button
-                  onClick={() => { toggleTheme(); }}
-                  className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors"
-                >
+                <button onClick={() => { toggleTheme(); }} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
                   {theme === "light" ? <Moon className="h-4 w-4 opacity-70" /> : <Sun className="h-4 w-4 opacity-70" />}
                   {theme === "light" ? "Dark Mode" : "Light Mode"}
                 </button>
-                <button
-                  onClick={() => { setSettingsOpen(false); setShortcutsOpen(true); }}
-                  className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors"
-                >
+                <button onClick={() => { setSettingsOpen(false); setShortcutsOpen(true); }} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
                   <Keyboard className="h-4 w-4 opacity-70" /> Keyboard Shortcuts
                   <kbd className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">?</kbd>
                 </button>
               </PopoverContent>
             </Popover>
 
-            {/* Logout */}
-            <button
-              onClick={handleLogout}
-              className="p-2 rounded-lg text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-              title="Logout"
-            >
+            <button onClick={handleLogout} className="mouj-icon-btn danger" title="Logout">
               <LogOut className="h-4 w-4" />
             </button>
           </div>
         ) : (
           <div className="flex flex-col gap-1 items-center">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
-              title={theme === "light" ? "Dark Mode" : "Light Mode"}
-            >
+            <button onClick={toggleTheme} className="mouj-icon-btn" title={theme === "light" ? "Dark Mode" : "Light Mode"}>
               {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             </button>
-            <button
-              onClick={() => navigate("/settings")}
-              className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
-              title="Settings"
-            >
+            <button onClick={() => navigate("/settings")} className="mouj-icon-btn" title="Settings">
               <Settings className="h-4 w-4" />
             </button>
-            <button
-              onClick={handleLogout}
-              className="p-2 rounded-lg text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-              title="Logout"
-            >
+            <button onClick={handleLogout} className="mouj-icon-btn danger" title="Logout">
               <LogOut className="h-4 w-4" />
             </button>
           </div>
         )}
       </SidebarFooter>
+
     </Sidebar>
   );
 }
