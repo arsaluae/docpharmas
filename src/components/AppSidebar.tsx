@@ -2,7 +2,8 @@ import { useState } from "react";
 import {
   LayoutDashboard, Users, Truck, Package, LogOut, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
-  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown, Shield, CreditCard as SubIcon, DollarSign,
+  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown, Shield,
+  CreditCard as SubIcon, DollarSign, Building2, Keyboard, Moon, Sun,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -13,9 +14,12 @@ import {
   SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
 import docpharmasLogo from "@/assets/docpharmas-logo.jpg";
-import { ShortcutsHelpDialog } from "@/components/KeyboardShortcuts";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { useTheme } from "@/components/ThemeToggle";
 
 const allSections = [
   { label: "Sales", icon: FileText, staffVisible: true, items: [
@@ -47,15 +51,13 @@ const allSections = [
     { title: "Staff & Salaries", url: "/salaries", icon: Users },
     { title: "Bank Accounts", url: "/bank", icon: Landmark },
   ]},
-  { label: "Reports", icon: BarChart3, staffVisible: false, items: [
-    { title: "Reports", url: "/reports", icon: BarChart3 },
-    { title: "AI Insights", url: "/insights", icon: BarChart3 },
-  ]},
-  { label: "Settings", icon: Settings, staffVisible: false, items: [
-    { title: "Company Settings", url: "/settings", icon: Settings },
-    { title: "Data Import", url: "/import", icon: Upload },
-    { title: "Subscription", url: "/subscription", icon: SubIcon },
-  ]},
+];
+
+const shortcuts = [
+  { keys: ["Ctrl", "K"], desc: "Open search / command palette" },
+  { keys: ["Ctrl", "N"], desc: "New record (context-aware)" },
+  { keys: ["Esc"], desc: "Close dialog / palette" },
+  { keys: ["?"], desc: "Show this shortcuts help" },
 ];
 
 export function AppSidebar() {
@@ -64,6 +66,9 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { tenantRole, isAdmin, tenantName } = useTenant();
+  const { theme, toggleTheme } = useTheme();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const matchUrl = (itemUrl: string) => {
     const [path, qs] = itemUrl.split("?");
@@ -96,61 +101,51 @@ export function AppSidebar() {
     return tenantRole === "owner" ? "AD" : "ST";
   };
 
+  const goAndClose = (url: string) => {
+    setSettingsOpen(false);
+    navigate(url);
+  };
+
+  const reportsActive = location.pathname.startsWith("/reports") || location.pathname === "/insights";
+
   return (
-    <Sidebar collapsible="icon" className="border-r-0">
-      {/* Brand header */}
-      <div className="relative p-4 flex items-center gap-3 border-b border-border/40">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.04] via-transparent to-transparent pointer-events-none" />
-        <div className="relative w-10 h-10 rounded-2xl overflow-hidden shadow-md ring-2 ring-primary/15 transition-transform duration-300 hover:scale-105">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
+      {/* Brand header — clean, no pulse, no tenant subtitle */}
+      <div className="p-4 flex items-center gap-3 border-b border-sidebar-border/60">
+        <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-border/40">
           <img src={docpharmasLogo} alt="DocPharmas" className="w-full h-full object-cover" />
         </div>
         {!collapsed && (
-          <div className="relative flex-1 min-w-0">
-            <span className="font-heading font-bold text-foreground text-lg tracking-tight block leading-tight">DocPharmas</span>
-            {tenantName && (
-              <span className="text-[10px] text-muted-foreground truncate block mt-0.5 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />
-                {tenantName}
-              </span>
-            )}
-          </div>
+          <span className="font-heading font-semibold text-foreground text-[15px] tracking-tight truncate">
+            DocPharmas
+          </span>
         )}
       </div>
-      <SidebarContent className="mt-2 px-2">
+
+      <SidebarContent className="mt-3 px-2 gap-0">
+        {/* Dashboard */}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <NavLink to="/dashboard" end
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${location.pathname === "/dashboard" ? "pharma-sidebar-active text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
-                activeClassName="pharma-sidebar-active text-primary font-medium">
-                <LayoutDashboard className={`h-4 w-4 transition-colors ${location.pathname === "/dashboard" ? "text-primary" : ""}`} />
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-colors ${
+                  location.pathname === "/dashboard"
+                    ? "bg-primary/12 text-primary font-medium"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
+                }`}>
+                <LayoutDashboard className="h-4 w-4" />
                 {!collapsed && <span>Dashboard</span>}
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
 
-        {isAdmin && (
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <NavLink to="/admin"
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${location.pathname === "/admin" ? "pharma-sidebar-active text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
-                  activeClassName="pharma-sidebar-active text-primary font-medium">
-                  <Shield className={`h-4 w-4 transition-colors ${location.pathname === "/admin" ? "text-primary" : ""}`} />
-                  {!collapsed && <span>Admin Panel</span>}
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        )}
+        {!collapsed && <div className="mx-3 my-2 h-px bg-sidebar-border/50" />}
 
-        {sections.map((section, idx) => {
-          const isOpen = openSections[idx] || false;
-          const sectionActive = section.items.some(i => matchUrl(i.url));
-
-          if (collapsed) {
-            return (
+        {/* Collapsed mode: flat icon list */}
+        {collapsed ? (
+          <>
+            {sections.map((section) => (
               <SidebarMenu key={section.label}>
                 {section.items.map((item) => {
                   const isActive = matchUrl(item.url);
@@ -158,80 +153,209 @@ export function AppSidebar() {
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton asChild>
                         <NavLink to={item.url}
-                          className={`flex items-center justify-center px-2 py-2 rounded-xl transition-all ${isActive ? "pharma-sidebar-active text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent"}`}
-                          activeClassName="pharma-sidebar-active text-primary">
-                          <item.icon className={`h-4 w-4 transition-colors ${isActive ? "text-primary" : ""}`} />
+                          className={`flex items-center justify-center px-2 py-2 rounded-lg transition-colors ${
+                            isActive ? "bg-primary/12 text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent"
+                          }`}>
+                          <item.icon className="h-4 w-4" />
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
                 })}
               </SidebarMenu>
-            );
-          }
+            ))}
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink to="/reports"
+                    className={`flex items-center justify-center px-2 py-2 rounded-lg transition-colors ${
+                      reportsActive ? "bg-primary/12 text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent"
+                    }`}>
+                    <BarChart3 className="h-4 w-4" />
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </>
+        ) : (
+          <>
+            {sections.map((section, idx) => {
+              const isOpen = openSections[idx] || false;
+              const sectionActive = section.items.some(i => matchUrl(i.url));
+              return (
+                <Collapsible key={section.label} open={isOpen} onOpenChange={() => toggleSection(idx)}>
+                  <CollapsibleTrigger className={`group flex items-center w-full px-3 py-2 rounded-lg text-[12px] transition-colors cursor-pointer select-none ${
+                    sectionActive ? "text-foreground" : "text-sidebar-foreground hover:text-foreground"
+                  }`}>
+                    <span className="flex-1 text-left font-medium tracking-wide">{section.label}</span>
+                    <ChevronDown className={`h-3.5 w-3.5 opacity-60 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenu className="ml-1 mt-0.5 mb-1">
+                      {section.items.map((item) => {
+                        const isActive = matchUrl(item.url);
+                        return (
+                          <SidebarMenuItem key={item.url}>
+                            <SidebarMenuButton asChild>
+                              <NavLink to={item.url}
+                                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] transition-colors ${
+                                  isActive
+                                    ? "bg-primary/12 text-primary font-medium"
+                                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
+                                }`}>
+                                <item.icon className="h-3.5 w-3.5 opacity-80" />
+                                <span>{item.title}</span>
+                              </NavLink>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </SidebarMenu>
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            })}
 
-          return (
-            <div key={section.label}>
-              {idx > 0 && <div className="mx-3 my-2 h-px bg-border/30" />}
-              <Collapsible open={isOpen} onOpenChange={() => toggleSection(idx)}>
-                <CollapsibleTrigger className={`flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer select-none ${sectionActive ? "text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}>
-                  <div className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors ${sectionActive ? "bg-primary/10" : "bg-muted"}`}>
-                    <section.icon className={`h-3.5 w-3.5 transition-colors ${sectionActive ? "text-primary" : "text-muted-foreground"}`} />
-                  </div>
-                  <span className="flex-1 text-left text-[10px] uppercase tracking-[0.15em] font-bold">{section.label}</span>
-                  {sectionActive && <span className="w-1.5 h-1.5 rounded-full bg-primary mr-1" />}
-                  <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <SidebarMenu className="ml-3 mt-0.5 border-l-2 border-primary/10 pl-2">
-                    {section.items.map((item) => {
-                      const isActive = matchUrl(item.url);
-                      return (
-                        <SidebarMenuItem key={item.url}>
-                          <SidebarMenuButton asChild>
-                            <NavLink to={item.url}
-                              className={`relative flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] transition-all ${isActive ? "pharma-sidebar-active text-primary font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"}`}
-                              activeClassName="pharma-sidebar-active text-primary font-medium">
-                              {isActive && (
-                                <div className="absolute left-[-10px] top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full pharma-accent-line" />
-                              )}
-                              <item.icon className={`h-3.5 w-3.5 transition-colors ${isActive ? "text-primary" : ""}`} />
-                              <span>{item.title}</span>
-                              {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
-                            </NavLink>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      );
-                    })}
-                  </SidebarMenu>
-                </CollapsibleContent>
-              </Collapsible>
-            </div>
-          );
-        })}
+            <div className="mx-3 my-2 h-px bg-sidebar-border/50" />
+
+            {/* Reports — single link */}
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink to="/reports"
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-colors ${
+                      reportsActive
+                        ? "bg-primary/12 text-primary font-medium"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
+                    }`}>
+                    <BarChart3 className="h-4 w-4" />
+                    <span>Reports</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </>
+        )}
       </SidebarContent>
-      <SidebarFooter className="p-3 border-t border-border/40">
-        {tenantRole && !collapsed && (
-          <div className="flex items-center gap-2.5 px-3 py-2.5 mb-1 rounded-xl bg-muted/50">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground text-[11px] font-bold shadow-sm">
-              {getInitials()}
+
+      {/* Shortcuts help dialog (mounted globally so popover can trigger it) */}
+      <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Keyboard Shortcuts</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 mt-2">
+            {shortcuts.map((s) => (
+              <div key={s.desc} className="flex items-center justify-between py-1.5">
+                <span className="text-sm text-foreground">{s.desc}</span>
+                <div className="flex items-center gap-1">
+                  {s.keys.map((k) => (
+                    <kbd key={k} className="min-w-[28px] text-center text-xs font-mono px-2 py-1 rounded-md bg-muted text-muted-foreground border border-border">
+                      {k}
+                    </kbd>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <SidebarFooter className="p-2 border-t border-sidebar-border/60">
+        {!collapsed ? (
+          <div className="flex items-center gap-1.5 px-1">
+            {/* Tenant chip */}
+            <div className="flex items-center gap-2 flex-1 min-w-0 px-2 py-1.5 rounded-lg hover:bg-sidebar-accent/60 transition-colors">
+              <div className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                {getInitials()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-[12px] font-medium text-foreground block truncate leading-tight">
+                  {tenantName || "My Company"}
+                </span>
+                <span className="text-[10px] text-muted-foreground capitalize">
+                  {tenantRole === "owner" ? "Admin" : "Staff"}
+                </span>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <span className="text-[11px] font-semibold text-foreground block truncate">
-                {tenantName || "My Company"}
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary/60 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                {tenantRole === "owner" ? "Admin" : "Staff"}
-              </span>
-            </div>
+
+            {/* Settings popover */}
+            <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
+                  title="Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="top" align="end" className="w-60 p-1.5">
+                <button onClick={() => goAndClose("/settings")} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
+                  <Building2 className="h-4 w-4 opacity-70" /> Company Settings
+                </button>
+                <button onClick={() => goAndClose("/import")} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
+                  <Upload className="h-4 w-4 opacity-70" /> Data Import
+                </button>
+                <button onClick={() => goAndClose("/subscription")} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
+                  <SubIcon className="h-4 w-4 opacity-70" /> Subscription
+                </button>
+                {isAdmin && (
+                  <button onClick={() => goAndClose("/admin")} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
+                    <Shield className="h-4 w-4 opacity-70" /> Admin Panel
+                  </button>
+                )}
+                <div className="my-1 h-px bg-border/60" />
+                <button
+                  onClick={() => { toggleTheme(); }}
+                  className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors"
+                >
+                  {theme === "light" ? <Moon className="h-4 w-4 opacity-70" /> : <Sun className="h-4 w-4 opacity-70" />}
+                  {theme === "light" ? "Dark Mode" : "Light Mode"}
+                </button>
+                <button
+                  onClick={() => { setSettingsOpen(false); setShortcutsOpen(true); }}
+                  className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors"
+                >
+                  <Keyboard className="h-4 w-4 opacity-70" /> Keyboard Shortcuts
+                  <kbd className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">?</kbd>
+                </button>
+              </PopoverContent>
+            </Popover>
+
+            {/* Logout */}
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-lg text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1 items-center">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
+              title={theme === "light" ? "Dark Mode" : "Light Mode"}
+            >
+              {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={() => navigate("/settings")}
+              className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
+              title="Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-lg text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         )}
-        <ThemeToggle collapsed={collapsed} />
-        {!collapsed && <ShortcutsHelpDialog />}
-        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-all w-full press-scale">
-          <LogOut className="h-4 w-4" />{!collapsed && <span>Logout</span>}
-        </button>
       </SidebarFooter>
     </Sidebar>
   );
