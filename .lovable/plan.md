@@ -1,79 +1,83 @@
-# UI/UX Uplift — Dark-First, Quieter Sidebar
 
-A focused refresh that makes the app feel like a crafted product (less "AI default"), tuned primarily for dark mode, with a calmer left rail.
+# Convert to Single-Tenant App for Mouj Pharmaceuticals
 
-## 1. Dark mode redesign (primary)
+Strip multi-tenant SaaS scaffolding. Keep email/password login. Only Mouj's owner can sign in. Delete the other two tenants and all their data.
 
-Replace the current generic navy/teal dark theme with a richer, more editorial palette:
+## 1. Database cleanup (data only — schema stays)
 
-- **Background**: near-black with a warm graphite tint (not the current cool navy `222 47% 8%`) — `225 15% 6%` base, `225 14% 9%` for surfaces, `225 12% 12%` for elevated cards. Gives depth without the "Bootstrap dark" look.
-- **Single signature accent**: drop the triple teal+violet+sage gradient everywhere. Pick **one** accent — a refined cyan-mint (`172 75% 55%`) — used sparingly for active states, primary CTAs, and focus rings only. Violet/sage stay as data-viz only (charts, status pills).
-- **Typography contrast**: foreground at `40 15% 92%` (slight warm tint) instead of pure cool gray — easier on eyes for long sessions.
-- **Borders**: hairline `225 10% 18%` with 60% opacity by default; no heavy dividers.
-- **Shadows**: replace black box-shadows with layered inner highlights + soft ambient glow tinted by accent at <5% opacity. Real depth, not flat darkness.
-- **Remove**: the rainbow `pharma-accent-line`, the animated `gradient-border` rotation, the shimmer overlays. They read as "AI template". Keep one subtle top-edge accent on KPI/table cards using the single accent at low opacity.
+Hard-delete PharmaZen Demo (`a0000000-…0001`) and Medsal PK (`62d63497-…`) plus everything tagged with those tenant_ids across all tenant-scoped tables (customers, suppliers, products, invoices, payments, print_jobs, printers, expenses, bank_accounts, document_counters, company_settings, etc. — ~40 tables).
 
-Light mode gets the same restraint applied — single accent, warmer neutrals — but stays secondary in polish work.
+Also:
+- Delete their `tenant_users` rows
+- Delete their `payment_submissions`
+- Delete `pending_signups` rows
+- Delete the two tenants from `tenants`
+- Delete the corresponding `auth.users` (PharmaZen owner `efbde659…`, Medsal owner `a3bc3837…`) so they can't log in
+- Set Mouj's tenant: `subscription_status='active'`, `subscription_ends_at=NULL` (no trial / no expiry)
 
-## 2. Sidebar — calmer & flatter
+Multi-tenant schema, RLS, and `get_user_tenant_id()` stay intact — they're harmless once only one tenant exists, and removing them would be a massive risky refactor.
 
-Current sidebar has 6 collapsible sections + Dashboard + Admin + footer block with user card, theme toggle, shortcuts dialog, logout. Too busy.
+## 2. Disable signup
 
-**New structure (flat where possible, grouped only when needed):**
+- `supabase--configure_auth` → `disable_signup: true`
+- Edge function `manage-tenant`: keep deployed (still used by admin if ever needed) but signup UI is gone
 
-```
-Dashboard
-─────────
-Sales            (collapsible, default open if active)
-Purchase         (collapsible)
-Inventory        (collapsible)
-Finance          (collapsible)
-─────────
-Reports          (single link → /reports hub, no children in sidebar)
-─────────
-Settings  ⚙      (icon-only at bottom, opens menu: Company, Data Import, Subscription, Shortcuts, Theme, Admin Panel if admin)
-Logout
-```
+## 3. Frontend strip
 
-Specific changes:
-- **Reports section → single link.** "AI Insights" moves inside the Reports page as a tab. Removes one whole collapsible.
-- **Settings section → bottom icon with popover menu.** Company Settings, Data Import, Subscription, Keyboard Shortcuts, Theme toggle, and Admin Panel all live inside that one menu. Removes the Settings collapsible AND the Admin Panel top-level item AND the inline theme/shortcuts buttons in the footer.
-- **Footer block simplified**: just the tenant chip + Settings icon + Logout icon in a single row. No big avatar card, no separate theme/shortcut buttons taking vertical space.
-- **Visual polish**: remove the `pharma-sidebar-active` gradient, the pulsing dot, the left-edge accent bar, the `border-l-2 border-primary/10` rail under expanded groups. Replace with: bold active-row background using accent at 10%, accent-colored text, no animation. One signal, not four.
-- **Section labels**: drop the uppercase tracking-wide chip-with-icon row; use a simple muted label + chevron. Section icons removed from headers (icons stay on items).
-- **Brand header**: keep logo + name, drop the green pulse dot and tenant subtitle (tenant info already in footer chip).
+### Routes removed (`src/App.tsx`)
+- `/` and `/landing` → Landing page
+- `/admin` → AdminPanel
+- `/subscription` → Subscription
+- `/reset-password` stays (password reset still useful)
+- `/auth` stays (login only)
+- Root `/` now redirects to `/dashboard` (or `/auth` if not logged in)
 
-Net effect: fewer pixels of chrome, more breathing room, one clear active state.
+### Files deleted
+- `src/pages/Landing.tsx`
+- `src/pages/AdminPanel.tsx`
+- `src/pages/Subscription.tsx`
+- `src/components/TrialBanner.tsx`
+- `supabase/functions/manage-subscription/` (optional; safe to leave)
 
-## 3. Component polish (dark-mode pass)
+### Auth page (`src/pages/Auth.tsx`)
+- Remove signup mode entirely (login + forgot password only)
+- Remove company name / phone fields
+- Remove "Don't have an account? Sign up" link
+- Remove "← Back to homepage" link
 
-- **KPI cards (`.glass-kpi`)**: remove rainbow top border on hover. Replace with subtle accent glow on hover (`box-shadow: 0 0 0 1px accent/20, 0 8px 32px accent/8`). Inner highlight only on light mode.
-- **Tables (`.premium-table-card`)**: remove the always-on rainbow top stripe. Use a single 1px accent line at low opacity. Row hover: background tint only, no left-edge bar.
-- **Buttons**: `.btn-gradient` becomes flat accent with subtle inner highlight; hover lifts shadow, no transform on press for primary actions (keep `press-scale` on icon buttons).
-- **Dialogs**: drop `dialog-accent` rainbow strip; use accent-tinted header background instead.
-- **Search pill**: keep, but tighten focus ring to single accent at 25% (currently mixes ring + border + shadow).
+### ProtectedRoute (`src/components/ProtectedRoute.tsx`)
+- Remove `PendingApprovalScreen`, `DeactivatedScreen`, `SubscriptionGuard`
+- Remove all trial/expiry/pending/deactivated logic
+- Just: not-logged-in → `/auth`; logged-in → render `<Outlet />`
 
-## 4. Motion restraint
+### useTenant (`src/hooks/useTenant.tsx`)
+- Simplify: still returns `tenantId` (resolved once from `tenant_users`) and `tenantName`, but drop `subscriptionStatus`, `daysRemaining`, `isPending`, `isDeactivated`, `pending_signups` lookup
+- Keeps RLS-via-tenant-id working without UI noise
 
-Keep: `stagger-fade-up` on first paint, `press-scale` on buttons, sidebar collapsible animation.
-Remove: `gradient-rotate` (4s loop on every hovered card), `pulse-glow`, shimmer-line, animated pulse dot on sidebar active items. Constant motion = AI-template tell.
+### Sidebar (`src/components/AppSidebar.tsx`)
+- Remove Subscription, Admin Panel, and any tenant-management entries from the Settings popover
+- Remove trial banner mount points
 
----
+### Misc
+- `src/pages/Index.tsx` (dashboard) and `src/components/AppLayout.tsx`: remove `<TrialBanner />` usages
+- `src/main.tsx` / `index.html`: update `<title>` to "Mouj Pharmaceuticals — ERP"
 
-## Technical scope
+## 4. Branding (light touch)
+- Page title + meta description → Mouj Pharmaceuticals
+- Auth page heading stays "DocPharmas" logo unless you'd like that swapped too (not in this plan)
 
-| File | Change |
-|---|---|
-| `src/index.css` | Rewrite `.dark` tokens (bg/fg/border/accent), simplify `.glass-kpi` / `.summary-card` / `.premium-table-card` / `.pharma-sidebar-active` / `.dialog-accent` / `.btn-gradient`, remove `gradient-rotate` / `pulse-glow` / `shimmer-line` animations |
-| `tailwind.config.ts` | No structural change (tokens stay HSL-var based) |
-| `src/components/AppSidebar.tsx` | Restructure sections (Reports → single, Settings → bottom popover), simplify active states, simplify footer, remove brand pulse dot |
-| `src/components/ThemeToggle.tsx` | Adapt for use inside Settings popover (compact variant) |
-| `src/pages/Reports.tsx` | Add "AI Insights" as a tab so it's still reachable after sidebar entry is removed |
-| Light-mode tokens | Light pass kept minimal — same accent, warmer neutrals, no rainbow strips |
+## What stays untouched
+- All ERP modules (Customers, Suppliers, Products, Invoices, Payments, Print Jobs, Reports, etc.)
+- Dark theme + sidebar uplift from previous turn
+- RLS policies, `set_tenant_id` trigger, `get_user_tenant_id` function
+- Edge functions: `ai-insights`, `reorder-alerts`, `weekly-backup`, `send-approval-email`, `manage-tenant`
 
-No DB changes. No route removals (AI Insights route stays at `/insights` and is also embedded in Reports).
+## Execution order
+1. Migration: none needed (schema unchanged)
+2. Data deletion via `supabase--insert` (DELETEs in FK-safe order, then drop the two auth users)
+3. `configure_auth` → disable signup
+4. Code edits + file deletions in one batch
+5. Verify: login as Mouj user → dashboard loads, sidebar has no Admin/Subscription, signup link gone, no trial banner
 
-## Out of scope
-
-- Per-page redesigns beyond the shared component tokens (Dashboard hero, individual forms, etc.) — those follow naturally from the token changes but aren't rewritten one-by-one.
-- New illustrations / iconography swap.
+## Result
+Single login (Mouj owner) → straight into the ERP. No landing page, no signup, no trials, no admin, no other tenants in the DB.
