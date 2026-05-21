@@ -758,7 +758,7 @@ export default function PurchaseProforma() {
     setSaving(true);
     const { subtotal, gst, total } = calcTotals(editItems);
     await supabase.from("purchase_proformas").update({
-      supplier_id: editSupplierId || null, date: editDate, validity_days: Number(editValidity),
+      supplier_id: editSupplierId || null, date: editDate, validity_days: 30,
       notes: editNotes || null, subtotal, gst, total,
     }).eq("id", editOrder.id);
     await supabase.from("purchase_proforma_items").delete().eq("proforma_id", editOrder.id);
