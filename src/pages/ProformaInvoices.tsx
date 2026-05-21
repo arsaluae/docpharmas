@@ -1238,41 +1238,63 @@ export default function ProformaInvoices() {
 
           {/* ═══ SUBMIT DIALOG (Batch Selection) ═══ */}
           <Dialog open={submitOpen} onOpenChange={setSubmitOpen}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle className="font-heading">Submit Order — Assign Batches</DialogTitle>
               </DialogHeader>
-              <p className="text-sm text-muted-foreground">Select batch for each item. This creates Invoice + Delivery Note + updates stock.</p>
+              <p className="text-sm text-muted-foreground">Quantities are pre-filled from the draft and batches auto-selected by earliest expiry (FEFO). Review and confirm to create the Invoice + Delivery Note.</p>
               <Separator />
-              {submitItems.map((item, idx) => (
-                <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-foreground">{item.product_name || "Item"}</span>
-                    <span className="text-xs font-mono text-muted-foreground">Qty: {item.quantity}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs font-medium text-muted-foreground">Batch *</Label>
-                      {batchOptions[item.product_id]?.length > 0 ? (
-                        <SearchableSelect
-                          options={batchOptions[item.product_id].map(b => ({ value: b.batch_number, label: `${b.batch_number} (${b.available} avail)` }))}
-                          value={item.batch_number}
-                          onChange={v => { const u = [...submitItems]; u[idx].batch_number = v; setSubmitItems(u); }}
-                          placeholder="Select batch..."
-                          triggerClassName="text-xs h-9"
+              {submitItems.map((item, idx) => {
+                const opts = batchOptions[item.product_id] || [];
+                const selected = opts.find(b => b.batch_number === item.batch_number);
+                const overQty = selected && Number(item.convert_quantity) > selected.available;
+                return (
+                  <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-foreground">{item.product_name || "Item"}</span>
+                      <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">Ordered: {item.quantity}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">Batch * (FEFO)</Label>
+                        {opts.length === 1 ? (
+                          <div className="h-9 px-3 flex items-center rounded-md border border-border bg-background/60 text-xs">
+                            <span className="font-mono">{opts[0].batch_number}</span>
+                            <span className="ml-auto text-muted-foreground">
+                              {opts[0].available} avail{opts[0].expiry_date ? ` · exp ${opts[0].expiry_date}` : ""}
+                            </span>
+                          </div>
+                        ) : opts.length > 1 ? (
+                          <SearchableSelect
+                            options={opts.map(b => ({
+                              value: b.batch_number,
+                              label: `${b.batch_number} · ${b.available} avail${b.expiry_date ? ` · exp ${b.expiry_date}` : ""}`,
+                            }))}
+                            value={item.batch_number}
+                            onChange={v => { const u = [...submitItems]; u[idx].batch_number = v; setSubmitItems(u); }}
+                            placeholder="Select batch..."
+                            triggerClassName="text-xs h-9"
+                          />
+                        ) : (
+                          <p className="text-xs text-destructive mt-1">No batches available</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">Quantity to Dispatch</Label>
+                        <Input
+                          type="number"
+                          className={`text-xs h-9 ${overQty ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          value={item.convert_quantity}
+                          onChange={e => { const u = [...submitItems]; u[idx].convert_quantity = e.target.value; setSubmitItems(u); }}
                         />
-                      ) : (
-                        <p className="text-xs text-destructive mt-1">No batches available</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label className="text-xs font-medium text-muted-foreground">Quantity</Label>
-                      <Input type="number" className="text-xs" value={item.convert_quantity}
-                        onChange={e => { const u = [...submitItems]; u[idx].convert_quantity = e.target.value; setSubmitItems(u); }} />
+                        {overQty && (
+                          <p className="text-[10px] text-destructive mt-1">Exceeds {selected!.available} available in batch</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <Button onClick={handleSubmit} disabled={submitting} className="w-full h-11 gap-2 text-sm font-semibold mt-2">
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                 Confirm & Create Invoice + Delivery Note
