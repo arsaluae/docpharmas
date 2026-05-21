@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,6 +41,7 @@ interface PurchaseOrder {
 
 export default function PurchaseProforma() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -126,6 +127,11 @@ export default function PurchaseProforma() {
     };
     check(); load(); loadBankAccounts();
   }, [navigate]);
+
+  useEffect(() => {
+    const open = searchParams.get("open");
+    if (open) setSearch(open);
+  }, [searchParams]);
 
   // Keyboard shortcut: Ctrl+N for new order
   useEffect(() => {

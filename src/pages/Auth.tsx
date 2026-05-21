@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
-import moujLogo from "@/assets/mouj-logo.png";
+
 
 export default function Auth() {
   const [mode, setMode] = useState<"login" | "forgot">("login");
@@ -44,8 +44,9 @@ export default function Auth() {
   return (
     <div className="mouj-dark-auth min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-[400px]">
-        <div className="mb-8 flex justify-center">
-          <img src={moujLogo} alt="MOUJ" className="h-12 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
+        <div className="mb-8 flex flex-col items-center">
+          <span className="mouj-auth-wordmark">MOUJ <span className="mouj-auth-wordmark-accent">PHARMA</span></span>
+          <span className="mouj-auth-sub">PHARMACEUTICALS · ERP</span>
         </div>
 
         <div className="mouj-auth-card">
@@ -102,9 +103,6 @@ export default function Auth() {
           </form>
         </div>
 
-        <p className="text-center text-[11px] mouj-muted mt-6 tracking-wide">
-          MOUJ PHARMACEUTICALS · ERP
-        </p>
       </div>
     </div>
   );

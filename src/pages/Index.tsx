@@ -11,8 +11,9 @@ import {
   FileText, CreditCard, Shield, Wallet,
   PackageCheck, Flame, Users, AlertTriangle, MessageCircle, Brain,
   Package, Printer, Receipt, Landmark, ArrowRightLeft, RotateCcw,
-  CircleDollarSign, Clock, Sparkles,
+  CircleDollarSign, Clock, Sparkles, Truck,
 } from "lucide-react";
+import { WeekSalesDialog, MonthSalesDialog, GrossMarginDialog, UpcomingOrdersDialog } from "@/components/dashboard/KpiDialogs";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { toast } from "sonner";
 
@@ -76,10 +77,25 @@ export default function Index() {
   const [dailySales, setDailySales] = useState<{ date: string; amount: number }[]>([]);
   const [expensesByCategory, setExpensesByCategory] = useState<{ name: string; value: number }[]>([]);
   const [lastMonthSales, setLastMonthSales] = useState(0);
-  const [overdueCount, setOverdueCount] = useState(0);
-  const [overdueAmount, setOverdueAmount] = useState(0);
+  const [upcomingPoCount, setUpcomingPoCount] = useState(0);
+  const [upcomingPoValue, setUpcomingPoValue] = useState(0);
   const [totalReceivables, setTotalReceivables] = useState(0);
   const [totalPayables, setTotalPayables] = useState(0);
+
+  // Date ranges (lifted for dialogs)
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const monthStartStr = todayStr.slice(0, 7) + "-01";
+  const dow = today.getDay();
+  const monOffset = dow === 0 ? 6 : dow - 1;
+  const weekStartDate = new Date(today); weekStartDate.setDate(today.getDate() - monOffset);
+  const weekStartStr = weekStartDate.toISOString().split("T")[0];
+
+  // Dialog state
+  const [weekOpen, setWeekOpen] = useState(false);
+  const [monthOpen, setMonthOpen] = useState(false);
+  const [gpOpen, setGpOpen] = useState(false);
+  const [upcomingOpen, setUpcomingOpen] = useState(false);
 
   // Expiry alerts
   const [expiryAlerts, setExpiryAlerts] = useState<{ critical: number; warning: number; info: number; items: { name: string; batch: string; expiry: string; qty: number; severity: string }[] }>({ critical: 0, warning: 0, info: 0, items: [] });
@@ -116,7 +132,7 @@ export default function Index() {
       supabase.from("sales_invoices").select("date, subtotal").gte("date", thirtyDaysAgoStr).lte("date", todayStr),
       supabase.from("sales_invoices").select("subtotal").gte("date", lastMonthStartStr).lte("date", lastMonthEndStr),
       supabase.from("expenses").select("category, amount").eq("expense_type", "business").gte("date", monthStart).lte("date", todayStr),
-      supabase.from("sales_invoices").select("total, due_date, status").in("status", ["dispatched", "partial"]).lt("due_date", todayStr),
+      supabase.from("purchase_proformas").select("total").in("status", ["draft", "ordered", "confirmed", "sent"]),
       supabase.from("customers").select("balance"),
       supabase.from("suppliers").select("balance"),
     ]);
@@ -153,9 +169,9 @@ export default function Index() {
         .slice(0, 6)
     );
 
-    const od = overdueInv.data || [];
-    setOverdueCount(od.length);
-    setOverdueAmount(od.reduce((s, i) => s + Number(i.total), 0));
+    const upPos = overdueInv.data || [];
+    setUpcomingPoCount(upPos.length);
+    setUpcomingPoValue(upPos.reduce((s, i) => s + Number(i.total), 0));
 
     setTotalReceivables((custBalances.data || []).reduce((s, c) => s + Math.max(Number(c.balance), 0), 0));
     setTotalPayables((suppBalances.data || []).reduce((s, s2) => s + Math.max(Number(s2.balance), 0), 0));
@@ -314,20 +330,25 @@ export default function Index() {
       extra: <p className="text-[10px] text-muted-foreground mt-0.5">Sale − Cost Price</p>,
     },
     {
-      label: "Overdue Invoices",
-      value: overdueCount > 0 ? overdueAmount : 0,
-      icon: Clock,
-      iconColor: overdueCount > 0 ? "text-destructive" : "text-emerald-600",
-      iconBg: overdueCount > 0 ? "bg-destructive/10" : "bg-emerald-500/10",
-      glowColor: overdueCount > 0 ? "shadow-[0_0_20px_hsl(0,72%,51%,0.12)]" : "",
-      displayOverride: overdueCount === 0 ? "None" : undefined,
-      extra: overdueCount > 0 ? (
-        <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-1">
-          <Clock className="h-3 w-3" /> {overdueCount} invoice{overdueCount > 1 ? "s" : ""} past due
+      label: "Upcoming Orders",
+      value: upcomingPoValue,
+      icon: Truck,
+      iconColor: "text-amber-600",
+      iconBg: "bg-amber-500/10",
+      glowColor: "",
+      displayOverride: upcomingPoCount === 0 ? "None" : undefined,
+      extra: upcomingPoCount > 0 ? (
+        <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+          <Truck className="h-3 w-3" /> {upcomingPoCount} purchase order{upcomingPoCount > 1 ? "s" : ""} pending
         </p>
       ) : null,
+      onClick: () => setUpcomingOpen(true),
     },
   ];
+  // Wire click handlers on first three KPIs
+  kpiCards[0].onClick = () => setWeekOpen(true);
+  kpiCards[1].onClick = () => setMonthOpen(true);
+  kpiCards[2].onClick = () => setGpOpen(true);
 
   return (
     <AppLayout title="Dashboard" subtitle="Business overview">
@@ -348,20 +369,24 @@ export default function Index() {
                 Here's your business at a glance
               </p>
             </div>
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/60 border border-border/40 backdrop-blur-sm">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border">
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
               <span className="text-[11px] font-mono text-muted-foreground">Live</span>
             </div>
           </div>
         </div>
 
-        {/* KPI Row — Premium glass cards */}
+        {/* KPI Row — Clickable flat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger-children">
-          {kpiCards.map((kpi) => (
-            <div key={kpi.label} className={`glass-kpi gradient-border p-4 sm:p-5 ${kpi.glowColor}`}>
+          {kpiCards.map((kpi: any) => (
+            <button
+              key={kpi.label}
+              onClick={kpi.onClick}
+              className="text-left bg-card border border-border rounded-lg p-4 sm:p-5 transition-all hover:border-primary/40 hover:-translate-y-0.5"
+            >
               <div className="flex items-start justify-between mb-3">
                 <p className="text-[10px] sm:text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em]">{kpi.label}</p>
-                <div className={`icon-ring w-9 h-9 sm:w-11 sm:h-11 rounded-2xl ${kpi.iconBg}`}>
+                <div className={`flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-md ${kpi.iconBg}`}>
                   <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
                 </div>
               </div>
@@ -369,9 +394,16 @@ export default function Index() {
                 {kpi.displayOverride || <>PKR <AnimatedCounter value={kpi.value} /></>}
               </p>
               {kpi.extra}
-            </div>
+            </button>
           ))}
         </div>
+
+        {/* KPI Dialogs */}
+        <WeekSalesDialog open={weekOpen} onOpenChange={setWeekOpen} from={weekStartStr} to={todayStr} />
+        <MonthSalesDialog open={monthOpen} onOpenChange={setMonthOpen} from={monthStartStr} to={todayStr} />
+        <GrossMarginDialog open={gpOpen} onOpenChange={setGpOpen} monthStart={monthStartStr} monthEnd={todayStr} />
+        <UpcomingOrdersDialog open={upcomingOpen} onOpenChange={setUpcomingOpen} />
+
 
         {/* 30-Day Sales Trend */}
         <Card className="glass-card overflow-hidden">
