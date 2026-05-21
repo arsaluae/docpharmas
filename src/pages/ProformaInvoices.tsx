@@ -336,7 +336,7 @@ export default function ProformaInvoices() {
       if (!pfNumber) { toast.error("Failed to generate document number"); setSaving(false); return; }
       const { error } = await supabase.from("proforma_invoices").insert({
         proforma_number: pfNumber, customer_id: customerId, date: pfDate,
-        validity_days: Number(validityDays), items: JSON.stringify(items), subtotal, gst, total,
+        validity_days: 30, items: JSON.stringify(items), subtotal, gst, total,
         status: "draft", payment_instructions: paymentInstructions || null,
         agent_id: agentId || null,
       } as any);
