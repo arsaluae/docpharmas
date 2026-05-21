@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import moujLogo from "@/assets/mouj-logo.png";
 
 import { useTheme } from "@/components/ThemeToggle";
 
@@ -110,16 +111,15 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
-      {/* Brand header — wordmark only */}
-      <div className="p-4 border-b border-sidebar-border/60">
-        {!collapsed ? (
-          <span className="font-heading font-semibold text-foreground text-[15px] tracking-tight truncate block">
-            Mouj Pharmaceuticals
-          </span>
-        ) : (
-          <span className="font-heading font-bold text-primary text-base text-center block">M</span>
-        )}
+      {/* Brand header — MOUJ logo */}
+      <div className="p-4 border-b border-sidebar-border/60 flex items-center justify-center">
+        <img
+          src={moujLogo}
+          alt="MOUJ"
+          className={collapsed ? "h-7 w-auto" : "h-10 w-auto"}
+        />
       </div>
+
 
       <SidebarContent className="mt-3 px-2 gap-0">
         {/* Dashboard */}
