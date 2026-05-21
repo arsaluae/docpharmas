@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import moujLogo from "@/assets/mouj-logo.png";
 
 import { useTheme } from "@/components/ThemeToggle";
 
