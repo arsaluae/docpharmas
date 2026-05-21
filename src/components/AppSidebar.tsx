@@ -296,14 +296,6 @@ export function AppSidebar() {
                 <button onClick={() => goAndClose("/import")} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
                   <Upload className="h-4 w-4 opacity-70" /> Data Import
                 </button>
-                <button onClick={() => goAndClose("/subscription")} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
-                  <SubIcon className="h-4 w-4 opacity-70" /> Subscription
-                </button>
-                {isAdmin && (
-                  <button onClick={() => goAndClose("/admin")} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
-                    <Shield className="h-4 w-4 opacity-70" /> Admin Panel
-                  </button>
-                )}
                 <div className="my-1 h-px bg-border/60" />
                 <button
                   onClick={() => { toggleTheme(); }}
