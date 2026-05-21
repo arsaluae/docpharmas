@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { AppLayout } from "@/components/AppLayout";
@@ -49,6 +49,7 @@ interface BatchOption { batch_number: string; available: number; expiry_date?: s
 
 export default function ProformaInvoices() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -125,6 +126,13 @@ export default function ProformaInvoices() {
     };
     check(); load(); loadBankAccounts();
   }, [navigate]);
+
+  // Auto-fill search from ?open=<invoice_number>
+  useEffect(() => {
+    const open = searchParams.get("open");
+    if (open) setSearch(open);
+  }, [searchParams]);
+
 
   // Keyboard shortcut: Ctrl+N for new order
   useEffect(() => {
