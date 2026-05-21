@@ -276,7 +276,7 @@ export default function PurchaseProforma() {
       if (!ppNumber) { toast.error("Failed to generate document number"); setSaving(false); return; }
       const { data: pp, error: ppErr } = await supabase.from("purchase_proformas").insert({
         proforma_number: ppNumber, supplier_id: supplierId, date: ppDate,
-        validity_days: Number(validityDays), subtotal, gst, total, status: "draft", notes: notes || null,
+        validity_days: 30, subtotal, gst, total, status: "draft", notes: notes || null,
       }).select().single();
       if (ppErr || !pp) { console.error("Insert error:", ppErr); toast.error("Failed to create order: " + (ppErr?.message || "Unknown error")); setSaving(false); return; }
       const { error: itemsErr } = await supabase.from("purchase_proforma_items").insert(
