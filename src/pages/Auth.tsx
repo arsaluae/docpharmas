@@ -2,12 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import moujLogo from "@/assets/mouj-logo.png";
-
-
 
 export default function Auth() {
   const [mode, setMode] = useState<"login" | "forgot">("login");
@@ -46,56 +42,69 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/[0.06] rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-warning/[0.06] rounded-full blur-3xl" />
-      </div>
-
-      <div className="glass-card-glow w-full max-w-md p-8 relative z-10 rounded-[4px]">
+    <div className="mouj-dark-auth min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-[400px]">
         <div className="mb-8 flex justify-center">
-          <img src={moujLogo} alt="MOUJ" className="h-14 w-auto" />
+          <img src={moujLogo} alt="MOUJ" className="h-12 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
         </div>
 
+        <div className="mouj-auth-card">
+          <h2 className="text-[20px] font-medium mb-1.5 tracking-tight">
+            {mode === "login" ? "Welcome back" : "Reset password"}
+          </h2>
+          <p className="text-[13px] mouj-muted mb-7">
+            {mode === "login" ? "Sign in to your MOUJ workspace" : "We'll send you a reset link"}
+          </p>
 
-        <h2 className="font-heading text-lg text-center text-foreground mb-1">
-          {mode === "login" ? "Welcome back" : "Reset password"}
-        </h2>
-        <p className="text-sm text-muted-foreground text-center mb-6">
-          {mode === "login" ? "Sign in to your ERP dashboard" : "We'll send you a reset link"}
-        </p>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)}
-              className="pl-10 bg-secondary/50 border-border focus:border-primary" required />
-          </div>
-          {mode === "login" && (
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 bg-secondary/50 border-border focus:border-primary" required minLength={6} />
+              <Mail className="mouj-input-icon absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mouj-input"
+                required
+              />
             </div>
-          )}
+            {mode === "login" && (
+              <div className="relative">
+                <Lock className="mouj-input-icon absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mouj-input"
+                  required
+                  minLength={6}
+                />
+              </div>
+            )}
 
-          {mode === "login" ? (
-            <button type="button" onClick={() => setMode("forgot")}
-              className="text-xs text-primary hover:underline block ml-auto">
-              Forgot password?
-            </button>
-          ) : (
-            <button type="button" onClick={() => setMode("login")}
-              className="text-xs text-primary hover:underline block ml-auto">
-              Back to sign in
-            </button>
-          )}
+            <div className="flex justify-end pt-0.5">
+              {mode === "login" ? (
+                <button type="button" onClick={() => setMode("forgot")} className="mouj-link">
+                  Forgot password?
+                </button>
+              ) : (
+                <button type="button" onClick={() => setMode("login")} className="mouj-link">
+                  Back to sign in
+                </button>
+              )}
+            </div>
 
-          <Button type="submit" disabled={loading} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium">
-            {loading ? "Please wait..." : mode === "login" ? "Sign In" : "Send Reset Link"}
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        </form>
+            <button type="submit" disabled={loading} className="mouj-cta mt-2">
+              {loading ? "Please wait..." : mode === "login" ? "Sign In" : "Send Reset Link"}
+              {!loading && <ArrowRight className="h-4 w-4" />}
+            </button>
+          </form>
+        </div>
+
+        <p className="text-center text-[11px] mouj-muted mt-6 tracking-wide">
+          MOUJ PHARMACEUTICALS · ERP
+        </p>
       </div>
     </div>
   );
