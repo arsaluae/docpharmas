@@ -185,8 +185,8 @@ export function AppSidebar() {
                                 <item.icon className="h-3.5 w-3.5 opacity-70" />
                                 <span>{item.title}</span>
                               </NavLink>
-                            </SidebarMenuItem>
-                          </SidebarMenuButton>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
                         );
                       })}
                     </SidebarMenu>
