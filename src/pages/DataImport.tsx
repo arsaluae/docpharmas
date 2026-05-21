@@ -335,7 +335,7 @@ export default function DataImport() {
   const buildRowObjects = () => {
     const cols = TAB_COLUMNS[tab];
     const numericFields: Record<TabType, string[]> = {
-      customers: ["credit_limit", "credit_days", "opening_balance"],
+      customers: ["credit_limit", "opening_balance"],
       suppliers: ["payment_terms_days", "wht_rate", "opening_balance"],
       products: ["cost_price", "selling_price", "gst_rate", "stock_quantity", "reorder_level"],
       inventory: ["quantity"],
