@@ -2,8 +2,8 @@ import { useState } from "react";
 import {
   LayoutDashboard, Users, Truck, Package, LogOut, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
-  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown, Shield,
-  CreditCard as SubIcon, DollarSign, Building2, Keyboard, Moon, Sun,
+  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown,
+  DollarSign, Building2, Keyboard, Moon, Sun,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
