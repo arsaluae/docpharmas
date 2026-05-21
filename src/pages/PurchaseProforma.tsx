@@ -276,7 +276,7 @@ export default function PurchaseProforma() {
       if (!ppNumber) { toast.error("Failed to generate document number"); setSaving(false); return; }
       const { data: pp, error: ppErr } = await supabase.from("purchase_proformas").insert({
         proforma_number: ppNumber, supplier_id: supplierId, date: ppDate,
-        validity_days: 30, subtotal, gst, total, status: "draft", notes: notes || null,
+        validity_days: Number(validityDays), subtotal, gst, total, status: "draft", notes: notes || null,
       }).select().single();
       if (ppErr || !pp) { console.error("Insert error:", ppErr); toast.error("Failed to create order: " + (ppErr?.message || "Unknown error")); setSaving(false); return; }
       const { error: itemsErr } = await supabase.from("purchase_proforma_items").insert(
@@ -758,7 +758,7 @@ export default function PurchaseProforma() {
     setSaving(true);
     const { subtotal, gst, total } = calcTotals(editItems);
     await supabase.from("purchase_proformas").update({
-      supplier_id: editSupplierId || null, date: editDate, validity_days: 30,
+      supplier_id: editSupplierId || null, date: editDate, validity_days: Number(editValidity),
       notes: editNotes || null, subtotal, gst, total,
     }).eq("id", editOrder.id);
     await supabase.from("purchase_proforma_items").delete().eq("proforma_id", editOrder.id);
@@ -916,50 +916,35 @@ export default function PurchaseProforma() {
       headerActions={
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild><Button className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:scale-[1.02] transition-all"><Plus className="h-4 w-4" /> New Order</Button></DialogTrigger>
-           <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
+           <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle className="font-heading">Create Purchase Order</DialogTitle></DialogHeader>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
               <div>
-                <Label className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">Supplier *</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Supplier *</Label>
                 <SearchableSelect options={supplierOptions} value={supplierId} onChange={setSupplierId} placeholder="Select supplier..." />
               </div>
-              <div>
-                <Label className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">Date</Label>
-                <Input type="date" value={ppDate} onChange={e => setPpDate(e.target.value)} />
-              </div>
+              <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={ppDate} onChange={e => setPpDate(e.target.value)} /></div>
+              <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
             </div>
             <Separator className="my-4" />
             <div className="flex items-center justify-between mb-3">
-              <Label className="text-sm font-semibold tracking-tight">Items</Label>
-              <span className="text-[11px] text-muted-foreground">{items.length} {items.length === 1 ? "line" : "lines"}</span>
+              <Label className="text-sm font-semibold">Items</Label>
+              <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
             </div>
-            <div className="rounded-xl border border-border/60 bg-muted/20 p-3 overflow-x-auto">
-              <div className="grid grid-cols-12 gap-2 px-1 pb-2 mb-2 border-b border-border/50 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground min-w-[560px]">
-                <div className="col-span-5">Product</div>
-                <div className="col-span-2 text-center">Qty</div>
-                <div className="col-span-2 text-center">Rate (PKR)</div>
-                <div className="col-span-2 text-right">Amount</div>
-                <div className="col-span-1" />
-              </div>
-              {items.length === 0 && (
-                <div className="text-center text-xs text-muted-foreground py-6">No items yet. Click "Add Item" below to get started.</div>
-              )}
-              {items.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-start min-w-[560px]">
-                  <div className="col-span-5"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Select product..." triggerClassName="text-xs h-9" /></div>
-                  <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateItem(idx, "quantity_requested", e.target.value)} className="text-xs h-9 text-center" aria-label="Quantity" /></div>
-                  <div className="col-span-2 relative">
-                    <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs h-9 text-right" aria-label="Rate" />
-                    {(item as any).last_price !== undefined && (item as any).last_price !== null && (
-                      <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number((item as any).last_price).toLocaleString()}</span>
-                    )}
-                  </div>
-                  <div className="col-span-2 text-right text-sm font-mono pt-2 text-foreground">{item.amount.toLocaleString()}</div>
-                  <div className="col-span-1 flex justify-end"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Remove item"><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
+            {items.map((item, idx) => (
+              <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
+                <div className="col-span-5"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
+                <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateItem(idx, "quantity_requested", e.target.value)} className="text-xs" placeholder="Qty" /></div>
+                <div className="col-span-2 relative">
+                  <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
+                  {(item as any).last_price !== undefined && (item as any).last_price !== null && (
+                    <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number((item as any).last_price).toLocaleString()}</span>
+                  )}
                 </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={addItem} className="w-full mt-2 gap-1 text-xs border-dashed"><Plus className="h-3 w-3" /> Add Item</Button>
-            </div>
+                <div className="col-span-2 text-right text-sm font-mono pt-2 text-foreground">{item.amount.toLocaleString()}</div>
+                <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
+              </div>
+            ))}
             <Separator className="my-3" />
             <div>
               <Label className="text-sm font-semibold">Additional Costs</Label>
@@ -1173,35 +1158,26 @@ export default function PurchaseProforma() {
                     <div><Label className="text-xs font-medium text-muted-foreground">Supplier</Label><SearchableSelect options={supplierOptions} value={editSupplierId} onChange={setEditSupplierId} placeholder="Supplier..." /></div>
                     <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} /></div>
                   </div>
+                  <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={editValidity} onChange={e => setEditValidity(e.target.value)} /></div>
                   <Separator />
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-semibold">Items</Label>
-                    <span className="text-[11px] text-muted-foreground">{editItems.length} {editItems.length === 1 ? "line" : "lines"}</span>
+                    <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 overflow-x-auto">
-                    <div className="grid grid-cols-12 gap-2 px-1 pb-2 mb-2 border-b border-border/50 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground min-w-[560px]">
-                      <div className="col-span-5">Product</div>
-                      <div className="col-span-2 text-center">Qty</div>
-                      <div className="col-span-2 text-center">Rate</div>
-                      <div className="col-span-2 text-right">Amount</div>
-                      <div className="col-span-1" />
-                    </div>
-                    {editItems.map((item, idx) => (
-                      <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-start min-w-[560px]">
-                        <div className="col-span-5"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Select product..." triggerClassName="text-xs h-9" /></div>
-                        <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateEditItem(idx, "quantity_requested", e.target.value)} className="text-xs h-9 text-center" aria-label="Quantity" /></div>
-                        <div className="col-span-2 relative">
-                          <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs h-9 text-right" aria-label="Rate" />
-                          {(item as any).last_price !== undefined && (item as any).last_price !== null && (
-                            <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number((item as any).last_price).toLocaleString()}</span>
-                          )}
-                        </div>
-                        <div className="col-span-2 text-right text-xs font-mono pt-2">{item.amount.toLocaleString()}</div>
-                        <div className="col-span-1 flex justify-end"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))} aria-label="Remove item"><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
+                  {editItems.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-5"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
+                      <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateEditItem(idx, "quantity_requested", e.target.value)} className="text-xs" placeholder="Qty" /></div>
+                      <div className="col-span-2 relative">
+                        <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
+                        {(item as any).last_price !== undefined && (item as any).last_price !== null && (
+                          <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number((item as any).last_price).toLocaleString()}</span>
+                        )}
                       </div>
-                    ))}
-                    <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }])} className="w-full mt-2 gap-1 text-xs border-dashed"><Plus className="h-3 w-3" /> Add Item</Button>
-                  </div>
+                      <div className="col-span-2 text-right text-xs font-mono pt-2">{item.amount.toLocaleString()}</div>
+                      <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
+                    </div>
+                  ))}
                   <div className="mt-3"><Label className="text-xs font-medium text-muted-foreground">Notes</Label><Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} /></div>
                   {(() => { const t = calcTotals(editItems); return (
                     <div className="border-t border-border pt-3 space-y-1 text-sm">

@@ -106,17 +106,15 @@ export default function Index() {
     thirtyDaysAgo.setDate(today.getDate() - 29);
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
 
-    // Only count non-draft invoices (actual completed sales) for revenue + margin
-    const COMPLETED = ["invoiced", "dispatched", "paid", "partial"] as const;
     const [weekInv, monthInv, yearInv, recentMovements, products, customers, trendInv, lastMonthInv, expenses, overdueInv, custBalances, suppBalances] = await Promise.all([
-      supabase.from("sales_invoices").select("subtotal").in("status", COMPLETED as any).gte("date", weekStartStr).lte("date", todayStr),
-      supabase.from("sales_invoices").select("id, subtotal, customer_id").in("status", COMPLETED as any).gte("date", monthStart).lte("date", todayStr),
-      supabase.from("sales_invoices").select("subtotal, customer_id").in("status", COMPLETED as any).gte("date", yearStart).lte("date", todayStr),
+      supabase.from("sales_invoices").select("subtotal").gte("date", weekStartStr).lte("date", todayStr),
+      supabase.from("sales_invoices").select("subtotal, customer_id").gte("date", monthStart).lte("date", todayStr),
+      supabase.from("sales_invoices").select("subtotal, customer_id").gte("date", yearStart).lte("date", todayStr),
       supabase.from("stock_movements").select("product_id, quantity, date").eq("movement_type", "purchase_in").order("created_at", { ascending: false }).limit(5),
       supabase.from("products").select("id, name, cost_price"),
       supabase.from("customers").select("id, name, balance"),
-      supabase.from("sales_invoices").select("date, subtotal").in("status", COMPLETED as any).gte("date", thirtyDaysAgoStr).lte("date", todayStr),
-      supabase.from("sales_invoices").select("subtotal").in("status", COMPLETED as any).gte("date", lastMonthStartStr).lte("date", lastMonthEndStr),
+      supabase.from("sales_invoices").select("date, subtotal").gte("date", thirtyDaysAgoStr).lte("date", todayStr),
+      supabase.from("sales_invoices").select("subtotal").gte("date", lastMonthStartStr).lte("date", lastMonthEndStr),
       supabase.from("expenses").select("category, amount").eq("expense_type", "business").gte("date", monthStart).lte("date", todayStr),
       supabase.from("sales_invoices").select("total, due_date, status").in("status", ["dispatched", "partial"]).lt("due_date", todayStr),
       supabase.from("customers").select("balance"),
@@ -162,8 +160,8 @@ export default function Index() {
     setTotalReceivables((custBalances.data || []).reduce((s, c) => s + Math.max(Number(c.balance), 0), 0));
     setTotalPayables((suppBalances.data || []).reduce((s, s2) => s + Math.max(Number(s2.balance), 0), 0));
 
-    // Use the same completed-invoice scope as monthSales so margin = sales − cost stays consistent
-    const allMonthIds = (monthInv.data || []).map((inv: any) => inv.id);
+    const { data: monthInvIds } = await supabase.from("sales_invoices").select("id").gte("date", monthStart).lte("date", todayStr);
+    const allMonthIds = (monthInvIds || []).map(inv => inv.id);
 
     let monthItemsData: any[] = [];
     for (let i = 0; i < allMonthIds.length; i += 50) {
@@ -288,23 +286,19 @@ export default function Index() {
       label: "This Week",
       value: weekSales,
       icon: TrendingUp,
-      iconColor: "text-white",
-      iconBg: "bg-gradient-to-br from-violet-500 to-indigo-600",
-      accent: "from-violet-500/20 via-indigo-500/10 to-transparent",
-      ring: "shadow-[0_0_28px_-4px_hsl(252_95%_65%_/_0.45)]",
-      valueClass: "bg-gradient-to-r from-violet-300 to-indigo-300 bg-clip-text text-transparent",
+      iconColor: "text-primary",
+      iconBg: "bg-primary/10",
+      glowColor: "shadow-[0_0_20px_hsl(199,89%,48%,0.12)]",
     },
     {
       label: "This Month",
       value: monthSales,
       icon: CalendarDays,
-      iconColor: "text-white",
-      iconBg: "bg-gradient-to-br from-fuchsia-500 to-pink-600",
-      accent: "from-fuchsia-500/20 via-pink-500/10 to-transparent",
-      ring: "shadow-[0_0_28px_-4px_hsl(320_95%_65%_/_0.45)]",
-      valueClass: "bg-gradient-to-r from-fuchsia-300 to-pink-300 bg-clip-text text-transparent",
+      iconColor: "text-emerald-600",
+      iconBg: "bg-emerald-500/10",
+      glowColor: "shadow-[0_0_20px_hsl(160,84%,39%,0.12)]",
       extra: lastMonthSales > 0 ? (
-        <p className={`text-[10px] mt-1 font-mono flex items-center gap-1 ${monthGrowth >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+        <p className={`text-[10px] mt-1 font-mono flex items-center gap-1 ${monthGrowth >= 0 ? "text-emerald-600" : "text-destructive"}`}>
           {monthGrowth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
           {monthGrowth >= 0 ? "+" : ""}{monthGrowth.toFixed(1)}% vs last month
         </p>
@@ -314,29 +308,21 @@ export default function Index() {
       label: "Gross Margin",
       value: Math.abs(grossMargin),
       icon: CircleDollarSign,
-      iconColor: "text-white",
-      iconBg: grossMargin >= 0 ? "bg-gradient-to-br from-emerald-500 to-teal-600" : "bg-gradient-to-br from-rose-500 to-red-600",
-      accent: grossMargin >= 0 ? "from-emerald-500/20 via-teal-500/10 to-transparent" : "from-rose-500/20 via-red-500/10 to-transparent",
-      ring: grossMargin >= 0 ? "shadow-[0_0_28px_-4px_hsl(158_80%_55%_/_0.45)]" : "shadow-[0_0_28px_-4px_hsl(348_90%_60%_/_0.45)]",
-      valueClass: grossMargin >= 0
-        ? "bg-gradient-to-r from-emerald-300 to-teal-300 bg-clip-text text-transparent"
-        : "bg-gradient-to-r from-rose-300 to-red-300 bg-clip-text text-transparent",
-      extra: <p className="text-[10px] text-muted-foreground mt-0.5">Sales − Cost of Goods Sold (completed invoices)</p>,
+      iconColor: grossMargin >= 0 ? "text-primary" : "text-destructive",
+      iconBg: grossMargin >= 0 ? "bg-primary/10" : "bg-destructive/10",
+      glowColor: grossMargin >= 0 ? "shadow-[0_0_20px_hsl(199,89%,48%,0.12)]" : "shadow-[0_0_20px_hsl(0,72%,51%,0.12)]",
+      extra: <p className="text-[10px] text-muted-foreground mt-0.5">Sale − Cost Price</p>,
     },
     {
       label: "Overdue Invoices",
       value: overdueCount > 0 ? overdueAmount : 0,
       icon: Clock,
-      iconColor: "text-white",
-      iconBg: overdueCount > 0 ? "bg-gradient-to-br from-amber-500 to-orange-600" : "bg-gradient-to-br from-sky-500 to-cyan-600",
-      accent: overdueCount > 0 ? "from-amber-500/20 via-orange-500/10 to-transparent" : "from-sky-500/15 via-cyan-500/8 to-transparent",
-      ring: overdueCount > 0 ? "shadow-[0_0_28px_-4px_hsl(35_95%_60%_/_0.45)]" : "",
-      valueClass: overdueCount > 0
-        ? "bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent"
-        : "bg-gradient-to-r from-sky-300 to-cyan-300 bg-clip-text text-transparent",
-      displayOverride: overdueCount === 0 ? "All clear" : undefined,
+      iconColor: overdueCount > 0 ? "text-destructive" : "text-emerald-600",
+      iconBg: overdueCount > 0 ? "bg-destructive/10" : "bg-emerald-500/10",
+      glowColor: overdueCount > 0 ? "shadow-[0_0_20px_hsl(0,72%,51%,0.12)]" : "",
+      displayOverride: overdueCount === 0 ? "None" : undefined,
       extra: overdueCount > 0 ? (
-        <p className="text-[10px] text-amber-400 mt-0.5 flex items-center gap-1">
+        <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-1">
           <Clock className="h-3 w-3" /> {overdueCount} invoice{overdueCount > 1 ? "s" : ""} past due
         </p>
       ) : null,
@@ -347,69 +333,42 @@ export default function Index() {
     <AppLayout title="Dashboard" subtitle="Business overview">
       <div className="space-y-6">
 
-        {/* Hero Greeting — Aurora */}
-        <div className="mesh-hero relative p-6 sm:p-9 overflow-hidden">
-          {/* Animated aurora orbs */}
-          <div className="pointer-events-none absolute -top-24 -left-16 w-80 h-80 rounded-full blur-3xl opacity-60 animate-pulse-glow"
-               style={{ background: "radial-gradient(circle, hsl(252 95% 65% / 0.7), transparent 70%)" }} />
-          <div className="pointer-events-none absolute -bottom-24 right-0 w-96 h-96 rounded-full blur-3xl opacity-50 animate-pulse-glow"
-               style={{ background: "radial-gradient(circle, hsl(290 95% 65% / 0.6), transparent 70%)", animationDelay: "1.2s" }} />
-          <div className="pointer-events-none absolute top-1/2 right-1/3 w-64 h-64 rounded-full blur-3xl opacity-40"
-               style={{ background: "radial-gradient(circle, hsl(188 95% 55% / 0.55), transparent 70%)" }} />
-          <div className="pointer-events-none absolute inset-0 opacity-[0.06] dot-pattern" />
-
-          <div className="relative flex items-center justify-between gap-4 flex-wrap">
-            <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-[0.25em] font-bold mb-1 flex items-center gap-2"
-                 style={{ background: "linear-gradient(90deg, hsl(252 95% 75%), hsl(290 95% 75%))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                <Sparkles className="h-3.5 w-3.5" style={{ color: "hsl(280 95% 75%)" }} />
+        {/* Hero Greeting — Mesh gradient */}
+        <div className="mesh-hero p-5 sm:p-7">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-primary/60 mb-1 flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5" />
                 {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
               </p>
-              <h2 className="text-2xl sm:text-4xl font-bold font-heading leading-tight">
-                <span className="text-foreground">{getGreeting()},</span>{" "}
-                <span style={{ background: "linear-gradient(90deg, hsl(252 100% 78%) 0%, hsl(290 100% 75%) 50%, hsl(188 100% 65%) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                  {settings?.company_name || "there"}
-                </span>
+              <h2 className="text-xl sm:text-2xl font-bold font-heading text-foreground">
+                {getGreeting()}{settings?.company_name ? `, ${settings.company_name}` : ""}
               </h2>
-              <p className="text-sm sm:text-base text-muted-foreground max-w-md">
-                Here's how your pharmacy is performing today — real-time, comprehensive, at a glance.
+              <p className="text-sm text-muted-foreground mt-1">
+                Here's your business at a glance
               </p>
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border"
-                   style={{ background: "hsl(252 50% 12% / 0.4)", borderColor: "hsl(252 80% 60% / 0.3)" }}>
-                <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_hsl(158_80%_55%)]" />
-                <span className="text-[11px] font-mono text-foreground/80 tracking-wider">LIVE</span>
-              </div>
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border"
-                   style={{ background: "hsl(252 50% 12% / 0.4)", borderColor: "hsl(290 80% 60% / 0.25)" }}>
-                <TrendingUp className="h-3 w-3" style={{ color: "hsl(158 80% 55%)" }} />
-                <span className="text-[11px] font-mono text-foreground/70">
-                  {monthGrowth >= 0 ? "+" : ""}{monthGrowth.toFixed(1)}% MoM
-                </span>
-              </div>
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/60 border border-border/40 backdrop-blur-sm">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              <span className="text-[11px] font-mono text-muted-foreground">Live</span>
             </div>
           </div>
         </div>
 
-
         {/* KPI Row — Premium glass cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger-children">
           {kpiCards.map((kpi) => (
-            <div key={kpi.label} className={`glass-kpi relative p-4 sm:p-5 ${kpi.ring}`}>
-              <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${kpi.accent} opacity-80`} />
-              <div className="relative">
-                <div className="flex items-start justify-between mb-3">
-                  <p className="text-[10px] sm:text-[11px] font-bold text-muted-foreground uppercase tracking-[0.18em]">{kpi.label}</p>
-                  <div className={`icon-ring w-9 h-9 sm:w-11 sm:h-11 rounded-2xl ${kpi.iconBg} shadow-lg`}>
-                    <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
-                  </div>
+            <div key={kpi.label} className={`glass-kpi gradient-border p-4 sm:p-5 ${kpi.glowColor}`}>
+              <div className="flex items-start justify-between mb-3">
+                <p className="text-[10px] sm:text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em]">{kpi.label}</p>
+                <div className={`icon-ring w-9 h-9 sm:w-11 sm:h-11 rounded-2xl ${kpi.iconBg}`}>
+                  <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
                 </div>
-                <p className={`text-xl sm:text-3xl font-bold mt-1 font-heading tabular-nums ${kpi.valueClass}`}>
-                  {kpi.displayOverride || <>PKR <AnimatedCounter value={kpi.value} /></>}
-                </p>
-                {kpi.extra}
               </div>
+              <p className={`text-xl sm:text-2xl font-bold mt-1 font-heading tabular-nums ${kpi.iconColor}`}>
+                {kpi.displayOverride || <>PKR <AnimatedCounter value={kpi.value} /></>}
+              </p>
+              {kpi.extra}
             </div>
           ))}
         </div>
