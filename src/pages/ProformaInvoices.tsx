@@ -26,6 +26,7 @@ import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { checkTerritoryLock } from "@/lib/territory";
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
@@ -256,6 +257,21 @@ export default function ProformaInvoices() {
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
       if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; }
+      // ── Territory exclusivity hard-block ──
+      if (value && customerId) {
+        const conflict = await checkTerritoryLock(value, customerId);
+        if (conflict) {
+          toast.error(
+            `🚫 Territory locked: "${p?.name || "This product"}" is exclusively allocated to ${conflict.locked_to_customer_name} in ${conflict.city}.`,
+            { duration: 7000 }
+          );
+          u[idx].product_id = "";
+          u[idx].product_name = "";
+          u[idx].rate = 0;
+          setItems([...u]);
+          return;
+        }
+      }
       // Look up last price for this customer+product
       if (customerId && value) {
         const lastRate = await lookupLastPrice(value, customerId);
