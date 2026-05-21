@@ -374,6 +374,208 @@
   }
 }
 
+/* ──────────────── MOUJ — Scoped Midnight Indigo (Sidebar + Auth only) ──────────────── */
+@layer components {
+  .mouj-dark-sidebar {
+    --sidebar-background: 240 35% 7%;
+    --sidebar-foreground: 240 12% 70%;
+    --sidebar-primary: 244 76% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 30% 14%;
+    --sidebar-accent-foreground: 240 15% 95%;
+    --sidebar-border: 240 25% 16%;
+    --sidebar-ring: 244 76% 59%;
+    font-family: 'Manrope', sans-serif;
+    background: #0A0A1A;
+    color: #C9C9DE;
+  }
+  .mouj-dark-sidebar * { font-family: inherit; }
+  .mouj-dark-sidebar h1,
+  .mouj-dark-sidebar h2,
+  .mouj-dark-sidebar h3 { font-family: 'Sora', sans-serif; }
+
+  .mouj-dark-sidebar .mouj-brand {
+    background: #0A0A1A;
+    padding: 18px 16px;
+    border-bottom: 1px solid #1F1F3D;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .mouj-dark-sidebar .mouj-brand img {
+    filter: brightness(0) invert(1);
+    opacity: 0.95;
+  }
+
+  .mouj-dark-sidebar .mouj-nav-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    height: 36px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #9292B5;
+    border-radius: 2px;
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+  .mouj-dark-sidebar .mouj-nav-row:hover {
+    background: #15152E;
+    color: #EDEDF5;
+  }
+  .mouj-dark-sidebar .mouj-nav-row.is-active {
+    background: #1A1A3E;
+    color: #EDEDF5;
+  }
+  .mouj-dark-sidebar .mouj-nav-row.is-active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 4px; bottom: 4px;
+    width: 2px;
+    background: #6366F1;
+  }
+
+  .mouj-dark-sidebar .mouj-section-label {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 14px 14px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5C5C7A;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+  .mouj-dark-sidebar .mouj-section-label:hover { color: #9292B5; }
+
+  .mouj-dark-sidebar .mouj-sub-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 14px 7px 26px;
+    font-size: 13px;
+    color: #8A8AB0;
+    border-radius: 2px;
+    position: relative;
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+  .mouj-dark-sidebar .mouj-sub-row:hover { background: #15152E; color: #EDEDF5; }
+  .mouj-dark-sidebar .mouj-sub-row.is-active {
+    background: #1A1A3E;
+    color: #EDEDF5;
+    font-weight: 500;
+  }
+  .mouj-dark-sidebar .mouj-sub-row.is-active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 4px; bottom: 4px;
+    width: 2px;
+    background: #6366F1;
+  }
+
+  .mouj-dark-sidebar .mouj-divider {
+    height: 1px;
+    background: #1F1F3D;
+    margin: 8px 0;
+  }
+
+  .mouj-dark-sidebar .mouj-footer {
+    border-top: 1px solid #1F1F3D;
+    background: #0A0A1A;
+    padding: 10px;
+  }
+  .mouj-dark-sidebar .mouj-tenant {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+  }
+  .mouj-dark-sidebar .mouj-avatar {
+    width: 28px; height: 28px;
+    background: #1E1E5A;
+    color: #C7D2FE;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .mouj-dark-sidebar .mouj-tenant-name {
+    font-size: 12px; font-weight: 500; color: #EDEDF5;
+    line-height: 1.2; display: block;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mouj-dark-sidebar .mouj-tenant-role {
+    font-size: 10px; color: #6A6A8A; text-transform: capitalize;
+  }
+  .mouj-dark-sidebar .mouj-icon-btn {
+    padding: 7px;
+    color: #8A8AB0;
+    border-radius: 2px;
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+  .mouj-dark-sidebar .mouj-icon-btn:hover { background: #15152E; color: #EDEDF5; }
+  .mouj-dark-sidebar .mouj-icon-btn.danger:hover { background: rgba(239,68,68,0.1); color: #F87171; }
+
+  /* ── Auth ── */
+  .mouj-dark-auth {
+    background: #0A0A1A;
+    font-family: 'Manrope', sans-serif;
+    color: #EDEDF5;
+  }
+  .mouj-dark-auth .mouj-auth-card {
+    background: #141432;
+    border: 1px solid #1F1F3D;
+    border-radius: 4px;
+    padding: 40px;
+    box-shadow: none;
+  }
+  .mouj-dark-auth h2 { font-family: 'Sora', sans-serif; color: #EDEDF5; }
+  .mouj-dark-auth .mouj-muted { color: #8A8AB0; }
+  .mouj-dark-auth .mouj-input {
+    background: transparent;
+    border: 1px solid #2A2A4A;
+    color: #EDEDF5;
+    border-radius: 2px;
+    height: 42px;
+    padding-left: 38px;
+    width: 100%;
+    font-size: 13.5px;
+    transition: border-color 0.15s ease;
+  }
+  .mouj-dark-auth .mouj-input::placeholder { color: #6A6A8A; }
+  .mouj-dark-auth .mouj-input:focus {
+    outline: none;
+    border-color: #6366F1;
+    box-shadow: none;
+  }
+  .mouj-dark-auth .mouj-input-icon { color: #6A6A8A; }
+  .mouj-dark-auth .mouj-link {
+    color: #818CF8;
+    font-size: 12px;
+  }
+  .mouj-dark-auth .mouj-link:hover { color: #A5B4FC; }
+  .mouj-dark-auth .mouj-cta {
+    width: 100%;
+    background: #4F46E5;
+    color: #FFFFFF;
+    border-radius: 2px;
+    height: 42px;
+    font-weight: 600;
+    font-size: 13.5px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    transition: background-color 0.15s ease;
+    border: 0;
+  }
+  .mouj-dark-auth .mouj-cta:hover { background: #4338CA; }
+  .mouj-dark-auth .mouj-cta:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
 /* Landing page utilities */
 @layer components {
   .landing-float {
