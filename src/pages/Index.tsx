@@ -132,7 +132,7 @@ export default function Index() {
       supabase.from("sales_invoices").select("date, subtotal").gte("date", thirtyDaysAgoStr).lte("date", todayStr),
       supabase.from("sales_invoices").select("subtotal").gte("date", lastMonthStartStr).lte("date", lastMonthEndStr),
       supabase.from("expenses").select("category, amount").eq("expense_type", "business").gte("date", monthStart).lte("date", todayStr),
-      supabase.from("sales_invoices").select("total, due_date, status").in("status", ["dispatched", "partial"]).lt("due_date", todayStr),
+      supabase.from("purchase_proformas").select("total").in("status", ["draft", "ordered", "confirmed", "sent"]),
       supabase.from("customers").select("balance"),
       supabase.from("suppliers").select("balance"),
     ]);
@@ -169,9 +169,9 @@ export default function Index() {
         .slice(0, 6)
     );
 
-    const od = overdueInv.data || [];
-    setOverdueCount(od.length);
-    setOverdueAmount(od.reduce((s, i) => s + Number(i.total), 0));
+    const upPos = overdueInv.data || [];
+    setUpcomingPoCount(upPos.length);
+    setUpcomingPoValue(upPos.reduce((s, i) => s + Number(i.total), 0));
 
     setTotalReceivables((custBalances.data || []).reduce((s, c) => s + Math.max(Number(c.balance), 0), 0));
     setTotalPayables((suppBalances.data || []).reduce((s, s2) => s + Math.max(Number(s2.balance), 0), 0));
