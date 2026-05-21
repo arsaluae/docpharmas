@@ -848,50 +848,96 @@ export default function ProformaInvoices() {
               <Plus className="h-4 w-4" /> New Order
             </Button>
           </DialogTrigger>
-           <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+           <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
             <DialogHeader><DialogTitle className="font-heading">Create Sales Invoice</DialogTitle></DialogHeader>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
+
+            {/* Header fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
               <div>
-                <Label className="text-xs font-medium text-muted-foreground">Customer *</Label>
+                <Label className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">Customer *</Label>
                 <SearchableSelect options={customerOptions} value={customerId} onChange={setCustomerId} placeholder="Select customer..." searchPlaceholder="Search..." />
               </div>
               <div>
-                <Label className="text-xs font-medium text-muted-foreground">Sales Agent</Label>
+                <Label className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">Sales Agent</Label>
                 <SearchableSelect
                   options={agentsList.map(a => ({ value: a.id, label: a.name }))}
                   value={agentId} onChange={setAgentId} placeholder="Auto / Select..."
                 />
               </div>
-              <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={pfDate} onChange={e => setPfDate(e.target.value)} /></div>
-              <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
+              <div>
+                <Label className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">Date</Label>
+                <Input type="date" value={pfDate} onChange={e => setPfDate(e.target.value)} />
+              </div>
             </div>
-            <div className="mt-3">
-              <Label className="text-xs font-medium text-muted-foreground">Payment Instructions</Label>
+
+            <Separator className="my-4" />
+
+            {/* Items section */}
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-sm font-semibold tracking-tight">Items</Label>
+              <span className="text-[11px] text-muted-foreground">{items.length} {items.length === 1 ? "line" : "lines"}</span>
+            </div>
+
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-3 overflow-x-auto">
+              {/* Column header row */}
+              <div className="grid grid-cols-12 gap-2 px-1 pb-2 mb-2 border-b border-border/50 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground min-w-[640px]">
+                <div className="col-span-4">Product</div>
+                <div className="col-span-1 text-center">Qty</div>
+                <div className="col-span-2 text-center">Rate (PKR)</div>
+                <div className="col-span-1 text-center">Disc %</div>
+                {settings?.gst_enabled && <div className="col-span-1 text-center">GST %</div>}
+                <div className={`${settings?.gst_enabled ? "col-span-2" : "col-span-3"} text-right`}>Amount</div>
+                <div className="col-span-1" />
+              </div>
+
+              {items.length === 0 && (
+                <div className="text-center text-xs text-muted-foreground py-6">No items yet. Click "Add Item" below to get started.</div>
+              )}
+
+              {items.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-start min-w-[640px]">
+                  <div className="col-span-4">
+                    <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Select product..." triggerClassName="text-xs h-9" />
+                  </div>
+                  <div className="col-span-1">
+                    <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs h-9 text-center" aria-label="Quantity" />
+                  </div>
+                  <div className="col-span-2 relative">
+                    <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs h-9 text-right" aria-label="Rate" />
+                    {item.last_price !== undefined && item.last_price !== null && (
+                      <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number(item.last_price).toLocaleString()}</span>
+                    )}
+                  </div>
+                  <div className="col-span-1">
+                    <Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="text-xs h-9 text-center" aria-label="Discount %" />
+                  </div>
+                  {settings?.gst_enabled && (
+                    <div className="col-span-1">
+                      <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs h-9 text-center" aria-label="GST %" />
+                    </div>
+                  )}
+                  <div className={`${settings?.gst_enabled ? "col-span-2" : "col-span-3"} text-right text-sm font-mono pt-2 text-foreground`}>
+                    {item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Remove item">
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+
+              <Button variant="outline" size="sm" onClick={addItem} className="w-full mt-2 gap-1 text-xs border-dashed">
+                <Plus className="h-3 w-3" /> Add Item
+              </Button>
+            </div>
+
+            {/* Payment Instructions */}
+            <div className="mt-4">
+              <Label className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">Payment Instructions</Label>
               <Textarea value={paymentInstructions} onChange={e => setPaymentInstructions(e.target.value)} placeholder="Bank details, payment terms..." rows={2} className="mt-1" />
             </div>
-            <Separator className="my-4" />
-            <div className="flex items-center justify-between mb-3">
-              <Label className="text-sm font-semibold">Items</Label>
-              <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
-            </div>
-            {items.map((item, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
-                <div className="col-span-3">
-                  <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
-                </div>
-                <div className="col-span-1"><Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
-                <div className="col-span-2 relative">
-                  <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
-                  {item.last_price !== undefined && item.last_price !== null && (
-                    <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number(item.last_price).toLocaleString()}</span>
-                  )}
-                </div>
-                <div className="col-span-1"><Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="text-xs" placeholder="Disc%" /></div>
-                {settings?.gst_enabled && <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" placeholder="GST%" /></div>}
-                <div className={`${settings?.gst_enabled ? "col-span-3" : "col-span-4"} text-right text-sm font-mono pt-2 text-foreground`}>{item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}</div>
-                <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
-              </div>
-            ))}
+
             <Separator className="my-3" />
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
