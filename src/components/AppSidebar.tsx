@@ -117,7 +117,7 @@ export function AppSidebar() {
         </div>
         {!collapsed && (
           <span className="font-heading font-semibold text-foreground text-[15px] tracking-tight truncate">
-            DocPharmas
+            Mouj Pharmaceuticals
           </span>
         )}
       </div>
