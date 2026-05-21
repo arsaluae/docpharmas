@@ -36,7 +36,7 @@ const navigationItems = [
   { title: "AI Insights", url: "/insights", icon: BarChart3, section: "Reports" },
   { title: "Company Settings", url: "/settings", icon: Settings, section: "Settings" },
   { title: "Data Import", url: "/import", icon: Upload, section: "Settings" },
-  { title: "Admin Panel", url: "/admin", icon: Shield, section: "Settings" },
+  
 ];
 
 const quickActions = [

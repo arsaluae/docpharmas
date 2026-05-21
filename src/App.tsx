@@ -2,13 +2,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Index from "./pages/Index";
-import AdminPanel from "./pages/AdminPanel";
 import Customers from "./pages/Customers";
 import CustomerLedger from "./pages/CustomerLedger";
 import Suppliers from "./pages/Suppliers";
@@ -29,7 +27,6 @@ import PrinterLedger from "./pages/PrinterLedger";
 import PrintJobs from "./pages/PrintJobs";
 import DataImport from "./pages/DataImport";
 import Settings from "./pages/Settings";
-// DeliveryNotes also accessible from ProformaInvoices page as a tab
 import ProfitLoss from "./pages/reports/ProfitLoss";
 import BalanceSheet from "./pages/reports/BalanceSheet";
 import CashFlow from "./pages/reports/CashFlow";
@@ -45,7 +42,6 @@ import ProductAllocationReport from "./pages/reports/ProductAllocationReport";
 import VacantAreas from "./pages/reports/VacantAreas";
 import Reports from "./pages/Reports";
 import AIInsights from "./pages/AIInsights";
-import Subscription from "./pages/Subscription";
 import CreditNotes from "./pages/CreditNotes";
 import Salaries from "./pages/Salaries";
 import SalesAgents from "./pages/SalesAgents";
@@ -62,15 +58,13 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           {/* Public routes */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/landing" element={<Landing />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Index />} />
-            <Route path="/admin" element={<AdminPanel />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/customers/:id/ledger" element={<CustomerLedger />} />
             <Route path="/suppliers" element={<Suppliers />} />
@@ -92,7 +86,6 @@ const App = () => (
             <Route path="/import" element={<DataImport />} />
             <Route path="/delivery-notes" element={<DeliveryNotes />} />
             <Route path="/settings" element={<Settings />} />
-    {/* Delivery Notes now in Sales Orders page */}
             <Route path="/reports" element={<Reports />} />
             <Route path="/reports/pl" element={<ProfitLoss />} />
             <Route path="/reports/balance-sheet" element={<BalanceSheet />} />
@@ -111,7 +104,6 @@ const App = () => (
             <Route path="/credit-notes" element={<CreditNotes />} />
             <Route path="/salaries" element={<Salaries />} />
             <Route path="/sales-agents" element={<SalesAgents />} />
-            <Route path="/subscription" element={<Subscription />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
