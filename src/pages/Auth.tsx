@@ -53,9 +53,10 @@ export default function Auth() {
       </div>
 
       <div className="glass-card-glow w-full max-w-md p-8 relative z-10 rounded-[4px]">
-        <div className="mb-8 text-center">
-          <h1 className="font-heading font-bold text-2xl text-foreground tracking-tight">Mouj Pharmaceuticals</h1>
+        <div className="mb-8 flex justify-center">
+          <img src={moujLogo} alt="MOUJ" className="h-14 w-auto" />
         </div>
+
 
         <h2 className="font-heading text-lg text-center text-foreground mb-1">
           {mode === "login" ? "Welcome back" : "Reset password"}
