@@ -482,7 +482,7 @@ export default function ProformaInvoices() {
     const html = generatePdfHtml({
       title: "SALES INVOICE", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
       partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
-      meta: [{ label: "Validity", value: `${order.validity_days} days` }],
+      meta: [],
       columns: [
         { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
         { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
