@@ -561,7 +561,6 @@ export type Database = {
           city: string | null
           company: string | null
           created_at: string
-          credit_days: number
           credit_limit: number
           customer_code: string | null
           email: string | null
@@ -580,7 +579,6 @@ export type Database = {
           city?: string | null
           company?: string | null
           created_at?: string
-          credit_days?: number
           credit_limit?: number
           customer_code?: string | null
           email?: string | null
@@ -599,7 +597,6 @@ export type Database = {
           city?: string | null
           company?: string | null
           created_at?: string
-          credit_days?: number
           credit_limit?: number
           customer_code?: string | null
           email?: string | null
@@ -1518,6 +1515,7 @@ export type Database = {
       }
       proforma_invoices: {
         Row: {
+          accepted_at: string | null
           agent_id: string | null
           converted_invoice_id: string | null
           created_at: string
@@ -1535,6 +1533,7 @@ export type Database = {
           validity_days: number
         }
         Insert: {
+          accepted_at?: string | null
           agent_id?: string | null
           converted_invoice_id?: string | null
           created_at?: string
@@ -1552,6 +1551,7 @@ export type Database = {
           validity_days?: number
         }
         Update: {
+          accepted_at?: string | null
           agent_id?: string | null
           converted_invoice_id?: string | null
           created_at?: string
