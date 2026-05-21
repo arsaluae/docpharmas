@@ -40,7 +40,9 @@
     --input: 225 15% 90%;
     --ring: 172 70% 38%;
 
-    --radius: 0.75rem;
+    --radius: 4px;
+    --medical-cyan: 196 100% 47%;
+    --medical-cyan-foreground: 0 0% 100%;
 
     --sidebar-background: 40 20% 97%;
     --sidebar-foreground: 225 12% 40%;

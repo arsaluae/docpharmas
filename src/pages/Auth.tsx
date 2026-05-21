@@ -5,7 +5,7 @@ import { Mail, Lock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import docpharmasLogo from "@/assets/docpharmas-logo.jpg";
+
 
 export default function Auth() {
   const [mode, setMode] = useState<"login" | "forgot">("login");
@@ -50,10 +50,9 @@ export default function Auth() {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-warning/[0.06] rounded-full blur-3xl" />
       </div>
 
-      <div className="glass-card-glow w-full max-w-md p-8 relative z-10">
-        <div className="flex items-center gap-3 mb-8 justify-center">
-          <img src={docpharmasLogo} alt="Mouj Pharmaceuticals" className="w-10 h-10 rounded-xl object-cover" />
-          <h1 className="font-heading font-bold text-2xl text-foreground">Mouj Pharmaceuticals</h1>
+      <div className="glass-card-glow w-full max-w-md p-8 relative z-10 rounded-[4px]">
+        <div className="mb-8 text-center">
+          <h1 className="font-heading font-bold text-2xl text-foreground tracking-tight">Mouj Pharmaceuticals</h1>
         </div>
 
         <h2 className="font-heading text-lg text-center text-foreground mb-1">

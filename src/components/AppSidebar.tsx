@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import docpharmasLogo from "@/assets/docpharmas-logo.jpg";
+
 import { useTheme } from "@/components/ThemeToggle";
 
 const allSections = [
@@ -110,15 +110,14 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
-      {/* Brand header — clean, no pulse, no tenant subtitle */}
-      <div className="p-4 flex items-center gap-3 border-b border-sidebar-border/60">
-        <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-border/40">
-          <img src={docpharmasLogo} alt="DocPharmas" className="w-full h-full object-cover" />
-        </div>
-        {!collapsed && (
-          <span className="font-heading font-semibold text-foreground text-[15px] tracking-tight truncate">
+      {/* Brand header — wordmark only */}
+      <div className="p-4 border-b border-sidebar-border/60">
+        {!collapsed ? (
+          <span className="font-heading font-semibold text-foreground text-[15px] tracking-tight truncate block">
             Mouj Pharmaceuticals
           </span>
+        ) : (
+          <span className="font-heading font-bold text-primary text-base text-center block">M</span>
         )}
       </div>
 
