@@ -219,7 +219,7 @@ export function UpcomingOrdersDialog({
     (async () => {
       setLoading(true);
       const { data: pos } = await supabase
-        .from("purchase_proforma")
+        .from("purchase_proformas")
         .select("id, proforma_number, date, total, supplier_id, status")
         .in("status", ["draft", "ordered", "confirmed", "sent"])
         .order("date", { ascending: true });
