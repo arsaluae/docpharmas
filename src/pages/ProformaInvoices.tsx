@@ -416,7 +416,7 @@ export default function ProformaInvoices() {
     setSaving(true);
     const { subtotal, gst, total } = calcTotals(editItems);
     const { error } = await supabase.from("proforma_invoices").update({
-      customer_id: editCustomerId || null, date: editDate, validity_days: Number(editValidity),
+      customer_id: editCustomerId || null, date: editDate, validity_days: 30,
       payment_instructions: editPaymentInstr || null, items: JSON.stringify(editItems), subtotal, gst, total,
       agent_id: editAgentId || null,
     } as any).eq("id", editOrder.id);
