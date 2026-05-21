@@ -185,7 +185,7 @@ export default function Customers() {
           <div className="grid grid-cols-2 gap-3 mt-2">
             <div className="col-span-2"><Label>Company Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Company / Business name" /></div>
             <div><Label>Contact Person</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Contact name (optional)" /></div>
-            <div><Label>City</Label><Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} /></div>
+            <div><Label>City</Label><SearchableSelect options={CITY_OPTIONS} value={form.city} onChange={(v) => setForm({...form, city: v})} placeholder="Select city" /></div>
             <div><Label>Area</Label><Input value={form.area} onChange={e => setForm({...form, area: e.target.value})} placeholder="Area / Zone" /></div>
             <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} placeholder="National Tax Number" /></div>
             <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} placeholder="Sales Tax Reg." /></div>
@@ -193,7 +193,6 @@ export default function Customers() {
             <div><Label>Email</Label><Input value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
             <div className="col-span-2"><Label>Address</Label><Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} /></div>
             <div><Label>Credit Limit (PKR)</Label><Input type="number" value={form.credit_limit} onChange={e => setForm({...form, credit_limit: e.target.value})} /></div>
-            <div><Label>Credit Days</Label><Input type="number" value={form.credit_days} onChange={e => setForm({...form, credit_days: e.target.value})} /></div>
             <div><Label>Opening Balance (PKR)</Label><Input type="number" value={form.opening_balance} onChange={e => setForm({...form, opening_balance: e.target.value})} /></div>
           </div>
           <Button onClick={handleSave} className="w-full mt-4">{editId ? "Update" : "Create"} Customer</Button>
