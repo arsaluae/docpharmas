@@ -410,3 +410,11 @@
 ::-webkit-scrollbar-track { background: hsl(var(--background)); }
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+
+/* Tabular numerals for currency/qty columns — prevents jitter on count-up */
+.tabular-nums, td.num, .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+/* Reduce layout thrash from animated counters */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
