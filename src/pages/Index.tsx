@@ -106,15 +106,17 @@ export default function Index() {
     thirtyDaysAgo.setDate(today.getDate() - 29);
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
 
+    // Only count non-draft invoices (actual completed sales) for revenue + margin
+    const COMPLETED = ["invoiced", "dispatched", "paid", "partial"] as const;
     const [weekInv, monthInv, yearInv, recentMovements, products, customers, trendInv, lastMonthInv, expenses, overdueInv, custBalances, suppBalances] = await Promise.all([
-      supabase.from("sales_invoices").select("subtotal").gte("date", weekStartStr).lte("date", todayStr),
-      supabase.from("sales_invoices").select("subtotal, customer_id").gte("date", monthStart).lte("date", todayStr),
-      supabase.from("sales_invoices").select("subtotal, customer_id").gte("date", yearStart).lte("date", todayStr),
+      supabase.from("sales_invoices").select("subtotal").in("status", COMPLETED as any).gte("date", weekStartStr).lte("date", todayStr),
+      supabase.from("sales_invoices").select("id, subtotal, customer_id").in("status", COMPLETED as any).gte("date", monthStart).lte("date", todayStr),
+      supabase.from("sales_invoices").select("subtotal, customer_id").in("status", COMPLETED as any).gte("date", yearStart).lte("date", todayStr),
       supabase.from("stock_movements").select("product_id, quantity, date").eq("movement_type", "purchase_in").order("created_at", { ascending: false }).limit(5),
       supabase.from("products").select("id, name, cost_price"),
       supabase.from("customers").select("id, name, balance"),
-      supabase.from("sales_invoices").select("date, subtotal").gte("date", thirtyDaysAgoStr).lte("date", todayStr),
-      supabase.from("sales_invoices").select("subtotal").gte("date", lastMonthStartStr).lte("date", lastMonthEndStr),
+      supabase.from("sales_invoices").select("date, subtotal").in("status", COMPLETED as any).gte("date", thirtyDaysAgoStr).lte("date", todayStr),
+      supabase.from("sales_invoices").select("subtotal").in("status", COMPLETED as any).gte("date", lastMonthStartStr).lte("date", lastMonthEndStr),
       supabase.from("expenses").select("category, amount").eq("expense_type", "business").gte("date", monthStart).lte("date", todayStr),
       supabase.from("sales_invoices").select("total, due_date, status").in("status", ["dispatched", "partial"]).lt("due_date", todayStr),
       supabase.from("customers").select("balance"),
