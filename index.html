@@ -16,6 +16,12 @@
     <meta name="twitter:title" content="DocPharmas — Pharmaceutical ERP">
     <meta property="og:description" content="The ultimate ERP for pharmaceutical manufacturing in Pakistan. Manage batches, inventory, and compliance with DocPharmas. Start your 7-day trial.">
     <meta name="twitter:description" content="The ultimate ERP for pharmaceutical manufacturing in Pakistan. Manage batches, inventory, and compliance with DocPharmas. Start your 7-day trial.">
+    <script>
+      try {
+        var t = localStorage.getItem('docpharmas_theme');
+        if (t !== 'light') document.documentElement.classList.add('dark');
+      } catch(e) { document.documentElement.classList.add('dark'); }
+    </script>
 </head>
 
   <body>
