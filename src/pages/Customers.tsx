@@ -93,7 +93,7 @@ export default function Customers() {
     setForm({
       name: c.name, company: c.company || "", ntn: c.ntn || "", strn: c.strn || "",
       phone: c.phone || "", email: c.email || "", address: c.address || "", city: c.city || "",
-      area: c.area || "", credit_limit: String(c.credit_limit), credit_days: String(c.credit_days), opening_balance: String(c.opening_balance),
+      area: c.area || "", credit_limit: String(c.credit_limit), opening_balance: String(c.opening_balance),
     });
     setOpen(true);
   };
