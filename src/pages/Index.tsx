@@ -396,17 +396,20 @@ export default function Index() {
         {/* KPI Row — Premium glass cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger-children">
           {kpiCards.map((kpi) => (
-            <div key={kpi.label} className={`glass-kpi gradient-border p-4 sm:p-5 ${kpi.glowColor}`}>
-              <div className="flex items-start justify-between mb-3">
-                <p className="text-[10px] sm:text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em]">{kpi.label}</p>
-                <div className={`icon-ring w-9 h-9 sm:w-11 sm:h-11 rounded-2xl ${kpi.iconBg}`}>
-                  <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
+            <div key={kpi.label} className={`glass-kpi relative p-4 sm:p-5 ${kpi.ring}`}>
+              <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${kpi.accent} opacity-80`} />
+              <div className="relative">
+                <div className="flex items-start justify-between mb-3">
+                  <p className="text-[10px] sm:text-[11px] font-bold text-muted-foreground uppercase tracking-[0.18em]">{kpi.label}</p>
+                  <div className={`icon-ring w-9 h-9 sm:w-11 sm:h-11 rounded-2xl ${kpi.iconBg} shadow-lg`}>
+                    <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
+                  </div>
                 </div>
+                <p className={`text-xl sm:text-3xl font-bold mt-1 font-heading tabular-nums ${kpi.valueClass}`}>
+                  {kpi.displayOverride || <>PKR <AnimatedCounter value={kpi.value} /></>}
+                </p>
+                {kpi.extra}
               </div>
-              <p className={`text-xl sm:text-2xl font-bold mt-1 font-heading tabular-nums ${kpi.iconColor}`}>
-                {kpi.displayOverride || <>PKR <AnimatedCounter value={kpi.value} /></>}
-              </p>
-              {kpi.extra}
             </div>
           ))}
         </div>
