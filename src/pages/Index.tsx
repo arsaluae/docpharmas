@@ -376,13 +376,17 @@ export default function Index() {
           </div>
         </div>
 
-        {/* KPI Row — Premium glass cards */}
+        {/* KPI Row — Clickable flat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger-children">
-          {kpiCards.map((kpi) => (
-            <div key={kpi.label} className={`glass-kpi gradient-border p-4 sm:p-5 ${kpi.glowColor}`}>
+          {kpiCards.map((kpi: any) => (
+            <button
+              key={kpi.label}
+              onClick={kpi.onClick}
+              className="text-left bg-card border border-border rounded-lg p-4 sm:p-5 transition-all hover:border-primary/40 hover:-translate-y-0.5"
+            >
               <div className="flex items-start justify-between mb-3">
                 <p className="text-[10px] sm:text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em]">{kpi.label}</p>
-                <div className={`icon-ring w-9 h-9 sm:w-11 sm:h-11 rounded-2xl ${kpi.iconBg}`}>
+                <div className={`flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-md ${kpi.iconBg}`}>
                   <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
                 </div>
               </div>
@@ -390,9 +394,16 @@ export default function Index() {
                 {kpi.displayOverride || <>PKR <AnimatedCounter value={kpi.value} /></>}
               </p>
               {kpi.extra}
-            </div>
+            </button>
           ))}
         </div>
+
+        {/* KPI Dialogs */}
+        <WeekSalesDialog open={weekOpen} onOpenChange={setWeekOpen} from={weekStartStr} to={todayStr} />
+        <MonthSalesDialog open={monthOpen} onOpenChange={setMonthOpen} from={monthStartStr} to={todayStr} />
+        <GrossMarginDialog open={gpOpen} onOpenChange={setGpOpen} monthStart={monthStartStr} monthEnd={todayStr} />
+        <UpcomingOrdersDialog open={upcomingOpen} onOpenChange={setUpcomingOpen} />
+
 
         {/* 30-Day Sales Trend */}
         <Card className="glass-card overflow-hidden">
