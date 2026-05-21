@@ -308,7 +308,7 @@ export default function ProformaInvoices() {
       // Credit limit check
       const customer = customers.find(c => c.id === customerId);
       if (customer) {
-        const { data: custData } = await supabase.from("customers").select("balance, credit_limit, credit_days").eq("id", customerId).single();
+        const { data: custData } = await supabase.from("customers").select("balance, credit_limit").eq("id", customerId).single();
         if (custData && Number(custData.credit_limit) > 0) {
           const { subtotal: newSubtotal } = calcTotals(items);
           const newBalance = Number(custData.balance) + newSubtotal;

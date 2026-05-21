@@ -16,11 +16,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X, Store, Edit, Wallet, Shield, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { CustomerProfileDialog } from "@/components/CustomerProfileDialog";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { CITY_OPTIONS } from "@/lib/pakistan-cities";
 
 interface Customer {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
   phone: string | null; email: string | null; address: string | null; city: string | null; area: string | null;
-  credit_limit: number; credit_days: number; opening_balance: number; balance: number; created_at: string;
+  credit_limit: number; opening_balance: number; balance: number; created_at: string;
 }
 
 interface License {
@@ -30,7 +32,7 @@ interface License {
 
 const emptyForm = {
   name: "", company: "", ntn: "", strn: "", phone: "", email: "", address: "", city: "", area: "",
-  credit_limit: "0", credit_days: "30", opening_balance: "0",
+  credit_limit: "0", opening_balance: "0",
 };
 
 interface CustomerWithCode extends Customer {
@@ -72,7 +74,7 @@ export default function Customers() {
     const basePayload = {
       name: form.name, company: form.company || null, ntn: form.ntn || null, strn: form.strn || null,
       phone: form.phone || null, email: form.email || null, address: form.address || null, city: form.city || null,
-      area: form.area || null, credit_limit: Number(form.credit_limit), credit_days: Number(form.credit_days),
+      area: form.area || null, credit_limit: Number(form.credit_limit),
       opening_balance: Number(form.opening_balance),
     };
     if (editId) {
@@ -93,7 +95,7 @@ export default function Customers() {
     setForm({
       name: c.name, company: c.company || "", ntn: c.ntn || "", strn: c.strn || "",
       phone: c.phone || "", email: c.email || "", address: c.address || "", city: c.city || "",
-      area: c.area || "", credit_limit: String(c.credit_limit), credit_days: String(c.credit_days), opening_balance: String(c.opening_balance),
+      area: c.area || "", credit_limit: String(c.credit_limit), opening_balance: String(c.opening_balance),
     });
     setOpen(true);
   };
@@ -185,7 +187,7 @@ export default function Customers() {
           <div className="grid grid-cols-2 gap-3 mt-2">
             <div className="col-span-2"><Label>Company Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Company / Business name" /></div>
             <div><Label>Contact Person</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Contact name (optional)" /></div>
-            <div><Label>City</Label><Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} /></div>
+            <div><Label>City</Label><SearchableSelect options={CITY_OPTIONS} value={form.city} onChange={(v) => setForm({...form, city: v})} placeholder="Select city" /></div>
             <div><Label>Area</Label><Input value={form.area} onChange={e => setForm({...form, area: e.target.value})} placeholder="Area / Zone" /></div>
             <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} placeholder="National Tax Number" /></div>
             <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} placeholder="Sales Tax Reg." /></div>
@@ -193,7 +195,6 @@ export default function Customers() {
             <div><Label>Email</Label><Input value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
             <div className="col-span-2"><Label>Address</Label><Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} /></div>
             <div><Label>Credit Limit (PKR)</Label><Input type="number" value={form.credit_limit} onChange={e => setForm({...form, credit_limit: e.target.value})} /></div>
-            <div><Label>Credit Days</Label><Input type="number" value={form.credit_days} onChange={e => setForm({...form, credit_days: e.target.value})} /></div>
             <div><Label>Opening Balance (PKR)</Label><Input type="number" value={form.opening_balance} onChange={e => setForm({...form, opening_balance: e.target.value})} /></div>
           </div>
           <Button onClick={handleSave} className="w-full mt-4">{editId ? "Update" : "Create"} Customer</Button>

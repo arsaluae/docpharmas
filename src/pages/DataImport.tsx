@@ -18,7 +18,7 @@ import { toast } from "sonner";
 type TabType = "customers" | "suppliers" | "products" | "inventory";
 
 const TAB_COLUMNS: Record<TabType, string[]> = {
-  customers: ["name", "company", "ntn", "strn", "phone", "email", "address", "city", "area", "credit_limit", "credit_days", "opening_balance"],
+  customers: ["name", "company", "ntn", "strn", "phone", "email", "address", "city", "area", "credit_limit", "opening_balance"],
   suppliers: ["name", "company", "ntn", "strn", "phone", "email", "address", "city", "payment_terms_days", "wht_rate", "opening_balance"],
   products: ["name", "sku", "category", "drap_reg_number", "pack_size", "unit", "cost_price", "selling_price", "gst_rate", "stock_quantity", "reorder_level"],
   inventory: ["product_name", "quantity", "batch_number", "notes"],
@@ -123,9 +123,8 @@ const COLUMN_ALIASES: Record<string, string> = {
   "credit limit": "credit_limit", "limit": "credit_limit",
   "cr limit": "credit_limit", "credit line": "credit_limit",
 
-  // Credit days aliases
-  "credit days": "credit_days", "payment days": "credit_days", "days": "credit_days",
-  "credit period": "credit_days", "net days": "credit_days", "terms": "credit_days",
+  // (credit_days removed — no longer tracked)
+
 
   // Opening balance aliases
   "opening balance": "opening_balance", "balance": "opening_balance", "ob": "opening_balance",
@@ -336,7 +335,7 @@ export default function DataImport() {
   const buildRowObjects = () => {
     const cols = TAB_COLUMNS[tab];
     const numericFields: Record<TabType, string[]> = {
-      customers: ["credit_limit", "credit_days", "opening_balance"],
+      customers: ["credit_limit", "opening_balance"],
       suppliers: ["payment_terms_days", "wht_rate", "opening_balance"],
       products: ["cost_price", "selling_price", "gst_rate", "stock_quantity", "reorder_level"],
       inventory: ["quantity"],

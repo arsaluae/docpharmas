@@ -1,110 +1,96 @@
-# Sales/Purchase Engine Rebuild + Branding + 4 Functional Blocks
+## Scope
 
-This rebuilds the order→invoice flow on top of what's already there. No schema changes are required — every feature maps to existing tables (`proforma_invoices`, `sales_invoices`, `sales_invoice_items`, `stock_movements`, `additional_costs`, `customers.city`).
+Rework Sales + Purchase around a clean quotation→invoice→delivery flow, replace the brand with MOUJ Pharmaceuticals, restrict cities to a Pakistan dropdown, drop `credit_days`, and ship one fast, unified PDF template used by every document.
 
-## What already exists (kept)
+---
 
-- `ProformaInvoices.tsx` → soft Sales Order, already converts to `sales_invoices` via "Submit". Today it picks batches inside the order form.
-- `stock_movements` carries `batch_number` + `expiry_date` per movement → this is our batch ledger.
-- `additional_costs` already records Printing / Freight / Packaging per product/PO.
-- `WarrantyInvoices.tsx` already pulls batch + uses MRP-based pricing.
-- `customers.city` populated for territory checks.
+## 1. Brand: MOUJ logo
 
-## 0. Branding cleanup
+- Copy uploaded logo to `src/assets/mouj-logo.png` and import it where the brand mark is needed (sidebar header, Auth screen, PDF templates).
+- Replace the text-only "Mouj Pharmaceuticals" in `AppSidebar.tsx` and `Auth.tsx` with `logo + "Mouj Pharmaceuticals"`.
+- `index.html`: set favicon to the new logo, keep page title.
 
-- Remove `<img>` logo from `AppSidebar.tsx`, `Auth.tsx`. Keep wordmark "Mouj Pharmaceuticals" only.
-- `index.html` favicon → simple inline SVG monogram "M" (no image asset).
-- Delete unused import `docpharmasLogo` references.
+## 2. Customers — drop credit_days, city dropdown
 
-## 1. Purchase & Landed Cost Engine (Admin-only)
+- DB migration: `ALTER TABLE customers DROP COLUMN credit_days;` (keep `credit_limit` per your answer).
+- Same for `suppliers` if it has the field (check `payment_terms_days` on `suppliers`/`printers` and leave those untouched — only `customers.credit_days` is being removed).
+- New `src/lib/pakistan-cities.ts` exporting ~150 cities (Karachi, Lahore, Islamabad, Rawalpindi, Faisalabad, Multan, Hyderabad, Peshawar, Quetta, Sialkot, Gujranwala, Sargodha, Bahawalpur, Sukkur, Larkana, Mardan, Mirpur Khas, Sheikhupura, Jhang, Dera Ghazi Khan, Gujrat, Sahiwal, Wah, Kasur, Okara, Chiniot, Kamoke, Hafizabad, Sadiqabad, Khanewal, Burewala, Jacobabad, Muzaffargarh, Khanpur, Gojra, Bahawalnagar, Abbottabad, Muridke, Pakpattan, Jaranwala, Chishtian, Daska, Mandi Bahauddin, Ahmadpur East, Kamalia, Khuzdar, Vehari, Nowshera, Dera Ismail Khan, Mingora, Kohat, Charsadda, Swabi, Mansehra, Haripur, Attock, Chakwal, Jhelum, Bhakkar, Mianwali, Layyah, Rajanpur, Kot Addu, Lodhran, Toba Tek Singh, Narowal, Ferozewala, Wazirabad, Hasilpur, Arifwala, Tando Adam, Tando Allahyar, Mehrabpur, Shikarpur, Khairpur, Nawabshah, Dadu, Thatta, Badin, Mithi, Umerkot, Gwadar, Turbat, Chaman, Sibi, Loralai, Zhob, Pasni, Khuzdar, Hub, Gilgit, Skardu, Chitral, Gilgit-Baltistan capitals, AJK cities, etc. — full ~150 list).
+- `Customers.tsx`, `CustomerProfileDialog.tsx`, `Suppliers.tsx`: replace city `<Input>` with searchable `<SearchableSelect>` bound to that list. Remove credit_days input + table column.
 
-**Product Profile dialog** (new component `ProductBatchProfileDialog.tsx`, opened from Products list):
-- Header: product name, code, true cost.
-- **Active Batches table** — derived live from `stock_movements`:
-  - Group by `batch_number`; sum signed quantities; show Mfg/Expiry from first inbound row.
-  - Columns: Batch No · Mfg Date · Expiry · On-hand Qty · Status badge (Active / Expiring <90d / Expired).
-- **Landed Cost calculator** (inline):
-  - Inputs: Supplier Base, Printing, Inward Freight (controlled state).
-  - `true_cost = base + printing + freight` recomputed on every keystroke (no debounce, plain `useMemo`).
-  - "Save" writes the cost components as `additional_costs` rows tagged `reference_type='product'`, `reference_id=product.id`, and updates `products.cost_price` to `true_cost`.
-- Admin-only gate via `useUserRole` — Staff sees disabled button with tooltip.
+## 3. Sales: Quotation (Draft) → Accept → Invoice + Delivery Note
 
-## 2. Quotation → Invoice Batch-Lock Modal
+Reuses existing `proforma_invoices` table (acts as the quotation/sales-invoice doc).
 
-**Phase 1 — Sales Order (Proforma) form**:
-- Strip the per-row batch picker that's there today. Order form only needs: Product, Qty, Rate.
-- On add/qty change, validate against `products.stock_quantity` total only ("Insufficient stock" toast if short). No batch reservation.
-- Save status `draft` / `sent`.
+**Quotation phase** (`status = 'draft'`):
+- Form already exists. Strip out batch fields. Show only Product, Qty, Rate, Disc. No ledger, no stock movement. Label as "Quotation" in UI when status=draft.
 
-**Phase 2 — Convert to Invoice**:
-- Replace current silent `handleSubmit` with a mandatory `<BatchAllocationDialog>`:
-  - For each line item, fetch available batches (group `stock_movements` by `batch_number`, oldest-expiry first, FEFO).
-  - Render one row per item: Product · Qty needed · `<Select>` of batches showing `BATCH-001 (Exp 2026-03 · 240 avail)`.
-  - "Confirm & Invoice" button is **disabled until every line has a batch selected** with sufficient qty.
-  - On confirm: insert `sales_invoices` + `sales_invoice_items` (carrying `batch_number` + `expiry_date`) + `stock_movements` with `movement_type='sale'` against the chosen batch. The existing DB triggers handle stock decrement & invoice status.
-- Modal traps focus, blocks ESC/backdrop dismiss until either Confirm or explicit Cancel.
+**Accept → Invoice** (single modal, single click):
+- New component `src/components/AcceptQuotationDialog.tsx`.
+- Lists every line with a `<Select>` of available batches built from `stock_movements` grouped by `batch_number` (FEFO via existing `src/lib/batches.ts`). Confirm button disabled until every line has a batch with sufficient qty.
+- On Confirm (atomic):
+  1. Update `proforma_invoices.status = 'dispatched'` + stamp `accepted_at`.
+  2. Insert `stock_movements` rows (`movement_type='sale'`) per line with the chosen batch/expiry → trigger reduces `products.stock_quantity` and `handle_sales_invoice_balance` style code (already inside the existing submit path) increases customer balance via `proforma_invoices` total.
+  3. Insert a `delivery_notes` row: `reference_type='sales'`, `reference_id=proforma.id`, `items=[{product_name, batch_number, expiry_date, quantity}]` (no pricing).
+- The existing `handleSubmit` path in `ProformaInvoices.tsx` is refactored to call this modal instead of silently posting.
 
-**Purchase mirror**: Purchase Proforma stays batch-less; on "Receive" (GRN), prompt user for batch number + mfg/expiry per line (this already exists; just tighten validation so the field is required).
+**Schema additions** (migration):
+- `proforma_invoices.accepted_at timestamptz null`
+- `delivery_notes` already exists and supports this shape.
 
-## 3. Territory Exclusivity Engine
+## 4. Purchase: PO (Draft) → Confirm/Receive → Bill + Delivery Note
 
-No new table — pure read query at order-time.
+- `purchase_proformas` stays the draft "Purchase Order/Quotation". Strip batch fields from the draft.
+- New `src/components/ConfirmPurchaseDialog.tsx` (parallels Sales):
+  - Per line: Batch No, Expiry, Qty Received (defaults to ordered).
+  - On Confirm (atomic):
+    1. Insert `goods_received_notes` + `grn_items` (batch/expiry captured here — matches existing `grn_items` schema).
+    2. Insert `purchase_invoices` (bill) linked to `grn_id` → existing trigger updates supplier balance.
+    3. Insert `stock_movements` (`movement_type='purchase_in'`) per line.
+    4. Insert a `delivery_notes` row with `reference_type='purchase'`, supplier-side, items only.
+    5. Update `purchase_proformas.status = 'confirmed'`, `converted_po_id = bill.id`.
 
-- New helper `src/lib/territory.ts` → `checkTerritoryLock(productId, customerId)`:
-  ```ts
-  // Pseudocode
-  const city = customers.find(c=>c.id===customerId).city;
-  const conflicts = await supabase.rpc('check_territory') OR a direct query:
-    sales_invoice_items JOIN sales_invoices JOIN customers
-    WHERE product_id = $1 AND customers.city = $2
-      AND customers.id <> $1 AND status <> 'cancelled'
-    LIMIT 1;
-  ```
-- Wired into the **Proforma product picker** and **Convert-to-Invoice modal**:
-  - On product select, run check. If conflict, hard-block: disable the row, replace input with destructive alert "This product is exclusively allocated to another distributor in this territory." (red banner, blocks form submit).
-- Allocated-products view (existing) gets a "Locked Cities" badge listing cities where each product is committed.
+## 5. Unified, fast PDF template
 
-## 4. Non-Ledger Warranty Document
+- Rewrite `src/lib/pdf-generator.ts` as a single template `renderDocument({ kind, brand, party, meta, items, totals })` that handles 4 kinds: `quotation`, `sales_invoice`, `purchase_order`, `purchase_invoice`, `delivery_note`.
+- Delivery Note kind renders only: SR, Product, Batch No, Expiry, Qty, Customer/Supplier block, no prices/totals.
+- All other kinds: full pricing table.
+- Single inline `<style>` block, no external fonts, no images other than the embedded MOUJ logo (base64 in a constant) → first paint <100 ms.
+- Replace existing `PdfPreviewDialog` usage paths in `ProformaInvoices.tsx`, `PurchaseProforma.tsx`, `DeliveryNotes.tsx`, `WarrantyInvoices.tsx`, `SalesReturns.tsx`, `PurchaseReturns.tsx` to call the new generator. Open in same `PdfPreviewDialog` (already a single-window full-screen dialog).
+- Print button uses `iframe.contentWindow.print()` (no new tab churn) for instant print.
 
-Rework `WarrantyInvoices.tsx`:
+## 6. Security / sync
 
-- **Top banner** (sticky): cyan #00AEEF background, white text, label "NON-FINANCIAL COMPLIANCE DOCUMENT" + small subtext "No accounting/inventory impact".
-- **Flow**:
-  1. Step 1: Select Parent Distributor (customer).
-  2. Step 2: Reveals Retailer sub-form: Name, Address, Phone, Drug License #, License Expiry (stored in `customer_distributors` if user wants to save, or one-off).
-  3. Step 3: Add items. On product select, auto-pull active batch (latest with stock) and rate = `products.mrp`. Net Wholesale Rate ignored.
-- **Generate**: opens existing `PdfPreviewDialog` with the layout. **No** DB writes to `sales_invoices`, no `stock_movements`, no ledger entries. Optional: persist a row to `delivery_notes` with `reference_type='warranty_compliance'` only if user clicks "Save copy" (off by default).
+- Run `supabase--linter` after the migration and address anything it flags on the touched tables.
+- Confirm all touched tables (`proforma_invoices`, `purchase_proformas`, `delivery_notes`, `goods_received_notes`, `grn_items`, `purchase_invoices`, `stock_movements`, `customers`) already carry tenant-scoped RLS via `tenant_id = get_user_tenant_id()` — they do (verified). No new policies needed; new columns inherit RLS.
+- Regenerate types automatically post-migration.
 
-## UI / Design tokens
-
-- Global radius override in `tailwind.config.ts` + `index.css`: `--radius: 4px` (currently larger). Cards, inputs, dialogs all sharpen.
-- Tables: add `tabular-nums` to every numeric column header (utility already added last turn).
-- Color additions to `index.css`:
-  - `--medical-cyan: 196 100% 47%;` (#00AEEF)
-  - `--territory-lock: 0 72% 51%;` (reuse destructive)
-- Sales/Purchase list pages: tighten row height to 36px, switch headers to uppercase 11px tracking-wide.
+---
 
 ## Files
 
-**New**: `src/components/ProductBatchProfileDialog.tsx`, `src/components/BatchAllocationDialog.tsx`, `src/lib/territory.ts`, `src/lib/batches.ts` (shared "get active batches for product" util).
+**New**
+- `src/assets/mouj-logo.png` (copied from upload)
+- `src/lib/pakistan-cities.ts`
+- `src/components/AcceptQuotationDialog.tsx`
+- `src/components/ConfirmPurchaseDialog.tsx`
 
-**Edited**: `AppSidebar.tsx`, `Auth.tsx`, `index.html`, `Products.tsx`, `ProformaInvoices.tsx`, `PurchaseProforma.tsx`, `WarrantyInvoices.tsx`, `LandedCosts.tsx`, `index.css`, `tailwind.config.ts`.
+**Edited**
+- `src/components/AppSidebar.tsx`, `src/pages/Auth.tsx`, `index.html` (logo)
+- `src/pages/Customers.tsx`, `src/pages/Suppliers.tsx`, `src/components/CustomerProfileDialog.tsx`, `src/components/SupplierProfileDialog.tsx` (city dropdown, drop credit_days)
+- `src/pages/ProformaInvoices.tsx` (quotation/draft mode, wire AcceptQuotationDialog)
+- `src/pages/PurchaseProforma.tsx` (wire ConfirmPurchaseDialog)
+- `src/pages/DeliveryNotes.tsx` (use new template)
+- `src/lib/pdf-generator.ts` (full rewrite, single fast template)
+- `src/components/PdfPreviewDialog.tsx` (iframe-print fast path)
 
-**No DB migrations**.
+**DB migration**
+- Drop `customers.credit_days`
+- Add `proforma_invoices.accepted_at timestamptz`
+- (No RLS changes needed.)
+
+---
 
 ## Out of scope
-
-- No rewrite of payments / printing / reports.
-- No changes to RLS, triggers, or schema.
-- Last-turn perf work (lazy routes, toast fix, queryClient cache clear) stays in place.
-
-## Execution order
-
-1. Branding strip (5 lines).
-2. Token / radius sweep.
-3. `src/lib/batches.ts` + `src/lib/territory.ts` utilities.
-4. `BatchAllocationDialog` + rewire Proforma "Convert to Invoice".
-5. Strip batch fields from Proforma order form; add territory check on product select.
-6. `ProductBatchProfileDialog` + Landed Cost true-cost calc, wire into Products page.
-7. Warranty cyan banner + retailer sub-form + MRP autofetch; remove any DB side-effects.
-8. Verify in preview: create order → convert → modal forces batch → invoice saves; warranty generate writes nothing; territory conflict blocks second order.
+- Touching `payment_terms_days` on suppliers/printers.
+- Changing existing ledger triggers — they already do what we need.
+- Warranty invoice flow (already correct per prior turn).
