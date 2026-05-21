@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy as reactLazy, Suspense, ComponentType } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +6,31 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Loader2 } from "lucide-react";
+
+// Lazy with auto-reload on stale chunk (post-deploy hash mismatch).
+const RELOAD_KEY = "__chunk_reload_attempt__";
+function lazy<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
+  return reactLazy(async () => {
+    try {
+      const mod = await factory();
+      sessionStorage.removeItem(RELOAD_KEY);
+      return mod;
+    } catch (err: any) {
+      const msg = String(err?.message || "");
+      const isChunkErr =
+        msg.includes("dynamically imported module") ||
+        msg.includes("Failed to fetch") ||
+        msg.includes("Importing a module script failed");
+      if (isChunkErr && !sessionStorage.getItem(RELOAD_KEY)) {
+        sessionStorage.setItem(RELOAD_KEY, "1");
+        window.location.reload();
+        // Return a never-resolving promise so Suspense keeps fallback during reload.
+        return new Promise<{ default: T }>(() => {});
+      }
+      throw err;
+    }
+  });
+}
 
 // Eager: auth + initial paint
 import Auth from "./pages/Auth";
