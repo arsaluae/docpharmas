@@ -613,9 +613,16 @@ export default function ProformaInvoices() {
     const batches: Record<string, BatchOption[]> = {};
 
     if (productIds.length > 0) {
-      const { data: movements } = await supabase.from("stock_movements").select("product_id, batch_number, quantity, movement_type, date").in("product_id", productIds);
+      const [{ data: movements }, { data: grnRows }] = await Promise.all([
+        supabase.from("stock_movements").select("product_id, batch_number, quantity, movement_type, date").in("product_id", productIds),
+        supabase.from("grn_items").select("product_id, batch_number, expiry_date").in("product_id", productIds),
+      ]);
+      const expiryMap: Record<string, string> = {};
+      (grnRows || []).forEach((g: any) => {
+        if (g.batch_number && g.expiry_date) expiryMap[`${g.product_id}__${g.batch_number}`] = g.expiry_date;
+      });
       if (movements) {
-        const batchMap: Record<string, { qty: number; expiry?: string }> = {};
+        const batchMap: Record<string, { qty: number }> = {};
         movements.forEach((m: any) => {
           const key = `${m.product_id}__${m.batch_number || "no-batch"}`;
           if (!batchMap[key]) batchMap[key] = { qty: 0 };
@@ -627,8 +634,23 @@ export default function ProformaInvoices() {
         for (const [key, info] of Object.entries(batchMap)) {
           const [pid, batch] = key.split("__");
           if (!batches[pid]) batches[pid] = [];
-          if (info.qty > 0 && batch !== "no-batch") batches[pid].push({ batch_number: batch, available: info.qty });
+          if (info.qty > 0 && batch !== "no-batch") {
+            batches[pid].push({
+              batch_number: batch,
+              available: info.qty,
+              expiry_date: expiryMap[`${pid}__${batch}`],
+            });
+          }
         }
+        // FEFO sort: earliest expiry first (null expiry last)
+        Object.keys(batches).forEach(pid => {
+          batches[pid].sort((a, b) => {
+            if (!a.expiry_date && !b.expiry_date) return 0;
+            if (!a.expiry_date) return 1;
+            if (!b.expiry_date) return -1;
+            return a.expiry_date.localeCompare(b.expiry_date);
+          });
+        });
       }
     }
 
@@ -642,7 +664,8 @@ export default function ProformaInvoices() {
     setBatchOptions(batches);
     setSubmitItems(pfItems.map(i => ({
       ...i,
-      batch_number: batches[i.product_id]?.length === 1 ? batches[i.product_id][0].batch_number : "",
+      // Auto-select FEFO (earliest-expiry) batch
+      batch_number: batches[i.product_id]?.[0]?.batch_number || "",
       convert_quantity: i.quantity,
     })));
     setSubmitOpen(true);
