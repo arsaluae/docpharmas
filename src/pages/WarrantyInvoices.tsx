@@ -394,6 +394,17 @@ export default function WarrantyInvoices() {
   return (
     <AppLayout title="Warranty Invoices" subtitle="Issue warranty invoices at MRP for pharmacies & distributors" headerActions={headerActions}>
       <div className="space-y-4">
+        {/* NON-FINANCIAL COMPLIANCE banner */}
+        <div
+          className="rounded-[4px] px-4 py-3 flex items-center justify-between gap-3"
+          style={{ background: "hsl(var(--medical-cyan))", color: "hsl(var(--medical-cyan-foreground))" }}
+        >
+          <div>
+            <p className="text-[11px] font-bold tracking-[0.18em] uppercase">Non-Financial Compliance Document</p>
+            <p className="text-xs opacity-90">Pricing uses MRP. Zero impact on ledgers, receivables, or inventory.</p>
+          </div>
+          <ShieldCheck className="h-6 w-6 opacity-90" />
+        </div>
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div className="p-4 rounded-xl border border-border bg-gradient-to-br from-violet-500/10 to-purple-600/5">

@@ -409,6 +409,14 @@ export default function Products() {
                 </Card>
               </TabsContent>
             </Tabs>
+      <ProductBatchProfileDialog
+        open={!!profileProduct}
+        onOpenChange={(o) => { if (!o) setProfileProduct(null); }}
+        productId={profileProduct?.id || null}
+        productName={profileProduct?.name}
+        productCode={(profileProduct as any)?.product_code}
+        currentCost={Number(profileProduct?.cost_price || 0)}
+      />
     </AppLayout>
   );
 }
