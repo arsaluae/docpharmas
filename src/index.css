@@ -402,9 +402,24 @@
     align-items: center;
     justify-content: flex-start;
   }
-  .mouj-dark-sidebar .mouj-brand img {
-    filter: brightness(0) invert(1);
-    opacity: 0.95;
+  .mouj-dark-sidebar .mouj-wordmark {
+    font-family: 'Sora', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: #EDEDF5;
+  }
+  .mouj-dark-sidebar .mouj-wordmark-accent {
+    color: #818CF8;
+    font-weight: 500;
+  }
+  .mouj-dark-sidebar .mouj-wordmark-short {
+    font-family: 'Sora', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #818CF8;
+    width: 100%;
+    text-align: center;
   }
 
   .mouj-dark-sidebar .mouj-nav-row {
@@ -536,6 +551,22 @@
     box-shadow: none;
   }
   .mouj-dark-auth h2 { font-family: 'Sora', sans-serif; color: #EDEDF5; }
+  .mouj-dark-auth .mouj-auth-wordmark {
+    font-family: 'Sora', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: #EDEDF5;
+    line-height: 1;
+  }
+  .mouj-dark-auth .mouj-auth-wordmark-accent { color: #818CF8; font-weight: 500; }
+  .mouj-dark-auth .mouj-auth-sub {
+    font-family: 'Manrope', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: #6A6A8A;
+    margin-top: 10px;
+  }
   .mouj-dark-auth .mouj-muted { color: #8A8AB0; }
   .mouj-dark-auth .mouj-input {
     background: transparent;
