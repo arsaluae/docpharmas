@@ -18,7 +18,7 @@ import { toast } from "sonner";
 type TabType = "customers" | "suppliers" | "products" | "inventory";
 
 const TAB_COLUMNS: Record<TabType, string[]> = {
-  customers: ["name", "company", "ntn", "strn", "phone", "email", "address", "city", "area", "credit_limit", "credit_days", "opening_balance"],
+  customers: ["name", "company", "ntn", "strn", "phone", "email", "address", "city", "area", "credit_limit", "opening_balance"],
   suppliers: ["name", "company", "ntn", "strn", "phone", "email", "address", "city", "payment_terms_days", "wht_rate", "opening_balance"],
   products: ["name", "sku", "category", "drap_reg_number", "pack_size", "unit", "cost_price", "selling_price", "gst_rate", "stock_quantity", "reorder_level"],
   inventory: ["product_name", "quantity", "batch_number", "notes"],
