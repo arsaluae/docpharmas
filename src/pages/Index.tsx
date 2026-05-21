@@ -330,20 +330,25 @@ export default function Index() {
       extra: <p className="text-[10px] text-muted-foreground mt-0.5">Sale − Cost Price</p>,
     },
     {
-      label: "Overdue Invoices",
-      value: overdueCount > 0 ? overdueAmount : 0,
-      icon: Clock,
-      iconColor: overdueCount > 0 ? "text-destructive" : "text-emerald-600",
-      iconBg: overdueCount > 0 ? "bg-destructive/10" : "bg-emerald-500/10",
-      glowColor: overdueCount > 0 ? "shadow-[0_0_20px_hsl(0,72%,51%,0.12)]" : "",
-      displayOverride: overdueCount === 0 ? "None" : undefined,
-      extra: overdueCount > 0 ? (
-        <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-1">
-          <Clock className="h-3 w-3" /> {overdueCount} invoice{overdueCount > 1 ? "s" : ""} past due
+      label: "Upcoming Orders",
+      value: upcomingPoValue,
+      icon: Truck,
+      iconColor: "text-amber-600",
+      iconBg: "bg-amber-500/10",
+      glowColor: "",
+      displayOverride: upcomingPoCount === 0 ? "None" : undefined,
+      extra: upcomingPoCount > 0 ? (
+        <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+          <Truck className="h-3 w-3" /> {upcomingPoCount} purchase order{upcomingPoCount > 1 ? "s" : ""} pending
         </p>
       ) : null,
+      onClick: () => setUpcomingOpen(true),
     },
   ];
+  // Wire click handlers on first three KPIs
+  kpiCards[0].onClick = () => setWeekOpen(true);
+  kpiCards[1].onClick = () => setMonthOpen(true);
+  kpiCards[2].onClick = () => setGpOpen(true);
 
   return (
     <AppLayout title="Dashboard" subtitle="Business overview">
