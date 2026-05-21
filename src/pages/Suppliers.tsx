@@ -16,6 +16,8 @@ import { Plus, Search, Truck, BookOpen, Trash2, Upload, Store, Edit } from "luci
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { SupplierProfileDialog } from "@/components/SupplierProfileDialog";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { CITY_OPTIONS } from "@/lib/pakistan-cities";
 
 interface Supplier {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
