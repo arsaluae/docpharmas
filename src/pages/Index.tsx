@@ -335,27 +335,51 @@ export default function Index() {
     <AppLayout title="Dashboard" subtitle="Business overview">
       <div className="space-y-6">
 
-        {/* Hero Greeting — Mesh gradient */}
-        <div className="mesh-hero p-5 sm:p-7">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-primary/60 mb-1 flex items-center gap-2">
-                <Sparkles className="h-3.5 w-3.5" />
+        {/* Hero Greeting — Aurora */}
+        <div className="mesh-hero relative p-6 sm:p-9 overflow-hidden">
+          {/* Animated aurora orbs */}
+          <div className="pointer-events-none absolute -top-24 -left-16 w-80 h-80 rounded-full blur-3xl opacity-60 animate-pulse-glow"
+               style={{ background: "radial-gradient(circle, hsl(252 95% 65% / 0.7), transparent 70%)" }} />
+          <div className="pointer-events-none absolute -bottom-24 right-0 w-96 h-96 rounded-full blur-3xl opacity-50 animate-pulse-glow"
+               style={{ background: "radial-gradient(circle, hsl(290 95% 65% / 0.6), transparent 70%)", animationDelay: "1.2s" }} />
+          <div className="pointer-events-none absolute top-1/2 right-1/3 w-64 h-64 rounded-full blur-3xl opacity-40"
+               style={{ background: "radial-gradient(circle, hsl(188 95% 55% / 0.55), transparent 70%)" }} />
+          <div className="pointer-events-none absolute inset-0 opacity-[0.06] dot-pattern" />
+
+          <div className="relative flex items-center justify-between gap-4 flex-wrap">
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-[0.25em] font-bold mb-1 flex items-center gap-2"
+                 style={{ background: "linear-gradient(90deg, hsl(252 95% 75%), hsl(290 95% 75%))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                <Sparkles className="h-3.5 w-3.5" style={{ color: "hsl(280 95% 75%)" }} />
                 {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
               </p>
-              <h2 className="text-xl sm:text-2xl font-bold font-heading text-foreground">
-                {getGreeting()}{settings?.company_name ? `, ${settings.company_name}` : ""}
+              <h2 className="text-2xl sm:text-4xl font-bold font-heading leading-tight">
+                <span className="text-foreground">{getGreeting()},</span>{" "}
+                <span style={{ background: "linear-gradient(90deg, hsl(252 100% 78%) 0%, hsl(290 100% 75%) 50%, hsl(188 100% 65%) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                  {settings?.company_name || "there"}
+                </span>
               </h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Here's your business at a glance
+              <p className="text-sm sm:text-base text-muted-foreground max-w-md">
+                Here's how your pharmacy is performing today — real-time, comprehensive, at a glance.
               </p>
             </div>
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/60 border border-border/40 backdrop-blur-sm">
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-[11px] font-mono text-muted-foreground">Live</span>
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border"
+                   style={{ background: "hsl(252 50% 12% / 0.4)", borderColor: "hsl(252 80% 60% / 0.3)" }}>
+                <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_hsl(158_80%_55%)]" />
+                <span className="text-[11px] font-mono text-foreground/80 tracking-wider">LIVE</span>
+              </div>
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border"
+                   style={{ background: "hsl(252 50% 12% / 0.4)", borderColor: "hsl(290 80% 60% / 0.25)" }}>
+                <TrendingUp className="h-3 w-3" style={{ color: "hsl(158 80% 55%)" }} />
+                <span className="text-[11px] font-mono text-foreground/70">
+                  {monthGrowth >= 0 ? "+" : ""}{monthGrowth.toFixed(1)}% MoM
+                </span>
+              </div>
             </div>
           </div>
         </div>
+
 
         {/* KPI Row — Premium glass cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger-children">
