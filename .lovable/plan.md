@@ -1,83 +1,80 @@
+# Full-System Audit & Optimization Plan
 
-# Convert to Single-Tenant App for Mouj Pharmaceuticals
+The request is broad, so this plan scopes work into measurable, code-level changes — not a vague "review everything" pass. Each item below corresponds to a concrete edit or verification.
 
-Strip multi-tenant SaaS scaffolding. Keep email/password login. Only Mouj's owner can sign in. Delete the other two tenants and all their data.
+## Scope summary
 
-## 1. Database cleanup (data only — schema stays)
+Top hotspots identified up front:
+- `PurchaseProforma.tsx` (1,369 lines, 63 hooks), `ProformaInvoices.tsx` (1,285 / 57), `DataImport.tsx` (1,046), `Index.tsx` (766, dashboard with charts) — these are the main render-cost offenders.
+- Only ~8 files in the project use `useMemo`/`useCallback`/`React.memo`. Most tables and forms re-render on every keystroke.
+- No list virtualization anywhere; tables render every row.
+- Multiple `useEffect` data-fetch chains without abort/cleanup.
 
-Hard-delete PharmaZen Demo (`a0000000-…0001`) and Medsal PK (`62d63497-…`) plus everything tagged with those tenant_ids across all tenant-scoped tables (customers, suppliers, products, invoices, payments, print_jobs, printers, expenses, bank_accounts, document_counters, company_settings, etc. — ~40 tables).
+---
 
-Also:
-- Delete their `tenant_users` rows
-- Delete their `payment_submissions`
-- Delete `pending_signups` rows
-- Delete the two tenants from `tenants`
-- Delete the corresponding `auth.users` (PharmaZen owner `efbde659…`, Medsal owner `a3bc3837…`) so they can't log in
-- Set Mouj's tenant: `subscription_status='active'`, `subscription_ends_at=NULL` (no trial / no expiry)
+## 1. Performance & Core Speed
 
-Multi-tenant schema, RLS, and `get_user_tenant_id()` stay intact — they're harmless once only one tenant exists, and removing them would be a massive risky refactor.
+**A. Memoize the heavy pages** (Index, PurchaseProforma, ProformaInvoices, DataImport, Customers, Suppliers, Products, Payments, Expenses, PrintJobs):
+- Wrap derived arrays (filtered/sorted/searched rows, totals, chart series) in `useMemo`.
+- Wrap row-level handlers (`onEdit`, `onDelete`, `onRowClick`) in `useCallback`.
+- Extract row components and wrap in `React.memo` so typing in a search input does not re-render 500 rows.
 
-## 2. Disable signup
+**B. Hoist static data out of components**:
+- Column definitions, status maps, enum arrays, chart configs currently re-created every render — move to module scope (`const COLUMNS = [...]`).
 
-- `supabase--configure_auth` → `disable_signup: true`
-- Edge function `manage-tenant`: keep deployed (still used by admin if ever needed) but signup UI is gone
+**C. List virtualization**:
+- Add `@tanstack/react-virtual` to the 4 densest tables: Products, StockMovements, Payments, ProformaInvoices.
+- Keep existing pagination as the default; virtualize only the "View all / large page-size" path.
 
-## 3. Frontend strip
+**D. Dashboard (`Index.tsx`)**:
+- Parallelize the sequential Supabase calls with `Promise.all` and batch via existing `src/lib/batch-fetch.ts`.
+- Memoize Recharts data; charts re-render on every parent state change today.
+- Add `React.lazy` for the AI Insights panel and Reports sub-pages.
 
-### Routes removed (`src/App.tsx`)
-- `/` and `/landing` → Landing page
-- `/admin` → AdminPanel
-- `/subscription` → Subscription
-- `/reset-password` stays (password reset still useful)
-- `/auth` stays (login only)
-- Root `/` now redirects to `/dashboard` (or `/auth` if not logged in)
+**E. Effect hygiene**:
+- Audit `useEffect` fetches across pages; add an `ignore` flag or `AbortController` so route changes don't `setState` on unmounted components.
 
-### Files deleted
-- `src/pages/Landing.tsx`
-- `src/pages/AdminPanel.tsx`
-- `src/pages/Subscription.tsx`
-- `src/components/TrialBanner.tsx`
-- `supabase/functions/manage-subscription/` (optional; safe to leave)
+**F. Bundle**:
+- Code-split route-level pages in `App.tsx` via `React.lazy` + `<Suspense>`. Currently every page is eagerly imported.
 
-### Auth page (`src/pages/Auth.tsx`)
-- Remove signup mode entirely (login + forgot password only)
-- Remove company name / phone fields
-- Remove "Don't have an account? Sign up" link
-- Remove "← Back to homepage" link
+## 2. RBAC Guardrails
 
-### ProtectedRoute (`src/components/ProtectedRoute.tsx`)
-- Remove `PendingApprovalScreen`, `DeactivatedScreen`, `SubscriptionGuard`
-- Remove all trial/expiry/pending/deactivated logic
-- Just: not-logged-in → `/auth`; logged-in → render `<Outlet />`
+The project has a two-tier role system (Owner/Admin vs Staff "Sales-only") per the memory note.
 
-### useTenant (`src/hooks/useTenant.tsx`)
-- Simplify: still returns `tenantId` (resolved once from `tenant_users`) and `tenantName`, but drop `subscriptionStatus`, `daysRemaining`, `isPending`, `isDeactivated`, `pending_signups` lookup
-- Keeps RLS-via-tenant-id working without UI noise
+- Verify `useUserRole` is consulted in `AppSidebar` (currently it renders all sections to all users — confirm by reading).
+- Add a server-side check (RLS already enforces this, but a client-side `<RoleGate role="admin">` wrapper prevents flashing restricted UI).
+- On role change/logout, clear React Query / local caches so a Staff login does not see Admin data flashed from memory. Add `queryClient.clear()` (or equivalent) inside `useAuth` sign-out.
+- Add a redirect guard in `ProtectedRoute` for routes Staff cannot access (Settings, BankAccounts, Salaries, Expenses, Reports).
 
-### Sidebar (`src/components/AppSidebar.tsx`)
-- Remove Subscription, Admin Panel, and any tenant-management entries from the Settings popover
-- Remove trial banner mount points
+## 3. Workflow & Modal Validation
 
-### Misc
-- `src/pages/Index.tsx` (dashboard) and `src/components/AppLayout.tsx`: remove `<TrialBanner />` usages
-- `src/main.tsx` / `index.html`: update `<title>` to "Mouj Pharmaceuticals — ERP"
+- Audit "Convert proforma → invoice" and "Convert PO → Purchase Invoice" flows for synchronous state transition; wrap the multi-step DB writes in a single Supabase RPC or sequential awaits with rollback on failure.
+- Replace ad-hoc `<Dialog>` confirmation patterns with the existing `AlertDialog` primitive so focus trap + ESC + backdrop-click behave consistently.
+- Verify form reset: switch the largest forms (PurchaseProforma item rows, Settings) to `react-hook-form`'s `reset()` instead of manual `setState({...initial})` which currently leaves stale field refs.
+- Toast timeouts: confirm `useToast` defaults are reasonable (currently 1,000,000 ms in shadcn default — lower to 5s).
 
-## 4. Branding (light touch)
-- Page title + meta description → Mouj Pharmaceuticals
-- Auth page heading stays "DocPharmas" logo unless you'd like that swapped too (not in this plan)
+## 4. Interface Mechanics
 
-## What stays untouched
-- All ERP modules (Customers, Suppliers, Products, Invoices, Payments, Print Jobs, Reports, etc.)
-- Dark theme + sidebar uplift from previous turn
-- RLS policies, `set_tenant_id` trigger, `get_user_tenant_id` function
-- Edge functions: `ai-insights`, `reorder-alerts`, `weekly-backup`, `send-approval-email`, `manage-tenant`
+- Spacing/tokens: scan components for hard-coded hex / `text-white` / `bg-black` and replace with semantic tokens from `index.css`.
+- Tabular numerals: add `font-variant-numeric: tabular-nums` utility for all numeric columns (currency, qty, balance).
+- Sidebar responsive: verify `AppSidebar` collapses correctly at the user's 1061px viewport (just above the `md` breakpoint — likely fine, will confirm).
+- Sonner toast auto-dismiss timing.
 
-## Execution order
-1. Migration: none needed (schema unchanged)
-2. Data deletion via `supabase--insert` (DELETEs in FK-safe order, then drop the two auth users)
-3. `configure_auth` → disable signup
-4. Code edits + file deletions in one batch
-5. Verify: login as Mouj user → dashboard loads, sidebar has no Admin/Subscription, signup link gone, no trial banner
+## Technical execution order
 
-## Result
-Single login (Mouj owner) → straight into the ERP. No landing page, no signup, no trials, no admin, no other tenants in the DB.
+1. Add `@tanstack/react-virtual`, `react-window` types (or use existing primitives).
+2. Route-level `React.lazy` in `App.tsx` (biggest single perf win, ~10 min).
+3. Memoization pass on the 10 hottest pages.
+4. Hoist static data out of components.
+5. RBAC sidebar/route gating + cache clear on logout.
+6. Form reset + modal focus-trap audit.
+7. Token/tabular-nums sweep.
+8. Verify: run `bun run build` for bundle size diff, smoke-test the dashboard and Proforma flows in the preview, and check `code--read_console_logs` for warnings.
+
+## Out of scope
+
+- No DB schema changes, no RLS edits (already audited and correct per security memory).
+- No new features, no visual redesign (last turn's dark-mode uplift stands).
+- No edge-function changes.
+
+Estimated diff: ~15–20 files edited, 1 dependency added, no deletions.
