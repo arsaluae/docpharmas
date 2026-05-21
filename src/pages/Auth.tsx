@@ -103,9 +103,6 @@ export default function Auth() {
           </form>
         </div>
 
-        <p className="text-center text-[11px] mouj-muted mt-6 tracking-wide">
-          MOUJ PHARMACEUTICALS · ERP
-        </p>
       </div>
     </div>
   );
