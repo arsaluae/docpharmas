@@ -14,7 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Search, Package, Trash2, Upload, ArrowDownUp, DollarSign, AlertTriangle, TrendingUp } from "lucide-react";
+import { Plus, Search, Package, Trash2, Upload, ArrowDownUp, DollarSign, AlertTriangle, TrendingUp, Layers } from "lucide-react";
+import { ProductBatchProfileDialog } from "@/components/ProductBatchProfileDialog";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 
@@ -49,6 +50,7 @@ export default function Products() {
   const movementPagination = usePagination();
   const [editId, setEditId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("catalog");
+  const [profileProduct, setProfileProduct] = useState<Product | null>(null);
 
   // Stock movement form
   const [moveOpen, setMoveOpen] = useState(false);
@@ -263,7 +265,14 @@ export default function Products() {
                               <span className={Number(p.stock_quantity) <= Number(p.reorder_level) ? "text-destructive font-semibold" : ""}>{Number(p.stock_quantity).toLocaleString()}</span>
                             </TableCell>
                             <TableCell className="text-center">
-                              <div onClick={e => e.stopPropagation()}>
+                              <div onClick={e => e.stopPropagation()} className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary"
+                                  title="Batch profile & landed cost"
+                                  onClick={() => setProfileProduct(p)}
+                                >
+                                  <Layers className="h-3.5 w-3.5" />
+                                </Button>
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
                                   <AlertDialogContent>
@@ -400,6 +409,14 @@ export default function Products() {
                 </Card>
               </TabsContent>
             </Tabs>
+      <ProductBatchProfileDialog
+        open={!!profileProduct}
+        onOpenChange={(o) => { if (!o) setProfileProduct(null); }}
+        productId={profileProduct?.id || null}
+        productName={profileProduct?.name}
+        productCode={(profileProduct as any)?.product_code}
+        currentCost={Number(profileProduct?.cost_price || 0)}
+      />
     </AppLayout>
   );
 }
