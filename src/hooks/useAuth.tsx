@@ -7,12 +7,26 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let prevUserId: string | null = null;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const nextUser = session?.user ?? null;
+      // On sign-out OR user switch, drop all cached query data to prevent
+      // a new user briefly seeing the previous user's records.
+      if (prevUserId && prevUserId !== (nextUser?.id ?? null)) {
+        try {
+          (window as any).__queryClient?.clear();
+        } catch {
+          /* no-op */
+        }
+      }
+      prevUserId = nextUser?.id ?? null;
+      setUser(nextUser);
       setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      prevUserId = session?.user?.id ?? null;
       setUser(session?.user ?? null);
       setLoading(false);
     });
