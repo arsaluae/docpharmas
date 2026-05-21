@@ -123,9 +123,8 @@ const COLUMN_ALIASES: Record<string, string> = {
   "credit limit": "credit_limit", "limit": "credit_limit",
   "cr limit": "credit_limit", "credit line": "credit_limit",
 
-  // Credit days aliases
-  "credit days": "credit_days", "payment days": "credit_days", "days": "credit_days",
-  "credit period": "credit_days", "net days": "credit_days", "terms": "credit_days",
+  // (credit_days removed — no longer tracked)
+
 
   // Opening balance aliases
   "opening balance": "opening_balance", "balance": "opening_balance", "ob": "opening_balance",
