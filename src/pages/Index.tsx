@@ -162,8 +162,8 @@ export default function Index() {
     setTotalReceivables((custBalances.data || []).reduce((s, c) => s + Math.max(Number(c.balance), 0), 0));
     setTotalPayables((suppBalances.data || []).reduce((s, s2) => s + Math.max(Number(s2.balance), 0), 0));
 
-    const { data: monthInvIds } = await supabase.from("sales_invoices").select("id").gte("date", monthStart).lte("date", todayStr);
-    const allMonthIds = (monthInvIds || []).map(inv => inv.id);
+    // Use the same completed-invoice scope as monthSales so margin = sales − cost stays consistent
+    const allMonthIds = (monthInv.data || []).map((inv: any) => inv.id);
 
     let monthItemsData: any[] = [];
     for (let i = 0; i < allMonthIds.length; i += 50) {
