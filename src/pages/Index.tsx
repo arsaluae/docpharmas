@@ -369,7 +369,7 @@ export default function Index() {
                 Here's your business at a glance
               </p>
             </div>
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/60 border border-border/40 backdrop-blur-sm">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border">
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
               <span className="text-[11px] font-mono text-muted-foreground">Live</span>
             </div>
