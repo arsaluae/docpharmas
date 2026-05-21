@@ -16,6 +16,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X, Store, Edit, Wallet, Shield, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { CustomerProfileDialog } from "@/components/CustomerProfileDialog";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { CITY_OPTIONS } from "@/lib/pakistan-cities";
 
 interface Customer {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
