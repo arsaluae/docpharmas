@@ -1,96 +1,98 @@
-## Scope
+# Darker redesign — Sidebar + Auth
 
-Rework Sales + Purchase around a clean quotation→invoice→delivery flow, replace the brand with MOUJ Pharmaceuticals, restrict cities to a Pakistan dropdown, drop `credit_days`, and ship one fast, unified PDF template used by every document.
+Replace the current ivory/glass treatment on the **sidebar** and **Auth page** with a flat, solid Midnight Indigo dark surface. Hard edges, thin 1px borders, no blur, no glow, no glass — a proper product-design feel rather than the generic "AI dashboard glow."
 
----
+Scope is strictly the sidebar (`AppSidebar.tsx`) and the Auth screen (`Auth.tsx`). The rest of the app (dashboard, KPIs, tables) keeps its current light theme. The dark palette is applied via scoped local classes on those two surfaces only — no changes to `index.css` root tokens, so nothing else shifts.
 
-## 1. Brand: MOUJ logo
+## Visual direction
 
-- Copy uploaded logo to `src/assets/mouj-logo.png` and import it where the brand mark is needed (sidebar header, Auth screen, PDF templates).
-- Replace the text-only "Mouj Pharmaceuticals" in `AppSidebar.tsx` and `Auth.tsx` with `logo + "Mouj Pharmaceuticals"`.
-- `index.html`: set favicon to the new logo, keep page title.
+**Palette (local, scoped)**
+- Surface base: `#0A0A1A` (near-black indigo)
+- Panel: `#141432`
+- Border / hairlines: `#1F1F3D`
+- Muted text: `#8A8AB0`
+- Primary text: `#EDEDF5`
+- Accent: `#4F46E5` (indigo) — used sparingly for active state, focus ring, primary CTA
 
-## 2. Customers — drop credit_days, city dropdown
+**Type**
+- Headings: Sora (already loaded)
+- Body / nav labels: Manrope (add to existing Google Fonts import in `index.css`)
+- Nav labels: 13px, medium weight, slight letter-spacing (0.01em), no uppercase
 
-- DB migration: `ALTER TABLE customers DROP COLUMN credit_days;` (keep `credit_limit` per your answer).
-- Same for `suppliers` if it has the field (check `payment_terms_days` on `suppliers`/`printers` and leave those untouched — only `customers.credit_days` is being removed).
-- New `src/lib/pakistan-cities.ts` exporting ~150 cities (Karachi, Lahore, Islamabad, Rawalpindi, Faisalabad, Multan, Hyderabad, Peshawar, Quetta, Sialkot, Gujranwala, Sargodha, Bahawalpur, Sukkur, Larkana, Mardan, Mirpur Khas, Sheikhupura, Jhang, Dera Ghazi Khan, Gujrat, Sahiwal, Wah, Kasur, Okara, Chiniot, Kamoke, Hafizabad, Sadiqabad, Khanewal, Burewala, Jacobabad, Muzaffargarh, Khanpur, Gojra, Bahawalnagar, Abbottabad, Muridke, Pakpattan, Jaranwala, Chishtian, Daska, Mandi Bahauddin, Ahmadpur East, Kamalia, Khuzdar, Vehari, Nowshera, Dera Ismail Khan, Mingora, Kohat, Charsadda, Swabi, Mansehra, Haripur, Attock, Chakwal, Jhelum, Bhakkar, Mianwali, Layyah, Rajanpur, Kot Addu, Lodhran, Toba Tek Singh, Narowal, Ferozewala, Wazirabad, Hasilpur, Arifwala, Tando Adam, Tando Allahyar, Mehrabpur, Shikarpur, Khairpur, Nawabshah, Dadu, Thatta, Badin, Mithi, Umerkot, Gwadar, Turbat, Chaman, Sibi, Loralai, Zhob, Pasni, Khuzdar, Hub, Gilgit, Skardu, Chitral, Gilgit-Baltistan capitals, AJK cities, etc. — full ~150 list).
-- `Customers.tsx`, `CustomerProfileDialog.tsx`, `Suppliers.tsx`: replace city `<Input>` with searchable `<SearchableSelect>` bound to that list. Remove credit_days input + table column.
+**Surface treatment**
+- Flat solid fills, 1px borders, zero backdrop-blur
+- No `glass-card`, no `mesh-hero`, no `glow-primary`, no shadows behind logo
+- Section dividers: 1px hairline `#1F1F3D`
+- Active nav row: solid `#1E1E5A` fill, 2px left accent bar in `#4F46E5`, no background gradient
+- Hover: subtle `#141432 → #181838` fill swap, instant
 
-## 3. Sales: Quotation (Draft) → Accept → Invoice + Delivery Note
+## Sidebar (`src/components/AppSidebar.tsx`)
 
-Reuses existing `proforma_invoices` table (acts as the quotation/sales-invoice doc).
+```text
+┌─────────────────────┐
+│  [MOUJ logo]        │  ← top, left-aligned, 32px tall, no card around it
+├─────────────────────┤  ← 1px hairline
+│ ▣ Dashboard         │  ← active: indigo fill + 2px left bar
+│                     │
+│ SALES         ▾     │  ← group label uppercase 10px tracked, muted
+│   Quotations        │
+│   Invoices          │
+│ PURCHASE      ▾     │
+│   …                 │
+├─────────────────────┤
+│ ▤ Reports           │
+└─────────────────────┘
+│ AD  My Company      │  ← footer, flat row, no card
+│     Admin           │
+│              ⚙  ⎋   │
+```
 
-**Quotation phase** (`status = 'draft'`):
-- Form already exists. Strip out batch fields. Show only Product, Qty, Rate, Disc. No ledger, no stock movement. Label as "Quotation" in UI when status=draft.
+Changes:
+- Strip every `glass-*`, `mesh-*`, gradient, and shadow utility from the file
+- Wrap sidebar contents in a local class (e.g. `mouj-sidebar-dark`) defined in `index.css` `@layer components`, scoped so it only paints when applied
+- Logo container: plain, no background card, 14px padding
+- Group labels: uppercase, 10px, `#6A6A8A`, 1px hairline above each group
+- NavLink: flat row, 36px tall, 12px horizontal padding, no rounded-2xl — use `rounded-sm` (matches `--radius: 4px`)
+- Active state: solid `#1E1E5A` + `border-l-2 border-[#4F46E5]`, no glow
+- Footer: flat row separated by hairline, avatar = 28px solid square (not pastel chip)
+- Theme toggle + sign-out: icon-only ghost buttons, no hover bg blob
 
-**Accept → Invoice** (single modal, single click):
-- New component `src/components/AcceptQuotationDialog.tsx`.
-- Lists every line with a `<Select>` of available batches built from `stock_movements` grouped by `batch_number` (FEFO via existing `src/lib/batches.ts`). Confirm button disabled until every line has a batch with sufficient qty.
-- On Confirm (atomic):
-  1. Update `proforma_invoices.status = 'dispatched'` + stamp `accepted_at`.
-  2. Insert `stock_movements` rows (`movement_type='sale'`) per line with the chosen batch/expiry → trigger reduces `products.stock_quantity` and `handle_sales_invoice_balance` style code (already inside the existing submit path) increases customer balance via `proforma_invoices` total.
-  3. Insert a `delivery_notes` row: `reference_type='sales'`, `reference_id=proforma.id`, `items=[{product_name, batch_number, expiry_date, quantity}]` (no pricing).
-- The existing `handleSubmit` path in `ProformaInvoices.tsx` is refactored to call this modal instead of silently posting.
+## Auth page (`src/pages/Auth.tsx`)
 
-**Schema additions** (migration):
-- `proforma_invoices.accepted_at timestamptz null`
-- `delivery_notes` already exists and supports this shape.
+```text
+        ┌──────────────────────┐
+        │                      │
+        │     [MOUJ logo]      │
+        │                      │
+        │   Welcome back       │  ← Sora 20px
+        │   Sign in to MOUJ    │  ← Manrope 13px muted
+        │                      │
+        │   Email   [_______]  │  ← flat input, 1px border, 40px tall
+        │   Pass    [_______]  │
+        │                                 Forgot? │
+        │   ┌──────────────────────────┐         │
+        │   │      Sign In         →   │  ← solid indigo, no gradient
+        │   └──────────────────────────┘
+        └──────────────────────┘
+```
 
-## 4. Purchase: PO (Draft) → Confirm/Receive → Bill + Delivery Note
+Changes:
+- Page background: solid `#0A0A1A`, remove both blurred color blobs
+- Card: solid `#141432`, 1px border `#1F1F3D`, `rounded-md`, no `glass-card-glow`, no shadow stack
+- Inputs: transparent fill, 1px border `#2A2A4A`, focus ring = 1px `#4F46E5` (no soft 3px halo)
+- Submit button: solid `#4F46E5`, hover `#4338CA`, no `btn-gradient`
+- Logo: 48px tall, plain, no surrounding box
+- Drop the decorative blobs entirely
 
-- `purchase_proformas` stays the draft "Purchase Order/Quotation". Strip batch fields from the draft.
-- New `src/components/ConfirmPurchaseDialog.tsx` (parallels Sales):
-  - Per line: Batch No, Expiry, Qty Received (defaults to ordered).
-  - On Confirm (atomic):
-    1. Insert `goods_received_notes` + `grn_items` (batch/expiry captured here — matches existing `grn_items` schema).
-    2. Insert `purchase_invoices` (bill) linked to `grn_id` → existing trigger updates supplier balance.
-    3. Insert `stock_movements` (`movement_type='purchase_in'`) per line.
-    4. Insert a `delivery_notes` row with `reference_type='purchase'`, supplier-side, items only.
-    5. Update `purchase_proformas.status = 'confirmed'`, `converted_po_id = bill.id`.
+## Technical notes
 
-## 5. Unified, fast PDF template
+- Add `Manrope` to the Google Fonts `@import` at the top of `src/index.css`
+- Add one scoped block in `src/index.css` `@layer components` with the dark tokens and the few utilities (`.mouj-sidebar-dark`, `.mouj-auth-dark`) — keeps the dark palette local and reversible
+- No changes to `tailwind.config.ts`, no changes to root `:root` / `.dark` token blocks
+- No DB or backend changes
+- Files touched:
+  - `src/index.css` (append fonts + scoped component block)
+  - `src/components/AppSidebar.tsx` (replace class usage, restructure rows)
+  - `src/pages/Auth.tsx` (replace classes, drop decorative blobs)
 
-- Rewrite `src/lib/pdf-generator.ts` as a single template `renderDocument({ kind, brand, party, meta, items, totals })` that handles 4 kinds: `quotation`, `sales_invoice`, `purchase_order`, `purchase_invoice`, `delivery_note`.
-- Delivery Note kind renders only: SR, Product, Batch No, Expiry, Qty, Customer/Supplier block, no prices/totals.
-- All other kinds: full pricing table.
-- Single inline `<style>` block, no external fonts, no images other than the embedded MOUJ logo (base64 in a constant) → first paint <100 ms.
-- Replace existing `PdfPreviewDialog` usage paths in `ProformaInvoices.tsx`, `PurchaseProforma.tsx`, `DeliveryNotes.tsx`, `WarrantyInvoices.tsx`, `SalesReturns.tsx`, `PurchaseReturns.tsx` to call the new generator. Open in same `PdfPreviewDialog` (already a single-window full-screen dialog).
-- Print button uses `iframe.contentWindow.print()` (no new tab churn) for instant print.
-
-## 6. Security / sync
-
-- Run `supabase--linter` after the migration and address anything it flags on the touched tables.
-- Confirm all touched tables (`proforma_invoices`, `purchase_proformas`, `delivery_notes`, `goods_received_notes`, `grn_items`, `purchase_invoices`, `stock_movements`, `customers`) already carry tenant-scoped RLS via `tenant_id = get_user_tenant_id()` — they do (verified). No new policies needed; new columns inherit RLS.
-- Regenerate types automatically post-migration.
-
----
-
-## Files
-
-**New**
-- `src/assets/mouj-logo.png` (copied from upload)
-- `src/lib/pakistan-cities.ts`
-- `src/components/AcceptQuotationDialog.tsx`
-- `src/components/ConfirmPurchaseDialog.tsx`
-
-**Edited**
-- `src/components/AppSidebar.tsx`, `src/pages/Auth.tsx`, `index.html` (logo)
-- `src/pages/Customers.tsx`, `src/pages/Suppliers.tsx`, `src/components/CustomerProfileDialog.tsx`, `src/components/SupplierProfileDialog.tsx` (city dropdown, drop credit_days)
-- `src/pages/ProformaInvoices.tsx` (quotation/draft mode, wire AcceptQuotationDialog)
-- `src/pages/PurchaseProforma.tsx` (wire ConfirmPurchaseDialog)
-- `src/pages/DeliveryNotes.tsx` (use new template)
-- `src/lib/pdf-generator.ts` (full rewrite, single fast template)
-- `src/components/PdfPreviewDialog.tsx` (iframe-print fast path)
-
-**DB migration**
-- Drop `customers.credit_days`
-- Add `proforma_invoices.accepted_at timestamptz`
-- (No RLS changes needed.)
-
----
-
-## Out of scope
-- Touching `payment_terms_days` on suppliers/printers.
-- Changing existing ledger triggers — they already do what we need.
-- Warranty invoice flow (already correct per prior turn).
+After implementation I'll screenshot the sidebar + auth in the preview to confirm the flat, dark look lands as intended.

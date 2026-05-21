@@ -110,36 +110,27 @@ export function AppSidebar() {
   const reportsActive = location.pathname.startsWith("/reports") || location.pathname === "/insights";
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
+    <Sidebar collapsible="icon" className="mouj-dark-sidebar border-r" style={{ borderColor: "#1F1F3D" }}>
       {/* Brand header — MOUJ logo */}
-      <div className="p-4 border-b border-sidebar-border/60 flex items-center justify-center">
-        <img
-          src={moujLogo}
-          alt="MOUJ"
-          className={collapsed ? "h-7 w-auto" : "h-10 w-auto"}
-        />
+      <div className="mouj-brand">
+        <img src={moujLogo} alt="MOUJ" className={collapsed ? "h-6 w-auto mx-auto" : "h-7 w-auto"} />
       </div>
 
-
-      <SidebarContent className="mt-3 px-2 gap-0">
+      <SidebarContent className="mt-2 px-2 gap-0">
         {/* Dashboard */}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <NavLink to="/dashboard" end
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-colors ${
-                  location.pathname === "/dashboard"
-                    ? "bg-primary/12 text-primary font-medium"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
-                }`}>
-                <LayoutDashboard className="h-4 w-4" />
+                className={`mouj-nav-row ${location.pathname === "/dashboard" ? "is-active" : ""}`}>
+                <LayoutDashboard className="h-4 w-4 shrink-0" />
                 {!collapsed && <span>Dashboard</span>}
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
 
-        {!collapsed && <div className="mx-3 my-2 h-px bg-sidebar-border/50" />}
+        {!collapsed && <div className="mouj-divider mx-3" />}
 
         {/* Collapsed mode: flat icon list */}
         {collapsed ? (
@@ -152,9 +143,7 @@ export function AppSidebar() {
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton asChild>
                         <NavLink to={item.url}
-                          className={`flex items-center justify-center px-2 py-2 rounded-lg transition-colors ${
-                            isActive ? "bg-primary/12 text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent"
-                          }`}>
+                          className={`mouj-nav-row justify-center ${isActive ? "is-active" : ""}`}>
                           <item.icon className="h-4 w-4" />
                         </NavLink>
                       </SidebarMenuButton>
@@ -167,9 +156,7 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink to="/reports"
-                    className={`flex items-center justify-center px-2 py-2 rounded-lg transition-colors ${
-                      reportsActive ? "bg-primary/12 text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent"
-                    }`}>
+                    className={`mouj-nav-row justify-center ${reportsActive ? "is-active" : ""}`}>
                     <BarChart3 className="h-4 w-4" />
                   </NavLink>
                 </SidebarMenuButton>
@@ -180,29 +167,22 @@ export function AppSidebar() {
           <>
             {sections.map((section, idx) => {
               const isOpen = openSections[idx] || false;
-              const sectionActive = section.items.some(i => matchUrl(i.url));
               return (
                 <Collapsible key={section.label} open={isOpen} onOpenChange={() => toggleSection(idx)}>
-                  <CollapsibleTrigger className={`group flex items-center w-full px-3 py-2 rounded-lg text-[12px] transition-colors cursor-pointer select-none ${
-                    sectionActive ? "text-foreground" : "text-sidebar-foreground hover:text-foreground"
-                  }`}>
-                    <span className="flex-1 text-left font-medium tracking-wide">{section.label}</span>
-                    <ChevronDown className={`h-3.5 w-3.5 opacity-60 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                  <CollapsibleTrigger className="mouj-section-label">
+                    <span className="flex-1 text-left">{section.label}</span>
+                    <ChevronDown className={`h-3 w-3 opacity-70 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <SidebarMenu className="ml-1 mt-0.5 mb-1">
+                    <SidebarMenu className="mt-0.5 mb-1 gap-0">
                       {section.items.map((item) => {
                         const isActive = matchUrl(item.url);
                         return (
                           <SidebarMenuItem key={item.url}>
                             <SidebarMenuButton asChild>
                               <NavLink to={item.url}
-                                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] transition-colors ${
-                                  isActive
-                                    ? "bg-primary/12 text-primary font-medium"
-                                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
-                                }`}>
-                                <item.icon className="h-3.5 w-3.5 opacity-80" />
+                                className={`mouj-sub-row ${isActive ? "is-active" : ""}`}>
+                                <item.icon className="h-3.5 w-3.5 opacity-70" />
                                 <span>{item.title}</span>
                               </NavLink>
                             </SidebarMenuButton>
@@ -215,19 +195,15 @@ export function AppSidebar() {
               );
             })}
 
-            <div className="mx-3 my-2 h-px bg-sidebar-border/50" />
+            <div className="mouj-divider mx-3" />
 
             {/* Reports — single link */}
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink to="/reports"
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-colors ${
-                      reportsActive
-                        ? "bg-primary/12 text-primary font-medium"
-                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
-                    }`}>
-                    <BarChart3 className="h-4 w-4" />
+                    className={`mouj-nav-row ${reportsActive ? "is-active" : ""}`}>
+                    <BarChart3 className="h-4 w-4 shrink-0" />
                     <span>Reports</span>
                   </NavLink>
                 </SidebarMenuButton>
@@ -236,6 +212,7 @@ export function AppSidebar() {
           </>
         )}
       </SidebarContent>
+
 
       {/* Shortcuts help dialog (mounted globally so popover can trigger it) */}
       <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
@@ -260,31 +237,20 @@ export function AppSidebar() {
         </DialogContent>
       </Dialog>
 
-      <SidebarFooter className="p-2 border-t border-sidebar-border/60">
+      <SidebarFooter className="mouj-footer">
         {!collapsed ? (
-          <div className="flex items-center gap-1.5 px-1">
-            {/* Tenant chip */}
-            <div className="flex items-center gap-2 flex-1 min-w-0 px-2 py-1.5 rounded-lg hover:bg-sidebar-accent/60 transition-colors">
-              <div className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                {getInitials()}
-              </div>
+          <div className="flex items-center gap-1">
+            <div className="mouj-tenant">
+              <div className="mouj-avatar">{getInitials()}</div>
               <div className="flex-1 min-w-0">
-                <span className="text-[12px] font-medium text-foreground block truncate leading-tight">
-                  {tenantName || "My Company"}
-                </span>
-                <span className="text-[10px] text-muted-foreground capitalize">
-                  {tenantRole === "owner" ? "Admin" : "Staff"}
-                </span>
+                <span className="mouj-tenant-name">{tenantName || "My Company"}</span>
+                <span className="mouj-tenant-role">{tenantRole === "owner" ? "Admin" : "Staff"}</span>
               </div>
             </div>
 
-            {/* Settings popover */}
             <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
               <PopoverTrigger asChild>
-                <button
-                  className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
-                  title="Settings"
-                >
+                <button className="mouj-icon-btn" title="Settings">
                   <Settings className="h-4 w-4" />
                 </button>
               </PopoverTrigger>
@@ -296,58 +262,36 @@ export function AppSidebar() {
                   <Upload className="h-4 w-4 opacity-70" /> Data Import
                 </button>
                 <div className="my-1 h-px bg-border/60" />
-                <button
-                  onClick={() => { toggleTheme(); }}
-                  className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors"
-                >
+                <button onClick={() => { toggleTheme(); }} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
                   {theme === "light" ? <Moon className="h-4 w-4 opacity-70" /> : <Sun className="h-4 w-4 opacity-70" />}
                   {theme === "light" ? "Dark Mode" : "Light Mode"}
                 </button>
-                <button
-                  onClick={() => { setSettingsOpen(false); setShortcutsOpen(true); }}
-                  className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors"
-                >
+                <button onClick={() => { setSettingsOpen(false); setShortcutsOpen(true); }} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
                   <Keyboard className="h-4 w-4 opacity-70" /> Keyboard Shortcuts
                   <kbd className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">?</kbd>
                 </button>
               </PopoverContent>
             </Popover>
 
-            {/* Logout */}
-            <button
-              onClick={handleLogout}
-              className="p-2 rounded-lg text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-              title="Logout"
-            >
+            <button onClick={handleLogout} className="mouj-icon-btn danger" title="Logout">
               <LogOut className="h-4 w-4" />
             </button>
           </div>
         ) : (
           <div className="flex flex-col gap-1 items-center">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
-              title={theme === "light" ? "Dark Mode" : "Light Mode"}
-            >
+            <button onClick={toggleTheme} className="mouj-icon-btn" title={theme === "light" ? "Dark Mode" : "Light Mode"}>
               {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             </button>
-            <button
-              onClick={() => navigate("/settings")}
-              className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
-              title="Settings"
-            >
+            <button onClick={() => navigate("/settings")} className="mouj-icon-btn" title="Settings">
               <Settings className="h-4 w-4" />
             </button>
-            <button
-              onClick={handleLogout}
-              className="p-2 rounded-lg text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-              title="Logout"
-            >
+            <button onClick={handleLogout} className="mouj-icon-btn danger" title="Logout">
               <LogOut className="h-4 w-4" />
             </button>
           </div>
         )}
       </SidebarFooter>
+
     </Sidebar>
   );
 }
