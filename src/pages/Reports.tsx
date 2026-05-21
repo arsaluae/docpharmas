@@ -4,6 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, Scale, BarChart3, Clock, DollarSign, Package, ShieldCheck, Layers, Boxes, UserCheck, Truck, ClipboardList, MapPin, Sparkles } from "lucide-react";
 
 const reportSections = [
+  { label: "Intelligence", items: [
+    { title: "AI Insights", desc: "AI-generated business observations", url: "/insights", icon: Sparkles, color: "text-primary" },
+  ]},
   { label: "Financial", items: [
     { title: "Profit & Loss", desc: "Revenue, costs & net income", url: "/reports/pl", icon: TrendingUp, color: "text-primary" },
     { title: "Balance Sheet", desc: "Assets, liabilities & equity", url: "/reports/balance-sheet", icon: Scale, color: "text-primary" },
