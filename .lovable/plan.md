@@ -1,77 +1,52 @@
 ## Goal
-Lift the entire app shell from "generic SaaS" to a **deliberate, premium pharma-ops aesthetic** — Midnight Indigo palette, Sora + Manrope, with consistent depth, motion, and density rules across every surface.
+Fix the Create Sales Invoice and Create Purchase Order dialogs so every field is clearly labelled, drop the validity-days field, and redesign the Items section into a proper labelled table. Also polish the "Submit / Confirm" flow so quantity and batch are visibly pre-filled from the draft.
 
-## Direction (locked)
-- **Palette**: Midnight Indigo — `#0a0a1a`, `#141432`, `#1e1e5a`, `#4f46e5` (electric indigo accent)
-- **Type**: Sora (headings) + Manrope (body & data) — swap DM Sans → Manrope
-- **Mood**: deep, quiet, confident. Indigo accents do the talking; surfaces stay calm.
-
-## Scope (full app shell)
-Auth → Sidebar → Top header → Listing pages (tables, summary strips) → Dashboard (KPIs, hero, quick actions) → Dialogs/sheets → Buttons, inputs, badges, pills.
+## Problems observed
+1. **Items rows are unlabelled** — Qty / Rate / Disc% / GST% are number inputs with only placeholder text; the placeholder disappears once a value is typed, leaving anonymous spinner boxes (visible in the user's screenshot).
+2. **Cramped column widths** — `col-span-1` collapses Qty / Disc% / GST% so only the spinner arrows show.
+3. **Validity (days)** is shown in the header row but the user doesn't use it.
+4. **Convert-to-Invoice dialog** already pre-fills `convert_quantity` from draft and auto-selects batch when only one exists, but it isn't obvious to the user. Needs clearer UI: show original draft qty, available stock per batch, and FEFO-sorted batch dropdown with expiry date.
 
 ## Plan
 
-### 1. Design tokens (`src/index.css` + `tailwind.config.ts`)
-- Rewrite `:root` and `.dark` HSL tokens to Midnight Indigo:
-  - Light: ivory `#fafbfc` background, deep navy text, indigo `#4f46e5` primary, subtle indigo-tinted borders.
-  - Dark: `#0a0a1a` base, `#141432` cards, `#1e1e5a` elevated, indigo-glow primary.
-- Add new tokens: `--surface-1/2/3` (elevation), `--indigo-glow`, `--shadow-sm/md/lg/glow`, `--gradient-hero`, `--gradient-accent-line`.
-- Swap font import: Sora + **Manrope** (replace DM Sans). Update `body` and `tailwind.config.ts › fontFamily.sans`.
-- Tighten `--radius` system: 6 / 10 / 16 scale.
+### 1. `src/pages/ProformaInvoices.tsx` — Create Sales Invoice dialog
+- **Remove Validity field** from the create grid and from the edit grid (lines ~866 and ~1123). Drop `validityDays` / `editValidity` state. In the insert payload (line ~339) and update payload (line ~419), default `validity_days: 30` so the DB column stays satisfied without UI exposure.
+- **Header grid** becomes 3 columns: Customer * / Sales Agent / Date.
+- **Items section** redesigned:
+  - Add a sticky labelled header row (Product · Qty · Rate · Disc% · GST% · Amount · ✕) using the same 12-col grid so labels align with inputs.
+  - Each input gets `aria-label` and a small floating label above (text-[10px] uppercase tracking-wider text-muted-foreground) so the field name stays visible even when filled.
+  - Widen cramped columns: Product col-span-4, Qty 1 → use `col-span-2` with stepper, Rate 2, Disc% 1, GST% 1 (when enabled), Amount right-aligned remainder, delete icon 1.
+  - Wrap the items list in a bordered card with subtle indigo tint, internal padding, and `overflow-x-auto` so it never collapses on narrow viewports.
+  - "Add Item" becomes a full-width dashed button at the bottom for clearer affordance.
+- **Payment Instructions** moved below items into its own labelled card.
 
-### 2. Component primitives
-- **Buttons** (`button.tsx`): refine `default` to use indigo with inset highlight + soft glow on hover; add `premium` variant (gradient indigo→violet) for primary CTAs only.
-- **Inputs**: thinner border, indigo focus ring (already present, retune opacity), subtle inner shadow on dark.
-- **Cards**: replace ad-hoc shadows with token-driven `shadow-sm/md`. Add a unified `.surface-elevated` class.
-- **Badges / status pills**: re-tone to indigo/violet family; keep semantic colors but desaturate.
+### 2. `src/pages/PurchaseProforma.tsx` — Create Purchase Order dialog
+- Remove the Validity field (line ~927) in create and edit (line ~1161). Keep `validity_days: 30` default in the insert/update payloads.
+- Header grid becomes 2 columns: Supplier * / Date.
+- Apply the same labelled-header Items grid pattern (Product / Qty / Rate / Amount / ✕). Widen cramped columns identically.
+- Additional Costs row keeps its current layout but gets the same labelled-header treatment.
 
-### 3. Auth page (`src/pages/Auth.tsx`)
-- Two-pane layout on ≥md: left = brand panel with mesh-indigo gradient, orbital glow, Mouj mark, single-line value prop; right = form on calm surface.
-- Form: larger Sora heading, Manrope helper text, indigo primary button with glow, refined tab switch (Sign in / Sign up).
-- Mobile: collapse to single column, keep gradient as top band.
+### 3. Submit / Convert-to-Invoice dialog polish (`ProformaInvoices.tsx` lines 1161–1202)
+- Already auto-fills `convert_quantity` from draft and auto-selects batch when single. Make this **visible**:
+  - Show **"Ordered: {qty}"** chip beside the editable Quantity input, so the user sees the draft qty without ambiguity.
+  - **Sort batches FEFO** (earliest expiry first) and **show expiry date** in each option label: `BATCH-123 · 240 avail · exp 2027-03`.
+  - Fetch `expiry_date` from `grn_items` in the same trip as `stock_movements` (small extra query) and attach to `BatchOption.expiry_date`.
+  - When only one batch exists, render it as a read-only pill instead of a dropdown (since it's auto-selected anyway) so the user knows nothing else is required.
+  - Show running validation: red border on Qty if `convert_quantity > batch.available`.
+- Apply the same batch-display polish to the Purchase Order "Receive (GRN)" dialog if it has a parallel structure — verify only, don't expand scope.
 
-### 4. Sidebar (`AppSidebar.tsx` + `ui/sidebar.tsx` tokens)
-- Darker sidebar surface in light mode (subtle indigo tint), crisper active-state: 2px indigo left accent + soft indigo bg.
-- Section labels in Sora uppercase tracking-wider, smaller weight.
-- Collapsed (icon) state: indigo dot indicator for active route.
-- Footer block: tenant + user with small avatar ring.
-
-### 5. Top header / breadcrumbs (`AppLayout.tsx`)
-- Frosted header retuned for indigo tint, thinner border, integrated breadcrumb + global Ctrl+K pill + ThemeToggle + user.
-- Page title block standardized: H1 (Sora 28/32), subtitle (Manrope muted), right-aligned primary action.
-
-### 6. Listing pages pattern (Customers, Suppliers, Products, Proforma, etc.)
-- Standardize the "summary strip" (3–4 icon-ring cards) using new tokens, identical spacing.
-- Table card: `premium-table-card` retuned — frosted sticky head, zebra off, hover = indigo 4% wash, selected = indigo 8% + left accent.
-- Search pill, filters, and pagination unified.
-- *No business-logic changes* — purely presentational.
-
-### 7. Dashboard (`Index.tsx`)
-- Mesh-hero recolored to indigo radial + violet secondary; Sora display greeting; date/tenant chip.
-- KPI cards: `glass-kpi` retuned with indigo border-glow on hover, tabular-nums counters, micro sparkline slot.
-- Quick actions: 2×4 grid keeps structure, but icons get indigo gradient ring + subtle hover lift.
-- Alerts widgets: tighter spacing, consistent header treatment.
-
-### 8. Dialogs & sheets
-- `dialog-accent` top stripe → indigo gradient.
-- Standard header (icon-ring + title + subtitle), body padding, sticky footer with primary/secondary buttons.
-
-### 9. Motion
-- Keep existing `stagger-fade-up`, `press-scale`. Add: `indigo-pulse` on primary CTA (very subtle, 4s loop), `border-shine` on hover for KPI cards. No heavy framer-motion additions — CSS only to stay light.
-
-### 10. QA pass
-- Walk: `/auth → /dashboard → /customers → /products → /proforma-invoices → /reports → /settings` in both light & dark, mobile (384) and desktop (1280).
-- Check contrast (WCAG AA), focus rings, hover states, table density, dialog stacking.
+### 4. QA pass
+- Open Create Sales Invoice, type into every field, confirm labels stay visible.
+- Open Create Purchase Order, same.
+- Create a draft → submit → confirm the dialog shows ordered qty + FEFO-sorted batches with expiry → confirm and verify invoice + delivery note are created.
+- Re-open existing edit dialogs (Sales + Purchase) — confirm Validity is gone and saves still succeed.
 
 ## Out of scope
-- No schema, RLS, or business-logic changes.
-- No new pages or features. No restructuring of navigation.
-- No framer-motion install; CSS + existing animations only.
+- No schema, RLS, or DB-trigger changes (`validity_days` stays in DB with a default).
+- No changes to invoice numbering, stock-movement logic, or document templates.
+- No changes to the landing pages, summary strips, or navigation.
 
 ## Technical notes
-- All color changes flow through HSL CSS variables — no hard-coded hex in components.
-- Tailwind config gets new `fontFamily.sans = ['Manrope', ...]` and the indigo tokens are exposed as `bg-primary` etc. (already wired).
-- Font swap requires updating the Google Fonts `@import` in `index.css` and the `body` fallback.
-- Migration is **CSS-token first**: ~80% of the lift lands by retoning `index.css`; component edits are surgical (Auth, AppSidebar, AppLayout, dashboard hero, Button variants).
-
-After approval I'll execute steps 1→9 in that order and screenshot key routes for verification.
+- All new UI uses existing Tailwind tokens (`bg-muted/40`, `border-border/50`, `text-muted-foreground`); no hard-coded colors.
+- Floating labels are a single `<span>` above each input, not a Label component, to keep the row compact.
+- The items grid stays a CSS grid (not `<table>`) so the existing SearchableSelect popovers continue to work without z-index issues.
