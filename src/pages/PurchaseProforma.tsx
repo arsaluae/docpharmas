@@ -1173,26 +1173,35 @@ export default function PurchaseProforma() {
                     <div><Label className="text-xs font-medium text-muted-foreground">Supplier</Label><SearchableSelect options={supplierOptions} value={editSupplierId} onChange={setEditSupplierId} placeholder="Supplier..." /></div>
                     <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} /></div>
                   </div>
-                  <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={editValidity} onChange={e => setEditValidity(e.target.value)} /></div>
                   <Separator />
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-semibold">Items</Label>
-                    <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
+                    <span className="text-[11px] text-muted-foreground">{editItems.length} {editItems.length === 1 ? "line" : "lines"}</span>
                   </div>
-                  {editItems.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-5"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
-                      <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateEditItem(idx, "quantity_requested", e.target.value)} className="text-xs" placeholder="Qty" /></div>
-                      <div className="col-span-2 relative">
-                        <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
-                        {(item as any).last_price !== undefined && (item as any).last_price !== null && (
-                          <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number((item as any).last_price).toLocaleString()}</span>
-                        )}
-                      </div>
-                      <div className="col-span-2 text-right text-xs font-mono pt-2">{item.amount.toLocaleString()}</div>
-                      <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 overflow-x-auto">
+                    <div className="grid grid-cols-12 gap-2 px-1 pb-2 mb-2 border-b border-border/50 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground min-w-[560px]">
+                      <div className="col-span-5">Product</div>
+                      <div className="col-span-2 text-center">Qty</div>
+                      <div className="col-span-2 text-center">Rate</div>
+                      <div className="col-span-2 text-right">Amount</div>
+                      <div className="col-span-1" />
                     </div>
-                  ))}
+                    {editItems.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-start min-w-[560px]">
+                        <div className="col-span-5"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Select product..." triggerClassName="text-xs h-9" /></div>
+                        <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateEditItem(idx, "quantity_requested", e.target.value)} className="text-xs h-9 text-center" aria-label="Quantity" /></div>
+                        <div className="col-span-2 relative">
+                          <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs h-9 text-right" aria-label="Rate" />
+                          {(item as any).last_price !== undefined && (item as any).last_price !== null && (
+                            <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number((item as any).last_price).toLocaleString()}</span>
+                          )}
+                        </div>
+                        <div className="col-span-2 text-right text-xs font-mono pt-2">{item.amount.toLocaleString()}</div>
+                        <div className="col-span-1 flex justify-end"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))} aria-label="Remove item"><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
+                      </div>
+                    ))}
+                    <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }])} className="w-full mt-2 gap-1 text-xs border-dashed"><Plus className="h-3 w-3" /> Add Item</Button>
+                  </div>
                   <div className="mt-3"><Label className="text-xs font-medium text-muted-foreground">Notes</Label><Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} /></div>
                   {(() => { const t = calcTotals(editItems); return (
                     <div className="border-t border-border pt-3 space-y-1 text-sm">
