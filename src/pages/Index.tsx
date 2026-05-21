@@ -11,8 +11,9 @@ import {
   FileText, CreditCard, Shield, Wallet,
   PackageCheck, Flame, Users, AlertTriangle, MessageCircle, Brain,
   Package, Printer, Receipt, Landmark, ArrowRightLeft, RotateCcw,
-  CircleDollarSign, Clock, Sparkles,
+  CircleDollarSign, Clock, Sparkles, Truck,
 } from "lucide-react";
+import { WeekSalesDialog, MonthSalesDialog, GrossMarginDialog, UpcomingOrdersDialog } from "@/components/dashboard/KpiDialogs";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { toast } from "sonner";
 
@@ -76,10 +77,25 @@ export default function Index() {
   const [dailySales, setDailySales] = useState<{ date: string; amount: number }[]>([]);
   const [expensesByCategory, setExpensesByCategory] = useState<{ name: string; value: number }[]>([]);
   const [lastMonthSales, setLastMonthSales] = useState(0);
-  const [overdueCount, setOverdueCount] = useState(0);
-  const [overdueAmount, setOverdueAmount] = useState(0);
+  const [upcomingPoCount, setUpcomingPoCount] = useState(0);
+  const [upcomingPoValue, setUpcomingPoValue] = useState(0);
   const [totalReceivables, setTotalReceivables] = useState(0);
   const [totalPayables, setTotalPayables] = useState(0);
+
+  // Date ranges (lifted for dialogs)
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const monthStartStr = todayStr.slice(0, 7) + "-01";
+  const dow = today.getDay();
+  const monOffset = dow === 0 ? 6 : dow - 1;
+  const weekStartDate = new Date(today); weekStartDate.setDate(today.getDate() - monOffset);
+  const weekStartStr = weekStartDate.toISOString().split("T")[0];
+
+  // Dialog state
+  const [weekOpen, setWeekOpen] = useState(false);
+  const [monthOpen, setMonthOpen] = useState(false);
+  const [gpOpen, setGpOpen] = useState(false);
+  const [upcomingOpen, setUpcomingOpen] = useState(false);
 
   // Expiry alerts
   const [expiryAlerts, setExpiryAlerts] = useState<{ critical: number; warning: number; info: number; items: { name: string; batch: string; expiry: string; qty: number; severity: string }[] }>({ critical: 0, warning: 0, info: 0, items: [] });
