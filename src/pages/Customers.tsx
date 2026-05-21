@@ -20,7 +20,7 @@ import { CustomerProfileDialog } from "@/components/CustomerProfileDialog";
 interface Customer {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
   phone: string | null; email: string | null; address: string | null; city: string | null; area: string | null;
-  credit_limit: number; credit_days: number; opening_balance: number; balance: number; created_at: string;
+  credit_limit: number; opening_balance: number; balance: number; created_at: string;
 }
 
 interface License {
@@ -30,7 +30,7 @@ interface License {
 
 const emptyForm = {
   name: "", company: "", ntn: "", strn: "", phone: "", email: "", address: "", city: "", area: "",
-  credit_limit: "0", credit_days: "30", opening_balance: "0",
+  credit_limit: "0", opening_balance: "0",
 };
 
 interface CustomerWithCode extends Customer {
