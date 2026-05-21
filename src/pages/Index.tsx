@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { toast } from "sonner";
-import { TrialBanner } from "@/components/TrialBanner";
+
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, CartesianGrid,
@@ -332,7 +332,6 @@ export default function Index() {
   return (
     <AppLayout title="Dashboard" subtitle="Business overview">
       <div className="space-y-6">
-        <TrialBanner />
 
         {/* Hero Greeting — Mesh gradient */}
         <div className="mesh-hero p-5 sm:p-7">

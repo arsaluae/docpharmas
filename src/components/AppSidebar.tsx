@@ -2,8 +2,8 @@ import { useState } from "react";
 import {
   LayoutDashboard, Users, Truck, Package, LogOut, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
-  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown, Shield,
-  CreditCard as SubIcon, DollarSign, Building2, Keyboard, Moon, Sun,
+  BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown,
+  DollarSign, Building2, Keyboard, Moon, Sun,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -117,7 +117,7 @@ export function AppSidebar() {
         </div>
         {!collapsed && (
           <span className="font-heading font-semibold text-foreground text-[15px] tracking-tight truncate">
-            DocPharmas
+            Mouj Pharmaceuticals
           </span>
         )}
       </div>
@@ -296,14 +296,6 @@ export function AppSidebar() {
                 <button onClick={() => goAndClose("/import")} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
                   <Upload className="h-4 w-4 opacity-70" /> Data Import
                 </button>
-                <button onClick={() => goAndClose("/subscription")} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
-                  <SubIcon className="h-4 w-4 opacity-70" /> Subscription
-                </button>
-                {isAdmin && (
-                  <button onClick={() => goAndClose("/admin")} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
-                    <Shield className="h-4 w-4 opacity-70" /> Admin Panel
-                  </button>
-                )}
                 <div className="my-1 h-px bg-border/60" />
                 <button
                   onClick={() => { toggleTheme(); }}

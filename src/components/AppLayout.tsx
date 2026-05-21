@@ -36,8 +36,6 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   "/insights": { section: "Reports", label: "AI Insights" },
   "/settings": { section: "Settings", label: "Company Settings" },
   "/import": { section: "Settings", label: "Data Import" },
-  "/admin": { label: "Admin Panel" },
-  "/subscription": { section: "Settings", label: "Subscription" },
 };
 
 export function AppLayout({ title, subtitle, children, headerActions }: AppLayoutProps) {
