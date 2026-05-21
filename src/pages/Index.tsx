@@ -288,19 +288,23 @@ export default function Index() {
       label: "This Week",
       value: weekSales,
       icon: TrendingUp,
-      iconColor: "text-primary",
-      iconBg: "bg-primary/10",
-      glowColor: "shadow-[0_0_20px_hsl(199,89%,48%,0.12)]",
+      iconColor: "text-white",
+      iconBg: "bg-gradient-to-br from-violet-500 to-indigo-600",
+      accent: "from-violet-500/20 via-indigo-500/10 to-transparent",
+      ring: "shadow-[0_0_28px_-4px_hsl(252_95%_65%_/_0.45)]",
+      valueClass: "bg-gradient-to-r from-violet-300 to-indigo-300 bg-clip-text text-transparent",
     },
     {
       label: "This Month",
       value: monthSales,
       icon: CalendarDays,
-      iconColor: "text-emerald-600",
-      iconBg: "bg-emerald-500/10",
-      glowColor: "shadow-[0_0_20px_hsl(160,84%,39%,0.12)]",
+      iconColor: "text-white",
+      iconBg: "bg-gradient-to-br from-fuchsia-500 to-pink-600",
+      accent: "from-fuchsia-500/20 via-pink-500/10 to-transparent",
+      ring: "shadow-[0_0_28px_-4px_hsl(320_95%_65%_/_0.45)]",
+      valueClass: "bg-gradient-to-r from-fuchsia-300 to-pink-300 bg-clip-text text-transparent",
       extra: lastMonthSales > 0 ? (
-        <p className={`text-[10px] mt-1 font-mono flex items-center gap-1 ${monthGrowth >= 0 ? "text-emerald-600" : "text-destructive"}`}>
+        <p className={`text-[10px] mt-1 font-mono flex items-center gap-1 ${monthGrowth >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
           {monthGrowth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
           {monthGrowth >= 0 ? "+" : ""}{monthGrowth.toFixed(1)}% vs last month
         </p>
@@ -310,21 +314,29 @@ export default function Index() {
       label: "Gross Margin",
       value: Math.abs(grossMargin),
       icon: CircleDollarSign,
-      iconColor: grossMargin >= 0 ? "text-primary" : "text-destructive",
-      iconBg: grossMargin >= 0 ? "bg-primary/10" : "bg-destructive/10",
-      glowColor: grossMargin >= 0 ? "shadow-[0_0_20px_hsl(199,89%,48%,0.12)]" : "shadow-[0_0_20px_hsl(0,72%,51%,0.12)]",
-      extra: <p className="text-[10px] text-muted-foreground mt-0.5">Sale − Cost Price</p>,
+      iconColor: "text-white",
+      iconBg: grossMargin >= 0 ? "bg-gradient-to-br from-emerald-500 to-teal-600" : "bg-gradient-to-br from-rose-500 to-red-600",
+      accent: grossMargin >= 0 ? "from-emerald-500/20 via-teal-500/10 to-transparent" : "from-rose-500/20 via-red-500/10 to-transparent",
+      ring: grossMargin >= 0 ? "shadow-[0_0_28px_-4px_hsl(158_80%_55%_/_0.45)]" : "shadow-[0_0_28px_-4px_hsl(348_90%_60%_/_0.45)]",
+      valueClass: grossMargin >= 0
+        ? "bg-gradient-to-r from-emerald-300 to-teal-300 bg-clip-text text-transparent"
+        : "bg-gradient-to-r from-rose-300 to-red-300 bg-clip-text text-transparent",
+      extra: <p className="text-[10px] text-muted-foreground mt-0.5">Sales − Cost of Goods Sold (completed invoices)</p>,
     },
     {
       label: "Overdue Invoices",
       value: overdueCount > 0 ? overdueAmount : 0,
       icon: Clock,
-      iconColor: overdueCount > 0 ? "text-destructive" : "text-emerald-600",
-      iconBg: overdueCount > 0 ? "bg-destructive/10" : "bg-emerald-500/10",
-      glowColor: overdueCount > 0 ? "shadow-[0_0_20px_hsl(0,72%,51%,0.12)]" : "",
-      displayOverride: overdueCount === 0 ? "None" : undefined,
+      iconColor: "text-white",
+      iconBg: overdueCount > 0 ? "bg-gradient-to-br from-amber-500 to-orange-600" : "bg-gradient-to-br from-sky-500 to-cyan-600",
+      accent: overdueCount > 0 ? "from-amber-500/20 via-orange-500/10 to-transparent" : "from-sky-500/15 via-cyan-500/8 to-transparent",
+      ring: overdueCount > 0 ? "shadow-[0_0_28px_-4px_hsl(35_95%_60%_/_0.45)]" : "",
+      valueClass: overdueCount > 0
+        ? "bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent"
+        : "bg-gradient-to-r from-sky-300 to-cyan-300 bg-clip-text text-transparent",
+      displayOverride: overdueCount === 0 ? "All clear" : undefined,
       extra: overdueCount > 0 ? (
-        <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-1">
+        <p className="text-[10px] text-amber-400 mt-0.5 flex items-center gap-1">
           <Clock className="h-3 w-3" /> {overdueCount} invoice{overdueCount > 1 ? "s" : ""} past due
         </p>
       ) : null,
