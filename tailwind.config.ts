@@ -12,9 +12,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Geist", "ui-sans-serif", "system-ui", "sans-serif"],
-        heading: ["Geist", "ui-sans-serif", "sans-serif"],
-        mono: ["Geist Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        sans: ["Manrope", "ui-sans-serif", "system-ui", "sans-serif"],
+        heading: ["Sora", "Manrope", "ui-sans-serif", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       letterSpacing: {
         micro: "0.1em",
