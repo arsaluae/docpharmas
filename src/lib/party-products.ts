@@ -36,3 +36,54 @@ export async function getCustomerProductIds(customerId: string): Promise<Set<str
   }
   return out;
 }
+
+/**
+ * Get the most recent transacted rate for a (party, product) pair.
+ * Returns { rate, date, doc_number } or null when there's no history.
+ */
+export async function getLastRate(
+  partyType: "customer" | "supplier",
+  partyId: string,
+  productId: string,
+): Promise<{ rate: number; date: string; doc_number: string } | null> {
+  if (!partyId || !productId) return null;
+  if (partyType === "customer") {
+    const { data: invs } = await supabase
+      .from("sales_invoices")
+      .select("id, date, invoice_number")
+      .eq("customer_id", partyId)
+      .order("date", { ascending: false })
+      .limit(50);
+    const ids = (invs || []).map((i: any) => i.id);
+    if (!ids.length) return null;
+    const { data: items } = await supabase
+      .from("sales_invoice_items")
+      .select("invoice_id, rate")
+      .in("invoice_id", ids)
+      .eq("product_id", productId);
+    for (const inv of invs as any[]) {
+      const it = (items || []).find((x: any) => x.invoice_id === inv.id);
+      if (it) return { rate: Number(it.rate), date: inv.date, doc_number: inv.invoice_number };
+    }
+    return null;
+  }
+  // supplier — look at GRNs
+  const { data: grns } = await supabase
+    .from("goods_received_notes")
+    .select("id, date, grn_number")
+    .eq("supplier_id", partyId)
+    .order("date", { ascending: false })
+    .limit(50);
+  const ids = (grns || []).map((g: any) => g.id);
+  if (!ids.length) return null;
+  const { data: items } = await supabase
+    .from("grn_items")
+    .select("grn_id, rate")
+    .in("grn_id", ids)
+    .eq("product_id", productId);
+  for (const g of grns as any[]) {
+    const it = (items || []).find((x: any) => x.grn_id === g.id);
+    if (it) return { rate: Number(it.rate), date: g.date, doc_number: g.grn_number };
+  }
+  return null;
+}
