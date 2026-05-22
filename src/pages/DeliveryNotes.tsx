@@ -22,6 +22,7 @@ interface DeliveryNote {
   id: string; dn_number: string; date: string; reference_type: string;
   reference_id: string; customer_id: string | null; supplier_id: string | null;
   items: any; notes: string | null; status: string; created_at: string;
+  freight_provider_id?: string | null; delivery_type_label?: string | null;
 }
 
 export default function DeliveryNotes() {
