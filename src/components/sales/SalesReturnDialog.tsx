@@ -40,10 +40,9 @@ export function SalesReturnDialog({ open, onOpenChange, invoiceId, invoiceNumber
     if (!open || !invoiceId) return;
     (async () => {
       setLoading(true);
-      const [{ data: items }, { data: returns }] = await Promise.all([
-        supabase.from("sales_invoice_items").select("product_id, quantity, rate, batch_number, products(name)").eq("invoice_id", invoiceId),
-        supabase.from("sales_returns" as any).select("id").eq("reference_invoice_id" as any, invoiceId),
-      ]);
+      const itemsRes: any = await supabase.from("sales_invoice_items").select("product_id, quantity, rate, batch_number, products(name)").eq("invoice_id", invoiceId);
+      const retRes: any = await (supabase as any).from("sales_returns").select("id").eq("invoice_id", invoiceId);
+      const items = itemsRes.data; const returns = retRes.data;
 
       // Build returned-qty map from sales_return_items
       const returnIds = ((returns as any[]) || []).map(r => r.id);
