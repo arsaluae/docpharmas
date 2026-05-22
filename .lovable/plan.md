@@ -1,73 +1,41 @@
-# Plan — Flatten, Signup, GP Fix, Data Integrity
+# Plan — Forgot Password + Sub-user (Sales) Access
 
-## 1. Strip remaining glass/blur/glow
+## 1. Forgot password — make it actually work end-to-end
 
-**`src/index.css`**
-- Remove the `.glass-card-glow`, `.glow-primary`, and `pharma-gradient-header` classes (or collapse `.glass-card-glow` to alias `.glass-card`).
-- Replace `.frosted-header` (uses `backdrop-filter: blur(18px)`) with a flat `background: hsl(var(--background)); border-bottom: 1px solid hsl(var(--border));` so the top bar matches the flat Midnight Indigo language.
-- Remove `box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15)` halo on `.search-pill:focus-within` → 1px border only.
-- Confirm `.mouj-dark-sidebar` and `.mouj-dark-auth` blocks contain zero `backdrop-filter`, `blur`, or soft glow shadows (already clean — verify line-by-line).
+The login form already has a "Forgot?" link that calls `supabase.auth.resetPasswordForEmail`, but the recovery side has two gaps:
 
-**`src/pages/Index.tsx`**
-- Remove the lingering `glowColor` shadow strings on KPI cards.
-- Replace tooltip `backdropFilter: "blur(8px)"` strings in Recharts `contentStyle` with solid `background: hsl(var(--card))` + 1px border (3 occurrences).
+a. **`src/pages/ResetPassword.tsx` is stale** — it still uses removed utilities (`glass-card-glow`, `pharma`-era logo image, glow blur background). Refactor it onto the same `mouj-dark-auth` shell as `Auth.tsx` so the recovery page renders correctly when users click the email link. Same split-panel layout, same wordmark, two password fields, submit button.
 
-## 2. Remove AI icons / AI Insights surfaces from the dashboard
+b. **Failed-login affordance** — in `Auth.tsx`, when `signInWithPassword` returns `Invalid login credentials`, track a small counter (`failedAttempts`) in component state. After 2 failures, show an inline hint under the password field: *"Trouble signing in? Reset your password →"* that switches `mode` to `"forgot"` with the email field pre-filled. Reset the counter on mode change or successful login.
 
-**`src/pages/Index.tsx`**
-- Delete the entire "AI Insights CTA" block at the bottom (`Brain` icon card linking to `/insights`).
-- Remove the `Sparkles` icon from the hero greeting line (keep date text only).
-- Drop the unused `Brain`, `Sparkles` imports from lucide.
+c. **Redirect URL correctness** — keep `redirectTo: ${window.location.origin}/reset-password`. Confirm `/reset-password` is a public route in `App.tsx` (it should already be — verify, no change expected). No Supabase auth-config changes; the existing default email template + signing keys handle delivery.
 
-(Leave the `/insights` route + AIInsights page intact — only the dashboard surface is cleaned, since user said "I don't want AI icons in this".)
+d. **UX polish** — in `forgot` mode show a small success state inside the card after the email is sent (instead of just a toast + mode swap), with a "Back to sign in" link. Keeps the user oriented if they miss the toast.
 
-## 3. Fix Gross Margin calculation
+## 2. Give a new sub-user Sales-only access
 
-Current bug: `setGrossMargin(monthSales − totalCost)` mixes invoice-header `subtotal` (which may include discounts/rounding) with item-level COGS. Fix to derive **both** sides from `sales_invoice_items`:
+The backend already supports it: `manage-tenant` edge function exposes `owner_create_user` with a `role` field (`owner` | `staff`), enforces the 2-login cap, and `tenant_users.role = 'staff'` already drives the sidebar to "Sales-only" via `useTenant` / `AppSidebar` (`tenantRole === "owner" ? "Admin" : "Staff"`). There is **no UI** today to actually create one — add it.
 
-```
-GP = Σ(item.amount)  −  Σ(item.quantity × product.cost_price)
-GP% = GP / Σ(item.amount)
-```
+**New section in `src/pages/Settings.tsx`** — "Team & Access" card (visible only when `tenantRole === 'owner'`):
 
-- Update the items loop in `loadDashboard` to also sum `Number(item.amount)` into `totalRevenue`, then `setGrossMargin(totalRevenue − totalCost)`.
-- Mirror the same formula inside `GrossMarginDialog` (already correct — verify and add a tiny "Sum of item revenue – (qty × cost_price)" footnote so the number reconciles with the KPI).
-- KPI subtitle: change "Sale − Cost Price" to "Revenue − COGS (item level)".
+- Lists current `tenant_users` rows for this tenant: email, role badge (Admin / Sales), active toggle, created date.
+- "Add sub-user" button opens a small inline form: Email, Password (min 6), Role (locked to `staff` for now, labeled "Sales — limited to sales module"). On submit:
+  ```ts
+  supabase.functions.invoke("manage-tenant", {
+    body: { action: "owner_create_user", tenant_id, email, password, role: "staff" }
+  })
+  ```
+  Toast success, refresh the list. Surface the edge function's 2-login-cap error verbatim if it fires.
+- Per-row "Deactivate / Reactivate" button calls `manage-tenant` with `action: "toggle_user_active"` (already implemented server-side per the existing pattern — verify in the edge function; if missing, add a tiny branch that flips `tenant_users.is_active`).
+- Helper text under the form: *"Sales users can only see Customers, Sales Orders, Sales Invoices, Delivery Notes, Returns and Payments-received. They cannot access Purchase, Reports or Settings."* — matches the existing Staff sidebar filter.
 
-## 4. Working Signup flow
-
-**`src/pages/Auth.tsx`** — add a third mode `"signup"` alongside `login`/`forgot`:
-
-Fields: Company Name, Email, Phone (optional), Password (min 6).
-
-Flow:
-1. `supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + "/auth", data: { company_name } } })`.
-2. On success, call edge function:
-   `supabase.functions.invoke("manage-tenant", { body: { action: "create_pending_signup", user_id: data.user.id, email, company_name, phone } })`.
-3. Show a flat success card: "Account created — pending approval. You'll receive an email once activated." then switch back to `login` mode.
-4. Add "Create account" / "Already have an account?" links under the form.
-
-No DB changes — `pending_signups` table + edge function already exist. Do **not** enable auto-confirm email; users go through the normal confirmation + admin approval path.
-
-## 5. Data-integrity audit (no data loss)
-
-Targeted review + fixes on the write paths most likely to drop data:
-
-a. **Sales invoice + items** (`ProformaInvoices.tsx`): wrap the parent insert + items insert so that if items insert fails we delete the orphan header. Add `await` checks on every step and toast.error + early-return on any error (currently a couple of paths swallow errors silently).
-b. **Purchase invoice + items** (`PurchaseProforma.tsx`): same pattern.
-c. **Payment + invoice_id allocation** (`Payments.tsx`): confirm `invoice_id` is persisted when an invoice is selected (so `recalc_*_invoice_status` triggers work). Surface any insert error to the user.
-d. **Stock movements**: confirm every `purchase_in` / `sale_out` insert provides `product_id`, `quantity`, `movement_type`, `date`, and a reference (`reference_type`, `reference_id`) so reversals are possible. Add a missing-field guard.
-e. **Document numbers**: ensure every create flow calls `generate_document_number(...)` before insert (no client-generated numbers) so counters stay monotonic.
-f. **Optimistic UI**: any place that calls `setState(prev → remove row)` before the await resolves should move the state update into the `.then` to prevent perceived data loss on failure.
-
-Each of the six files gets the same minimal hardening; no schema changes required.
+No new DB tables, no migrations. RBAC enforcement already lives in `AppSidebar` + route guards driven by `tenantRole`.
 
 ## Files touched
 
-- `src/index.css` — remove glow/blur utilities, flatten frosted-header + search-pill focus.
-- `src/pages/Index.tsx` — remove AI/Sparkles, fix GP math, drop blur tooltip styles.
-- `src/components/dashboard/KpiDialogs.tsx` — minor GP footnote.
-- `src/pages/Auth.tsx` — add signup mode + handlers.
-- `src/pages/ProformaInvoices.tsx`, `src/pages/PurchaseProforma.tsx`, `src/pages/Payments.tsx` — atomic write guards + error surfacing.
+- `src/pages/Auth.tsx` — failed-attempt hint, success card for forgot mode, prefill email when switching to forgot.
+- `src/pages/ResetPassword.tsx` — rewrite onto `mouj-dark-auth` shell, drop `glass-card-glow` + logo image.
+- `src/pages/Settings.tsx` — add "Team & Access" card with list + add-user form (owner-only).
+- `supabase/functions/manage-tenant/index.ts` — add `toggle_user_active` branch only if it doesn't already exist (verify first; create_user + role=staff already supported).
 
-No database migrations. No new dependencies.
+No DB migrations. No new dependencies. No auth-config changes.
