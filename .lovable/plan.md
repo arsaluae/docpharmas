@@ -1,30 +1,37 @@
-## Extend ERP Hardening UI to remaining surfaces
+## Finish ERP Hardening Wiring
 
-Wire the existing `is_active` + void infrastructure into the pages that were skipped in the previous pass, plus tighten a few document workflows.
+Most of the previous pass is already in place. Remaining gaps after re-scanning:
 
-### 1. Active toggle on remaining master-data pages
-- `src/pages/Printers.tsx` and `src/pages/SalesAgents.tsx`: add the same "Show inactive" `Switch`, `Power` toggle column, and `opacity-50` row styling already used on Customers/Suppliers/Products.
-- `src/pages/Couriers.tsx` (if present): same treatment.
-- In any select/dropdown that loads printers, sales agents, or couriers for new documents, append `.eq("is_active", true)`. Existing rows still resolve by id.
+### 1. Friendly negative-stock errors on remaining write paths
+The `prevent_negative_stock` DB trigger raises `Insufficient stock for product <uuid>: on-hand X, requested Y`. Only `ProformaInvoices.tsx` currently translates this into a friendly toast. Add the same interception (resolve product name from local state, show `Insufficient stock for <name> (requested <qty>)`) in:
+- `src/pages/SalesReturns.tsx` — on `stock_movements` insert (`return_out` path during return-from-customer corrections).
+- `src/pages/WarrantyInvoices.tsx` — on `sale_out` stock insert.
+- `src/pages/StockMovements.tsx` — on manual `adjustment_out`, `damage`, `expired` inserts.
 
-### 2. Void buttons on remaining document lists
-Add `<VoidDocumentButton>` to row actions and hide download/print + apply voided styling (`opacity-50 line-through` + destructive badge) when `status === 'voided'`:
-- `PurchaseProforma.tsx` → `purchase_invoices`
-- GRN list page → `goods_received_notes`
-- `Payments.tsx` → `payments`
+Pattern (already used in ProformaInvoices):
+```ts
+if (err?.message?.includes("Insufficient stock")) {
+  const name = products.find(p => p.id === item.product_id)?.name ?? "product";
+  toast.error(`Insufficient stock for ${name} (requested ${qty}).`);
+  return;
+}
+```
 
-(ProformaInvoices already has its own `promptVoid` and stays unchanged.)
+### 2. Voided-row visual treatment on document lists
+The `void_document` RPC already sets `status = 'voided'` on `purchase_invoices`, `goods_received_notes`, `payments`, `sales_invoices`. Apply consistent UI:
+- `src/pages/PurchaseProforma.tsx` — for any row where `status === 'voided'`, add `opacity-50 line-through` to the row and hide WhatsApp/PDF action buttons; show a destructive `Voided` badge.
+- `src/pages/Payments.tsx` — same styling (voided payments are hard-deleted by the RPC today, so this is primarily defensive for any soft-voided rows that still appear).
 
-### 3. Friendly negative-stock errors elsewhere
-Apply the same "Insufficient stock for <name>" toast interception used in `ProformaInvoices.tsx` to:
-- `SalesReturns.tsx` (return_out)
-- `WarrantyInvoices.tsx` (sale_out)
-- Any stock adjustment / damage / expiry write paths
+No new void buttons added — existing `promptVoid` cascade in PurchaseProforma and `Delete` in Payments already trigger the correct DB reversal triggers.
 
-### 4. Memory update
-Append a short note to `mem://features/erp-hardening` listing the additional pages now wired up.
+### 3. Memory update
+Append to `mem://features/erp-hardening`: "Friendly Insufficient-stock toasts wired into SalesReturns, WarrantyInvoices, StockMovements. Voided-row styling on PurchaseProforma & Payments lists."
 
 ### Out of scope
-- New DB migrations (none needed; uses existing `is_active`, `void_document` RPC, `prevent_negative_stock` trigger).
-- Ledger automation triggers.
-- Expiry dashboard KPI.
+- Couriers.tsx — read-only monthly report, no master-data CRUD.
+- SalesAgents.tsx — already uses its own `status` enum.
+- FreightProvidersCard — already has `is_active` toggle.
+- New DB migrations, ledger triggers, expiry KPI.
+
+### Files touched
+`src/pages/SalesReturns.tsx`, `src/pages/WarrantyInvoices.tsx`, `src/pages/StockMovements.tsx`, `src/pages/PurchaseProforma.tsx`, `src/pages/Payments.tsx`, `mem://features/erp-hardening`.
