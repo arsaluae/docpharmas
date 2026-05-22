@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Truck, BookOpen, Trash2, Upload, Store, Edit } from "lucide-react";
+import { Plus, Search, Truck, BookOpen, Trash2, Upload, Store, Edit, Power } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { SupplierProfileDialog } from "@/components/SupplierProfileDialog";
@@ -24,7 +25,7 @@ interface Supplier {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
   phone: string | null; email: string | null; address: string | null; city: string | null; area: string | null;
   payment_terms_days: number; wht_rate: number; opening_balance: number; balance: number; created_at: string;
-  supplier_code: string | null; license_number: string | null;
+  supplier_code: string | null; license_number: string | null; is_active: boolean;
 }
 
 const emptyForm = {
@@ -45,13 +46,24 @@ export default function Suppliers() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileSupplier, setProfileSupplier] = useState<Supplier | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
 
-  useEffect(() => { loadSuppliers(); }, [pagination.page]);
+  useEffect(() => { loadSuppliers(); }, [pagination.page, showInactive]);
 
   const loadSuppliers = async () => {
-    const { data, count } = await supabase.from("suppliers").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
+    let q = supabase.from("suppliers").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (!showInactive) q = q.eq("is_active", true);
+    const { data, count } = await q.range(pagination.from, pagination.to);
     if (data) setSuppliers(data as any);
     if (count !== null) pagination.setTotalCount(count);
+  };
+
+  const toggleActive = async (s: Supplier, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { error } = await supabase.from("suppliers").update({ is_active: !s.is_active } as any).eq("id", s.id);
+    if (error) { toast.error("Failed: " + error.message); return; }
+    toast.success(s.is_active ? "Supplier deactivated" : "Supplier reactivated");
+    loadSuppliers();
   };
 
   const handleSave = async () => {
@@ -199,9 +211,14 @@ export default function Suppliers() {
         </div>
       </div>
 
-      <div className="mb-4 relative max-w-sm search-pill">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search suppliers..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="mb-4 flex items-center gap-3">
+        <div className="relative max-w-sm flex-1 search-pill">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search suppliers..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
+          <Switch checked={showInactive} onCheckedChange={setShowInactive} /> Show inactive
+        </label>
       </div>
 
       {selectedIds.size > 0 && (
@@ -236,7 +253,7 @@ export default function Suppliers() {
               {filtered.length === 0 ? (
                 <TableRow><TableCell colSpan={settings?.wht_enabled ? 10 : 9} className="text-center py-12 text-muted-foreground"><Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />No suppliers yet.</TableCell></TableRow>
               ) : filtered.map(s => (
-                <TableRow key={s.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(s)}>
+                <TableRow key={s.id} className={`cursor-pointer hover:bg-accent/50 ${!s.is_active ? "opacity-50" : ""}`} onClick={() => handleEdit(s)}>
                   <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selectedIds.has(s.id)} onCheckedChange={() => toggleSelect(s.id)} /></TableCell>
                   <TableCell className="text-xs font-mono text-muted-foreground">{s.supplier_code || "—"}</TableCell>
                   <TableCell className="font-medium">{s.name}</TableCell>
@@ -259,6 +276,7 @@ export default function Suppliers() {
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(s)} title="Edit Supplier"><Edit className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setProfileSupplier(s); setProfileOpen(true); }} title="Profile & Products"><Store className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/suppliers/${s.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className={`h-7 w-7 ${s.is_active ? "text-amber-600" : "text-emerald-600"}`} onClick={(e) => toggleActive(s, e)} title={s.is_active ? "Deactivate" : "Reactivate"}><Power className="h-3.5 w-3.5" /></Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
                         <AlertDialogContent>
