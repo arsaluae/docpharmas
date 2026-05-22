@@ -619,3 +619,194 @@ function TemplateCard({ template, onUpdate }: { template: DocumentTemplate; onUp
     </AccordionItem>
   );
 }
+
+// ============= Team & Access (sub-users) =============
+
+interface TenantMember {
+  user_id: string;
+  role: "owner" | "staff";
+  is_active: boolean;
+  created_at: string;
+  email?: string;
+}
+
+function TeamAccessCard() {
+  const { tenantId } = useTenant();
+  const [members, setMembers] = useState<TenantMember[]>([]);
+  const [meId, setMeId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  const load = async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    setMeId(user?.id ?? null);
+
+    const { data } = await (supabase as any)
+      .from("tenant_users")
+      .select("user_id, role, is_active, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: true });
+
+    setMembers((data || []) as TenantMember[]);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [tenantId]);
+
+  const handleAdd = async () => {
+    if (!tenantId) return;
+    if (!newEmail.trim() || newPassword.length < 6) {
+      toast.error("Email and a password of at least 6 characters are required");
+      return;
+    }
+    setAdding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-tenant", {
+        body: {
+          action: "owner_create_user",
+          tenant_id: tenantId,
+          email: newEmail.trim(),
+          password: newPassword,
+          role: "staff",
+        },
+      });
+      if (error) throw new Error(error.message || "Could not create user");
+      if (data?.error) throw new Error(data.error);
+      toast.success("Sales user created");
+      setNewEmail(""); setNewPassword(""); setShowForm(false);
+      await load();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleToggle = async (m: TenantMember) => {
+    if (!tenantId) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-tenant", {
+        body: {
+          action: "toggle_user_active",
+          tenant_id: tenantId,
+          user_id: m.user_id,
+          is_active: !m.is_active,
+        },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast.success(m.is_active ? "User deactivated" : "User reactivated");
+      await load();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" /> Team Members
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading team…</p>
+          ) : members.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No members yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {members.map((m) => (
+                <div
+                  key={m.user_id}
+                  className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {m.user_id === meId ? "You" : m.user_id.slice(0, 8) + "…"}
+                      </span>
+                      <span
+                        className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                          m.role === "owner"
+                            ? "border-primary/40 text-primary"
+                            : "border-border text-muted-foreground"
+                        }`}
+                      >
+                        {m.role === "owner" ? "Admin" : "Sales"}
+                      </span>
+                      {!m.is_active && (
+                        <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-destructive/40 text-destructive">
+                          Inactive
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Joined {new Date(m.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {m.role !== "owner" && m.user_id !== meId && (
+                    <Button size="sm" variant="outline" onClick={() => handleToggle(m)}>
+                      {m.is_active ? "Deactivate" : "Reactivate"}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!showForm ? (
+            <Button onClick={() => setShowForm(true)} size="sm">
+              <Plus className="h-4 w-4 mr-1" /> Add Sales User
+            </Button>
+          ) : (
+            <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <ShieldCheck className="h-4 w-4 text-primary" /> New sales-only user
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Email</Label>
+                  <Input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="sales@company.com"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Temporary password</Label>
+                  <Input
+                    type="text"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="min. 6 characters"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Sales users only see Customers, Sales Orders, Sales Invoices, Delivery Notes,
+                Returns and Payments-received. They cannot access Purchase, Reports or Settings.
+                The 2-login cap is enforced per workspace.
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleAdd} disabled={adding}>
+                  {adding ? "Creating…" : "Create user"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setNewEmail(""); setNewPassword(""); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
