@@ -72,6 +72,7 @@ const BACKUP_TABLES = [
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { tenantRole } = useTenant();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settingsId, setSettingsId] = useState<string | null>(null);
