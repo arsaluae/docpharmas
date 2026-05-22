@@ -27,6 +27,8 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { checkTerritoryLock } from "@/lib/territory";
+import { useFreightProviders } from "@/hooks/useFreightProviders";
+import { SalesReturnDialog } from "@/components/sales/SalesReturnDialog";
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
@@ -45,7 +47,7 @@ interface SalesOrder {
   amount_paid?: number;
 }
 
-interface BatchOption { batch_number: string; available: number; expiry_date?: string; }
+interface BatchOption { batch_number: string; available: number; expiry_date?: string | null; }
 
 export default function ProformaInvoices() {
   const navigate = useNavigate();
@@ -115,6 +117,12 @@ export default function ProformaInvoices() {
   const [paymentBankId, setPaymentBankId] = useState("");
   const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string; bank_name: string }[]>([]);
   const [paymentSaving, setPaymentSaving] = useState(false);
+
+  // Freight + Return
+  const { providers: freightProviders } = useFreightProviders(false);
+  const [freightProviderId, setFreightProviderId] = useState<string>("");
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnOrder, setReturnOrder] = useState<SalesOrder | null>(null);
 
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
@@ -349,7 +357,7 @@ export default function ProformaInvoices() {
         agent_id: agentId || null,
       } as any);
       if (error) { console.error("Insert error:", error); toast.error("Failed to create order: " + error.message); setSaving(false); return; }
-      toast.success(`Sales Invoice ${pfNumber} created`);
+      toast.success(`Sales Order ${pfNumber} created`);
       setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); setAgentId(""); load();
     } catch (err: any) {
       console.error("Unexpected error creating sales order:", err);
@@ -736,7 +744,9 @@ export default function ProformaInvoices() {
         await supabase.from("delivery_notes").insert({
           dn_number: dnNumber, reference_type: "sales_invoice", reference_id: inv.id,
           customer_id: submitOrder.customer_id, items: dnItems,
-        });
+          freight_provider_id: freightProviderId || null,
+          delivery_type_label: freightProviders.find(p => p.id === freightProviderId)?.name || null,
+        } as any);
       }
 
       await supabase.from("proforma_invoices").update({ status: "invoiced", converted_invoice_id: inv.id }).eq("id", submitOrder.id);

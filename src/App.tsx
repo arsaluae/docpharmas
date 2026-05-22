@@ -77,6 +77,7 @@ const CreditNotes = lazy(() => import("./pages/CreditNotes"));
 const Salaries = lazy(() => import("./pages/Salaries"));
 const SalesAgents = lazy(() => import("./pages/SalesAgents"));
 const DeliveryNotes = lazy(() => import("./pages/DeliveryNotes"));
+const Couriers = lazy(() => import("./pages/Couriers"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -137,6 +138,7 @@ const App = () => (
               <Route path="/print-jobs" element={<PrintJobs />} />
               <Route path="/import" element={<DataImport />} />
               <Route path="/delivery-notes" element={<DeliveryNotes />} />
+              <Route path="/couriers" element={<Couriers />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/reports/pl" element={<ProfitLoss />} />

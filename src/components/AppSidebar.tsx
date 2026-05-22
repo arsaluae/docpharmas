@@ -25,9 +25,10 @@ import { useTheme } from "@/components/ThemeToggle";
 const allSections = [
   { label: "Sales", icon: FileText, staffVisible: true, items: [
     { title: "Customers", url: "/customers", icon: Users },
-    { title: "Sales Invoices", url: "/proforma", icon: FileText },
+    { title: "Sales Orders", url: "/proforma", icon: FileText },
     { title: "Sales Agents", url: "/sales-agents", icon: Users },
     { title: "Delivery Notes", url: "/delivery-notes", icon: Truck },
+    { title: "Couriers", url: "/couriers", icon: Truck },
     { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList },
     { title: "Receive Payment", url: "/payments?tab=received", icon: Wallet },
     { title: "Returns", url: "/sales-returns", icon: RotateCcw },
