@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Printer, BookOpen, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { CITY_OPTIONS } from "@/lib/pakistan-cities";
 
 interface PrinterEntity {
   id: string; name: string; company: string | null; ntn: string | null;
