@@ -744,7 +744,9 @@ export default function ProformaInvoices() {
         await supabase.from("delivery_notes").insert({
           dn_number: dnNumber, reference_type: "sales_invoice", reference_id: inv.id,
           customer_id: submitOrder.customer_id, items: dnItems,
-        });
+          freight_provider_id: freightProviderId || null,
+          delivery_type_label: freightProviders.find(p => p.id === freightProviderId)?.name || null,
+        } as any);
       }
 
       await supabase.from("proforma_invoices").update({ status: "invoiced", converted_invoice_id: inv.id }).eq("id", submitOrder.id);
