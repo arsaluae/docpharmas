@@ -80,10 +80,10 @@ export default function Payments() {
     payQuery = payQuery.range(pagination.from, pagination.to);
     const [pay, cust, sup, banks, prnt] = await Promise.all([
       payQuery,
-      supabase.from("customers").select("id, name"),
-      supabase.from("suppliers").select("id, name"),
+      supabase.from("customers").select("id, name").eq("is_active", true),
+      supabase.from("suppliers").select("id, name").eq("is_active", true),
       supabase.from("bank_accounts").select("id, name, bank_name"),
-      supabase.from("printers").select("id, name"),
+      supabase.from("printers").select("id, name").eq("is_active", true),
     ]);
     if (pay.data) setPayments(pay.data);
     if (pay.count !== null && pay.count !== undefined) pagination.setTotalCount(pay.count);
