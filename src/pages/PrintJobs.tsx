@@ -434,10 +434,20 @@ export default function PrintJobs() {
                                 <CheckCircle2 className="h-3 w-3 mr-1" /> Settle
                               </Button>
                             )}
+                            {Number(j.quantity_at_factory) > 0 && (
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
+                                setDispatchJob(j);
+                                setDispatchQty(String(j.quantity_at_factory));
+                                setDispatchSupplierId(j.allotted_supplier_id || "");
+                              }} title="Dispatch to Supplier">
+                                <Send className="h-3 w-3 mr-1" /> Dispatch
+                              </Button>
+                            )}
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(j.id)}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
+
                         </TableCell>
                       </TableRow>
                     ))}
