@@ -231,16 +231,17 @@ export default function ProformaInvoices() {
     setLoading(false);
   };
 
-  // Load allocated products + auto-select agent when customer changes
+  const [showAllProducts, setShowAllProducts] = useState(false);
+  // Load relevant products (allocations + past sales history) + auto-select agent when customer changes
   useEffect(() => {
-    if (!customerId) { setAllocatedProductIds(null); setAgentId(""); return; }
+    if (!customerId) { setAllocatedProductIds(null); setAgentId(""); setShowAllProducts(false); return; }
     (async () => {
-      const [prodRes, agentRes] = await Promise.all([
-        supabase.from("customer_products").select("product_id").eq("customer_id", customerId),
+      const { getCustomerProductIds } = await import("@/lib/party-products");
+      const [historyIds, agentRes] = await Promise.all([
+        getCustomerProductIds(customerId),
         supabase.from("agent_customers").select("agent_id").eq("customer_id", customerId).limit(1),
       ]);
-      if (prodRes.data && prodRes.data.length > 0) setAllocatedProductIds(prodRes.data.map(d => d.product_id));
-      else setAllocatedProductIds(null);
+      setAllocatedProductIds(historyIds.size > 0 ? Array.from(historyIds) : null);
       if (agentRes.data && agentRes.data.length > 0) setAgentId(agentRes.data[0].agent_id);
       else setAgentId("");
     })();
