@@ -1087,9 +1087,10 @@ export default function PurchaseProforma() {
                         </TableCell></TableRow>
                       ) : filtered.map(order => {
                         const isPaid = order.status === "paid";
+                        const isVoided = order.status === "voided";
                         const balance = order.status === "draft" ? null : (isPaid ? 0 : Number(order.total));
                         return (
-                        <TableRow key={order.id} className={`group cursor-pointer hover:bg-muted/30 transition-colors ${isPaid ? "bg-emerald-500/5" : ""}`} data-state={selected.has(order.id) ? "selected" : undefined}>
+                        <TableRow key={order.id} className={`group cursor-pointer hover:bg-muted/30 transition-colors ${isPaid ? "bg-emerald-500/5" : ""} ${isVoided ? "opacity-50 line-through" : ""}`} data-state={selected.has(order.id) ? "selected" : undefined}>
                           <TableCell><Checkbox checked={selected.has(order.id)} onCheckedChange={() => toggleSelect(order.id)} /></TableCell>
                           <TableCell className="font-mono font-semibold text-sm" onClick={() => openPreview(order)}>{order.proforma_number}</TableCell>
                           <TableCell className="text-sm" onClick={() => openPreview(order)}>{(order.suppliers as any)?.name || "—"}</TableCell>
