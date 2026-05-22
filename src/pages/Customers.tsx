@@ -13,7 +13,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X, Store, Edit, Wallet, Shield, AlertTriangle } from "lucide-react";
+import { Plus, Search, Users, BookOpen, Trash2, Upload, Award, X, Store, Edit, Wallet, Shield, AlertTriangle, Power } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { CustomerProfileDialog } from "@/components/CustomerProfileDialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -23,7 +24,7 @@ import { AreaSelect } from "@/components/AreaSelect";
 interface Customer {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
   phone: string | null; email: string | null; address: string | null; city: string | null; area: string | null;
-  credit_limit: number; opening_balance: number; balance: number; created_at: string;
+  credit_limit: number; opening_balance: number; balance: number; created_at: string; is_active?: boolean;
 }
 
 interface License {
@@ -61,13 +62,24 @@ export default function Customers() {
   const [showLicenseForm, setShowLicenseForm] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileCustomer, setProfileCustomer] = useState<Customer | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
 
-  useEffect(() => { loadCustomers(); }, [pagination.page]);
+  useEffect(() => { loadCustomers(); }, [pagination.page, showInactive]);
 
   const loadCustomers = async () => {
-    const { data, count } = await supabase.from("customers").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
+    let q = supabase.from("customers").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (!showInactive) q = q.eq("is_active", true);
+    const { data, count } = await q.range(pagination.from, pagination.to);
     if (data) setCustomers(data);
     if (count !== null) pagination.setTotalCount(count);
+  };
+
+  const toggleActive = async (c: Customer, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { error } = await supabase.from("customers").update({ is_active: !c.is_active } as any).eq("id", c.id);
+    if (error) { toast.error("Failed: " + error.message); return; }
+    toast.success(c.is_active ? "Customer deactivated" : "Customer reactivated");
+    loadCustomers();
   };
 
   const handleSave = async () => {
@@ -249,9 +261,14 @@ export default function Customers() {
         </div>
       </div>
 
-      <div className="mb-4 relative max-w-sm search-pill">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search customers..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="mb-4 flex items-center gap-3">
+        <div className="relative max-w-sm flex-1 search-pill">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search customers..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
+          <Switch checked={showInactive} onCheckedChange={setShowInactive} /> Show inactive
+        </label>
       </div>
 
       {selectedIds.size > 0 && (
@@ -302,7 +319,7 @@ export default function Customers() {
                   </TableCell>
                 </TableRow>
               ) : filtered.map(c => (
-                <TableRow key={c.id} className="cursor-pointer table-row-hover" onClick={() => handleEdit(c)}>
+                <TableRow key={c.id} className={`cursor-pointer table-row-hover ${c.is_active === false ? "opacity-50" : ""}`} onClick={() => handleEdit(c)}>
                   <TableCell onClick={e => e.stopPropagation()}>
                     <Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
                   </TableCell>
@@ -324,6 +341,7 @@ export default function Customers() {
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/customers/${c.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setProfileCustomer(c); setProfileOpen(true); }} title="Profile & Distributors"><Store className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => openLicenses(c, e)} title="Medical Licenses"><Award className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className={`h-7 w-7 ${c.is_active === false ? "text-emerald-600" : "text-amber-600"}`} onClick={(e) => toggleActive(c, e)} title={c.is_active === false ? "Reactivate" : "Deactivate"}><Power className="h-3.5 w-3.5" /></Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
                         <AlertDialogContent>

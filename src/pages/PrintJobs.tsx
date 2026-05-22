@@ -95,9 +95,9 @@ export default function PrintJobs() {
     jobQuery = jobQuery.range(pagination.from, pagination.to);
     const [j, pr, prod, sup] = await Promise.all([
       jobQuery,
-      supabase.from("printers").select("id, name"),
-      supabase.from("products").select("id, name"),
-      supabase.from("suppliers").select("id, name").order("name"),
+      supabase.from("printers").select("id, name").eq("is_active", true),
+      supabase.from("products").select("id, name").eq("is_active", true),
+      supabase.from("suppliers").select("id, name").eq("is_active", true).order("name"),
     ]);
     if (j.data) setJobs(j.data as any);
     if (j.count !== null && j.count !== undefined) pagination.setTotalCount(j.count);
