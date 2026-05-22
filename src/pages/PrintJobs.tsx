@@ -118,11 +118,44 @@ export default function PrintJobs() {
       job_number: jobNum, printer_id: printerId, product_id: productId, date: jobDate,
       quantity_ordered: Number(qtyOrdered), cost_per_unit: Number(costPerUnit), total_cost: totalCost,
       notes: jobNotes || null, status: "draft",
-    });
+      allotted_supplier_id: allottedSupplierId || null,
+    } as any);
     if (error) { toast.error("Failed to create job"); return; }
     toast.success(`Print Job ${jobNum} created`);
-    setCreateOpen(false); setPrinterId(""); setProductId(""); setQtyOrdered(""); setCostPerUnit(""); setJobNotes(""); load();
+    setCreateOpen(false); setPrinterId(""); setProductId(""); setAllottedSupplierId(""); setQtyOrdered(""); setCostPerUnit(""); setJobNotes(""); load();
   };
+
+  const handleDispatch = async () => {
+    if (!dispatchJob) return;
+    const qty = Number(dispatchQty);
+    const supId = dispatchSupplierId || dispatchJob.allotted_supplier_id;
+    if (!qty || qty <= 0) { toast.error("Quantity required"); return; }
+    if (qty > Number(dispatchJob.quantity_at_factory)) { toast.error(`Only ${dispatchJob.quantity_at_factory} at factory`); return; }
+    if (!supId) { toast.error("Select a supplier"); return; }
+
+    const newDispatched = Number(dispatchJob.quantity_dispatched_to_supplier) + qty;
+    const { error } = await supabase.from("print_jobs").update({
+      quantity_dispatched_to_supplier: newDispatched,
+    } as any).eq("id", dispatchJob.id);
+    if (error) { toast.error("Failed to dispatch"); return; }
+
+    // Record stock movement out from factory (logical move — printed packaging leaves our floor)
+    if (dispatchJob.product_id) {
+      await supabase.from("stock_movements").insert({
+        product_id: dispatchJob.product_id,
+        movement_type: "adjustment_out",
+        quantity: qty,
+        date: dispatchDate,
+        reference_type: "print_job_dispatch",
+        reference_id: dispatchJob.id,
+        notes: `Dispatched to ${supplierNames[supId] || "supplier"} — ${dispatchJob.job_number}${dispatchNote ? `: ${dispatchNote}` : ""}`,
+      } as any);
+    }
+
+    toast.success(`${qty.toLocaleString()} pcs dispatched`);
+    setDispatchJob(null); setDispatchQty(""); setDispatchSupplierId(""); setDispatchNote(""); load();
+  };
+
 
   const handleDeliver = async () => {
     if (!deliverJob) return;
