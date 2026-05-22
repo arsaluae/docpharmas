@@ -97,18 +97,17 @@ export function SalesReturnDialog({ open, onOpenChange, invoiceId, invoiceNumber
       const { data: srNum } = await supabase.rpc("generate_document_number", { p_document_type: "sales_return" });
       if (!srNum) throw new Error("Could not generate return number");
       const subtotal = totalReturn;
-      const { data: sr, error: srErr } = await supabase.from("sales_returns" as any).insert({
+      const srRes: any = await (supabase as any).from("sales_returns").insert({
         return_number: srNum,
         customer_id: customerId,
+        invoice_id: invoiceId,
         date: new Date().toISOString().split("T")[0],
-        subtotal,
-        gst: 0,
         total: subtotal,
         reason,
-        reference_invoice_id: invoiceId,
-      } as any).select("id").single();
-      if (srErr || !sr) throw new Error(srErr?.message || "Return create failed");
-      const returnId = (sr as any).id;
+        status: "active",
+      }).select("id").single();
+      if (srRes.error || !srRes.data) throw new Error(srRes.error?.message || "Return create failed");
+      const returnId = srRes.data.id;
 
       const itemsPayload = lines.filter(l => l.return_qty > 0).map(l => ({
         return_id: returnId,
@@ -118,8 +117,8 @@ export function SalesReturnDialog({ open, onOpenChange, invoiceId, invoiceNumber
         amount: l.amount,
         batch_number: l.batch_number,
       }));
-      const { error: itemsErr } = await supabase.from("sales_return_items" as any).insert(itemsPayload);
-      if (itemsErr) throw new Error(itemsErr.message);
+      const itemsRes: any = await (supabase as any).from("sales_return_items").insert(itemsPayload);
+      if (itemsRes.error) throw new Error(itemsRes.error.message);
 
       // Stock back in
       for (const l of lines.filter(l => l.return_qty > 0 && l.product_id)) {
