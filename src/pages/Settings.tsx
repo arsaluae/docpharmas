@@ -207,6 +207,11 @@ export default function Settings() {
             <TabsTrigger value="templates">
               <FileText className="h-4 w-4 mr-1" /> Document Templates
             </TabsTrigger>
+            {tenantRole === "owner" && (
+              <TabsTrigger value="team">
+                <Users className="h-4 w-4 mr-1" /> Team & Access
+              </TabsTrigger>
+            )}
             <TabsTrigger value="backup">
               <Database className="h-4 w-4 mr-1" /> Data Backup
             </TabsTrigger>
