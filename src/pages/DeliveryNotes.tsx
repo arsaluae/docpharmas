@@ -144,10 +144,18 @@ export default function DeliveryNotes() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative max-w-sm flex-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative max-w-sm flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search delivery notes..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <div className="flex items-center gap-1 rounded-xl bg-muted/40 backdrop-blur-sm p-1 border border-border/30">
+            {["all", ...courierOptions].map(c => (
+              <button key={c} onClick={() => setCourierFilter(c)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize ${courierFilter === c ? "bg-gradient-to-br from-primary/10 to-primary/5 text-primary shadow-sm border border-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
+                {c === "all" ? "All Couriers" : c}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -157,7 +165,7 @@ export default function DeliveryNotes() {
               <TableHeader>
                 <TableRow>
                   <TableHead><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                   <TableHead>DN #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Type</TableHead>
+                   <TableHead>DN #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Courier</TableHead><TableHead>Type</TableHead>
                    <TableHead>Status</TableHead><TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
