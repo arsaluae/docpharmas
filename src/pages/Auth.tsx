@@ -146,6 +146,21 @@ export default function Auth() {
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
+            ) : resetSent ? (
+              <div>
+                <h2 className="mb-1.5">Check your inbox</h2>
+                <p className="text-[13px] mouj-muted mb-7">
+                  We've sent a password reset link to <span className="text-foreground/90 font-medium">{email}</span>.
+                  The link expires in 1 hour. Don't see it? Check your spam folder.
+                </p>
+                <button
+                  onClick={() => { setResetSent(false); setMode("login"); setPassword(""); }}
+                  className="mouj-cta"
+                >
+                  Back to sign in
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
             ) : (
               <>
                 <h2 className="mb-1.5">{titleMap[mode]}</h2>
