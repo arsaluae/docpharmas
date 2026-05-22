@@ -171,7 +171,7 @@ export default function DeliveryNotes() {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                  <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                     <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
                     <p>No delivery notes yet.</p>
                     <p className="text-xs mt-1">Submit a Sales Order to auto-generate delivery notes.</p>
@@ -182,6 +182,11 @@ export default function DeliveryNotes() {
                     <TableCell className="font-medium font-mono" onClick={() => openDetail(dn)}>{dn.dn_number}</TableCell>
                     <TableCell className="text-muted-foreground" onClick={() => openDetail(dn)}>{dn.date}</TableCell>
                     <TableCell className="text-muted-foreground" onClick={() => openDetail(dn)}>{(dn as any).customers?.name || (dn as any).suppliers?.name || "—"}</TableCell>
+                    <TableCell onClick={() => openDetail(dn)}>
+                      {dn.delivery_type_label ? (
+                        <Badge variant="outline" className={`text-[10px] font-semibold ${courierColor(dn.delivery_type_label)}`}>{dn.delivery_type_label}</Badge>
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
+                    </TableCell>
                     <TableCell className="capitalize" onClick={() => openDetail(dn)}>{dn.reference_type.replace("_", " ")}</TableCell>
                     <TableCell onClick={() => openDetail(dn)}>
                       <Badge variant="outline" className={`text-[10px] font-semibold ${dn.status === "delivered" ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20" : "bg-amber-500/15 text-amber-600 border-amber-500/20"}`}>
