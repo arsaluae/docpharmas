@@ -9,9 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   TrendingUp, TrendingDown, CalendarDays, ShoppingCart,
   FileText, CreditCard, Shield, Wallet,
-  PackageCheck, Flame, Users, AlertTriangle, MessageCircle, Brain,
+  PackageCheck, Flame, Users, AlertTriangle, MessageCircle,
   Package, Printer, Receipt, Landmark, ArrowRightLeft, RotateCcw,
-  CircleDollarSign, Clock, Sparkles, Truck,
+  CircleDollarSign, Clock, Truck,
 } from "lucide-react";
 import { WeekSalesDialog, MonthSalesDialog, GrossMarginDialog, UpcomingOrdersDialog } from "@/components/dashboard/KpiDialogs";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -187,15 +187,17 @@ export default function Index() {
     }
 
     let totalCost = 0;
+    let totalItemRevenue = 0;
     const prodQtyMonth: Record<string, number> = {};
     monthItemsData.forEach(item => {
       if (item.product_id) {
         const cost = prodMap[item.product_id]?.cost || 0;
         totalCost += Number(item.quantity) * cost;
+        totalItemRevenue += Number(item.amount);
         prodQtyMonth[item.product_id] = (prodQtyMonth[item.product_id] || 0) + Number(item.quantity);
       }
     });
-    setGrossMargin(ms - totalCost);
+    setGrossMargin(totalItemRevenue - totalCost);
 
     const topSell = Object.entries(prodQtyMonth)
       .map(([id, qty]) => ({ name: prodMap[id]?.name || "Unknown", qty }))
@@ -304,7 +306,6 @@ export default function Index() {
       icon: TrendingUp,
       iconColor: "text-primary",
       iconBg: "bg-primary/10",
-      glowColor: "shadow-[0_0_20px_hsl(199,89%,48%,0.12)]",
     },
     {
       label: "This Month",
@@ -312,7 +313,6 @@ export default function Index() {
       icon: CalendarDays,
       iconColor: "text-emerald-600",
       iconBg: "bg-emerald-500/10",
-      glowColor: "shadow-[0_0_20px_hsl(160,84%,39%,0.12)]",
       extra: lastMonthSales > 0 ? (
         <p className={`text-[10px] mt-1 font-mono flex items-center gap-1 ${monthGrowth >= 0 ? "text-emerald-600" : "text-destructive"}`}>
           {monthGrowth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -326,8 +326,7 @@ export default function Index() {
       icon: CircleDollarSign,
       iconColor: grossMargin >= 0 ? "text-primary" : "text-destructive",
       iconBg: grossMargin >= 0 ? "bg-primary/10" : "bg-destructive/10",
-      glowColor: grossMargin >= 0 ? "shadow-[0_0_20px_hsl(199,89%,48%,0.12)]" : "shadow-[0_0_20px_hsl(0,72%,51%,0.12)]",
-      extra: <p className="text-[10px] text-muted-foreground mt-0.5">Sale − Cost Price</p>,
+      extra: <p className="text-[10px] text-muted-foreground mt-0.5">Revenue − COGS (item level)</p>,
     },
     {
       label: "Upcoming Orders",
@@ -335,7 +334,6 @@ export default function Index() {
       icon: Truck,
       iconColor: "text-amber-600",
       iconBg: "bg-amber-500/10",
-      glowColor: "",
       displayOverride: upcomingPoCount === 0 ? "None" : undefined,
       extra: upcomingPoCount > 0 ? (
         <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
@@ -358,8 +356,7 @@ export default function Index() {
         <div className="mesh-hero p-5 sm:p-7">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-primary/60 mb-1 flex items-center gap-2">
-                <Sparkles className="h-3.5 w-3.5" />
+              <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-primary/60 mb-1">
                 {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
               </p>
               <h2 className="text-xl sm:text-2xl font-bold font-heading text-foreground">
@@ -427,7 +424,7 @@ export default function Index() {
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                   <YAxis hide />
                   <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)" }}
+                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "hsl(var(--card))" }}
                     formatter={(value: number) => [`PKR ${value.toLocaleString()}`, "Sales"]}
                   />
                   <Area type="monotone" dataKey="amount" stroke="hsl(199, 89%, 48%)" strokeWidth={2} fill="url(#salesGrad)" />
@@ -480,7 +477,7 @@ export default function Index() {
                   <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
                   <YAxis hide />
                   <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "rgba(255,255,255,0.9)" }}
+                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "hsl(var(--card))" }}
                     formatter={(value: number) => [`PKR ${value.toLocaleString()}`, "Sales"]}
                   />
                   <Bar dataKey="sales" radius={[8, 8, 0, 0]} fill="url(#barGrad)" barSize={60} />
@@ -517,7 +514,7 @@ export default function Index() {
                         ))}
                       </Pie>
                       <Tooltip
-                        contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "rgba(255,255,255,0.9)" }}
+                        contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "hsl(var(--card))" }}
                         formatter={(value: number) => [`PKR ${value.toLocaleString()}`, ""]}
                       />
                     </PieChart>
@@ -626,7 +623,7 @@ export default function Index() {
                         <Cell fill="hsl(0, 72%, 51%)" />
                       </Pie>
                       <Tooltip
-                        contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "rgba(255,255,255,0.9)" }}
+                        contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "hsl(var(--card))" }}
                         formatter={(value: number) => [`PKR ${value.toLocaleString()}`, ""]}
                       />
                     </PieChart>
@@ -776,22 +773,6 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        {/* AI Insights CTA */}
-        <div className="ai-cta-card cursor-pointer press-scale" onClick={() => navigate("/insights")}>
-          <div className="flex items-center gap-5 p-5 sm:p-6">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-violet-500/20 to-primary/10 shadow-sm">
-              <Brain className="h-6 w-6 text-violet-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-bold text-foreground font-heading flex items-center gap-2">
-                AI Business Insights
-                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest rounded-full bg-violet-500/10 text-violet-600">Beta</span>
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Demand forecasting, reorder alerts, margin analysis & more</p>
-            </div>
-            <span className="text-xs font-bold text-primary hidden sm:block">View Insights →</span>
-          </div>
-        </div>
       </div>
     </AppLayout>
   );

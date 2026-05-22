@@ -126,17 +126,11 @@
 @layer components {
   /* ──────────────── GLASS CARDS ──────────────── */
   .glass-card {
-    @apply bg-card border border-border/60 rounded-xl;
-    box-shadow: 
-      0 1px 3px rgba(0, 0, 0, 0.04),
-      0 4px 16px rgba(0, 0, 0, 0.06);
+    @apply bg-card border border-border rounded-lg;
   }
 
   .glass-card-glow {
     @apply glass-card;
-    box-shadow: 
-      0 1px 3px rgba(0, 0, 0, 0.04),
-      0 4px 20px rgba(0, 0, 0, 0.08);
   }
 
   /* ──────────────── PREMIUM KPI CARD ──────────────── */
@@ -199,24 +193,22 @@
     box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 hsl(var(--foreground) / 0.04);
   }
 
-  /* ──────────────── FROSTED HEADER ──────────────── */
+  /* ──────────────── FLAT HEADER ──────────────── */
   .frosted-header {
-    background: hsl(var(--background) / 0.78);
-    backdrop-filter: blur(18px) saturate(1.4);
-    border-bottom: 1px solid hsl(var(--border) / 0.6);
+    background: hsl(var(--background));
+    border-bottom: 1px solid hsl(var(--border));
   }
   .dark .frosted-header {
-    background: hsl(var(--background) / 0.85);
-    border-bottom: 1px solid hsl(var(--border) / 0.5);
+    background: hsl(var(--background));
+    border-bottom: 1px solid hsl(var(--border));
   }
 
   /* ──────────────── SEARCH PILL ──────────────── */
   .search-pill {
-    @apply rounded-full border border-border/60 bg-card transition-all duration-200;
+    @apply rounded-md border border-border bg-card transition-colors;
   }
   .search-pill:focus-within {
-    @apply border-primary/40;
-    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
+    @apply border-primary;
   }
 
   /* ──────────────── TABLE STYLING ──────────────── */
@@ -249,10 +241,8 @@
   .status-critical { @apply status-pill bg-destructive/10 text-destructive; }
   .status-completed { @apply status-pill bg-muted text-muted-foreground; }
 
-  /* ──────────────── GLOW & GRADIENTS ──────────────── */
-  .glow-primary {
-    box-shadow: 0 0 16px hsl(var(--primary) / 0.25);
-  }
+  /* glow-primary removed — flat design */
+  .glow-primary { /* no-op */ }
 
   .pharma-gradient-header {
     background: linear-gradient(135deg,

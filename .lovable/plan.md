@@ -1,121 +1,73 @@
-## Goals
+# Plan — Flatten, Signup, GP Fix, Data Integrity
 
-Six focused enhancements:
+## 1. Strip remaining glass/blur/glow
 
-1. Strip remaining glass/blur/glow from Sidebar + Auth → truly flat.
-2. Sidebar brand: replace logo image with "MOUJ PHARMA" wordmark.
-3. Add "Legacy ERP Import" flow (import historical data from old ERP).
-4. Dashboard: clickable KPIs with detail popups (This Week, This Month, Gross Margin).
-5. Replace "Overdue Invoices" KPI with "Upcoming Orders" (Purchase Orders), clickable.
-6. Light polish pass on dashboard UI/UX.
+**`src/index.css`**
+- Remove the `.glass-card-glow`, `.glow-primary`, and `pharma-gradient-header` classes (or collapse `.glass-card-glow` to alias `.glass-card`).
+- Replace `.frosted-header` (uses `backdrop-filter: blur(18px)`) with a flat `background: hsl(var(--background)); border-bottom: 1px solid hsl(var(--border));` so the top bar matches the flat Midnight Indigo language.
+- Remove `box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15)` halo on `.search-pill:focus-within` → 1px border only.
+- Confirm `.mouj-dark-sidebar` and `.mouj-dark-auth` blocks contain zero `backdrop-filter`, `blur`, or soft glow shadows (already clean — verify line-by-line).
 
----
+**`src/pages/Index.tsx`**
+- Remove the lingering `glowColor` shadow strings on KPI cards.
+- Replace tooltip `backdropFilter: "blur(8px)"` strings in Recharts `contentStyle` with solid `background: hsl(var(--card))` + 1px border (3 occurrences).
 
-## 1. Strip remaining glass/blur/glow (Sidebar + Auth)
+## 2. Remove AI icons / AI Insights surfaces from the dashboard
 
-Audit `src/components/AppSidebar.tsx`, `src/pages/Auth.tsx`, and the `.mouj-dark-sidebar` / `.mouj-dark-auth` blocks in `src/index.css`. Remove any residual:
-- `backdrop-blur-*`, `bg-*/40`, `bg-*/60` translucent fills
-- `shadow-*`, `glow-*`, `mesh-*`, `glass-*` utilities
-- gradient utilities on rows, buttons, avatar
-- soft 3px focus halos on inputs
+**`src/pages/Index.tsx`**
+- Delete the entire "AI Insights CTA" block at the bottom (`Brain` icon card linking to `/insights`).
+- Remove the `Sparkles` icon from the hero greeting line (keep date text only).
+- Drop the unused `Brain`, `Sparkles` imports from lucide.
 
-Replace with solid `#0A0A1A` / `#141432` fills, 1px `#1F1F3D` borders, 1px focus ring `#4F46E5`.
+(Leave the `/insights` route + AIInsights page intact — only the dashboard surface is cleaned, since user said "I don't want AI icons in this".)
 
-## 2. Sidebar wordmark
+## 3. Fix Gross Margin calculation
 
-In `AppSidebar.tsx`, replace the `<img src={moujLogo}>` in `.mouj-brand` with:
+Current bug: `setGrossMargin(monthSales − totalCost)` mixes invoice-header `subtotal` (which may include discounts/rounding) with item-level COGS. Fix to derive **both** sides from `sales_invoice_items`:
+
 ```
-<span className="mouj-wordmark">MOUJ PHARMA</span>
+GP = Σ(item.amount)  −  Σ(item.quantity × product.cost_price)
+GP% = GP / Σ(item.amount)
 ```
-Style in `index.css` scoped block — Sora 600, 14px, letter-spacing 0.14em, color `#EDEDF5`. Collapsed state shows just "M".
 
-Auth page keeps the wordmark too (drop the image entirely, keep visual hierarchy with a larger 22px wordmark above "Welcome back").
+- Update the items loop in `loadDashboard` to also sum `Number(item.amount)` into `totalRevenue`, then `setGrossMargin(totalRevenue − totalCost)`.
+- Mirror the same formula inside `GrossMarginDialog` (already correct — verify and add a tiny "Sum of item revenue – (qty × cost_price)" footnote so the number reconciles with the KPI).
+- KPI subtitle: change "Sale − Cost Price" to "Revenue − COGS (item level)".
 
-## 3. Legacy ERP Import
+## 4. Working Signup flow
 
-Extend the existing `src/pages/DataImport.tsx` (already handles customers / suppliers / products / inventory via XLSX with alias mapping) with a new top-level mode **"Legacy ERP"** alongside the current entity tabs.
+**`src/pages/Auth.tsx`** — add a third mode `"signup"` alongside `login`/`forgot`:
 
-New tabs inside Legacy ERP mode:
-- **Sales Invoices** — headers + items in two sheets (or single sheet with invoice_number grouping)
-- **Purchase Bills** — same shape
-- **Payments Received / Made**
-- **Opening Balances** (customer/supplier outstanding ledger)
+Fields: Company Name, Email, Phone (optional), Password (min 6).
 
-Implementation:
-- Reuse the existing alias-mapping engine and preview/validation table.
-- Add per-tab column maps + INSERT logic into `sales_invoices` + `sales_invoice_items`, `purchase_*`, `payments`, with `is_imported = true` flag and `imported_from` text column.
-- Skip stock movements + GL postings for imported rows (treat as historical balances only) to avoid double-counting.
-- Provide a downloadable XLSX template per tab (matches what most PK pharma ERPs export).
+Flow:
+1. `supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + "/auth", data: { company_name } } })`.
+2. On success, call edge function:
+   `supabase.functions.invoke("manage-tenant", { body: { action: "create_pending_signup", user_id: data.user.id, email, company_name, phone } })`.
+3. Show a flat success card: "Account created — pending approval. You'll receive an email once activated." then switch back to `login` mode.
+4. Add "Create account" / "Already have an account?" links under the form.
 
-DB change: one migration adding `is_imported boolean default false` + `imported_from text` to `sales_invoices`, `purchase_invoices`, `payments`. No RLS changes needed (inherits tenant policies).
+No DB changes — `pending_signups` table + edge function already exist. Do **not** enable auto-confirm email; users go through the normal confirmation + admin approval path.
 
-Add a banner in Dashboard / Settings: "Migrating from another ERP? → Import legacy data" linking to `/import?mode=legacy`.
+## 5. Data-integrity audit (no data loss)
 
-## 4. Dashboard KPI popups
+Targeted review + fixes on the write paths most likely to drop data:
 
-Make each of the four KPI cards a button that opens a `Dialog`.
+a. **Sales invoice + items** (`ProformaInvoices.tsx`): wrap the parent insert + items insert so that if items insert fails we delete the orphan header. Add `await` checks on every step and toast.error + early-return on any error (currently a couple of paths swallow errors silently).
+b. **Purchase invoice + items** (`PurchaseProforma.tsx`): same pattern.
+c. **Payment + invoice_id allocation** (`Payments.tsx`): confirm `invoice_id` is persisted when an invoice is selected (so `recalc_*_invoice_status` triggers work). Surface any insert error to the user.
+d. **Stock movements**: confirm every `purchase_in` / `sale_out` insert provides `product_id`, `quantity`, `movement_type`, `date`, and a reference (`reference_type`, `reference_id`) so reversals are possible. Add a missing-field guard.
+e. **Document numbers**: ensure every create flow calls `generate_document_number(...)` before insert (no client-generated numbers) so counters stay monotonic.
+f. **Optimistic UI**: any place that calls `setState(prev → remove row)` before the await resolves should move the state update into the `.then` to prevent perceived data loss on failure.
 
-**This Week → `WeekSalesDialog`**
-- Lists this week's `sales_invoices`: columns Invoice #, Date, Customer, Amount.
-- Row click → `navigate('/proforma?open=<invoice_id>')` (ProformaInvoices already supports opening a specific invoice; if not, add a `useEffect` watching `?open=` to auto-open the detail dialog).
-- Footer: total + count.
+Each of the six files gets the same minimal hardening; no schema changes required.
 
-**This Month → `MonthSalesDialog`**
-- Same shape, scoped to current month, with a small day-by-day sparkline at top.
+## Files touched
 
-**Gross Margin → `GrossMarginDialog`**
-- Per-product breakdown for the month: Product, Qty Sold, Revenue, COGS, GP, GP %.
-- Sorted by GP desc; footer totals; small donut (Revenue vs COGS vs GP).
-- Reuses data already fetched in `loadDashboard` (`monthItemsData` + `prodMap`) — lift into state so dialog can consume.
+- `src/index.css` — remove glow/blur utilities, flatten frosted-header + search-pill focus.
+- `src/pages/Index.tsx` — remove AI/Sparkles, fix GP math, drop blur tooltip styles.
+- `src/components/dashboard/KpiDialogs.tsx` — minor GP footnote.
+- `src/pages/Auth.tsx` — add signup mode + handlers.
+- `src/pages/ProformaInvoices.tsx`, `src/pages/PurchaseProforma.tsx`, `src/pages/Payments.tsx` — atomic write guards + error surfacing.
 
-**Upcoming Orders → `UpcomingOrdersDialog`** (replaces Overdue)
-- Lists open `purchase_invoices` where `status IN ('draft','ordered','confirmed')` and `expected_date >= today` (or just status-based if no expected_date), ordered by date asc.
-- Columns: PO #, Supplier, Expected Date, Items (truncated), Amount, Status badge.
-- Row click → `/purchase-proforma?open=<id>`.
-- KPI card front shows: count + total value of upcoming POs.
-
-All four dialogs styled as flat cards (match new design language): solid `bg-card`, 1px border, no glass.
-
-## 5. Replace Overdue KPI
-
-In `Index.tsx`:
-- Remove `overdueCount` / `overdueAmount` state + the overdue query.
-- Add `upcomingOrdersCount` / `upcomingOrdersValue` + matching query.
-- Replace the 4th `kpiCards` entry: label "Upcoming Orders", icon `Truck`, value = total PKR value, extra line = "N orders pending".
-
-## 6. UI/UX polish pass (dashboard only)
-
-Tasteful, conservative — no theme rewrite:
-- Tighten KPI card padding (p-5 → p-4), unify icon-bg to solid tint (drop gradient + glow shadows), add hover-lift `translate-y-[-1px]` + 1px border color shift to signal clickability.
-- Mesh-hero: keep gradient but reduce intensity (lower opacity layer), tighten to p-5.
-- Stagger-fade-up entrance already exists — keep.
-- Quick action grid: collapse the 8 rainbow gradients into a single subdued palette (slate / primary with a single accent icon color per tile) for a calmer, more professional look.
-- Section headers: consistent 13px uppercase tracked label + 1px hairline underline.
-- Tables inside dialogs: zebra rows off, 1px hairline rows, right-aligned numerics, mono font for amounts.
-
----
-
-## Technical notes
-
-**Files to edit**
-- `src/components/AppSidebar.tsx` — wordmark, strip residuals
-- `src/pages/Auth.tsx` — wordmark, strip residuals
-- `src/index.css` — `.mouj-wordmark`, scrub remaining glass utilities in scoped blocks
-- `src/pages/Index.tsx` — KPI refactor, dialog wiring, upcoming orders query
-- `src/components/dashboard/WeekSalesDialog.tsx` *(new)*
-- `src/components/dashboard/MonthSalesDialog.tsx` *(new)*
-- `src/components/dashboard/GrossMarginDialog.tsx` *(new)*
-- `src/components/dashboard/UpcomingOrdersDialog.tsx` *(new)*
-- `src/pages/DataImport.tsx` — Legacy ERP mode + new tabs + insert logic
-- `src/pages/ProformaInvoices.tsx` + `src/pages/PurchaseProforma.tsx` — honor `?open=<id>` query param to auto-open detail
-- `src/assets/mouj-logo.png` — no longer referenced (leave on disk)
-
-**Database**
-- One migration: add `is_imported boolean default false` and `imported_from text` to `sales_invoices`, `purchase_invoices`, `payments`. No data backfill needed.
-
-**Out of scope**
-- No changes to root `:root` tokens or `tailwind.config.ts`
-- No changes to PDF templates, reports, or other pages
-- No theme overhaul beyond the dashboard polish bullets above
-
-After implementation I'll screenshot Sidebar + Auth + Dashboard to confirm the flat look and that KPI dialogs open and route correctly.
+No database migrations. No new dependencies.
