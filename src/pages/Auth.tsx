@@ -239,6 +239,19 @@ export default function Auth() {
                     </div>
                   )}
 
+                  {mode === "login" && failedAttempts >= 2 && (
+                    <div className="text-[12px] mouj-muted -mt-1 px-0.5">
+                      Trouble signing in?{" "}
+                      <button
+                        type="button"
+                        onClick={() => { setFailedAttempts(0); setMode("forgot"); }}
+                        className="mouj-link"
+                      >
+                        Reset your password →
+                      </button>
+                    </div>
+                  )}
+
                   {mode === "forgot" && (
                     <div className="flex justify-end">
                       <button type="button" onClick={() => setMode("login")} className="mouj-link">
