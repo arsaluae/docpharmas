@@ -22,11 +22,13 @@ interface DeliveryNote {
   id: string; dn_number: string; date: string; reference_type: string;
   reference_id: string; customer_id: string | null; supplier_id: string | null;
   items: any; notes: string | null; status: string; created_at: string;
+  freight_provider_id?: string | null; delivery_type_label?: string | null;
 }
 
 export default function DeliveryNotes() {
   const [notes, setNotes] = useState<DeliveryNote[]>([]);
   const [search, setSearch] = useState("");
+  const [courierFilter, setCourierFilter] = useState<string>("all");
   const pagination = usePagination();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { settings } = useCompanySettings();
@@ -71,7 +73,20 @@ export default function DeliveryNotes() {
     setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
   };
 
-  const filtered = notes.filter(n => n.dn_number.toLowerCase().includes(search.toLowerCase()));
+  const filtered = notes.filter(n => {
+    const matchSearch = n.dn_number.toLowerCase().includes(search.toLowerCase());
+    const matchCourier = courierFilter === "all" || (n.delivery_type_label || "").toLowerCase() === courierFilter.toLowerCase();
+    return matchSearch && matchCourier;
+  });
+  const courierOptions = Array.from(new Set(notes.map(n => n.delivery_type_label).filter(Boolean))) as string[];
+  const courierColor = (label?: string | null) => {
+    if (!label) return "bg-muted text-muted-foreground border-border";
+    const l = label.toLowerCase();
+    if (l.includes("ncc")) return "bg-blue-500/15 text-blue-600 border-blue-500/30";
+    if (l.includes("adda")) return "bg-orange-500/15 text-orange-600 border-orange-500/30";
+    if (l.includes("self")) return "bg-emerald-500/15 text-emerald-600 border-emerald-500/30";
+    return "bg-violet-500/15 text-violet-600 border-violet-500/30";
+  };
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(n => n.id)));
 
@@ -129,10 +144,18 @@ export default function DeliveryNotes() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative max-w-sm flex-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative max-w-sm flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search delivery notes..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <div className="flex items-center gap-1 rounded-xl bg-muted/40 backdrop-blur-sm p-1 border border-border/30">
+            {["all", ...courierOptions].map(c => (
+              <button key={c} onClick={() => setCourierFilter(c)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize ${courierFilter === c ? "bg-gradient-to-br from-primary/10 to-primary/5 text-primary shadow-sm border border-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
+                {c === "all" ? "All Couriers" : c}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -142,13 +165,13 @@ export default function DeliveryNotes() {
               <TableHeader>
                 <TableRow>
                   <TableHead><Checkbox checked={filtered.length > 0 && selected.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
-                   <TableHead>DN #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Type</TableHead>
+                   <TableHead>DN #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Courier</TableHead><TableHead>Type</TableHead>
                    <TableHead>Status</TableHead><TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                  <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                     <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
                     <p>No delivery notes yet.</p>
                     <p className="text-xs mt-1">Submit a Sales Order to auto-generate delivery notes.</p>
@@ -159,6 +182,11 @@ export default function DeliveryNotes() {
                     <TableCell className="font-medium font-mono" onClick={() => openDetail(dn)}>{dn.dn_number}</TableCell>
                     <TableCell className="text-muted-foreground" onClick={() => openDetail(dn)}>{dn.date}</TableCell>
                     <TableCell className="text-muted-foreground" onClick={() => openDetail(dn)}>{(dn as any).customers?.name || (dn as any).suppliers?.name || "—"}</TableCell>
+                    <TableCell onClick={() => openDetail(dn)}>
+                      {dn.delivery_type_label ? (
+                        <Badge variant="outline" className={`text-[10px] font-semibold ${courierColor(dn.delivery_type_label)}`}>{dn.delivery_type_label}</Badge>
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
+                    </TableCell>
                     <TableCell className="capitalize" onClick={() => openDetail(dn)}>{dn.reference_type.replace("_", " ")}</TableCell>
                     <TableCell onClick={() => openDetail(dn)}>
                       <Badge variant="outline" className={`text-[10px] font-semibold ${dn.status === "delivered" ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20" : "bg-amber-500/15 text-amber-600 border-amber-500/20"}`}>

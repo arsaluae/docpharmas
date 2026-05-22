@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useDocumentTemplates, DocumentTemplate } from "@/hooks/useDocumentTemplates";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as XLSX from "xlsx";
+import { FreightProvidersCard } from "@/components/settings/FreightProvidersCard";
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   sales_invoice: "Sales Invoice / Sales Order",
@@ -266,6 +267,10 @@ export default function Settings() {
                 </div>
               </CardContent>
             </Card>
+
+            <FreightProvidersCard />
+
+
 
             <Card className="glass-card">
               <CardHeader><CardTitle className="text-lg">Tax Configuration</CardTitle></CardHeader>

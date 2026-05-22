@@ -624,14 +624,23 @@ export default function ProformaInvoices() {
   // ── SUBMIT (Convert to Invoice) ──
   const openSubmitDialog = async (order: SalesOrder) => {
     setSubmitOrder(order);
+    setFreightProviderId(""); // reset courier selection each time
     const pfItems: ProformaItem[] = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
     const productIds = pfItems.filter(i => i.product_id).map(i => i.product_id);
     const batches: Record<string, BatchOption[]> = {};
 
     if (productIds.length > 0) {
+      // Pull stock movements
       const { data: movements } = await supabase.from("stock_movements").select("product_id, batch_number, quantity, movement_type, date").in("product_id", productIds);
+      // Pull expiry dates from GRN items in one shot
+      const { data: grnRows } = await supabase.from("grn_items").select("product_id, batch_number, expiry_date").in("product_id", productIds);
+      const expiryMap: Record<string, string> = {};
+      (grnRows || []).forEach((g: any) => {
+        if (g.batch_number && g.expiry_date) expiryMap[`${g.product_id}__${g.batch_number}`] = g.expiry_date;
+      });
+
       if (movements) {
-        const batchMap: Record<string, { qty: number; expiry?: string }> = {};
+        const batchMap: Record<string, { qty: number }> = {};
         movements.forEach((m: any) => {
           const key = `${m.product_id}__${m.batch_number || "no-batch"}`;
           if (!batchMap[key]) batchMap[key] = { qty: 0 };
@@ -643,7 +652,17 @@ export default function ProformaInvoices() {
         for (const [key, info] of Object.entries(batchMap)) {
           const [pid, batch] = key.split("__");
           if (!batches[pid]) batches[pid] = [];
-          if (info.qty > 0 && batch !== "no-batch") batches[pid].push({ batch_number: batch, available: info.qty });
+          if (info.qty > 0 && batch !== "no-batch") {
+            batches[pid].push({ batch_number: batch, available: info.qty, expiry_date: expiryMap[`${pid}__${batch}`] || null });
+          }
+        }
+        // Sort FEFO (earliest expiry first)
+        for (const pid of Object.keys(batches)) {
+          batches[pid].sort((a, b) => {
+            if (!a.expiry_date) return 1;
+            if (!b.expiry_date) return -1;
+            return a.expiry_date.localeCompare(b.expiry_date);
+          });
         }
       }
     }
@@ -863,16 +882,16 @@ export default function ProformaInvoices() {
   ).map(p => ({ value: p.id, label: p.name }));
 
   return (
-    <AppLayout title="Sales Invoices" subtitle="Create invoices → confirm with batch → auto invoice + delivery note"
+    <AppLayout title="Sales Orders" subtitle="Create order → assign batches → auto-generate Invoice + Delivery Note"
       headerActions={
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:scale-[1.02] transition-all">
-              <Plus className="h-4 w-4" /> New Order
+              <Plus className="h-4 w-4" /> Create Sales Order
             </Button>
           </DialogTrigger>
            <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle className="font-heading">Create Sales Invoice</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="font-heading">Create Sales Order</DialogTitle></DialogHeader>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
               <div>
                 <Label className="text-xs font-medium text-muted-foreground">Customer *</Label>
@@ -897,32 +916,62 @@ export default function ProformaInvoices() {
               <Label className="text-sm font-semibold">Items</Label>
               <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
             </div>
-            {items.map((item, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
-                <div className="col-span-3">
-                  <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
-                </div>
-                <div className="col-span-1"><Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
-                <div className="col-span-2 relative">
-                  <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
-                  {item.last_price !== undefined && item.last_price !== null && (
-                    <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number(item.last_price).toLocaleString()}</span>
-                  )}
-                </div>
-                <div className="col-span-1"><Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="text-xs" placeholder="Disc%" /></div>
-                {settings?.gst_enabled && <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" placeholder="GST%" /></div>}
-                <div className={`${settings?.gst_enabled ? "col-span-3" : "col-span-4"} text-right text-sm font-mono pt-2 text-foreground`}>{item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}</div>
-                <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
+
+            <div className="rounded-xl border border-border overflow-hidden bg-card/50">
+              <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="col-span-4">Product</div>
+                <div className="col-span-2 text-right">Quantity</div>
+                <div className="col-span-2 text-right">Price (PKR)</div>
+                <div className="col-span-1 text-right">Disc%</div>
+                {settings?.gst_enabled && <div className="col-span-1 text-right">GST%</div>}
+                <div className={`${settings?.gst_enabled ? "col-span-1" : "col-span-2"} text-right`}>Total</div>
+                <div className="col-span-1"></div>
               </div>
-            ))}
-            <Separator className="my-3" />
-            <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
-              {settings?.gst_enabled && <div className="flex justify-between text-muted-foreground"><span>GST</span><span className="font-mono">{gst.toLocaleString()}</span></div>}
-              <div className="flex justify-between font-bold text-foreground text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
+              {items.length === 0 ? (
+                <div className="px-3 py-6 text-center text-xs text-muted-foreground">No items yet — click "Add Item" to begin</div>
+              ) : items.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 px-3 py-2 items-center border-t border-border/60 hover:bg-muted/20">
+                  <div className="col-span-4">
+                    <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Select product…" triggerClassName="text-xs h-9" />
+                  </div>
+                  <div className="col-span-2">
+                    <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs text-right h-9" placeholder="0" />
+                  </div>
+                  <div className="col-span-2 relative">
+                    <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs text-right h-9" placeholder="0.00" />
+                    {item.last_price !== undefined && item.last_price !== null && (
+                      <span className="absolute -bottom-3.5 left-0 text-[9px] text-emerald-600 font-medium">Last: {Number(item.last_price).toLocaleString()}</span>
+                    )}
+                  </div>
+                  <div className="col-span-1">
+                    <Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="text-xs text-right h-9" placeholder="0" />
+                  </div>
+                  {settings?.gst_enabled && (
+                    <div className="col-span-1">
+                      <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs text-right h-9" placeholder="17" />
+                    </div>
+                  )}
+                  <div className={`${settings?.gst_enabled ? "col-span-1" : "col-span-2"} text-right text-sm font-mono font-semibold text-foreground`}>
+                    {item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {items.length > 0 && (
+                <div className="px-3 py-2.5 bg-muted/30 border-t border-border space-y-1 text-sm">
+                  <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
+                  {settings?.gst_enabled && <div className="flex justify-between text-muted-foreground"><span>GST</span><span className="font-mono">{gst.toLocaleString()}</span></div>}
+                  <div className="flex justify-between font-bold text-foreground text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
+                </div>
+              )}
             </div>
+
             <Button onClick={handleSave} disabled={saving} className="w-full mt-4 h-11 text-sm font-semibold">
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Sales Invoice
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Sales Order
             </Button>
           </DialogContent>
         </Dialog>
@@ -1002,8 +1051,8 @@ export default function ProformaInvoices() {
                         <TableRow>
                           <TableCell colSpan={9} className="text-center py-16">
                             <FilePlus className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-                            <p className="text-muted-foreground font-medium">No sales invoices yet</p>
-                            <p className="text-xs text-muted-foreground mt-1">Click "New Order" to create your first sales invoice</p>
+                            <p className="text-muted-foreground font-medium">No sales orders yet</p>
+                            <p className="text-xs text-muted-foreground mt-1">Click "Create Sales Order" to get started</p>
                           </TableCell>
                         </TableRow>
                       ) : filtered.map(order => {
@@ -1075,6 +1124,11 @@ export default function ProformaInvoices() {
                                   {order.status === "draft" && (
                                     <DropdownMenuItem onClick={() => openEditSheet(order)}>
                                       <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
+                                    </DropdownMenuItem>
+                                  )}
+                                  {order.converted_invoice_id && (
+                                    <DropdownMenuItem onClick={() => { setReturnOrder(order); setReturnOpen(true); }}>
+                                      <RotateCcw className="h-3.5 w-3.5 mr-2 text-orange-600" /> Return Items
                                     </DropdownMenuItem>
                                   )}
                                   {(order.status === "invoiced" || order.status === "dispatched") && (
@@ -1180,46 +1234,93 @@ export default function ProformaInvoices() {
             </DialogContent>
           </Dialog>
 
-          {/* ═══ SUBMIT DIALOG (Batch Selection) ═══ */}
+          {/* ═══ SUBMIT DIALOG (Batch + Dispatch) ═══ */}
           <Dialog open={submitOpen} onOpenChange={setSubmitOpen}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="font-heading">Submit Order — Assign Batches</DialogTitle>
+                <DialogTitle className="font-heading">Dispatch Order — Assign Batches & Courier</DialogTitle>
               </DialogHeader>
-              <p className="text-sm text-muted-foreground">Select batch for each item. This creates Invoice + Delivery Note + updates stock.</p>
+              <p className="text-sm text-muted-foreground">
+                Pick the batch (FEFO – earliest expiry first) for each item, then choose the courier. This creates the Sales Invoice, Delivery Note and updates stock.
+              </p>
               <Separator />
-              {submitItems.map((item, idx) => (
+
+              {/* Courier */}
+              <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3">
+                <Label className="text-xs font-semibold text-violet-700 dark:text-violet-300 flex items-center gap-1.5">
+                  <Truck className="h-3.5 w-3.5" /> Dispatched through? *
+                </Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                  {freightProviders.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setFreightProviderId(p.id)}
+                      className={`px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${
+                        freightProviderId === p.id
+                          ? "border-violet-500 bg-violet-500/15 text-violet-700 dark:text-violet-300 shadow-sm"
+                          : "border-border bg-card hover:bg-muted/50 text-foreground"
+                      }`}
+                    >
+                      <div className="font-mono text-[10px] text-muted-foreground">{p.code}</div>
+                      {p.name}
+                    </button>
+                  ))}
+                  {freightProviders.length === 0 && (
+                    <p className="col-span-full text-xs text-muted-foreground">
+                      No couriers configured. Add them under Settings → Couriers.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {submitItems.map((item, idx) => {
+                const selectedBatch = batchOptions[item.product_id]?.find(b => b.batch_number === item.batch_number);
+                return (
                 <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-foreground">{item.product_name || "Item"}</span>
-                    <span className="text-xs font-mono text-muted-foreground">Qty: {item.quantity}</span>
+                    <span className="text-xs font-mono text-muted-foreground">Ordered: {item.quantity}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-xs font-medium text-muted-foreground">Batch *</Label>
+                      <Label className="text-xs font-medium text-muted-foreground">Batch * (FEFO)</Label>
                       {batchOptions[item.product_id]?.length > 0 ? (
-                        <SearchableSelect
-                          options={batchOptions[item.product_id].map(b => ({ value: b.batch_number, label: `${b.batch_number} (${b.available} avail)` }))}
-                          value={item.batch_number}
-                          onChange={v => { const u = [...submitItems]; u[idx].batch_number = v; setSubmitItems(u); }}
-                          placeholder="Select batch..."
-                          triggerClassName="text-xs h-9"
-                        />
+                        <>
+                          <SearchableSelect
+                            options={batchOptions[item.product_id].map(b => ({
+                              value: b.batch_number,
+                              label: `${b.batch_number} · ${b.available} avail${b.expiry_date ? ` · exp ${b.expiry_date}` : ""}`,
+                            }))}
+                            value={item.batch_number}
+                            onChange={v => { const u = [...submitItems]; u[idx].batch_number = v; setSubmitItems(u); }}
+                            placeholder="Select batch..."
+                            triggerClassName="text-xs h-9"
+                          />
+                          {selectedBatch?.expiry_date && (
+                            <p className="text-[10px] text-muted-foreground mt-1">Expires: <span className="font-mono text-foreground">{selectedBatch.expiry_date}</span></p>
+                          )}
+                        </>
                       ) : (
                         <p className="text-xs text-destructive mt-1">No batches available</p>
                       )}
                     </div>
                     <div>
-                      <Label className="text-xs font-medium text-muted-foreground">Quantity</Label>
-                      <Input type="number" className="text-xs" value={item.convert_quantity}
+                      <Label className="text-xs font-medium text-muted-foreground">Dispatch Quantity</Label>
+                      <Input type="number" className="text-xs h-9" value={item.convert_quantity}
                         onChange={e => { const u = [...submitItems]; u[idx].convert_quantity = e.target.value; setSubmitItems(u); }} />
                     </div>
                   </div>
                 </div>
-              ))}
-              <Button onClick={handleSubmit} disabled={submitting} className="w-full h-11 gap-2 text-sm font-semibold mt-2">
+              );})}
+
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting || (freightProviders.length > 0 && !freightProviderId)}
+                className="w-full h-11 gap-2 text-sm font-semibold mt-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white"
+              >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                Confirm & Create Invoice + Delivery Note
+                Confirm Dispatch — Create Invoice + Delivery Note
               </Button>
              </DialogContent>
           </Dialog>
@@ -1319,6 +1420,16 @@ export default function ProformaInvoices() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ═══ SALES RETURN DIALOG ═══ */}
+      <SalesReturnDialog
+        open={returnOpen}
+        onOpenChange={setReturnOpen}
+        invoiceId={returnOrder?.converted_invoice_id || null}
+        invoiceNumber={returnOrder?.invoice_number}
+        customerId={returnOrder?.customer_id || null}
+        onSaved={() => { setReturnOpen(false); load(); }}
+      />
     </AppLayout>
   );
 }
