@@ -118,6 +118,12 @@ export default function ProformaInvoices() {
   const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string; bank_name: string }[]>([]);
   const [paymentSaving, setPaymentSaving] = useState(false);
 
+  // Freight + Return
+  const { providers: freightProviders } = useFreightProviders(false);
+  const [freightProviderId, setFreightProviderId] = useState<string>("");
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnOrder, setReturnOrder] = useState<SalesOrder | null>(null);
+
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
 
