@@ -62,10 +62,19 @@ export default function StockMovements() {
 
   const handleSave = async () => {
     if (!productId || !quantity || Number(quantity) <= 0) { toast.error("Product and quantity required"); return; }
-    await supabase.from("stock_movements").insert({
+    const { error } = await supabase.from("stock_movements").insert({
       product_id: productId, movement_type: moveType, quantity: Number(quantity),
       batch_number: batchNumber || null, date, notes: notes || null,
     });
+    if (error) {
+      if (error.message?.includes("Insufficient stock")) {
+        const name = productNames[productId] || "product";
+        toast.error(`Insufficient stock for ${name} (requested ${quantity}).`);
+      } else {
+        toast.error("Failed to record movement: " + error.message);
+      }
+      return;
+    }
     toast.success("Stock movement recorded");
     setOpen(false); setProductId(""); setMoveType("adjustment"); setQuantity(""); setBatchNumber(""); setNotes("");
     load(); loadProducts();
