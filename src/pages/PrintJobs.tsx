@@ -15,13 +15,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, ClipboardCheck, Package, Truck, CheckCircle2, Trash2, Eye } from "lucide-react";
+import { Plus, Search, ClipboardCheck, Package, Truck, CheckCircle2, Trash2, Eye, Send, Factory } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdfHtml } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 
 interface PrinterEntity { id: string; name: string; }
+interface SupplierEntity { id: string; name: string; }
 interface Product { id: string; name: string; }
 interface PrintJob {
   id: string; job_number: string; printer_id: string | null; product_id: string | null;
@@ -29,12 +30,15 @@ interface PrintJob {
   rejection_reason: string | null; status: string; cost_per_unit: number; total_cost: number;
   printer_share_percent: number; printer_share_amount: number; our_share_amount: number;
   notes: string | null; created_at: string;
+  allotted_supplier_id: string | null; quantity_dispatched_to_supplier: number; quantity_at_factory: number;
 }
+
 
 export default function PrintJobs() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<PrintJob[]>([]);
   const [printers, setPrinters] = useState<PrinterEntity[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierEntity[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
@@ -44,10 +48,19 @@ export default function PrintJobs() {
   const [createOpen, setCreateOpen] = useState(false);
   const [printerId, setPrinterId] = useState("");
   const [productId, setProductId] = useState("");
+  const [allottedSupplierId, setAllottedSupplierId] = useState("");
   const [qtyOrdered, setQtyOrdered] = useState("");
   const [costPerUnit, setCostPerUnit] = useState("");
   const [jobDate, setJobDate] = useState(new Date().toISOString().split("T")[0]);
   const [jobNotes, setJobNotes] = useState("");
+
+  // Dispatch to supplier dialog
+  const [dispatchJob, setDispatchJob] = useState<PrintJob | null>(null);
+  const [dispatchQty, setDispatchQty] = useState("");
+  const [dispatchSupplierId, setDispatchSupplierId] = useState("");
+  const [dispatchDate, setDispatchDate] = useState(new Date().toISOString().split("T")[0]);
+  const [dispatchNote, setDispatchNote] = useState("");
+
 
   // Deliver dialog
   const [deliverJob, setDeliverJob] = useState<PrintJob | null>(null);
@@ -65,6 +78,8 @@ export default function PrintJobs() {
   // Names lookup
   const [printerNames, setPrinterNames] = useState<Record<string, string>>({});
   const [productNames, setProductNames] = useState<Record<string, string>>({});
+  const [supplierNames, setSupplierNames] = useState<Record<string, string>>({});
+
 
   // PDF preview
   const [pdfHtml, setPdfHtml] = useState("");
@@ -78,16 +93,19 @@ export default function PrintJobs() {
     let jobQuery = supabase.from("print_jobs").select("*", { count: "exact" }).order("created_at", { ascending: false });
     if (tab !== "all") jobQuery = jobQuery.eq("status", tab);
     jobQuery = jobQuery.range(pagination.from, pagination.to);
-    const [j, pr, prod] = await Promise.all([
+    const [j, pr, prod, sup] = await Promise.all([
       jobQuery,
       supabase.from("printers").select("id, name"),
       supabase.from("products").select("id, name"),
+      supabase.from("suppliers").select("id, name").order("name"),
     ]);
-    if (j.data) setJobs(j.data);
+    if (j.data) setJobs(j.data as any);
     if (j.count !== null && j.count !== undefined) pagination.setTotalCount(j.count);
     if (pr.data) { setPrinters(pr.data); const n: Record<string, string> = {}; pr.data.forEach(p => n[p.id] = p.name); setPrinterNames(n); }
     if (prod.data) { setProducts(prod.data); const n: Record<string, string> = {}; prod.data.forEach(p => n[p.id] = p.name); setProductNames(n); }
+    if (sup.data) { setSuppliers(sup.data); const n: Record<string, string> = {}; sup.data.forEach(s => n[s.id] = s.name); setSupplierNames(n); }
   };
+
 
   const handleCreate = async () => {
     if (!printerId || !productId || !qtyOrdered || Number(qtyOrdered) <= 0 || !costPerUnit) {
