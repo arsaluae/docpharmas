@@ -618,6 +618,51 @@ export type Database = {
           },
         ]
       }
+      debit_notes: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          debit_note_number: string
+          id: string
+          notes: string | null
+          party_id: string
+          party_type: string
+          reason: string | null
+          reference: string | null
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          date?: string
+          debit_note_number: string
+          id?: string
+          notes?: string | null
+          party_id: string
+          party_type: string
+          reason?: string | null
+          reference?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          debit_note_number?: string
+          id?: string
+          notes?: string | null
+          party_id?: string
+          party_type?: string
+          reason?: string | null
+          reference?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
       delivery_notes: {
         Row: {
           created_at: string
@@ -2550,6 +2595,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      stock_audit_log: {
+        Row: {
+          created_at: string
+          id: string
+          new_quantity: number
+          old_quantity: number
+          performed_by: string | null
+          product_id: string
+          reason: string | null
+          tenant_id: string | null
+          variance: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_quantity: number
+          old_quantity: number
+          performed_by?: string | null
+          product_id: string
+          reason?: string | null
+          tenant_id?: string | null
+          variance: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_quantity?: number
+          old_quantity?: number
+          performed_by?: string | null
+          product_id?: string
+          reason?: string | null
+          tenant_id?: string | null
+          variance?: number
+        }
+        Relationships: []
       }
       stock_movements: {
         Row: {
