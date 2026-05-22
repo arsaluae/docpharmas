@@ -624,14 +624,23 @@ export default function ProformaInvoices() {
   // ── SUBMIT (Convert to Invoice) ──
   const openSubmitDialog = async (order: SalesOrder) => {
     setSubmitOrder(order);
+    setFreightProviderId(""); // reset courier selection each time
     const pfItems: ProformaItem[] = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
     const productIds = pfItems.filter(i => i.product_id).map(i => i.product_id);
     const batches: Record<string, BatchOption[]> = {};
 
     if (productIds.length > 0) {
+      // Pull stock movements
       const { data: movements } = await supabase.from("stock_movements").select("product_id, batch_number, quantity, movement_type, date").in("product_id", productIds);
+      // Pull expiry dates from GRN items in one shot
+      const { data: grnRows } = await supabase.from("grn_items").select("product_id, batch_number, expiry_date").in("product_id", productIds);
+      const expiryMap: Record<string, string> = {};
+      (grnRows || []).forEach((g: any) => {
+        if (g.batch_number && g.expiry_date) expiryMap[`${g.product_id}__${g.batch_number}`] = g.expiry_date;
+      });
+
       if (movements) {
-        const batchMap: Record<string, { qty: number; expiry?: string }> = {};
+        const batchMap: Record<string, { qty: number }> = {};
         movements.forEach((m: any) => {
           const key = `${m.product_id}__${m.batch_number || "no-batch"}`;
           if (!batchMap[key]) batchMap[key] = { qty: 0 };
@@ -643,7 +652,17 @@ export default function ProformaInvoices() {
         for (const [key, info] of Object.entries(batchMap)) {
           const [pid, batch] = key.split("__");
           if (!batches[pid]) batches[pid] = [];
-          if (info.qty > 0 && batch !== "no-batch") batches[pid].push({ batch_number: batch, available: info.qty });
+          if (info.qty > 0 && batch !== "no-batch") {
+            batches[pid].push({ batch_number: batch, available: info.qty, expiry_date: expiryMap[`${pid}__${batch}`] || null });
+          }
+        }
+        // Sort FEFO (earliest expiry first)
+        for (const pid of Object.keys(batches)) {
+          batches[pid].sort((a, b) => {
+            if (!a.expiry_date) return 1;
+            if (!b.expiry_date) return -1;
+            return a.expiry_date.localeCompare(b.expiry_date);
+          });
         }
       }
     }
