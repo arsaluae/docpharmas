@@ -375,24 +375,29 @@ export default function PrintJobs() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Job #</TableHead><TableHead>Printer</TableHead><TableHead>Product</TableHead>
+                      <TableHead>Allotted Supplier</TableHead>
                       <TableHead className="text-right">Ordered</TableHead><TableHead className="text-right">Delivered</TableHead>
+                      <TableHead className="text-right">At Factory</TableHead>
                       <TableHead className="text-right">Rejected</TableHead><TableHead>Status</TableHead>
-                      <TableHead className="text-right">Total Cost</TableHead><TableHead className="text-center w-32">Actions</TableHead>
+                      <TableHead className="text-right">Total Cost</TableHead><TableHead className="text-center w-40">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground"><ClipboardCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No print jobs yet.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground"><ClipboardCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No print jobs yet.</TableCell></TableRow>
                     ) : filtered.map(j => (
                       <TableRow key={j.id}>
                         <TableCell className="font-medium font-mono">{j.job_number}</TableCell>
                         <TableCell>{printerNames[j.printer_id || ""] || "—"}</TableCell>
                         <TableCell>{productNames[j.product_id || ""] || "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{supplierNames[j.allotted_supplier_id || ""] || "—"}</TableCell>
                         <TableCell className="text-right font-mono">{Number(j.quantity_ordered).toLocaleString()}</TableCell>
                         <TableCell className="text-right font-mono">{Number(j.quantity_delivered).toLocaleString()}</TableCell>
+                        <TableCell className={`text-right font-mono ${Number(j.quantity_at_factory) > 0 ? "text-emerald-600 font-semibold" : ""}`}>{Number(j.quantity_at_factory || 0).toLocaleString()}</TableCell>
                         <TableCell className={`text-right font-mono ${Number(j.quantity_rejected) > 0 ? "text-destructive font-semibold" : ""}`}>{Number(j.quantity_rejected).toLocaleString()}</TableCell>
                         <TableCell>{statusBadge(j.status)}</TableCell>
                         <TableCell className="text-right font-mono font-medium">PKR {Number(j.total_cost).toLocaleString()}</TableCell>
+
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => previewJob(j)} title="Preview PDF">
