@@ -18,9 +18,9 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           recharts: ["recharts"],
-          "pdf-vendor": ["jspdf", "html2canvas", "jspdf-autotable"],
           motion: ["framer-motion"],
           xlsx: ["xlsx"],
+
         },
       },
     },
