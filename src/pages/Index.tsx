@@ -1,70 +1,66 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { MetricCard } from "@/components/ui/metric-card";
+import { StatusPill } from "@/components/ui/status-pill";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
-  TrendingUp, TrendingDown, CalendarDays, ShoppingCart,
-  FileText, CreditCard, Shield, Wallet,
-  PackageCheck, Flame, Users, AlertTriangle, MessageCircle,
-  Package, Printer, Receipt, Landmark, ArrowRightLeft, RotateCcw,
-  CircleDollarSign, Clock, Truck,
+  TrendingUp, CalendarDays, FileText, Shield, Wallet, Package,
+  Printer, Receipt, CreditCard, PackageCheck, Flame, Users,
+  AlertTriangle, MessageCircle, CircleDollarSign, Clock, Truck,
+  ArrowRight, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import { WeekSalesDialog, MonthSalesDialog, GrossMarginDialog, UpcomingOrdersDialog } from "@/components/dashboard/KpiDialogs";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { toast } from "sonner";
-
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, CartesianGrid,
+  BarChart, Bar, CartesianGrid,
 } from "recharts";
+import { formatDateDDMMMYYYY } from "@/lib/utils";
 
-const CHART_COLORS = [
-  "hsl(199, 89%, 48%)", // primary teal
-  "hsl(263, 70%, 50%)", // violet
-  "hsl(160, 84%, 39%)", // sage/success
-  "hsl(0, 72%, 51%)",   // destructive
-  "hsl(45, 93%, 47%)",  // amber
-  "hsl(210, 40%, 60%)", // steel
-];
+const fmtPkr = (n: number) =>
+  new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 }).format(Math.round(n));
 
-// Animated counter component
-function AnimatedCounter({ value, prefix = "", suffix = "", duration = 800 }: { value: number; prefix?: string; suffix?: string; duration?: number }) {
-  const [display, setDisplay] = useState(0);
-  const prevValue = useRef(0);
+const fmtCompact = (n: number) =>
+  new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n);
 
-  useEffect(() => {
-    const start = prevValue.current;
-    const end = value;
-    if (start === end) return;
-    const startTime = performance.now();
-    const animate = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-      setDisplay(Math.round(start + (end - start) * eased));
-      if (progress < 1) requestAnimationFrame(animate);
-    };
-    requestAnimationFrame(animate);
-    prevValue.current = end;
-  }, [value, duration]);
+// Bloomberg-style ticker dot
+const Dot = ({ tone = "muted" }: { tone?: "muted" | "success" | "danger" | "warning" }) => {
+  const cls =
+    tone === "success" ? "bg-success" :
+    tone === "danger" ? "bg-danger" :
+    tone === "warning" ? "bg-warning" :
+    "bg-muted-foreground/40";
+  return <span className={`inline-block h-1.5 w-1.5 rounded-full ${cls}`} />;
+};
 
-  return <>{prefix}{display.toLocaleString()}{suffix}</>;
-}
+// Section header: editorial label + thin rule
+const SectionHeader = ({ label, right }: { label: string; right?: React.ReactNode }) => (
+  <div className="flex items-end justify-between gap-4 mb-3">
+    <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+      {label}
+    </h3>
+    {right}
+  </div>
+);
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good Morning";
-  if (h < 17) return "Good Afternoon";
-  return "Good Evening";
-}
+// Bordered panel — the Bloomberg "cell"
+const Panel = ({
+  children, className = "", padding = "p-4",
+}: { children: React.ReactNode; className?: string; padding?: string }) => (
+  <div className={`rounded-md border border-border bg-card ${padding} ${className}`}>
+    {children}
+  </div>
+);
 
 export default function Index() {
   const navigate = useNavigate();
   const { settings } = useCompanySettings();
+
   const [weekSales, setWeekSales] = useState(0);
   const [monthSales, setMonthSales] = useState(0);
   const [grossMargin, setGrossMargin] = useState(0);
@@ -73,7 +69,6 @@ export default function Index() {
   const [topCustomers, setTopCustomers] = useState<{ name: string; monthSale: number; yearlySale: number }[]>([]);
   const [reorderAlerts, setReorderAlerts] = useState<any[]>([]);
   const [loadingReorder, setLoadingReorder] = useState(false);
-
   const [dailySales, setDailySales] = useState<{ date: string; amount: number }[]>([]);
   const [expensesByCategory, setExpensesByCategory] = useState<{ name: string; value: number }[]>([]);
   const [lastMonthSales, setLastMonthSales] = useState(0);
@@ -82,7 +77,6 @@ export default function Index() {
   const [totalReceivables, setTotalReceivables] = useState(0);
   const [totalPayables, setTotalPayables] = useState(0);
 
-  // Date ranges (lifted for dialogs)
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
   const monthStartStr = todayStr.slice(0, 7) + "-01";
@@ -91,13 +85,11 @@ export default function Index() {
   const weekStartDate = new Date(today); weekStartDate.setDate(today.getDate() - monOffset);
   const weekStartStr = weekStartDate.toISOString().split("T")[0];
 
-  // Dialog state
   const [weekOpen, setWeekOpen] = useState(false);
   const [monthOpen, setMonthOpen] = useState(false);
   const [gpOpen, setGpOpen] = useState(false);
   const [upcomingOpen, setUpcomingOpen] = useState(false);
 
-  // Expiry alerts
   const [expiryAlerts, setExpiryAlerts] = useState<{ critical: number; warning: number; info: number; items: { name: string; batch: string; expiry: string; qty: number; severity: string }[] }>({ critical: 0, warning: 0, info: 0, items: [] });
 
   useEffect(() => { loadDashboard(); loadReorderAlerts(); loadExpiryAlerts(); }, []);
@@ -112,31 +104,21 @@ export default function Index() {
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - mondayOffset);
     const weekStartStr = weekStart.toISOString().split("T")[0];
-
     const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
     const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const lastMonthStartStr = lastMonthStart.toISOString().split("T")[0];
     const lastMonthEndStr = lastMonthEnd.toISOString().split("T")[0];
-
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 29);
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
 
-    // Two server-side aggregated round-trips replace 12+N client queries.
     const [{ data: kpis }, { data: charts }] = await Promise.all([
       supabase.rpc("dashboard_kpis", {
-        p_week_start: weekStartStr,
-        p_month_start: monthStart,
-        p_year_start: yearStart,
-        p_last_month_start: lastMonthStartStr,
-        p_last_month_end: lastMonthEndStr,
-        p_today: todayStr,
+        p_week_start: weekStartStr, p_month_start: monthStart, p_year_start: yearStart,
+        p_last_month_start: lastMonthStartStr, p_last_month_end: lastMonthEndStr, p_today: todayStr,
       }),
       supabase.rpc("dashboard_charts", {
-        p_month_start: monthStart,
-        p_year_start: yearStart,
-        p_trend_start: thirtyDaysAgoStr,
-        p_today: todayStr,
+        p_month_start: monthStart, p_year_start: yearStart, p_trend_start: thirtyDaysAgoStr, p_today: todayStr,
       }),
     ]);
 
@@ -151,7 +133,6 @@ export default function Index() {
     setUpcomingPoValue(Number(k.upcoming_po_value) || 0);
 
     const c: any = charts || {};
-    // Fill any missing days in the 30-day trend with zeroes
     const dailyMap: Record<string, number> = {};
     (c.daily || []).forEach((d: any) => { dailyMap[d.date] = Number(d.amount); });
     const dailyArr: { date: string; amount: number }[] = [];
@@ -160,19 +141,11 @@ export default function Index() {
       dailyArr.push({ date: ds.slice(5), amount: dailyMap[ds] || 0 });
     }
     setDailySales(dailyArr);
-
-    setExpensesByCategory(
-      (c.expenses || []).map((e: any) => ({ name: String(e.name || "").replace(/_/g, " "), value: Number(e.value) }))
-    );
+    setExpensesByCategory((c.expenses || []).map((e: any) => ({ name: String(e.name || "").replace(/_/g, " "), value: Number(e.value) })));
     setTopSelling((c.top_products || []).map((p: any) => ({ name: p.name, qty: Number(p.qty) })));
-    setTopCustomers((c.top_customers || []).map((cu: any) => ({
-      name: cu.name, monthSale: Number(cu.monthSale), yearlySale: Number(cu.yearlySale),
-    })));
-    setRecentStock((c.recent_stock || []).map((s: any) => ({
-      name: s.name, quantity: Number(s.quantity), date: s.date,
-    })));
+    setTopCustomers((c.top_customers || []).map((cu: any) => ({ name: cu.name, monthSale: Number(cu.monthSale), yearlySale: Number(cu.yearlySale) })));
+    setRecentStock((c.recent_stock || []).map((s: any) => ({ name: s.name, quantity: Number(s.quantity), date: s.date })));
   };
-
 
   const loadReorderAlerts = async () => {
     const { data } = await supabase.from("reorder_alerts").select("*").order("days_until_stockout", { ascending: true }).limit(5);
@@ -217,9 +190,7 @@ export default function Index() {
       if (data?.alerts) {
         setReorderAlerts(data.alerts.slice(0, 5));
         toast.success(`${data.alerts.length} reorder alerts generated`);
-        if (data.whatsapp_url) {
-          window.open(data.whatsapp_url, "_blank");
-        }
+        if (data.whatsapp_url) window.open(data.whatsapp_url, "_blank");
       }
     } catch (e: any) {
       toast.error("Failed to generate alerts: " + (e.message || "Unknown error"));
@@ -228,497 +199,490 @@ export default function Index() {
   };
 
   const monthGrowth = lastMonthSales > 0 ? ((monthSales - lastMonthSales) / lastMonthSales) * 100 : 0;
+  const weekSparkline = dailySales.slice(-7).map(d => d.amount);
+  const monthSparkline = dailySales.map(d => d.amount);
+  const netPosition = totalReceivables - totalPayables;
 
   const quickActions = [
-    { label: "Sales Invoice", path: "/proforma", icon: FileText, gradient: "from-indigo-500/8 to-indigo-600/18", iconBg: "from-indigo-500 to-indigo-600", accent: "from-indigo-500 to-indigo-400", shadow: "shadow-indigo-500/20" },
-    { label: "Warranty Invoice", path: "/warranty-invoices", icon: Shield, gradient: "from-violet-500/8 to-violet-600/18", iconBg: "from-violet-500 to-violet-600", accent: "from-violet-500 to-violet-400", shadow: "shadow-violet-500/20" },
-    { label: "Payment In", path: "/payments", icon: Wallet, gradient: "from-cyan-500/8 to-teal-600/18", iconBg: "from-cyan-500 to-teal-600", accent: "from-cyan-500 to-teal-400", shadow: "shadow-cyan-500/20" },
-    { label: "Inventory", path: "/products", icon: Package, gradient: "from-amber-500/8 to-orange-600/18", iconBg: "from-amber-500 to-orange-600", accent: "from-amber-500 to-orange-400", shadow: "shadow-amber-500/20" },
-    { label: "Purchase Order", path: "/purchase-proforma", icon: FileText, gradient: "from-emerald-500/8 to-emerald-600/18", iconBg: "from-emerald-500 to-emerald-600", accent: "from-emerald-500 to-emerald-400", shadow: "shadow-emerald-500/20" },
-    { label: "Print Jobs", path: "/print-jobs", icon: Printer, gradient: "from-fuchsia-500/8 to-purple-600/18", iconBg: "from-fuchsia-500 to-purple-600", accent: "from-fuchsia-500 to-purple-400", shadow: "shadow-fuchsia-500/20" },
-    { label: "Expenses", path: "/expenses", icon: Receipt, gradient: "from-rose-500/8 to-rose-600/18", iconBg: "from-rose-500 to-rose-600", accent: "from-rose-500 to-rose-400", shadow: "shadow-rose-500/20" },
-    { label: "Credit Notes", path: "/credit-notes", icon: CreditCard, gradient: "from-slate-500/8 to-slate-600/18", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-500 to-slate-400", shadow: "shadow-slate-500/20" },
+    { label: "Sales Invoice", path: "/proforma", icon: FileText },
+    { label: "Warranty", path: "/warranty-invoices", icon: Shield },
+    { label: "Payment In", path: "/payments", icon: Wallet },
+    { label: "Inventory", path: "/products", icon: Package },
+    { label: "Purchase Order", path: "/purchase-proforma", icon: FileText },
+    { label: "Print Jobs", path: "/print-jobs", icon: Printer },
+    { label: "Expenses", path: "/expenses", icon: Receipt },
+    { label: "Credit Notes", path: "/credit-notes", icon: CreditCard },
   ];
-
-  const rpData = [
-    { name: "Receivables", value: totalReceivables },
-    { name: "Payables", value: totalPayables },
-  ];
-
-  const kpiCards = [
-    {
-      label: "This Week",
-      value: weekSales,
-      icon: TrendingUp,
-      iconColor: "text-primary",
-      iconBg: "bg-primary/10",
-    },
-    {
-      label: "This Month",
-      value: monthSales,
-      icon: CalendarDays,
-      iconColor: "text-emerald-600",
-      iconBg: "bg-emerald-500/10",
-      extra: lastMonthSales > 0 ? (
-        <p className={`text-[10px] mt-1 font-mono flex items-center gap-1 ${monthGrowth >= 0 ? "text-emerald-600" : "text-destructive"}`}>
-          {monthGrowth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-          {monthGrowth >= 0 ? "+" : ""}{monthGrowth.toFixed(1)}% vs last month
-        </p>
-      ) : null,
-    },
-    {
-      label: "Gross Margin",
-      value: Math.abs(grossMargin),
-      icon: CircleDollarSign,
-      iconColor: grossMargin >= 0 ? "text-primary" : "text-destructive",
-      iconBg: grossMargin >= 0 ? "bg-primary/10" : "bg-destructive/10",
-      extra: <p className="text-[10px] text-muted-foreground mt-0.5">Revenue − COGS (item level)</p>,
-    },
-    {
-      label: "Upcoming Orders",
-      value: upcomingPoValue,
-      icon: Truck,
-      iconColor: "text-amber-600",
-      iconBg: "bg-amber-500/10",
-      displayOverride: upcomingPoCount === 0 ? "None" : undefined,
-      extra: upcomingPoCount > 0 ? (
-        <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-          <Truck className="h-3 w-3" /> {upcomingPoCount} purchase order{upcomingPoCount > 1 ? "s" : ""} pending
-        </p>
-      ) : null,
-      onClick: () => setUpcomingOpen(true),
-    },
-  ];
-  // Wire click handlers on first three KPIs
-  kpiCards[0].onClick = () => setWeekOpen(true);
-  kpiCards[1].onClick = () => setMonthOpen(true);
-  kpiCards[2].onClick = () => setGpOpen(true);
 
   return (
-    <AppLayout title="Dashboard" subtitle="Business overview">
-      <div className="space-y-6">
+    <AppLayout title="Dashboard" subtitle={`${new Date().toLocaleDateString("en-PK", { weekday: "long" })} · ${formatDateDDMMMYYYY(today)}`}>
+      <div className="space-y-8">
 
-        {/* Hero Greeting — Mesh gradient */}
-        <div className="mesh-hero p-5 sm:p-7">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-primary/60 mb-1">
-                {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-              </p>
-              <h2 className="text-xl sm:text-2xl font-bold font-heading text-foreground">
-                {getGreeting()}{settings?.company_name ? `, ${settings.company_name}` : ""}
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Here's your business at a glance
-              </p>
-            </div>
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border">
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-[11px] font-mono text-muted-foreground">Live</span>
-            </div>
+        {/* ─── TICKER BAR ─── Bloomberg-style status strip */}
+        <div className="flex items-center gap-x-6 gap-y-2 flex-wrap border-y border-border py-2.5 text-[11px] font-mono">
+          <div className="flex items-center gap-2">
+            <Dot tone="success" />
+            <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Live</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">MTD</span>
+            <span className="tabular-nums text-foreground">PKR {fmtPkr(monthSales)}</span>
+            {lastMonthSales > 0 && (
+              <span className={`inline-flex items-center gap-0.5 tabular-nums ${monthGrowth >= 0 ? "text-success" : "text-danger"}`}>
+                {monthGrowth >= 0 ? <ArrowUpRight className="h-3 w-3" strokeWidth={1.5}/> : <ArrowDownRight className="h-3 w-3" strokeWidth={1.5}/>}
+                {monthGrowth >= 0 ? "+" : ""}{monthGrowth.toFixed(1)}%
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">WTD</span>
+            <span className="tabular-nums text-foreground">PKR {fmtPkr(weekSales)}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">A/R</span>
+            <span className="tabular-nums text-foreground">PKR {fmtCompact(totalReceivables)}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">A/P</span>
+            <span className="tabular-nums text-foreground">PKR {fmtCompact(totalPayables)}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">NET</span>
+            <span className={`tabular-nums ${netPosition >= 0 ? "text-success" : "text-danger"}`}>
+              {netPosition >= 0 ? "+" : "−"}PKR {fmtCompact(Math.abs(netPosition))}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">PO Open</span>
+            <span className="tabular-nums text-foreground">{upcomingPoCount}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Expiring 90d</span>
+            <span className={`tabular-nums ${expiryAlerts.critical > 0 ? "text-danger" : "text-foreground"}`}>
+              {expiryAlerts.critical + expiryAlerts.warning + expiryAlerts.info}
+            </span>
           </div>
         </div>
 
-        {/* KPI Row — Clickable flat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger-children">
-          {kpiCards.map((kpi: any) => (
-            <button
-              key={kpi.label}
-              onClick={kpi.onClick}
-              className="text-left bg-card border border-border rounded-lg p-4 sm:p-5 transition-all hover:border-primary/40 hover:-translate-y-0.5"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <p className="text-[10px] sm:text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em]">{kpi.label}</p>
-                <div className={`flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-md ${kpi.iconBg}`}>
-                  <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
+        {/* ─── KPI GRID ─── 4 precision tiles */}
+        <section>
+          <SectionHeader label="Performance — Today" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <button onClick={() => setWeekOpen(true)} className="text-left">
+              <MetricCard
+                label="Week to Date"
+                value={weekSales} prefix="PKR" format="currency"
+                sparkline={weekSparkline} icon={TrendingUp}
+              />
+            </button>
+            <button onClick={() => setMonthOpen(true)} className="text-left">
+              <MetricCard
+                label="Month to Date"
+                value={monthSales} prefix="PKR" format="currency"
+                trend={lastMonthSales > 0 ? { value: monthGrowth, label: "MoM" } : null}
+                sparkline={monthSparkline} icon={CalendarDays}
+              />
+            </button>
+            <button onClick={() => setGpOpen(true)} className="text-left">
+              <MetricCard
+                label="Gross Profit"
+                value={Math.abs(grossMargin)} prefix="PKR" format="currency"
+                trend={monthSales > 0 ? { value: (grossMargin / monthSales) * 100, label: "margin" } : null}
+                icon={CircleDollarSign}
+              />
+            </button>
+            <button onClick={() => setUpcomingOpen(true)} className="text-left">
+              <MetricCard
+                label="Upcoming Orders"
+                value={upcomingPoValue} prefix="PKR" format="currency"
+                trend={upcomingPoCount > 0 ? { value: upcomingPoCount, label: "open" } : null}
+                icon={Truck}
+              />
+            </button>
+          </div>
+        </section>
+
+        {/* ─── COMMAND ROW ─── Quick actions, terminal-style */}
+        <section>
+          <SectionHeader label="Quick Actions" right={
+            <span className="text-[10px] font-mono text-muted-foreground/60">Press ⌘K for command palette</span>
+          } />
+          <div className="grid grid-cols-4 lg:grid-cols-8 border border-border rounded-md overflow-hidden divide-x divide-border">
+            {quickActions.map((a, i) => (
+              <button
+                key={a.label}
+                onClick={() => navigate(a.path)}
+                className={`group flex flex-col items-center gap-2 px-2 py-4 bg-card hover:bg-foreground/[0.03] transition-colors duration-150 ${i >= 4 ? "border-t lg:border-t-0 border-border" : ""}`}
+              >
+                <a.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" strokeWidth={1.25} />
+                <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-foreground/80 group-hover:text-foreground text-center leading-tight">
+                  {a.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* ─── CHARTS ─── 30D trend (wide) + MoM bar */}
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <Panel className="lg:col-span-2" padding="p-0">
+            <div className="flex items-center justify-between px-4 pt-4 pb-2">
+              <div>
+                <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Sales Trend — 30D</h3>
+                <p className="font-mono text-[20px] font-light tracking-tight tabular-nums mt-1">
+                  PKR {fmtPkr(dailySales.reduce((s, d) => s + d.amount, 0))}
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Peak</span>
+                <p className="font-mono text-[12px] tabular-nums">
+                  PKR {fmtPkr(Math.max(0, ...dailySales.map(d => d.amount)))}
+                </p>
+              </div>
+            </div>
+            <div className="h-[180px] px-2 pb-3">
+              {dailySales.length === 0 ? (
+                <EmptyState icon={TrendingUp} title="No sales data" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dailySales} margin={{ top: 5, right: 12, left: 12, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
+                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis hide />
+                    <Tooltip
+                      contentStyle={{ fontSize: 11, borderRadius: 4, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", fontFamily: "Geist Mono" }}
+                      formatter={(v: number) => [`PKR ${fmtPkr(v)}`, "Sales"]}
+                      cursor={{ stroke: "hsl(var(--primary))", strokeWidth: 1, strokeDasharray: "3 3" }}
+                    />
+                    <Area type="monotone" dataKey="amount" stroke="hsl(var(--primary))" strokeWidth={1.5} fill="url(#trendGrad)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </Panel>
+
+          <Panel padding="p-0">
+            <div className="px-4 pt-4 pb-2">
+              <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Month over Month</h3>
+              <p className="font-mono text-[20px] font-light tracking-tight tabular-nums mt-1">
+                {monthGrowth >= 0 ? "+" : ""}{monthGrowth.toFixed(1)}<span className="text-muted-foreground text-[14px]">%</span>
+              </p>
+            </div>
+            <div className="h-[180px] px-2 pb-3">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[
+                  { name: "Last", sales: lastMonthSales },
+                  { name: "This", sales: monthSales },
+                ]} margin={{ top: 5, right: 16, left: 16, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                  <YAxis hide />
+                  <Tooltip
+                    contentStyle={{ fontSize: 11, borderRadius: 4, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", fontFamily: "Geist Mono" }}
+                    formatter={(v: number) => [`PKR ${fmtPkr(v)}`, "Sales"]}
+                    cursor={{ fill: "hsl(var(--primary) / 0.08)" }}
+                  />
+                  <Bar dataKey="sales" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} barSize={42} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Panel>
+        </section>
+
+        {/* ─── LEDGER ROW ─── Receivables/Payables + Expenses */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <Panel>
+            <SectionHeader label="Receivables · Payables" right={
+              <button onClick={() => navigate("/payments")} className="text-[10px] font-mono text-primary hover:underline">
+                View ledger →
+              </button>
+            } />
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between text-[11px] mb-1.5">
+                  <span className="text-muted-foreground uppercase tracking-wider">Receivable</span>
+                  <span className="font-mono tabular-nums text-foreground">PKR {fmtPkr(totalReceivables)}</span>
+                </div>
+                <div className="h-1 bg-muted rounded-sm overflow-hidden">
+                  <div className="h-full bg-success" style={{ width: `${totalReceivables + totalPayables > 0 ? (totalReceivables / (totalReceivables + totalPayables)) * 100 : 0}%` }} />
                 </div>
               </div>
-              <p className={`text-xl sm:text-2xl font-bold mt-1 font-heading tabular-nums ${kpi.iconColor}`}>
-                {kpi.displayOverride || <>PKR <AnimatedCounter value={kpi.value} /></>}
-              </p>
-              {kpi.extra}
-            </button>
-          ))}
-        </div>
+              <div>
+                <div className="flex justify-between text-[11px] mb-1.5">
+                  <span className="text-muted-foreground uppercase tracking-wider">Payable</span>
+                  <span className="font-mono tabular-nums text-foreground">PKR {fmtPkr(totalPayables)}</span>
+                </div>
+                <div className="h-1 bg-muted rounded-sm overflow-hidden">
+                  <div className="h-full bg-danger" style={{ width: `${totalReceivables + totalPayables > 0 ? (totalPayables / (totalReceivables + totalPayables)) * 100 : 0}%` }} />
+                </div>
+              </div>
+              <div className="pt-3 border-t border-border flex justify-between items-center">
+                <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Net Position</span>
+                <span className={`font-mono text-[16px] tabular-nums ${netPosition >= 0 ? "text-success" : "text-danger"}`}>
+                  {netPosition >= 0 ? "+" : "−"}PKR {fmtPkr(Math.abs(netPosition))}
+                </span>
+              </div>
+            </div>
+          </Panel>
 
-        {/* KPI Dialogs */}
+          <Panel>
+            <SectionHeader label="Expense Breakdown — MTD" right={
+              <button onClick={() => navigate("/expenses")} className="text-[10px] font-mono text-primary hover:underline">
+                All expenses →
+              </button>
+            } />
+            {expensesByCategory.length === 0 ? (
+              <EmptyState icon={Receipt} title="No expenses recorded this month" />
+            ) : (
+              <div className="space-y-2">
+                {(() => {
+                  const total = expensesByCategory.reduce((s, e) => s + e.value, 0) || 1;
+                  return expensesByCategory.slice(0, 6).map((cat) => {
+                    const pct = (cat.value / total) * 100;
+                    return (
+                      <div key={cat.name}>
+                        <div className="flex justify-between text-[11px] mb-1">
+                          <span className="capitalize text-foreground/80">{cat.name}</span>
+                          <span className="font-mono tabular-nums text-muted-foreground">
+                            PKR {fmtPkr(cat.value)} <span className="text-foreground/40 ml-1">{pct.toFixed(1)}%</span>
+                          </span>
+                        </div>
+                        <div className="h-0.5 bg-muted rounded-sm overflow-hidden">
+                          <div className="h-full bg-foreground/40" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            )}
+          </Panel>
+        </section>
+
+        {/* ─── TABLES ROW ─── Top customers + Top selling */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <Panel padding="p-0">
+            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+              <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground flex items-center gap-2">
+                <Users className="h-3 w-3" strokeWidth={1.5} /> Top Customers
+              </h3>
+            </div>
+            {topCustomers.length === 0 ? (
+              <div className="p-4"><EmptyState icon={Users} title="No customer data" /></div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="text-right">MTD</TableHead>
+                    <TableHead className="text-right">YTD</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topCustomers.slice(0, 5).map((c, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">
+                        <span className="text-muted-foreground/50 font-mono mr-2 text-[11px]">{String(i + 1).padStart(2, "0")}</span>
+                        {c.name}
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">PKR {fmtPkr(c.monthSale)}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums text-muted-foreground">PKR {fmtPkr(c.yearlySale)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </Panel>
+
+          <Panel padding="p-0">
+            <div className="px-4 pt-4 pb-2">
+              <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground flex items-center gap-2">
+                <Flame className="h-3 w-3" strokeWidth={1.5} /> Top Selling Items — MTD
+              </h3>
+            </div>
+            {topSelling.length === 0 ? (
+              <div className="p-4"><EmptyState icon={Flame} title="No sales this month" /></div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead className="text-right">Units</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topSelling.slice(0, 5).map((p, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-mono text-muted-foreground/50 text-[11px]">{String(i + 1).padStart(2, "0")}</TableCell>
+                      <TableCell className="font-medium">{p.name}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">{p.qty.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </Panel>
+        </section>
+
+        {/* ─── STOCK INTAKE ─── */}
+        <section>
+          <Panel padding="p-0">
+            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+              <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground flex items-center gap-2">
+                <PackageCheck className="h-3 w-3" strokeWidth={1.5} /> Recent Stock Intake
+              </h3>
+              <button onClick={() => navigate("/stock-movements")} className="text-[10px] font-mono text-primary hover:underline">
+                Movements →
+              </button>
+            </div>
+            {recentStock.length === 0 ? (
+              <div className="p-4"><EmptyState icon={PackageCheck} title="No recent stock received" /></div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead className="text-right">Qty</TableHead>
+                    <TableHead className="text-right w-32">Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentStock.map((s, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{s.name}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">+{s.quantity.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono text-muted-foreground text-[11px]">{formatDateDDMMMYYYY(s.date)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </Panel>
+        </section>
+
+        {/* ─── ALERTS ROW ─── Expiry + Reorder */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <Panel padding="p-0">
+            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+              <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground flex items-center gap-2">
+                <Clock className="h-3 w-3" strokeWidth={1.5} /> Expiry Watch — 90D
+              </h3>
+              <div className="flex gap-1.5 text-[10px] font-mono">
+                {expiryAlerts.critical > 0 && <StatusPill tone="danger">{expiryAlerts.critical} crit</StatusPill>}
+                {expiryAlerts.warning > 0 && <StatusPill tone="warning">{expiryAlerts.warning} warn</StatusPill>}
+                {expiryAlerts.info > 0 && <StatusPill tone="info">{expiryAlerts.info} soon</StatusPill>}
+              </div>
+            </div>
+            {expiryAlerts.items.length === 0 ? (
+              <div className="p-4"><EmptyState icon={Clock} title="Nothing expiring in 90 days" /></div>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product · Batch</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right w-28">Expires</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {expiryAlerts.items.slice(0, 6).map((item, i) => {
+                      const tone =
+                        item.severity === "expired" || item.severity === "critical" ? "danger" :
+                        item.severity === "warning" ? "warning" : "info";
+                      return (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Dot tone={tone as any} />
+                              <div>
+                                <div className="font-medium text-[13px]">{item.name}</div>
+                                <div className="font-mono text-[10.5px] text-muted-foreground">{item.batch}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-mono tabular-nums">{item.qty}</TableCell>
+                          <TableCell className={`text-right font-mono text-[11px] tabular-nums ${tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-muted-foreground"}`}>
+                            {item.severity === "expired" ? "EXPIRED" : formatDateDDMMMYYYY(item.expiry)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                <div className="border-t border-border px-4 py-2">
+                  <button onClick={() => navigate("/reports/batch-wise")} className="text-[11px] font-mono text-primary hover:underline flex items-center gap-1">
+                    Full batch report <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
+                  </button>
+                </div>
+              </>
+            )}
+          </Panel>
+
+          <Panel padding="p-0">
+            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+              <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground flex items-center gap-2">
+                <AlertTriangle className="h-3 w-3" strokeWidth={1.5} /> Smart Reorder
+              </h3>
+              <Button size="sm" variant="outline" onClick={generateReorderAlerts} disabled={loadingReorder} className="h-6 text-[10.5px] px-2">
+                {loadingReorder ? "Analyzing…" : "Refresh"}
+              </Button>
+            </div>
+            {reorderAlerts.length === 0 ? (
+              <div className="p-4"><EmptyState icon={AlertTriangle} title="No reorder alerts" description="Click refresh to analyze consumption" /></div>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead className="text-right">Stock</TableHead>
+                      <TableHead className="text-right w-20">Runway</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reorderAlerts.map((a, i) => {
+                      const tone = a.severity === "critical" ? "danger" : a.severity === "warning" ? "warning" : "info";
+                      return (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Dot tone={tone as any} />
+                              <span className="font-medium">{a.product_name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-mono tabular-nums">{a.current_stock}</TableCell>
+                          <TableCell className={`text-right font-mono tabular-nums text-[11px] ${tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-muted-foreground"}`}>
+                            {a.days_until_stockout}d
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                {settings?.whatsapp_number && (
+                  <div className="border-t border-border px-4 py-2">
+                    <button onClick={generateReorderAlerts} className="text-[11px] font-mono text-success hover:underline inline-flex items-center gap-1.5">
+                      <MessageCircle className="h-3 w-3" strokeWidth={1.5} /> Send WhatsApp alert
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </Panel>
+        </section>
+
+        {/* Dialogs */}
         <WeekSalesDialog open={weekOpen} onOpenChange={setWeekOpen} from={weekStartStr} to={todayStr} />
         <MonthSalesDialog open={monthOpen} onOpenChange={setMonthOpen} from={monthStartStr} to={todayStr} />
         <GrossMarginDialog open={gpOpen} onOpenChange={setGpOpen} monthStart={monthStartStr} monthEnd={todayStr} />
         <UpcomingOrdersDialog open={upcomingOpen} onOpenChange={setUpcomingOpen} />
-
-
-        {/* 30-Day Sales Trend */}
-        <Card className="glass-card overflow-hidden">
-          <CardHeader className="pb-2 pt-4 px-5">
-            <CardTitle className="text-sm font-heading flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" /> 30-Day Sales Trend
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-2 pb-4">
-            {dailySales.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">No sales data</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={dailySales} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(199, 89%, 48%)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(199, 89%, 48%)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis hide />
-                  <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "hsl(var(--card))" }}
-                    formatter={(value: number) => [`PKR ${value.toLocaleString()}`, "Sales"]}
-                  />
-                  <Area type="monotone" dataKey="amount" stroke="hsl(199, 89%, 48%)" strokeWidth={2} fill="url(#salesGrad)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions — Premium grid */}
-        <div className="grid grid-cols-4 gap-2 sm:gap-3 stagger-children">
-          {quickActions.map((action) => (
-            <button
-              key={action.label}
-              onClick={() => navigate(action.path)}
-              className="quick-action-card group h-[80px] sm:h-[110px] press-scale"
-              style={{ "--action-accent": `linear-gradient(90deg, var(--tw-gradient-stops))` } as any}
-            >
-              <div className={`flex items-center justify-center w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br ${action.iconBg} shadow-md transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg ${action.shadow}`}>
-                <action.icon className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-white" />
-              </div>
-              <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.08em] sm:tracking-[0.12em] text-foreground/70 font-heading group-hover:text-foreground transition-colors text-center leading-tight px-0.5">
-                {action.label}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Month Comparison + Expense Pie */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <Card className="glass-card overflow-hidden">
-            <CardHeader className="pb-2 pt-4 px-5">
-              <CardTitle className="text-sm font-heading flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-primary" /> Monthly Comparison
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={[
-                  { name: "Last Month", sales: lastMonthSales },
-                  { name: "This Month", sales: monthSales },
-                ]} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-                  <defs>
-                    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(199, 89%, 48%)" stopOpacity={1} />
-                      <stop offset="100%" stopColor="hsl(199, 89%, 38%)" stopOpacity={0.8} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(214, 32%, 91%)" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                  <YAxis hide />
-                  <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "hsl(var(--card))" }}
-                    formatter={(value: number) => [`PKR ${value.toLocaleString()}`, "Sales"]}
-                  />
-                  <Bar dataKey="sales" radius={[8, 8, 0, 0]} fill="url(#barGrad)" barSize={60} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card overflow-hidden">
-            <CardHeader className="pb-2 pt-4 px-5">
-              <CardTitle className="text-sm font-heading flex items-center gap-2">
-                <Receipt className="h-4 w-4 text-destructive" /> Expense Breakdown (This Month)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4 flex items-center justify-center">
-              {expensesByCategory.length === 0 ? (
-                <div className="text-center py-8">
-                  <Receipt className="h-8 w-8 mx-auto mb-2 text-muted-foreground/20" />
-                  <p className="text-sm text-muted-foreground">No expenses this month</p>
-                </div>
-              ) : (
-                <div className="flex items-center gap-4 w-full">
-                  <ResponsiveContainer width="50%" height={180}>
-                    <PieChart>
-                      <Pie
-                        data={expensesByCategory}
-                        cx="50%" cy="50%"
-                        innerRadius={40} outerRadius={70}
-                        paddingAngle={3}
-                        dataKey="value"
-                      >
-                        {expensesByCategory.map((_, idx) => (
-                          <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "hsl(var(--card))" }}
-                        formatter={(value: number) => [`PKR ${value.toLocaleString()}`, ""]}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex-1 space-y-1.5">
-                    {expensesByCategory.map((cat, idx) => (
-                      <div key={cat.name} className="flex items-center gap-2 text-xs">
-                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }} />
-                        <span className="capitalize text-muted-foreground truncate flex-1">{cat.name}</span>
-                        <span className="font-mono tabular-nums text-foreground">{(cat.value / 1000).toFixed(0)}k</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Stock + Top Selling */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <Card className="glass-card overflow-hidden">
-            <CardHeader className="pb-2 pt-4 px-5">
-              <CardTitle className="text-sm font-heading flex items-center gap-2">
-                <PackageCheck className="h-4 w-4 text-primary" /> New Stock In
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-4">
-              {recentStock.length === 0 ? (
-                <div className="text-center py-6">
-                  <PackageCheck className="h-8 w-8 mx-auto mb-2 text-muted-foreground/20" />
-                  <p className="text-sm text-muted-foreground">No recent stock received</p>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {recentStock.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors">
-                      <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{item.name}</span>
-                      <div className="flex items-center gap-3">
-                        <Badge variant="secondary" className="font-mono text-xs tabular-nums">{item.quantity} units</Badge>
-                        <span className="text-[10px] text-muted-foreground">{item.date}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="glass-card overflow-hidden">
-            <CardHeader className="pb-2 pt-4 px-5">
-              <CardTitle className="text-sm font-heading flex items-center gap-2">
-                <Flame className="h-4 w-4 text-destructive" /> Top Selling Items (This Month)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-4">
-              {topSelling.length === 0 ? (
-                <div className="text-center py-6">
-                  <Flame className="h-8 w-8 mx-auto mb-2 text-muted-foreground/20" />
-                  <p className="text-sm text-muted-foreground">No sales data this month</p>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {topSelling.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors">
-                      <div className="flex items-center gap-2.5">
-                        <span className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white ${idx === 0 ? "bg-amber-500" : idx === 1 ? "bg-slate-400" : idx === 2 ? "bg-amber-700" : "bg-muted-foreground/30"}`}>
-                          {idx + 1}
-                        </span>
-                        <span className="text-sm font-medium text-foreground truncate max-w-[50%]">{item.name}</span>
-                      </div>
-                      <Badge variant="outline" className="font-mono text-xs tabular-nums">{item.qty} sold</Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Receivables/Payables + Top Customers */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <Card className="glass-card overflow-hidden">
-            <CardHeader className="pb-2 pt-4 px-5">
-              <CardTitle className="text-sm font-heading flex items-center gap-2">
-                <CircleDollarSign className="h-4 w-4 text-primary" /> Receivables vs Payables
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              {totalReceivables === 0 && totalPayables === 0 ? (
-                <div className="text-center py-8">
-                  <CircleDollarSign className="h-8 w-8 mx-auto mb-2 text-muted-foreground/20" />
-                  <p className="text-sm text-muted-foreground">No outstanding balances</p>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <ResponsiveContainer width="100%" height={160}>
-                    <PieChart>
-                      <Pie
-                        data={rpData}
-                        cx="50%" cy="50%"
-                        innerRadius={45} outerRadius={65}
-                        paddingAngle={4}
-                        dataKey="value"
-                      >
-                        <Cell fill="hsl(199, 89%, 48%)" />
-                        <Cell fill="hsl(0, 72%, 51%)" />
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "hsl(var(--card))" }}
-                        formatter={(value: number) => [`PKR ${value.toLocaleString()}`, ""]}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex gap-6 text-xs mt-1">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "hsl(199, 89%, 48%)" }} />
-                      <span className="text-muted-foreground">Receivable</span>
-                      <span className="font-mono font-semibold tabular-nums text-foreground">PKR {totalReceivables.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "hsl(0, 72%, 51%)" }} />
-                      <span className="text-muted-foreground">Payable</span>
-                      <span className="font-mono font-semibold tabular-nums text-foreground">PKR {totalPayables.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="lg:col-span-2 glass-card overflow-hidden">
-            <CardHeader className="pb-2 pt-4 px-5">
-              <CardTitle className="text-sm font-heading flex items-center gap-2">
-                <Users className="h-4 w-4 text-primary" /> Top Customers
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 pb-4">
-              {topCustomers.length === 0 ? (
-                <div className="text-center py-6">
-                  <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/20" />
-                  <p className="text-sm text-muted-foreground">No customer data yet</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Customer</TableHead>
-                      <TableHead className="text-right">This Month</TableHead>
-                      <TableHead className="text-right">This Year</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {topCustomers.map((c, idx) => (
-                      <TableRow key={idx} className="table-row-hover">
-                        <TableCell className="font-medium text-sm">{c.name}</TableCell>
-                        <TableCell className="text-right font-mono text-sm tabular-nums">PKR {c.monthSale.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-mono text-sm tabular-nums">PKR {c.yearlySale.toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Expiry Alerts Widget */}
-        {(expiryAlerts.critical > 0 || expiryAlerts.warning > 0 || expiryAlerts.info > 0) && (
-          <Card className="glass-card border-amber-500/20 overflow-hidden">
-            <CardHeader className="pb-2 pt-4 px-5">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-heading flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-amber-600" /> Expiry Alerts
-                </CardTitle>
-                <div className="flex gap-2">
-                  {expiryAlerts.critical > 0 && <Badge variant="destructive" className="text-[10px]">{expiryAlerts.critical} Critical</Badge>}
-                  {expiryAlerts.warning > 0 && <Badge className="bg-amber-500 text-white text-[10px]">{expiryAlerts.warning} Warning</Badge>}
-                  {expiryAlerts.info > 0 && <Badge variant="secondary" className="text-[10px]">{expiryAlerts.info} Soon</Badge>}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="px-5 pb-4">
-              <div className="space-y-2">
-                {expiryAlerts.items.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50 border border-border/50">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${item.severity === "expired" || item.severity === "critical" ? "bg-destructive animate-pulse" : item.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} />
-                        <span className="text-sm font-medium truncate">{item.name}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground ml-4">Batch: {item.batch} • Qty: {item.qty}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className={`text-xs font-mono ${item.severity === "expired" ? "text-destructive font-bold" : item.severity === "critical" ? "text-destructive" : item.severity === "warning" ? "text-amber-600" : "text-muted-foreground"}`}>
-                        {item.severity === "expired" ? "EXPIRED" : item.expiry}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <Button size="sm" variant="outline" className="w-full mt-3 text-xs press-scale" onClick={() => navigate("/reports/batch-wise")}>
-                View Full Batch Report →
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Reorder Alerts */}
-        <Card className="glass-card border-destructive/20 overflow-hidden">
-          <CardHeader className="pb-2 pt-4 px-5">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-heading flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-destructive" /> Smart Reorder Alerts
-              </CardTitle>
-              <Button size="sm" variant="outline" onClick={generateReorderAlerts} disabled={loadingReorder} className="text-xs h-7 press-scale">
-                {loadingReorder ? "Analyzing..." : "Refresh"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="px-5 pb-4">
-            {reorderAlerts.length === 0 ? (
-              <div className="text-center py-6">
-                <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-muted-foreground/20" />
-                <p className="text-sm text-muted-foreground">No reorder alerts</p>
-                <p className="text-xs text-muted-foreground mt-1">Click Refresh to analyze stock levels</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {reorderAlerts.map((alert, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-muted/50 border border-border/50 hover:bg-muted/80 transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${alert.severity === "critical" ? "bg-destructive animate-pulse" : alert.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} />
-                        <span className="text-sm font-medium text-foreground truncate">{alert.product_name}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground ml-4">
-                        Stock: {alert.current_stock} • {alert.days_until_stockout}d left
-                      </p>
-                    </div>
-                    <Badge variant="outline" className={`text-[10px] ${
-                      alert.severity === "critical" ? "border-destructive/30 text-destructive" :
-                      alert.severity === "warning" ? "border-amber-500/30 text-amber-600" :
-                      "border-blue-500/30 text-blue-600"
-                    }`}>
-                      {alert.severity}
-                    </Badge>
-                  </div>
-                ))}
-                {settings?.whatsapp_number && (
-                  <Button size="sm" variant="outline" className="w-full mt-2 text-xs gap-1.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/5 press-scale" onClick={generateReorderAlerts}>
-                    <MessageCircle className="h-3.5 w-3.5" /> Send WhatsApp Alert
-                  </Button>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
       </div>
     </AppLayout>
   );
