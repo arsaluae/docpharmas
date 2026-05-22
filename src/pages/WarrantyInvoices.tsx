@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,8 +75,36 @@ export default function WarrantyInvoices() {
   const [formNotes, setFormNotes] = useState("");
 
   const pagination = usePagination();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [autoSourceHandled, setAutoSourceHandled] = useState(false);
 
   useEffect(() => { load(); }, [pagination.page]);
+
+  // Auto-open dialog and load from sales invoice if ?source_invoice=<id> is present
+  useEffect(() => {
+    const src = searchParams.get("source_invoice");
+    if (!src || autoSourceHandled || products.length === 0) return;
+    setAutoSourceHandled(true);
+    (async () => {
+      const { data: si } = await supabase.from("sales_invoices")
+        .select("id, customer_id").eq("id", src).single();
+      if (!si) { toast.error("Sales invoice not found"); return; }
+      if (si.customer_id) {
+        setSelectedCustomerId(si.customer_id);
+        // Load distributors
+        const { data: dists } = await supabase.from("customer_distributors")
+          .select("*").eq("customer_id", si.customer_id).order("name") as { data: Distributor[] | null };
+        setDistributors(dists || []);
+      }
+      await handleSelectInvoice(src);
+      setOpen(true);
+      // Strip the query param so refresh doesn't re-trigger
+      const next = new URLSearchParams(searchParams);
+      next.delete("source_invoice");
+      setSearchParams(next, { replace: true });
+    })();
+  }, [searchParams, products, autoSourceHandled]);
+
 
   const load = async () => {
     const [inv, cust, prod] = await Promise.all([
@@ -107,32 +137,50 @@ export default function WarrantyInvoices() {
 
   const handleSelectInvoice = async (invoiceId: string) => {
     setSelectedInvoiceId(invoiceId);
-    // Load invoice items with product details
+    // Load invoice items
     const { data: invoiceItems } = await supabase.from("sales_invoice_items")
       .select("*")
       .eq("invoice_id", invoiceId) as { data: SalesInvoiceItem[] | null };
-    
+
     if (invoiceItems) {
+      // Fetch expiry dates from grn_items for these product+batch combinations
+      const productIds = Array.from(new Set(invoiceItems.map(i => i.product_id).filter(Boolean))) as string[];
+      const expiryMap: Record<string, string> = {};
+      if (productIds.length > 0) {
+        const { data: grn } = await supabase.from("grn_items")
+          .select("product_id, batch_number, expiry_date")
+          .in("product_id", productIds);
+        (grn || []).forEach((g: any) => {
+          if (g.product_id && g.batch_number && g.expiry_date) {
+            expiryMap[`${g.product_id}__${g.batch_number}`] = g.expiry_date;
+          }
+        });
+      }
+
       const lineItems: LineItem[] = invoiceItems.map(item => {
         const product = products.find(p => p.id === item.product_id);
         const mrp = product?.mrp || product?.selling_price || item.rate;
         const tp = Math.round(mrp * 0.85 * 100) / 100;
+        const expiry = item.product_id && item.batch_number
+          ? expiryMap[`${item.product_id}__${item.batch_number}`] || ""
+          : "";
         return {
           product_id: item.product_id || "",
           product_name: product?.name || "Unknown Product",
           batch_number: item.batch_number || "",
-          expiry_date: "",
+          expiry_date: expiry,
           quantity: item.quantity,
           mrp,
           tp_rate: tp,
           discount: 0,
-          amount: item.quantity * tp,
+          amount: Math.round(item.quantity * tp * 100) / 100,
         };
       });
       setItems(lineItems);
     }
     setStep("edit_items");
   };
+
 
   const updateItem = (idx: number, field: keyof LineItem, value: any) => {
     const updated = [...items];

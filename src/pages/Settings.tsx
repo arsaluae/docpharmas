@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Save, Upload, FileText, Plus, Trash2, MessageCircle, Download, Database, Cloud, RefreshCw, Clock, Users, ShieldCheck } from "lucide-react";
+import { Save, Upload, FileText, Plus, Trash2, MessageCircle, Download, Database, Cloud, RefreshCw, Clock, Users, ShieldCheck, Truck, Wallet, UserCog, Send, Wrench } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { useDocumentTemplates, DocumentTemplate } from "@/hooks/useDocumentTemplates";
@@ -205,6 +205,9 @@ export default function Settings() {
         <Tabs defaultValue="company" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="company">Company Profile</TabsTrigger>
+            <TabsTrigger value="operations">
+              <Wrench className="h-4 w-4 mr-1" /> Operations
+            </TabsTrigger>
             <TabsTrigger value="templates">
               <FileText className="h-4 w-4 mr-1" /> Document Templates
             </TabsTrigger>
@@ -217,6 +220,41 @@ export default function Settings() {
               <Database className="h-4 w-4 mr-1" /> Data Backup
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="operations" className="space-y-6 max-w-3xl">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="text-lg">Operations Shortcuts</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">Quick access to secondary day-to-day tools — moved here to keep the sidebar focused.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { label: "Sales Agents", desc: "Manage commission agents", icon: UserCog, url: "/sales-agents" },
+                    { label: "Couriers", desc: "Freight dispatch tracking", icon: Truck, url: "/couriers" },
+                    { label: "Delivery Notes", desc: "Logistics & DN status", icon: Send, url: "/delivery-notes" },
+                    { label: "Receive Payment", desc: "Customer payments in", icon: Wallet, url: "/payments?tab=received" },
+                    { label: "Make Payment", desc: "Supplier payments out", icon: Wallet, url: "/payments?tab=made" },
+                  ].map(it => (
+                    <button key={it.url} onClick={() => navigate(it.url)}
+                      className="text-left p-4 rounded-xl border border-border bg-gradient-to-br from-card to-muted/30 hover:border-primary/40 hover:shadow-md transition-all group">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                          <it.icon className="h-4 w-4 text-primary" />
+                        </div>
+                        <p className="font-medium text-sm text-foreground">{it.label}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{it.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <FreightProvidersCard />
+          </TabsContent>
+
+
 
           <TabsContent value="company" className="space-y-6 max-w-2xl">
             <Card className="glass-card">
@@ -268,7 +306,10 @@ export default function Settings() {
               </CardContent>
             </Card>
 
-            <FreightProvidersCard />
+
+
+
+
 
 
 

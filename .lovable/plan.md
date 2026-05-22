@@ -1,44 +1,49 @@
-## Continue Sales Order Hub – Remaining Items
+## 1. Sidebar declutter — move secondary items into Settings → Operations
 
-Picking up from where we left off. No new DB migrations needed — all schema (freight_providers, delivery_notes.freight_provider_id, sales_returns) is already in place.
+**Sidebar (`src/components/AppSidebar.tsx`)** — trim sections to essentials:
+- **Sales**: Customers, Sales Orders, Warranty Invoices, Returns
+- **Purchase**: Suppliers, Purchase Orders, Returns
+- **Finance**: Payments, Credit Notes, Expenses, Staff & Salaries, Bank Accounts (unchanged)
+- **Inventory**: unchanged
 
-### 1. Dispatch + Batch Confirmation dialog
-- New `src/components/sales/DispatchConfirmDialog.tsx` triggered on Sales Order "Submit/Dispatch".
-- Step 1 – Batch picker: lists active batches per item (FEFO from `stock_movements`) showing **Batch #, On-hand, Expiry date**. User allocates ordered qty across batches.
-- Step 2 – Courier picker: "Dispatched through?" dropdown from `freight_providers` (NCCS / ADDA / Self), plus optional tracking note.
-- On confirm: create `sales_invoices` + `sales_invoice_items` (split per batch), `stock_movements` (`sale_out`), `delivery_notes` with `freight_provider_id` + `delivery_type_label` + `batch_number` + `expiry_date`, mark order `dispatched`, link `converted_invoice_id`.
+Removed from sidebar (still reachable via routes + Settings): Sales Agents, Couriers, Delivery Notes, Receive Payment, Make Payment.
 
-### 2. Sales Order page polish (`src/pages/ProformaInvoices.tsx`)
-- Rename remaining UI strings: page title → **Sales Orders**, all "Proforma/Invoice" labels → "Sales Order", primary button → **+ Create Sales Order**.
-- Rebuild Items section as proper table with header row: **Product | Quantity | Price | Total**, right-aligned numerics, sticky totals footer, clean dividers.
-- Row actions dropdown: add **Return Items** (opens existing `SalesReturnDialog`) and **Dispatch** (opens new `DispatchConfirmDialog`).
-- Rebuild top KPI strip: custom glass card with month nav (← May 2026 →), 4 tiles — Orders / Pending / Dispatched / Returned — each with inline sparkline. Replaces the generic 3-box layout.
+**Settings page (`src/pages/Settings.tsx`)** — add a new **"Operations"** tab containing a grid of link cards: Sales Agents · Couriers · Delivery Notes · Receive Payment · Make Payment · Freight Providers (existing card moves here from Company tab).
 
-### 3. Sales Invoice row – Return entry point
-- In `src/pages/SalesInvoices.tsx` row actions: add **Return Items** → opens `SalesReturnDialog` pre-filled with that invoice.
+## 2. Warranty Invoice — Sales Order 3-dots shortcut
 
-### 4. Delivery Notes page (`src/pages/DeliveryNotes.tsx`)
-- New **Courier** column showing `delivery_type_label` with colored chip per provider.
-- Filter chips at top: All / NCCS / ADDA / Self.
-- Fix View Invoice / View DN action buttons to deep-link correctly.
+**`src/pages/ProformaInvoices.tsx`** — in the row actions dropdown (only when order is `invoiced`/`dispatched`), add **"Create Warranty Invoice"**. Navigates to `/warranty-invoices?source_invoice=<id>`.
 
-### 5. Settings – Courier management
-- New card in `src/pages/Settings.tsx`: list `freight_providers` with inline add/edit/toggle-active. Uses `useFreightProviders` hook.
+**`src/pages/WarrantyInvoices.tsx`** — on mount, if `?source_invoice=<id>` query param:
+1. Auto-load that sales invoice + its items + customer.
+2. Skip directly to `edit_items` step with all lines pre-filled: product, batch_number, expiry_date (from `grn_items` lookup), quantity, mrp, `tp_rate = mrp × 0.85`, amount.
+3. User can trim/remove rows before saving.
 
-### 6. Couriers page (already created) – minor wire-up
-- Confirm sidebar link visible and KPI cards pulling current month data.
+No ledger/stock hit — warranty insert stays as-is (already dummy).
 
-### Files
+Also expose the same action on `src/pages/SalesInvoices.tsx` row 3-dots if that page is the one rendering invoiced rows (will verify on read).
 
-**Create**
-- `src/components/sales/DispatchConfirmDialog.tsx`
-- `src/components/settings/FreightProvidersCard.tsx`
+## 3. Print Jobs — allotted supplier + factory stock split
 
-**Edit**
-- `src/pages/ProformaInvoices.tsx` (labels, items table, KPI strip, row actions)
-- `src/pages/SalesInvoices.tsx` (Return Items action)
-- `src/pages/DeliveryNotes.tsx` (courier column + filters)
-- `src/pages/Settings.tsx` (mount FreightProvidersCard)
+**Migration** — alter `print_jobs`:
+- `allotted_supplier_id uuid` (nullable) — supplier expected to receive finished goods.
+- `quantity_dispatched_to_supplier numeric NOT NULL DEFAULT 0` — running total dispatched.
+- `quantity_at_factory numeric GENERATED ALWAYS AS (quantity_delivered - quantity_dispatched_to_supplier) STORED` — auto-calc factory balance.
 
-### Out of scope (this turn)
-- No schema changes. No new tables. No changes to triggers or ledger logic — batch confirm reuses existing `sales_invoices` insert path which already fires balance + stock triggers.
+**`src/pages/PrintJobs.tsx`** — create/edit form additions:
+- **Allotted Supplier** dropdown (from `suppliers`, searchable).
+- New row action **"Dispatch to Supplier"** opens a dialog: shows `At Factory: <qty>`, lets user enter qty + date + note, increments `quantity_dispatched_to_supplier`, creates a `stock_movements` row (`purchase_in`) tagged with the supplier and batch so it lands in supplier inventory + landed costs as today.
+
+New **Factory Stock** KPI strip at top of Print Jobs page: total pieces at factory, broken down per printer (small chip list). Example: order 5000 → delivered 5000 → dispatched 2000 → **at factory: 3000**.
+
+## 4. Out of scope (explicit)
+
+- No changes to ledgers/triggers beyond the new stock_movement insert on dispatch.
+- No purchase-invoice "vendor=printer" support (you confirmed: print-job allotted supplier is what you wanted).
+- No KPI strip redesign on Sales page (already done previously).
+
+## Files
+
+**Create**: none.
+**Edit**: `src/components/AppSidebar.tsx`, `src/pages/Settings.tsx`, `src/pages/ProformaInvoices.tsx`, `src/pages/SalesInvoices.tsx`, `src/pages/WarrantyInvoices.tsx`, `src/pages/PrintJobs.tsx`.
+**Migration**: 1 file — add 3 columns to `print_jobs`.
