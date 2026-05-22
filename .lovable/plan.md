@@ -1,37 +1,32 @@
-## Finish ERP Hardening Wiring
+# Redesign — Phase 1 (foundation) ✅ shipped
 
-Most of the previous pass is already in place. Remaining gaps after re-scanning:
+**Locked decisions**
+- Accent: electric indigo `#6366F1` / `#4F46E5` (user overrode brief's "no purple" with vibrant purple/blue)
+- Type: Geist + Geist Mono (Google Fonts)
+- Themes: both dark + light, redesigned
+- Sequence: foundation → dashboard → page-by-page
 
-### 1. Friendly negative-stock errors on remaining write paths
-The `prevent_negative_stock` DB trigger raises `Insufficient stock for product <uuid>: on-hand X, requested Y`. Only `ProformaInvoices.tsx` currently translates this into a friendly toast. Add the same interception (resolve product name from local state, show `Insufficient stock for <name> (requested <qty>)`) in:
-- `src/pages/SalesReturns.tsx` — on `stock_movements` insert (`return_out` path during return-from-customer corrections).
-- `src/pages/WarrantyInvoices.tsx` — on `sale_out` stock insert.
-- `src/pages/StockMovements.tsx` — on manual `adjustment_out`, `damage`, `expired` inserts.
+**Shipped in Phase 1**
+- `src/index.css` — full token rewrite (dark + light), Geist import, legacy class shims (`glass-card`, `glass-kpi`, `mesh-hero`, `summary-card`, `gradient-border` etc all → flat bg-card + hairline). Sora/Manrope removed.
+- `tailwind.config.ts` — `font-sans/heading=Geist`, `font-mono=Geist Mono`, status color tokens, new motion timings.
+- `src/components/AppLayout.tsx` — 48px borderless top bar (breadcrumb + CMD+K + date). Page header band with 32px light-weight h1 + right-aligned actions. 32px side padding.
+- `src/components/AppSidebar.tsx` — kept `mouj-dark-sidebar` chrome, re-tinted via index.css to new indigo + warm off-white palette.
+- Primitives rebuilt: `button.tsx`, `input.tsx`, `table.tsx`, `badge.tsx`, `card.tsx`, `PaginationControls.tsx`.
+- New primitives: `status-pill.tsx`, `empty-state.tsx`, `skeleton-row.tsx`, `metric-card.tsx`.
+- `src/lib/utils.ts` — `formatDateDDMMMYYYY`, `formatDateDDMMM`, `formatAmount`, `formatCompact`.
+- Memory: `style/theme`, `style/typography`, `style/ui-patterns` rewritten.
 
-Pattern (already used in ProformaInvoices):
-```ts
-if (err?.message?.includes("Insufficient stock")) {
-  const name = products.find(p => p.id === item.product_id)?.name ?? "product";
-  toast.error(`Insufficient stock for ${name} (requested ${qty}).`);
-  return;
-}
-```
+# Phase 2 — Dashboard (next)
 
-### 2. Voided-row visual treatment on document lists
-The `void_document` RPC already sets `status = 'voided'` on `purchase_invoices`, `goods_received_notes`, `payments`, `sales_invoices`. Apply consistent UI:
-- `src/pages/PurchaseProforma.tsx` — for any row where `status === 'voided'`, add `opacity-50 line-through` to the row and hide WhatsApp/PDF action buttons; show a destructive `Voided` badge.
-- `src/pages/Payments.tsx` — same styling (voided payments are hard-deleted by the RPC today, so this is primarily defensive for any soft-voided rows that still appear).
+Rebuild the Dashboard as a Bloomberg-style terminal.
+- Top row: 4 `MetricCard`s — Today's Sales, Open POs, Low Stock Alerts, Outstanding Receivables. Each with mono number, trend pill, sparkline.
+- Middle row (60/40): Recent transactions table (10 latest sales orders, no decoration) | Inventory alerts (expiring within 60 days + below reorder level).
+- Bottom: dense activity feed (last 20 system actions, git-commit-log density).
+- Remove: greeting hero, "Good Afternoon" card, colorful quick-action grid, illustration heroes, pie/donut charts on primary content.
 
-No new void buttons added — existing `promptVoid` cascade in PurchaseProforma and `Delete` in Payments already trigger the correct DB reversal triggers.
-
-### 3. Memory update
-Append to `mem://features/erp-hardening`: "Friendly Insufficient-stock toasts wired into SalesReturns, WarrantyInvoices, StockMovements. Voided-row styling on PurchaseProforma & Payments lists."
-
-### Out of scope
-- Couriers.tsx — read-only monthly report, no master-data CRUD.
-- SalesAgents.tsx — already uses its own `status` enum.
-- FreightProvidersCard — already has `is_active` toggle.
-- New DB migrations, ledger triggers, expiry KPI.
-
-### Files touched
-`src/pages/SalesReturns.tsx`, `src/pages/WarrantyInvoices.tsx`, `src/pages/StockMovements.tsx`, `src/pages/PurchaseProforma.tsx`, `src/pages/Payments.tsx`, `mem://features/erp-hardening`.
+# Phase 3 — Per-page sweep (after Phase 2)
+- Products, Sales hub (Customers/Proforma/Delivery/Warranty/Returns), Purchase hub, Finance (Payments/CreditNotes/Expenses/Salaries/Bank), Reports, Settings, Auth, PDF templates.
+- Purge legacy class names (`glass-card`, `mesh-hero`, etc.) and replace with the new primitives directly.
+- Replace bespoke empty states with `<EmptyState/>`. Replace ad-hoc status pills with `<StatusPill/>`. Replace table skeletons with `<SkeletonRow/>`.
+- Wire `formatDateDDMMMYYYY` into every expiry/batch column.
+- PDF: invoice template rebuild per brief (large light-weight invoice number, hairline rules, mono totals, 40px margins).
