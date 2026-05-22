@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Printer, BookOpen, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Search, Printer, BookOpen, Trash2, Power } from "lucide-react";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CITY_OPTIONS } from "@/lib/pakistan-cities";
@@ -19,6 +20,7 @@ interface PrinterEntity {
   id: string; name: string; company: string | null; ntn: string | null;
   phone: string | null; email: string | null; address: string | null; city: string | null;
   payment_terms_days: number; opening_balance: number; balance: number; created_at: string;
+  is_active?: boolean;
 }
 
 const emptyForm = {
@@ -35,12 +37,23 @@ export default function Printers() {
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
 
-  useEffect(() => { loadPrinters(); }, []);
+  useEffect(() => { loadPrinters(); }, [showInactive]);
 
   const loadPrinters = async () => {
-    const { data } = await supabase.from("printers").select("*").order("created_at", { ascending: false });
+    let q = supabase.from("printers").select("*").order("created_at", { ascending: false });
+    if (!showInactive) q = q.eq("is_active", true);
+    const { data } = await q;
     if (data) setPrinters(data);
+  };
+
+  const toggleActive = async (p: PrinterEntity, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { error } = await supabase.from("printers").update({ is_active: !p.is_active } as any).eq("id", p.id);
+    if (error) { toast.error("Failed: " + error.message); return; }
+    toast.success(p.is_active ? "Printer deactivated" : "Printer reactivated");
+    loadPrinters();
   };
 
   const handleSave = async () => {
@@ -118,9 +131,14 @@ export default function Printers() {
   return (
     <AppLayout title="Printers" subtitle="Manage packaging printers — separate from suppliers" headerActions={headerActions}>
           <div className="p-6">
-            <div className="mb-4 relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search printers..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+            <div className="mb-4 flex items-center gap-3">
+              <div className="relative max-w-sm flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search printers..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
+                <Switch checked={showInactive} onCheckedChange={setShowInactive} /> Show inactive
+              </label>
             </div>
 
             {selectedIds.size > 0 && (
@@ -152,7 +170,7 @@ export default function Printers() {
                     {filtered.length === 0 ? (
                       <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground"><Printer className="h-8 w-8 mx-auto mb-2 opacity-40" />No printers yet.</TableCell></TableRow>
                     ) : filtered.map(p => (
-                      <TableRow key={p.id} className="cursor-pointer hover:bg-accent/50" onClick={() => handleEdit(p)}>
+                      <TableRow key={p.id} className={`cursor-pointer hover:bg-accent/50 ${p.is_active === false ? "opacity-50" : ""}`} onClick={() => handleEdit(p)}>
                         <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selectedIds.has(p.id)} onCheckedChange={() => toggleSelect(p.id)} /></TableCell>
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell>{p.company || "—"}</TableCell>
@@ -162,6 +180,7 @@ export default function Printers() {
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/printers/${p.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className={`h-7 w-7 ${p.is_active === false ? "text-emerald-600" : "text-amber-600"}`} onClick={(e) => toggleActive(p, e)} title={p.is_active === false ? "Reactivate" : "Deactivate"}><Power className="h-3.5 w-3.5" /></Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
                               <AlertDialogContent>

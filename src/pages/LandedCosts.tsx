@@ -61,7 +61,7 @@ export default function LandedCosts() {
     let q = supabase.from("additional_costs").select("*", { count: "exact" }).order("created_at", { ascending: false });
     if (typeFilter !== "all") q = q.eq("cost_type", typeFilter);
     q = q.range(pagination.from, pagination.to);
-    const [costsRes, suppRes] = await Promise.all([q, supabase.from("suppliers").select("id, name")]);
+    const [costsRes, suppRes] = await Promise.all([q, supabase.from("suppliers").select("id, name").eq("is_active", true)]);
     if (costsRes.data) setCosts(costsRes.data as any);
     if (costsRes.count != null) pagination.setTotalCount(costsRes.count);
     if (suppRes.data) {

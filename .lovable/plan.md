@@ -1,35 +1,30 @@
-## Wire ERP Hardening into UI
+## Extend ERP Hardening UI to remaining surfaces
 
-The DB-level fixes (constraints, neg-stock trigger, `is_active`, `void_document` RPC) are live. This plan wires them into the user-facing pages.
+Wire the existing `is_active` + void infrastructure into the pages that were skipped in the previous pass, plus tighten a few document workflows.
 
-### 1. `is_active` toggle + filter on master-data pages
-For `Customers`, `Suppliers`, `Products`, `Printers`, `SalesAgents`:
-- Add a small "Active" switch column in the list table (toggles `is_active`).
-- Add an "Active only" filter chip in the header (default ON).
-- In every party/product `Select` used in document forms (Proforma, Purchase Proforma, GRN, Sales/Purchase Returns, Payments, Warranty), append `.eq("is_active", true)` when loading options. Existing already-saved documents still resolve their FK by id.
+### 1. Active toggle on remaining master-data pages
+- `src/pages/Printers.tsx` and `src/pages/SalesAgents.tsx`: add the same "Show inactive" `Switch`, `Power` toggle column, and `opacity-50` row styling already used on Customers/Suppliers/Products.
+- `src/pages/Couriers.tsx` (if present): same treatment.
+- In any select/dropdown that loads printers, sales agents, or couriers for new documents, append `.eq("is_active", true)`. Existing rows still resolve by id.
 
-### 2. Void buttons in document rows
-Add the `<VoidDocumentButton>` component to row actions on:
-- `ProformaInvoices.tsx` (for the generated Sales Invoice — `table="sales_invoices"`)
-- `PurchaseProforma.tsx` (for the generated Purchase Invoice — `table="purchase_invoices"`)
-- GRN list inside `PurchaseProforma` hub (`table="goods_received_notes"`)
-- `Payments.tsx` (`table="payments"`)
-Show button only when `status !== 'voided'`. Refresh list `onDone`.
+### 2. Void buttons on remaining document lists
+Add `<VoidDocumentButton>` to row actions and hide download/print + apply voided styling (`opacity-50 line-through` + destructive badge) when `status === 'voided'`:
+- `PurchaseProforma.tsx` → `purchase_invoices`
+- GRN list page → `goods_received_notes`
+- `Payments.tsx` → `payments`
 
-### 3. Visual treatment of voided rows
-Across the four pages above: when `status === 'voided'`, render the row with `opacity-50 line-through text-muted-foreground` and a small `<Badge variant="destructive">Voided</Badge>`. Hide download/print actions on voided docs.
+(ProformaInvoices already has its own `promptVoid` and stays unchanged.)
 
-### 4. Friendlier negative-stock error
-The new BD trigger raises `Insufficient stock for product <uuid>...`. Intercept this error on insert in `ProformaInvoices` (sales item save path) and `SalesReturns`, look up the product name from local state, and toast: `Insufficient stock for <name>. On-hand: X, requested: Y.`
+### 3. Friendly negative-stock errors elsewhere
+Apply the same "Insufficient stock for <name>" toast interception used in `ProformaInvoices.tsx` to:
+- `SalesReturns.tsx` (return_out)
+- `WarrantyInvoices.tsx` (sale_out)
+- Any stock adjustment / damage / expiry write paths
 
-### 5. Memory note
-Append a short note to `mem://features/erp-hardening` describing the UI wiring.
-
-### Files
-- Edit: `Customers.tsx`, `Suppliers.tsx`, `Products.tsx`, `Printers.tsx`, `SalesAgents.tsx`, `ProformaInvoices.tsx`, `PurchaseProforma.tsx`, `Payments.tsx`, `SalesReturns.tsx`.
-- No new files, no migrations.
+### 4. Memory update
+Append a short note to `mem://features/erp-hardening` listing the additional pages now wired up.
 
 ### Out of scope
-- Ledger automation triggers (deferred — current report fallback still works).
-- Per-field validation polish (low priority).
-- Expiry dashboard KPI (low priority).
+- New DB migrations (none needed; uses existing `is_active`, `void_document` RPC, `prevent_negative_stock` trigger).
+- Ledger automation triggers.
+- Expiry dashboard KPI.
