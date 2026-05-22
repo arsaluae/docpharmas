@@ -897,32 +897,62 @@ export default function ProformaInvoices() {
               <Label className="text-sm font-semibold">Items</Label>
               <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
             </div>
-            {items.map((item, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
-                <div className="col-span-3">
-                  <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
-                </div>
-                <div className="col-span-1"><Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
-                <div className="col-span-2 relative">
-                  <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
-                  {item.last_price !== undefined && item.last_price !== null && (
-                    <span className="absolute -bottom-4 left-0 text-[10px] text-emerald-600 font-medium">Last: PKR {Number(item.last_price).toLocaleString()}</span>
-                  )}
-                </div>
-                <div className="col-span-1"><Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="text-xs" placeholder="Disc%" /></div>
-                {settings?.gst_enabled && <div className="col-span-1"><Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs" placeholder="GST%" /></div>}
-                <div className={`${settings?.gst_enabled ? "col-span-3" : "col-span-4"} text-right text-sm font-mono pt-2 text-foreground`}>{item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}</div>
-                <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
+
+            <div className="rounded-xl border border-border overflow-hidden bg-card/50">
+              <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="col-span-4">Product</div>
+                <div className="col-span-2 text-right">Quantity</div>
+                <div className="col-span-2 text-right">Price (PKR)</div>
+                <div className="col-span-1 text-right">Disc%</div>
+                {settings?.gst_enabled && <div className="col-span-1 text-right">GST%</div>}
+                <div className={`${settings?.gst_enabled ? "col-span-1" : "col-span-2"} text-right`}>Total</div>
+                <div className="col-span-1"></div>
               </div>
-            ))}
-            <Separator className="my-3" />
-            <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
-              {settings?.gst_enabled && <div className="flex justify-between text-muted-foreground"><span>GST</span><span className="font-mono">{gst.toLocaleString()}</span></div>}
-              <div className="flex justify-between font-bold text-foreground text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
+              {items.length === 0 ? (
+                <div className="px-3 py-6 text-center text-xs text-muted-foreground">No items yet — click "Add Item" to begin</div>
+              ) : items.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 px-3 py-2 items-center border-t border-border/60 hover:bg-muted/20">
+                  <div className="col-span-4">
+                    <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Select product…" triggerClassName="text-xs h-9" />
+                  </div>
+                  <div className="col-span-2">
+                    <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs text-right h-9" placeholder="0" />
+                  </div>
+                  <div className="col-span-2 relative">
+                    <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs text-right h-9" placeholder="0.00" />
+                    {item.last_price !== undefined && item.last_price !== null && (
+                      <span className="absolute -bottom-3.5 left-0 text-[9px] text-emerald-600 font-medium">Last: {Number(item.last_price).toLocaleString()}</span>
+                    )}
+                  </div>
+                  <div className="col-span-1">
+                    <Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="text-xs text-right h-9" placeholder="0" />
+                  </div>
+                  {settings?.gst_enabled && (
+                    <div className="col-span-1">
+                      <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs text-right h-9" placeholder="17" />
+                    </div>
+                  )}
+                  <div className={`${settings?.gst_enabled ? "col-span-1" : "col-span-2"} text-right text-sm font-mono font-semibold text-foreground`}>
+                    {item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {items.length > 0 && (
+                <div className="px-3 py-2.5 bg-muted/30 border-t border-border space-y-1 text-sm">
+                  <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
+                  {settings?.gst_enabled && <div className="flex justify-between text-muted-foreground"><span>GST</span><span className="font-mono">{gst.toLocaleString()}</span></div>}
+                  <div className="flex justify-between font-bold text-foreground text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
+                </div>
+              )}
             </div>
+
             <Button onClick={handleSave} disabled={saving} className="w-full mt-4 h-11 text-sm font-semibold">
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Sales Invoice
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Sales Order
             </Button>
           </DialogContent>
         </Dialog>
