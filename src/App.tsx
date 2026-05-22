@@ -79,6 +79,8 @@ const SalesTrend = lazy(() => import("./pages/reports/SalesTrend"));
 const ProductPerformance = lazy(() => import("./pages/reports/ProductPerformance"));
 const SupplierPerformance = lazy(() => import("./pages/reports/SupplierPerformance"));
 const SlowDeadStock = lazy(() => import("./pages/reports/SlowDeadStock"));
+const CitywiseSales = lazy(() => import("./pages/reports/CitywiseSales"));
+const DailyCashPosition = lazy(() => import("./pages/reports/DailyCashPosition"));
 const StockAudit = lazy(() => import("./pages/StockAudit"));
 const Salaries = lazy(() => import("./pages/Salaries"));
 const SalesAgents = lazy(() => import("./pages/SalesAgents"));
