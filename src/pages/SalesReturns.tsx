@@ -84,7 +84,17 @@ export default function SalesReturns() {
       date: new Date().toISOString().split("T")[0], notes: `Sales Return ${num}`,
     })));
 
-    toast.success(`Sales Return ${num} created`);
+    // Auto-create Credit Note (replaces the old direct customer balance trigger)
+    const { data: cnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "credit_note" });
+    if (cnNumber) {
+      await supabase.from("credit_notes").insert({
+        credit_note_number: cnNumber, party_type: "customer", party_id: customerId,
+        amount: total, reason: reason || `Sales Return ${num}`, reference: num,
+        date: new Date().toISOString().split("T")[0],
+      });
+    }
+
+    toast.success(`Sales Return ${num} created — Credit Note auto-issued`);
     setOpen(false); setCustomerId(""); setInvoiceId(""); setReason("");
     setItems([{ product_id: "", product_name: "", batch_number: "", quantity: "1", rate: "0" }]);
     setSaving(false);
