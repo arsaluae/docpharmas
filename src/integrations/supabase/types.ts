@@ -1345,6 +1345,7 @@ export type Database = {
       }
       print_jobs: {
         Row: {
+          allotted_supplier_id: string | null
           cost_per_unit: number
           created_at: string
           date: string
@@ -1356,7 +1357,9 @@ export type Database = {
           printer_share_amount: number
           printer_share_percent: number
           product_id: string | null
+          quantity_at_factory: number | null
           quantity_delivered: number
+          quantity_dispatched_to_supplier: number
           quantity_ordered: number
           quantity_rejected: number
           rejection_reason: string | null
@@ -1365,6 +1368,7 @@ export type Database = {
           total_cost: number
         }
         Insert: {
+          allotted_supplier_id?: string | null
           cost_per_unit?: number
           created_at?: string
           date?: string
@@ -1376,7 +1380,9 @@ export type Database = {
           printer_share_amount?: number
           printer_share_percent?: number
           product_id?: string | null
+          quantity_at_factory?: number | null
           quantity_delivered?: number
+          quantity_dispatched_to_supplier?: number
           quantity_ordered?: number
           quantity_rejected?: number
           rejection_reason?: string | null
@@ -1385,6 +1391,7 @@ export type Database = {
           total_cost?: number
         }
         Update: {
+          allotted_supplier_id?: string | null
           cost_per_unit?: number
           created_at?: string
           date?: string
@@ -1396,7 +1403,9 @@ export type Database = {
           printer_share_amount?: number
           printer_share_percent?: number
           product_id?: string | null
+          quantity_at_factory?: number | null
           quantity_delivered?: number
+          quantity_dispatched_to_supplier?: number
           quantity_ordered?: number
           quantity_rejected?: number
           rejection_reason?: string | null
