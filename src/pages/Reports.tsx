@@ -38,7 +38,8 @@ const reportSections = [
   ]},
   { label: "Geographic", items: [
     { title: "City-wise Sales", desc: "Revenue, orders & top product per city", url: "/reports/citywise-sales", icon: Globe2, color: "text-primary" },
-    { title: "Vacant Areas", desc: "Cities without product coverage", url: "/reports/vacant-areas", icon: MapPin, color: "text-destructive" },
+    { title: "Area-wise Sales", desc: "Drill into area performance within cities", url: "/reports/area-sales", icon: MapPin, color: "text-primary" },
+    { title: "Vacant Areas", desc: "Cities × products without coverage", url: "/reports/vacant-areas", icon: MapPin, color: "text-destructive" },
   ]},
   { label: "Compliance", items: [
     { title: "Tax & DRAP", desc: "GST, WHT & DRAP compliance", url: "/reports/tax", icon: ShieldCheck, color: "text-destructive" },
