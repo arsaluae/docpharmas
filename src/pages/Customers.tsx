@@ -319,7 +319,7 @@ export default function Customers() {
                   </TableCell>
                 </TableRow>
               ) : filtered.map(c => (
-                <TableRow key={c.id} className="cursor-pointer table-row-hover" onClick={() => handleEdit(c)}>
+                <TableRow key={c.id} className={`cursor-pointer table-row-hover ${c.is_active === false ? "opacity-50" : ""}`} onClick={() => handleEdit(c)}>
                   <TableCell onClick={e => e.stopPropagation()}>
                     <Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
                   </TableCell>
@@ -341,6 +341,7 @@ export default function Customers() {
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/customers/${c.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setProfileCustomer(c); setProfileOpen(true); }} title="Profile & Distributors"><Store className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => openLicenses(c, e)} title="Medical Licenses"><Award className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className={`h-7 w-7 ${c.is_active === false ? "text-emerald-600" : "text-amber-600"}`} onClick={(e) => toggleActive(c, e)} title={c.is_active === false ? "Reactivate" : "Deactivate"}><Power className="h-3.5 w-3.5" /></Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
                         <AlertDialogContent>
