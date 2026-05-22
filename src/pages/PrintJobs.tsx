@@ -266,6 +266,20 @@ export default function PrintJobs() {
   const totalJobsValue = jobs.reduce((s, j) => s + Number(j.total_cost), 0);
   const pendingSettlement = jobs.filter(j => j.status === "delivered").length;
   const totalRejected = jobs.reduce((s, j) => s + Number(j.quantity_rejected), 0);
+  const totalAtFactory = jobs.reduce((s, j) => s + Number(j.quantity_at_factory || 0), 0);
+
+  // Per-printer factory stock breakdown
+  const factoryByPrinter: { name: string; qty: number }[] = (() => {
+    const acc: Record<string, number> = {};
+    jobs.forEach(j => {
+      const q = Number(j.quantity_at_factory || 0);
+      if (q <= 0) return;
+      const name = printerNames[j.printer_id || ""] || "Unknown";
+      acc[name] = (acc[name] || 0) + q;
+    });
+    return Object.entries(acc).map(([name, qty]) => ({ name, qty })).sort((a, b) => b.qty - a.qty);
+  })();
+
 
   const statusBadge = (status: string) => {
     if (status === "draft") return <Badge variant="secondary" className="bg-muted text-muted-foreground">Draft</Badge>;
@@ -281,6 +295,7 @@ export default function PrintJobs() {
         <div className="grid grid-cols-2 gap-3 mt-2">
           <div><Label>Printer *</Label><SearchableSelect options={printers.map(p => ({ value: p.id, label: p.name }))} value={printerId} onChange={setPrinterId} placeholder="Select printer..." /></div>
           <div><Label>Product *</Label><SearchableSelect options={products.map(p => ({ value: p.id, label: p.name }))} value={productId} onChange={setProductId} placeholder="Select product..." /></div>
+          <div className="col-span-2"><Label>Allotted Supplier</Label><SearchableSelect options={suppliers.map(s => ({ value: s.id, label: s.name }))} value={allottedSupplierId} onChange={setAllottedSupplierId} placeholder="Who will receive the finished packaging?" /></div>
           <div><Label>Quantity Ordered *</Label><Input type="number" value={qtyOrdered} onChange={e => setQtyOrdered(e.target.value)} /></div>
           <div><Label>Cost per Unit (PKR) *</Label><Input type="number" step="0.01" value={costPerUnit} onChange={e => setCostPerUnit(e.target.value)} /></div>
           <div><Label>Date</Label><Input type="date" value={jobDate} onChange={e => setJobDate(e.target.value)} /></div>
@@ -291,6 +306,7 @@ export default function PrintJobs() {
       </DialogContent>
     </Dialog>
   );
+
 
   return (
     <AppLayout title="Print Jobs" subtitle="Track printing orders, delivery, rejections & cost splitting" headerActions={headerActions}>
