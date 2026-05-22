@@ -589,6 +589,7 @@ export type Database = {
           customer_code: string | null
           email: string | null
           id: string
+          is_active: boolean
           name: string
           ntn: string | null
           opening_balance: number
@@ -607,6 +608,7 @@ export type Database = {
           customer_code?: string | null
           email?: string | null
           id?: string
+          is_active?: boolean
           name: string
           ntn?: string | null
           opening_balance?: number
@@ -625,6 +627,7 @@ export type Database = {
           customer_code?: string | null
           email?: string | null
           id?: string
+          is_active?: boolean
           name?: string
           ntn?: string | null
           opening_balance?: number
@@ -1048,8 +1051,11 @@ export type Database = {
           notes: string | null
           po_id: string | null
           received_by: string | null
+          status: string
           supplier_id: string | null
           tenant_id: string | null
+          void_reason: string | null
+          voided_at: string | null
         }
         Insert: {
           created_at?: string
@@ -1059,8 +1065,11 @@ export type Database = {
           notes?: string | null
           po_id?: string | null
           received_by?: string | null
+          status?: string
           supplier_id?: string | null
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Update: {
           created_at?: string
@@ -1070,8 +1079,11 @@ export type Database = {
           notes?: string | null
           po_id?: string | null
           received_by?: string | null
+          status?: string
           supplier_id?: string | null
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Relationships: [
           {
@@ -1320,8 +1332,11 @@ export type Database = {
           payment_method: string
           payment_number: string
           reference: string | null
+          status: string
           tenant_id: string | null
           type: string
+          void_reason: string | null
+          voided_at: string | null
         }
         Insert: {
           amount?: number
@@ -1338,8 +1353,11 @@ export type Database = {
           payment_method?: string
           payment_number: string
           reference?: string | null
+          status?: string
           tenant_id?: string | null
           type: string
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Update: {
           amount?: number
@@ -1356,8 +1374,11 @@ export type Database = {
           payment_method?: string
           payment_number?: string
           reference?: string | null
+          status?: string
           tenant_id?: string | null
           type?: string
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Relationships: [
           {
@@ -1515,6 +1536,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          is_active: boolean
           name: string
           ntn: string | null
           opening_balance: number
@@ -1530,6 +1552,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_active?: boolean
           name: string
           ntn?: string | null
           opening_balance?: number
@@ -1545,6 +1568,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_active?: boolean
           name?: string
           ntn?: string | null
           opening_balance?: number
@@ -1570,6 +1594,7 @@ export type Database = {
           drap_reg_number: string | null
           gst_rate: number
           id: string
+          is_active: boolean
           mrp: number
           name: string
           pack_size: string | null
@@ -1588,6 +1613,7 @@ export type Database = {
           drap_reg_number?: string | null
           gst_rate?: number
           id?: string
+          is_active?: boolean
           mrp?: number
           name: string
           pack_size?: string | null
@@ -1606,6 +1632,7 @@ export type Database = {
           drap_reg_number?: string | null
           gst_rate?: number
           id?: string
+          is_active?: boolean
           mrp?: number
           name?: string
           pack_size?: string | null
@@ -1727,6 +1754,8 @@ export type Database = {
           supplier_id: string | null
           tenant_id: string | null
           total: number
+          void_reason: string | null
+          voided_at: string | null
           wht_amount: number
         }
         Insert: {
@@ -1742,6 +1771,8 @@ export type Database = {
           supplier_id?: string | null
           tenant_id?: string | null
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
           wht_amount?: number
         }
         Update: {
@@ -1757,6 +1788,8 @@ export type Database = {
           supplier_id?: string | null
           tenant_id?: string | null
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
           wht_amount?: number
         }
         Relationships: [
@@ -2278,6 +2311,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          is_active: boolean
           name: string
           phone: string | null
           status: string
@@ -2290,6 +2324,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_active?: boolean
           name: string
           phone?: string | null
           status?: string
@@ -2302,6 +2337,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_active?: boolean
           name?: string
           phone?: string | null
           status?: string
@@ -2397,6 +2433,8 @@ export type Database = {
           subtotal: number
           tenant_id: string | null
           total: number
+          void_reason: string | null
+          voided_at: string | null
         }
         Insert: {
           agent_id?: string | null
@@ -2416,6 +2454,8 @@ export type Database = {
           subtotal?: number
           tenant_id?: string | null
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Update: {
           agent_id?: string | null
@@ -2435,6 +2475,8 @@ export type Database = {
           subtotal?: number
           tenant_id?: string | null
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Relationships: [
           {
@@ -2772,6 +2814,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          is_active: boolean
           license_number: string | null
           name: string
           ntn: string | null
@@ -2792,6 +2835,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_active?: boolean
           license_number?: string | null
           name: string
           ntn?: string | null
@@ -2812,6 +2856,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_active?: boolean
           license_number?: string | null
           name?: string
           ntn?: string | null
@@ -3115,6 +3160,10 @@ export type Database = {
       }
       recalc_supplier_invoice_status: {
         Args: { p_supplier_id: string }
+        Returns: undefined
+      }
+      void_document: {
+        Args: { p_id: string; p_reason: string; p_table: string }
         Returns: undefined
       }
     }
