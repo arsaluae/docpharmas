@@ -48,7 +48,7 @@ export function SalesReturnDialog({ open, onOpenChange, invoiceId, invoiceNumber
       const returnIds = ((returns as any[]) || []).map(r => r.id);
       let returnedMap: Record<string, number> = {};
       if (returnIds.length > 0) {
-        const { data: ri } = await supabase.from("sales_return_items" as any)
+        const { data: ri } = await (supabase as any).from("sales_return_items")
           .select("product_id, batch_number, quantity")
           .in("return_id", returnIds);
         ((ri as any[]) || []).forEach(r => {
