@@ -1234,46 +1234,93 @@ export default function ProformaInvoices() {
             </DialogContent>
           </Dialog>
 
-          {/* ═══ SUBMIT DIALOG (Batch Selection) ═══ */}
+          {/* ═══ SUBMIT DIALOG (Batch + Dispatch) ═══ */}
           <Dialog open={submitOpen} onOpenChange={setSubmitOpen}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="font-heading">Submit Order — Assign Batches</DialogTitle>
+                <DialogTitle className="font-heading">Dispatch Order — Assign Batches & Courier</DialogTitle>
               </DialogHeader>
-              <p className="text-sm text-muted-foreground">Select batch for each item. This creates Invoice + Delivery Note + updates stock.</p>
+              <p className="text-sm text-muted-foreground">
+                Pick the batch (FEFO – earliest expiry first) for each item, then choose the courier. This creates the Sales Invoice, Delivery Note and updates stock.
+              </p>
               <Separator />
-              {submitItems.map((item, idx) => (
+
+              {/* Courier */}
+              <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3">
+                <Label className="text-xs font-semibold text-violet-700 dark:text-violet-300 flex items-center gap-1.5">
+                  <Truck className="h-3.5 w-3.5" /> Dispatched through? *
+                </Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                  {freightProviders.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setFreightProviderId(p.id)}
+                      className={`px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${
+                        freightProviderId === p.id
+                          ? "border-violet-500 bg-violet-500/15 text-violet-700 dark:text-violet-300 shadow-sm"
+                          : "border-border bg-card hover:bg-muted/50 text-foreground"
+                      }`}
+                    >
+                      <div className="font-mono text-[10px] text-muted-foreground">{p.code}</div>
+                      {p.name}
+                    </button>
+                  ))}
+                  {freightProviders.length === 0 && (
+                    <p className="col-span-full text-xs text-muted-foreground">
+                      No couriers configured. Add them under Settings → Couriers.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {submitItems.map((item, idx) => {
+                const selectedBatch = batchOptions[item.product_id]?.find(b => b.batch_number === item.batch_number);
+                return (
                 <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-foreground">{item.product_name || "Item"}</span>
-                    <span className="text-xs font-mono text-muted-foreground">Qty: {item.quantity}</span>
+                    <span className="text-xs font-mono text-muted-foreground">Ordered: {item.quantity}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-xs font-medium text-muted-foreground">Batch *</Label>
+                      <Label className="text-xs font-medium text-muted-foreground">Batch * (FEFO)</Label>
                       {batchOptions[item.product_id]?.length > 0 ? (
-                        <SearchableSelect
-                          options={batchOptions[item.product_id].map(b => ({ value: b.batch_number, label: `${b.batch_number} (${b.available} avail)` }))}
-                          value={item.batch_number}
-                          onChange={v => { const u = [...submitItems]; u[idx].batch_number = v; setSubmitItems(u); }}
-                          placeholder="Select batch..."
-                          triggerClassName="text-xs h-9"
-                        />
+                        <>
+                          <SearchableSelect
+                            options={batchOptions[item.product_id].map(b => ({
+                              value: b.batch_number,
+                              label: `${b.batch_number} · ${b.available} avail${b.expiry_date ? ` · exp ${b.expiry_date}` : ""}`,
+                            }))}
+                            value={item.batch_number}
+                            onChange={v => { const u = [...submitItems]; u[idx].batch_number = v; setSubmitItems(u); }}
+                            placeholder="Select batch..."
+                            triggerClassName="text-xs h-9"
+                          />
+                          {selectedBatch?.expiry_date && (
+                            <p className="text-[10px] text-muted-foreground mt-1">Expires: <span className="font-mono text-foreground">{selectedBatch.expiry_date}</span></p>
+                          )}
+                        </>
                       ) : (
                         <p className="text-xs text-destructive mt-1">No batches available</p>
                       )}
                     </div>
                     <div>
-                      <Label className="text-xs font-medium text-muted-foreground">Quantity</Label>
-                      <Input type="number" className="text-xs" value={item.convert_quantity}
+                      <Label className="text-xs font-medium text-muted-foreground">Dispatch Quantity</Label>
+                      <Input type="number" className="text-xs h-9" value={item.convert_quantity}
                         onChange={e => { const u = [...submitItems]; u[idx].convert_quantity = e.target.value; setSubmitItems(u); }} />
                     </div>
                   </div>
                 </div>
-              ))}
-              <Button onClick={handleSubmit} disabled={submitting} className="w-full h-11 gap-2 text-sm font-semibold mt-2">
+              );})}
+
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting || (freightProviders.length > 0 && !freightProviderId)}
+                className="w-full h-11 gap-2 text-sm font-semibold mt-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white"
+              >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                Confirm & Create Invoice + Delivery Note
+                Confirm Dispatch — Create Invoice + Delivery Note
               </Button>
              </DialogContent>
           </Dialog>
