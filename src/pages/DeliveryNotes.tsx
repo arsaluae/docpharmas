@@ -73,7 +73,20 @@ export default function DeliveryNotes() {
     setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
   };
 
-  const filtered = notes.filter(n => n.dn_number.toLowerCase().includes(search.toLowerCase()));
+  const filtered = notes.filter(n => {
+    const matchSearch = n.dn_number.toLowerCase().includes(search.toLowerCase());
+    const matchCourier = courierFilter === "all" || (n.delivery_type_label || "").toLowerCase() === courierFilter.toLowerCase();
+    return matchSearch && matchCourier;
+  });
+  const courierOptions = Array.from(new Set(notes.map(n => n.delivery_type_label).filter(Boolean))) as string[];
+  const courierColor = (label?: string | null) => {
+    if (!label) return "bg-muted text-muted-foreground border-border";
+    const l = label.toLowerCase();
+    if (l.includes("ncc")) return "bg-blue-500/15 text-blue-600 border-blue-500/30";
+    if (l.includes("adda")) return "bg-orange-500/15 text-orange-600 border-orange-500/30";
+    if (l.includes("self")) return "bg-emerald-500/15 text-emerald-600 border-emerald-500/30";
+    return "bg-violet-500/15 text-violet-600 border-violet-500/30";
+  };
   const toggleSelect = (id: string) => { const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); setSelected(s); };
   const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(n => n.id)));
 
