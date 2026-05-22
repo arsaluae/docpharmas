@@ -1,100 +1,92 @@
-# Speed & Performance Optimization Plan
+## Goal
+Turn the current "Proforma/Sales Invoice" page into a true **Sales Order hub**: order quantities are a wish-list (no ledger/stock impact), and only after the **Batch Confirmation** step does the system create the real Sales Invoice + Delivery Note + stock movement + customer ledger entry. Add freight provider tracking and inline returns.
 
-Goal: make the app feel instant — faster dashboards, faster reports, faster navigation between pages — without changing any business logic, UI, or workflows.
-
-I found three real bottlenecks: missing database indexes, no client-side caching (every page re-queries on each visit), and reports/dashboard pulling thousands of rows to compute totals in the browser.
-
-## 1. Database — add missing indexes (biggest win)
-
-Right now `sales_invoices`, `payments`, `purchase_invoices`, `expenses`, `sales_invoice_items` only have primary-key indexes. Every dashboard / report query does a full table scan.
-
-Add indexes via migration:
-- `sales_invoices(date)`, `sales_invoices(customer_id)`, `sales_invoices(tenant_id, date)`, `sales_invoices(status)`
-- `sales_invoice_items(invoice_id)`, `sales_invoice_items(product_id)`
-- `purchase_invoices(date)`, `purchase_invoices(supplier_id)`, `purchase_invoices(status)`
-- `purchase_invoice_items(invoice_id)`, `grn_items(product_id)`, `grn_items(expiry_date)`
-- `payments(party_id, party_type, type)`, `payments(invoice_id)`, `payments(date)`
-- `expenses(date)`, `expenses(category)`, `expenses(bank_account_id)`
-- `purchase_proformas(status)`, `proforma_invoices(status)`
-- `stock_movements(date)`, `stock_movements(movement_type)`
-- `customers(tenant_id)`, `suppliers(tenant_id)`, `products(tenant_id)`
-
-Expected impact: 5–50× faster queries on tables with >1k rows. No behavior change.
-
-## 2. Dashboard — server-side aggregation RPCs
-
-`Index.tsx` currently runs 12 queries in parallel, then a second wave that pulls every `sales_invoice_items` row of the month in 50-id batches just to compute totals. For a busy month this can be 500+ rows transferred to compute one Gross Margin number.
-
-Create two Postgres RPCs (security definer, tenant-scoped via `get_user_tenant_id()`):
-- `dashboard_kpis(p_from date, p_to date)` → returns week/month/year subtotals, gross profit, COGS, receivables, payables, upcoming PO count/value, last-month subtotal — all in one round trip.
-- `dashboard_charts(p_from date, p_to date)` → daily sales series, top products, top customers, expenses by category.
-
-Frontend change: replace 12+N queries with 2 RPC calls. No UI change, no KPI calculation change (same formulas, just executed in SQL).
-
-Same approach for the heavy reports:
-- `report_customer_wise()`, `report_supplier_wise()`, `report_item_wise()`, `report_batch_wise()`, `report_receivables_aging()`, `report_payables_aging()` — each returns the already-grouped result instead of dumping raw rows.
-
-The `fetchAllRows` helper stays for cases that genuinely need raw data (exports).
-
-## 3. Client-side caching with React Query
-
-QueryClient is configured (60s staleTime) but **no page uses it** — every navigation triggers fresh `supabase.from(...)` calls inside `useEffect`. Switching between Customers ↔ Invoices ↔ Dashboard re-downloads the same data each time.
-
-Convert the read paths of frequently-visited pages to `useQuery` with stable keys:
-- Dashboard (`['dashboard-kpis']`, `['dashboard-charts']`, `['reorder-alerts']`, `['expiry-alerts']`)
-- Customers, Suppliers, Products list pages
-- ProformaInvoices, PurchaseProforma list pages
-- Sidebar/Tenant/CompanySettings hooks
-- Reports
-
-Mutations (create/update/delete) call `queryClient.invalidateQueries` so data stays correct. No business logic changes, no UI changes — only the data-fetching wrapper changes.
-
-Expected impact: instant back-navigation, no flash of loading state on revisit.
-
-## 4. Code-splitting & lazy heavy modules
-
-`App.tsx` already lazy-loads routes. Remaining wins:
-- Lazy-import `pdf-generator.ts`, `PdfPreviewDialog`, `jspdf`, `html2canvas` only when the user clicks Print/Share (these are large and currently pulled into common chunks).
-- Lazy-import `recharts` chart wrappers inside dashboard sections via `React.lazy`.
-- Add `vite.config.ts` `build.rollupOptions.output.manualChunks` to split `recharts`, `framer-motion`, `xlsx`, `jspdf` into their own chunks so the main bundle shrinks.
-- Lazy `CommandPalette` (only mounts on Ctrl+K).
-
-## 5. Parallelize the remaining N+1 patterns
-
-A few places still loop `await` over batches (`KpiDialogs.tsx`, `Customers.tsx`, `Suppliers.tsx`, `Index.tsx`). Change `for (let i…) { await … }` to `Promise.all(chunks.map(c => supabase…))`. Once the RPCs in §2 land, most of these disappear entirely.
-
-## 6. Memoization & render hygiene
-
-- Wrap heavy chart-data transforms in `useMemo` (dashboard daily sales, expense categories, top customers).
-- Memoize Sidebar nav and KPI cards with `React.memo` so dashboard re-renders during data load don't re-render the shell.
-- Debounce the search inputs (Customers, Suppliers, Products) — currently each keystroke fires a query.
-
-## 7. Prefetch on hover
-
-In `AppSidebar` and main nav links, prefetch the route's chunk on `mouseenter` (`import()` the lazy module). Makes navigation feel instant on desktop.
-
-## Out of scope (not touched)
-
-- No UI/visual changes
-- No new features
-- No changes to triggers, RLS, or business rules
-- No edge-function changes
-- No auth/signup flow changes
-
-## Technical summary
+## 1. Sales Order page (ProformaInvoices.tsx → renamed labels)
+- Replace every visible "Sales Invoice" / "Proforma" label with **"Sales Order"** (button: *Create Sales Order*, title, dialog headings, toasts, PDF title). DB tables stay as-is.
+- Rebuild the **Items section** (the off-looking row in screenshot #1):
 
 ```text
-DB:           ~25 indexes via migration
-RPCs:         dashboard_kpis, dashboard_charts, report_* (~7 functions)
-Frontend:     useQuery on ~12 pages, lazy pdf/recharts, manualChunks,
-              memo on dashboard, debounce search inputs, prefetch on hover
-Files:        src/pages/Index.tsx, src/pages/Customers.tsx,
-              src/pages/Suppliers.tsx, src/pages/Products.tsx,
-              src/pages/Proforma*.tsx, src/pages/Purchase*.tsx,
-              src/pages/reports/*.tsx, src/hooks/useTenant.tsx,
-              src/hooks/useCompanySettings.tsx, src/components/AppSidebar.tsx,
-              src/components/AppLayout.tsx, src/components/PdfPreviewDialog.tsx,
-              src/lib/pdf-generator.ts, vite.config.ts
+┌─────────────────────────────────────────────────────────────┐
+│ Items                                          [+ Add Item] │
+├────┬──────────────────┬──────────┬──────────┬──────┬───────┤
+│ #  │ Product          │ Quantity │ Price    │ Total│   🗑   │
+├────┼──────────────────┼──────────┼──────────┼──────┼───────┤
+│ 1  │ [Searchable ▾]   │   [  ]   │  [  ]    │ auto │       │
+└────┴──────────────────┴──────────┴──────────┴──────┴───────┘
 ```
+  Labeled headers, proper column widths, right-aligned numerics, total auto-computed, single trash icon. No stray spinner stubs.
 
-Rollout order: indexes → dashboard RPC + useQuery (biggest perceived win) → report RPCs → lazy chunks → memoization/prefetch.
+- Order rows show in a new **Sales Orders** table; status starts as `draft`. Quantities here are *requested* only.
+
+## 2. Batch Confirmation flow (the real ledger trigger)
+On clicking **Submit / Confirm** on a draft Sales Order:
+1. Open **Batch Picker dialog** listing each line item.
+2. For each item: show available batches from `stock_movements` (FEFO via `getActiveBatches`) with **batch #, on-hand qty, expiry date**. User allocates the order qty across one or more batches (cannot exceed on-hand). Inline warning if any batch is `expiring`/`expired`.
+3. On confirm:
+   - Create `sales_invoices` + `sales_invoice_items` (per batch split) — **this is the qty that hits ledgers**.
+   - Create `stock_movements` rows (`sale_out`) per batch.
+   - Create `delivery_notes` with items including `batch_number` + `expiry_date`.
+   - Mark sales order `status = 'dispatched'` and link `converted_invoice_id`.
+   - Customer balance updates via existing `handle_sales_invoice_balance` trigger.
+
+If user voids the order before confirm → nothing to roll back (no ledger touched), matches your "order is dummy" rule.
+
+## 3. Freight providers (NCCS / ADDA / Self, managed)
+- New table `freight_providers` (id, tenant_id, name, code, is_active, notes).
+- Seed three rows on first load: NCCS, ADDA, Self.
+- Settings → new **"Couriers"** card: add / rename / deactivate providers.
+- Add `freight_provider_id` (nullable uuid) + `delivery_type_label` (text snapshot) to `delivery_notes`.
+- During Batch Confirmation final step → **Dispatch dialog** asks: *"Dispatched through?"* → dropdown of active providers. Saved to the new DN columns.
+- The existing DN appears in Delivery Notes page with a new **Courier** column + filter chips.
+
+## 4. Couriers dashboard
+- New page **`/couriers`** (sidebar under Sales).
+- Top: month picker + per-provider KPI cards: total DNs, total pcs dispatched.
+- Click a provider card → drill-in table: customer name, city, dn_number, date, total pcs (sum of item qty).
+- Data: aggregate `delivery_notes` joined with `customers` filtered by `freight_provider_id` and month.
+
+## 5. Sales Return (inline, from both order row and invoice row)
+- New "Return Items" action in the `···` menu on Sales Order rows **and** on Sales Invoice rows.
+- Dialog lists each item that was actually sold (sourced from `sales_invoice_items` of the converted invoice). For each line: item name (read-only), **max returnable** = sold − already_returned (hard cap), qty input, price (default from invoice), reason (text/select).
+- On submit: create `sales_returns` + `sales_return_items` (existing tables), which feed the existing `handle_sales_return_balance` trigger + stock-in movement. Block submit if qty > max or order/invoice has no dispatched items.
+
+## 6. Top KPI section redesign
+Replace the generic 3 colored boxes (screenshot #2 top) with a tighter custom strip:
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  May 2026  ‹ ›    │ Orders ●●●     │ Pending     │ Dispatched  │
+│                   │   2            │   0         │   2         │
+│                   │ PKR 98,500     │ PKR 0       │ PKR 98,500  │
+└──────────────────────────────────────────────────────────────────┘
+```
+- Glassmorphism, mesh-gradient accent border (matches existing `style/ui-patterns` memory).
+- Inline sparkline of last 7 days per metric.
+- Month nav stays left-aligned; cards collapse to horizontal scroll on <640px.
+
+## 7. Delivery Notes page tweaks
+- New **Courier** column showing `delivery_type_label`.
+- Filter chips: All / NCCS / ADDA / Self / + custom.
+- View Invoice / View DN buttons label corrected ("View Invoice" only appears if linked invoice exists).
+
+## Technical details
+**Migrations**
+- `freight_providers` table + RLS (tenant-scoped, mirrors existing pattern).
+- `delivery_notes`: add `freight_provider_id uuid`, `delivery_type_label text`.
+- Seed function to insert NCCS/ADDA/Self per tenant on first call (idempotent via `ON CONFLICT (tenant_id, code)`).
+- No changes to ledger triggers — they already key off `sales_invoices`/`sales_returns`.
+
+**Files**
+- `src/pages/ProformaInvoices.tsx` — label rename, items table redesign, top KPI strip, wire Batch Picker + Dispatch dialog into Submit flow, add Return action.
+- `src/components/sales/BatchPickerDialog.tsx` *(new)* — per-line batch allocation using `getActiveBatches`.
+- `src/components/sales/DispatchDialog.tsx` *(new)* — freight provider selector.
+- `src/components/sales/SalesReturnDialog.tsx` *(new)* — capped return entry, used from both Order and Invoice rows.
+- `src/pages/Couriers.tsx` *(new)* + route + sidebar entry.
+- `src/pages/Settings.tsx` — Couriers management card.
+- `src/pages/DeliveryNotes.tsx` — Courier column + filter chips.
+- `src/hooks/useFreightProviders.tsx` *(new)* — cached list.
+- `src/App.tsx` — `/couriers` route.
+
+**Out of scope (ask before doing)**
+- Renaming the underlying DB tables (`proforma_invoices` etc.) — only UI labels change.
+- Editing PurchaseProforma side — request was Sales-only.
