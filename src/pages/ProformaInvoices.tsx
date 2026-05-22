@@ -231,16 +231,17 @@ export default function ProformaInvoices() {
     setLoading(false);
   };
 
-  // Load allocated products + auto-select agent when customer changes
+  const [showAllProducts, setShowAllProducts] = useState(false);
+  // Load relevant products (allocations + past sales history) + auto-select agent when customer changes
   useEffect(() => {
-    if (!customerId) { setAllocatedProductIds(null); setAgentId(""); return; }
+    if (!customerId) { setAllocatedProductIds(null); setAgentId(""); setShowAllProducts(false); return; }
     (async () => {
-      const [prodRes, agentRes] = await Promise.all([
-        supabase.from("customer_products").select("product_id").eq("customer_id", customerId),
+      const { getCustomerProductIds } = await import("@/lib/party-products");
+      const [historyIds, agentRes] = await Promise.all([
+        getCustomerProductIds(customerId),
         supabase.from("agent_customers").select("agent_id").eq("customer_id", customerId).limit(1),
       ]);
-      if (prodRes.data && prodRes.data.length > 0) setAllocatedProductIds(prodRes.data.map(d => d.product_id));
-      else setAllocatedProductIds(null);
+      setAllocatedProductIds(historyIds.size > 0 ? Array.from(historyIds) : null);
       if (agentRes.data && agentRes.data.length > 0) setAgentId(agentRes.data[0].agent_id);
       else setAgentId("");
     })();
@@ -876,10 +877,11 @@ export default function ProformaInvoices() {
 
   const allStats = { count: monthOrders.length, value: monthOrders.reduce((s, d) => s + Number(d.total), 0) };
   const customerOptions = customers.map(c => ({ value: c.id, label: c.name }));
-  const productOptions = (allocatedProductIds && allocatedProductIds.length > 0
+  const productOptions = (!showAllProducts && allocatedProductIds && allocatedProductIds.length > 0
     ? products.filter(p => allocatedProductIds.includes(p.id))
     : products
   ).map(p => ({ value: p.id, label: p.name }));
+  const productFilterActive = !showAllProducts && allocatedProductIds && allocatedProductIds.length > 0;
 
   return (
     <AppLayout title="Sales Orders" subtitle="Create order → assign batches → auto-generate Invoice + Delivery Note"
@@ -913,8 +915,15 @@ export default function ProformaInvoices() {
             </div>
             <Separator className="my-4" />
             <div className="flex items-center justify-between mb-3">
-              <Label className="text-sm font-semibold">Items</Label>
-              <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
+              <Label className="text-sm font-semibold">Items {productFilterActive && <span className="text-[10px] text-muted-foreground font-normal ml-2">(showing products this customer buys)</span>}</Label>
+              <div className="flex items-center gap-2">
+                {allocatedProductIds && allocatedProductIds.length > 0 && (
+                  <Button type="button" variant="ghost" size="sm" className="text-[10px] h-7" onClick={() => setShowAllProducts(s => !s)}>
+                    {showAllProducts ? "Filter to customer" : "Show all products"}
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
+              </div>
             </div>
 
             <div className="rounded-xl border border-border overflow-hidden bg-card/50">

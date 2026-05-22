@@ -210,13 +210,14 @@ export default function PurchaseProforma() {
     setLoading(false);
   };
 
-  // Load allocated products when supplier changes
+  const [showAllProducts, setShowAllProducts] = useState(false);
+  // Load relevant products (past GRN history) when supplier changes
   useEffect(() => {
-    if (!supplierId) { setAllocatedProductIds(null); return; }
+    if (!supplierId) { setAllocatedProductIds(null); setShowAllProducts(false); return; }
     (async () => {
-      const { data } = await supabase.from("supplier_products").select("product_id").eq("supplier_id", supplierId);
-      if (data && data.length > 0) setAllocatedProductIds(data.map(d => d.product_id));
-      else setAllocatedProductIds(null);
+      const { getSupplierProductIds } = await import("@/lib/party-products");
+      const ids = await getSupplierProductIds(supplierId);
+      setAllocatedProductIds(ids.size > 0 ? Array.from(ids) : null);
     })();
   }, [supplierId]);
 
@@ -853,10 +854,11 @@ export default function PurchaseProforma() {
   // ── FILTERS ──
   const { subtotal, gst, total } = calcTotals(items);
   const supplierOptions = suppliers.map(s => ({ value: s.id, label: s.name }));
-  const productOptions = (allocatedProductIds && allocatedProductIds.length > 0
+  const productOptions = (!showAllProducts && allocatedProductIds && allocatedProductIds.length > 0
     ? products.filter(p => allocatedProductIds.includes(p.id))
     : products
   ).map(p => ({ value: p.id, label: p.name }));
+  const productFilterActive = !showAllProducts && allocatedProductIds && allocatedProductIds.length > 0;
 
   const getDateFilter = () => {
     const now = new Date();
@@ -939,8 +941,15 @@ export default function PurchaseProforma() {
             </div>
             <Separator className="my-4" />
             <div className="flex items-center justify-between mb-3">
-              <Label className="text-sm font-semibold">Items</Label>
-              <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
+              <Label className="text-sm font-semibold">Items {productFilterActive && <span className="text-[10px] text-muted-foreground font-normal ml-2">(showing products bought from this supplier)</span>}</Label>
+              <div className="flex items-center gap-2">
+                {allocatedProductIds && allocatedProductIds.length > 0 && (
+                  <Button type="button" variant="ghost" size="sm" className="text-[10px] h-7" onClick={() => setShowAllProducts(s => !s)}>
+                    {showAllProducts ? "Filter to supplier" : "Show all products"}
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
+              </div>
             </div>
             {items.map((item, idx) => (
               <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
