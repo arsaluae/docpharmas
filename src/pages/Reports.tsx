@@ -18,6 +18,7 @@ const reportSections = [
     { title: "Profit & Loss", desc: "Revenue, costs & net income", url: "/reports/pl", icon: TrendingUp, color: "text-primary" },
     { title: "Balance Sheet", desc: "Assets, liabilities & equity", url: "/reports/balance-sheet", icon: Scale, color: "text-primary" },
     { title: "Cash Flow", desc: "Cash inflows & outflows", url: "/reports/cash-flow", icon: BarChart3, color: "text-warning" },
+    { title: "Daily Cash Position", desc: "Live bank balances & 30-day flow", url: "/reports/daily-cash", icon: Wallet, color: "text-primary" },
   ]},
   { label: "Receivables & Payables", items: [
     { title: "Receivables Aging", desc: "Outstanding customer balances", url: "/reports/receivables", icon: Clock, color: "text-warning" },
