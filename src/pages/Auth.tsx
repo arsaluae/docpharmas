@@ -30,15 +30,18 @@ export default function Auth() {
     try {
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          setFailedAttempts((n) => n + 1);
+          throw error;
+        }
+        setFailedAttempts(0);
         navigate("/dashboard");
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
         });
         if (error) throw error;
-        toast.success("Password reset link sent to your email");
-        setMode("login");
+        setResetSent(true);
       } else {
         // signup
         if (!companyName.trim()) throw new Error("Company name is required");
