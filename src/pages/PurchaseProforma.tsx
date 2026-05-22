@@ -288,7 +288,12 @@ export default function PurchaseProforma() {
       const { error: itemsErr } = await supabase.from("purchase_proforma_items").insert(
         items.map(i => ({ proforma_id: pp.id, product_id: i.product_id || null, quantity_requested: Number(i.quantity_requested), rate: Number(i.rate), amount: i.amount }))
       );
-      if (itemsErr) { console.error("Items insert error:", itemsErr); toast.error("Order created but items failed: " + itemsErr.message); }
+      if (itemsErr) {
+        // Rollback: drop orphan parent so we never leave a partial purchase order behind
+        await supabase.from("purchase_proformas").delete().eq("id", pp.id);
+        toast.error("Failed to save items — order rolled back: " + itemsErr.message);
+        setSaving(false); return;
+      }
       if (costs.length > 0) {
         const { error: costsErr } = await supabase.from("additional_costs").insert(
           costs.map(c => ({ reference_type: "purchase_proforma", reference_id: pp.id, cost_type: c.cost_type, description: c.description, amount: Number(c.amount), vendor_id: c.vendor_id || null }))

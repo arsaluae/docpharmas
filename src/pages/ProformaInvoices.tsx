@@ -685,7 +685,12 @@ export default function ProformaInvoices() {
         amount: i.amount, batch_number: i.batch_number || null,
       }));
       const { error: itemsErr } = await supabase.from("sales_invoice_items").insert(lineItems);
-      if (itemsErr) { toast.error("Failed to save invoice items: " + itemsErr.message); setSubmitting(false); return; }
+      if (itemsErr) {
+        // Rollback: remove the orphan invoice header so no data is left in an inconsistent state
+        await supabase.from("sales_invoices").delete().eq("id", inv.id);
+        toast.error("Failed to save invoice items — rolled back: " + itemsErr.message);
+        setSubmitting(false); return;
+      }
 
       // Stock movements (single source of truth for inventory — no duplicate trigger)
       for (const item of submitItems) {
