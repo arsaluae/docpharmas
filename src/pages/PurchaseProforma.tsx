@@ -854,10 +854,11 @@ export default function PurchaseProforma() {
   // ── FILTERS ──
   const { subtotal, gst, total } = calcTotals(items);
   const supplierOptions = suppliers.map(s => ({ value: s.id, label: s.name }));
-  const productOptions = (allocatedProductIds && allocatedProductIds.length > 0
+  const productOptions = (!showAllProducts && allocatedProductIds && allocatedProductIds.length > 0
     ? products.filter(p => allocatedProductIds.includes(p.id))
     : products
   ).map(p => ({ value: p.id, label: p.name }));
+  const productFilterActive = !showAllProducts && allocatedProductIds && allocatedProductIds.length > 0;
 
   const getDateFilter = () => {
     const now = new Date();
