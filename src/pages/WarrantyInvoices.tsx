@@ -75,8 +75,36 @@ export default function WarrantyInvoices() {
   const [formNotes, setFormNotes] = useState("");
 
   const pagination = usePagination();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [autoSourceHandled, setAutoSourceHandled] = useState(false);
 
   useEffect(() => { load(); }, [pagination.page]);
+
+  // Auto-open dialog and load from sales invoice if ?source_invoice=<id> is present
+  useEffect(() => {
+    const src = searchParams.get("source_invoice");
+    if (!src || autoSourceHandled || products.length === 0) return;
+    setAutoSourceHandled(true);
+    (async () => {
+      const { data: si } = await supabase.from("sales_invoices")
+        .select("id, customer_id").eq("id", src).single();
+      if (!si) { toast.error("Sales invoice not found"); return; }
+      if (si.customer_id) {
+        setSelectedCustomerId(si.customer_id);
+        // Load distributors
+        const { data: dists } = await supabase.from("customer_distributors")
+          .select("*").eq("customer_id", si.customer_id).order("name") as { data: Distributor[] | null };
+        setDistributors(dists || []);
+      }
+      await handleSelectInvoice(src);
+      setOpen(true);
+      // Strip the query param so refresh doesn't re-trigger
+      const next = new URLSearchParams(searchParams);
+      next.delete("source_invoice");
+      setSearchParams(next, { replace: true });
+    })();
+  }, [searchParams, products, autoSourceHandled]);
+
 
   const load = async () => {
     const [inv, cust, prod] = await Promise.all([
