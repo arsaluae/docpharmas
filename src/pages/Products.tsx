@@ -290,6 +290,7 @@ export default function Products() {
                                 >
                                   <Layers className="h-3.5 w-3.5" />
                                 </Button>
+                                <Button variant="ghost" size="icon" className={`h-7 w-7 ${p.is_active === false ? "text-emerald-600" : "text-amber-600"}`} onClick={(e) => toggleActive(p, e)} title={p.is_active === false ? "Reactivate" : "Deactivate"}><Power className="h-3.5 w-3.5" /></Button>
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
                                   <AlertDialogContent>
