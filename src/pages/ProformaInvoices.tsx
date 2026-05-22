@@ -27,6 +27,8 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { checkTerritoryLock } from "@/lib/territory";
+import { useFreightProviders } from "@/hooks/useFreightProviders";
+import { SalesReturnDialog } from "@/components/sales/SalesReturnDialog";
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
