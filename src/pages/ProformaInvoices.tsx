@@ -915,8 +915,15 @@ export default function ProformaInvoices() {
             </div>
             <Separator className="my-4" />
             <div className="flex items-center justify-between mb-3">
-              <Label className="text-sm font-semibold">Items</Label>
-              <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
+              <Label className="text-sm font-semibold">Items {productFilterActive && <span className="text-[10px] text-muted-foreground font-normal ml-2">(showing products this customer buys)</span>}</Label>
+              <div className="flex items-center gap-2">
+                {allocatedProductIds && allocatedProductIds.length > 0 && (
+                  <Button type="button" variant="ghost" size="sm" className="text-[10px] h-7" onClick={() => setShowAllProducts(s => !s)}>
+                    {showAllProducts ? "Filter to customer" : "Show all products"}
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
+              </div>
             </div>
 
             <div className="rounded-xl border border-border overflow-hidden bg-card/50">
