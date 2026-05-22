@@ -877,10 +877,11 @@ export default function ProformaInvoices() {
 
   const allStats = { count: monthOrders.length, value: monthOrders.reduce((s, d) => s + Number(d.total), 0) };
   const customerOptions = customers.map(c => ({ value: c.id, label: c.name }));
-  const productOptions = (allocatedProductIds && allocatedProductIds.length > 0
+  const productOptions = (!showAllProducts && allocatedProductIds && allocatedProductIds.length > 0
     ? products.filter(p => allocatedProductIds.includes(p.id))
     : products
   ).map(p => ({ value: p.id, label: p.name }));
+  const productFilterActive = !showAllProducts && allocatedProductIds && allocatedProductIds.length > 0;
 
   return (
     <AppLayout title="Sales Orders" subtitle="Create order → assign batches → auto-generate Invoice + Delivery Note"
