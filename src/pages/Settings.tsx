@@ -50,6 +50,7 @@ const BACKUP_TABLES = [
   { table: "agent_customers", sheet: "Agent Customers" },
   { table: "agent_commissions", sheet: "Agent Commissions" },
   { table: "credit_notes", sheet: "Credit Notes" },
+  { table: "debit_notes", sheet: "Debit Notes" },
   { table: "salary_payments", sheet: "Salary Payments" },
   { table: "stock_movements", sheet: "Stock Movements" },
   { table: "sales_returns", sheet: "Sales Returns" },
@@ -235,6 +236,9 @@ export default function Settings() {
                     { label: "Delivery Notes", desc: "Logistics & DN status", icon: Send, url: "/delivery-notes" },
                     { label: "Receive Payment", desc: "Customer payments in", icon: Wallet, url: "/payments?tab=received" },
                     { label: "Make Payment", desc: "Supplier payments out", icon: Wallet, url: "/payments?tab=made" },
+                    { label: "Credit Notes", desc: "Customer credit adjustments", icon: FileText, url: "/credit-notes" },
+                    { label: "Debit Notes", desc: "Supplier debit adjustments", icon: FileText, url: "/debit-notes" },
+                    { label: "Stock Audit", desc: "Cross-check stock vs movements", icon: ShieldCheck, url: "/stock-audit" },
                   ].map(it => (
                     <button key={it.url} onClick={() => navigate(it.url)}
                       className="text-left p-4 rounded-xl border border-border bg-gradient-to-br from-card to-muted/30 hover:border-primary/40 hover:shadow-md transition-all group">

@@ -529,6 +529,42 @@ export default function PrintJobs() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dispatch to Supplier Dialog */}
+      <Dialog open={!!dispatchJob} onOpenChange={o => { if (!o) { setDispatchJob(null); setDispatchQty(""); setDispatchSupplierId(""); setDispatchNote(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Dispatch to Supplier — {dispatchJob?.job_number}</DialogTitle></DialogHeader>
+          {dispatchJob && (
+            <div className="space-y-3 mt-2">
+              <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-sm space-y-1">
+                <p className="text-muted-foreground">Product: <span className="font-medium text-foreground">{productNames[dispatchJob.product_id || ""] || "—"}</span></p>
+                <p className="text-muted-foreground">Printer: <span className="font-medium text-foreground">{printerNames[dispatchJob.printer_id || ""] || "—"}</span></p>
+                <p className="text-muted-foreground">At Factory: <span className="font-mono font-semibold text-emerald-600">{Number(dispatchJob.quantity_at_factory || 0).toLocaleString()} pcs</span></p>
+                <p className="text-muted-foreground">Already Dispatched: <span className="font-mono text-foreground">{Number(dispatchJob.quantity_dispatched_to_supplier || 0).toLocaleString()} pcs</span></p>
+              </div>
+              <div>
+                <Label>Supplier *</Label>
+                <SearchableSelect
+                  options={suppliers.map(s => ({ value: s.id, label: s.name }))}
+                  value={dispatchSupplierId}
+                  onChange={setDispatchSupplierId}
+                  placeholder="Receiving supplier..."
+                />
+                {dispatchJob.allotted_supplier_id && (
+                  <p className="text-[10px] text-muted-foreground mt-1">Allotted: {supplierNames[dispatchJob.allotted_supplier_id] || "—"}</p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Quantity *</Label><Input type="number" value={dispatchQty} onChange={e => setDispatchQty(e.target.value)} /></div>
+                <div><Label>Date</Label><Input type="date" value={dispatchDate} onChange={e => setDispatchDate(e.target.value)} /></div>
+              </div>
+              <div><Label>Note</Label><Textarea rows={2} value={dispatchNote} onChange={e => setDispatchNote(e.target.value)} placeholder="Delivery challan #, vehicle, etc." /></div>
+              <Button onClick={handleDispatch} className="w-full">Confirm Dispatch</Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
     </AppLayout>
   );

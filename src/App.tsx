@@ -74,6 +74,8 @@ const VacantAreas = lazy(() => import("./pages/reports/VacantAreas"));
 const Reports = lazy(() => import("./pages/Reports"));
 const AIInsights = lazy(() => import("./pages/AIInsights"));
 const CreditNotes = lazy(() => import("./pages/CreditNotes"));
+const DebitNotes = lazy(() => import("./pages/DebitNotes"));
+const StockAudit = lazy(() => import("./pages/StockAudit"));
 const Salaries = lazy(() => import("./pages/Salaries"));
 const SalesAgents = lazy(() => import("./pages/SalesAgents"));
 const DeliveryNotes = lazy(() => import("./pages/DeliveryNotes"));
@@ -156,6 +158,8 @@ const App = () => (
               <Route path="/reports/vacant-areas" element={<VacantAreas />} />
               <Route path="/insights" element={<AIInsights />} />
               <Route path="/credit-notes" element={<CreditNotes />} />
+              <Route path="/debit-notes" element={<DebitNotes />} />
+              <Route path="/stock-audit" element={<StockAudit />} />
               <Route path="/salaries" element={<Salaries />} />
               <Route path="/sales-agents" element={<SalesAgents />} />
             </Route>
