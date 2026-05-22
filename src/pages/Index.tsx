@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { MetricCard } from "@/components/ui/metric-card";
+// MetricCard kept available for future use; using bespoke vibrant tiles here
 import { StatusPill } from "@/components/ui/status-pill";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -204,124 +204,190 @@ export default function Index() {
   const netPosition = totalReceivables - totalPayables;
 
   const quickActions = [
-    { label: "Sales Invoice", path: "/proforma", icon: FileText },
-    { label: "Warranty", path: "/warranty-invoices", icon: Shield },
-    { label: "Payment In", path: "/payments", icon: Wallet },
-    { label: "Inventory", path: "/products", icon: Package },
-    { label: "Purchase Order", path: "/purchase-proforma", icon: FileText },
-    { label: "Print Jobs", path: "/print-jobs", icon: Printer },
-    { label: "Expenses", path: "/expenses", icon: Receipt },
-    { label: "Credit Notes", path: "/credit-notes", icon: CreditCard },
+    { label: "Sales Invoice", path: "/proforma", icon: FileText, gradient: "gradient-indigo", glow: "glow-indigo" },
+    { label: "Warranty", path: "/warranty-invoices", icon: Shield, gradient: "gradient-violet", glow: "glow-violet" },
+    { label: "Payment In", path: "/payments", icon: Wallet, gradient: "gradient-emerald", glow: "glow-emerald" },
+    { label: "Inventory", path: "/products", icon: Package, gradient: "gradient-amber", glow: "glow-amber" },
+    { label: "Purchase Order", path: "/purchase-proforma", icon: FileText, gradient: "gradient-cyan", glow: "glow-cyan" },
+    { label: "Print Jobs", path: "/print-jobs", icon: Printer, gradient: "gradient-fuchsia", glow: "glow-violet" },
+    { label: "Expenses", path: "/expenses", icon: Receipt, gradient: "gradient-rose", glow: "glow-rose" },
+    { label: "Credit Notes", path: "/credit-notes", icon: CreditCard, gradient: "gradient-sky", glow: "glow-cyan" },
+  ];
+
+  const kpiTiles = [
+    {
+      label: "Week to Date", value: weekSales, icon: TrendingUp,
+      gradient: "gradient-indigo", glow: "glow-indigo",
+      sparkline: weekSparkline, onClick: () => setWeekOpen(true),
+      subtitle: "Last 7 days",
+    },
+    {
+      label: "Month to Date", value: monthSales, icon: CalendarDays,
+      gradient: "gradient-violet", glow: "glow-violet",
+      sparkline: monthSparkline, onClick: () => setMonthOpen(true),
+      trend: lastMonthSales > 0 ? monthGrowth : null,
+      subtitle: lastMonthSales > 0 ? `vs PKR ${fmtCompact(lastMonthSales)} last month` : "No prior month",
+    },
+    {
+      label: "Gross Profit", value: Math.abs(grossMargin), icon: CircleDollarSign,
+      gradient: grossMargin >= 0 ? "gradient-emerald" : "gradient-rose",
+      glow: grossMargin >= 0 ? "glow-emerald" : "glow-rose",
+      onClick: () => setGpOpen(true),
+      trend: monthSales > 0 ? (grossMargin / monthSales) * 100 : null,
+      subtitle: "Revenue − COGS",
+    },
+    {
+      label: "Upcoming Orders", value: upcomingPoValue, icon: Truck,
+      gradient: "gradient-amber", glow: "glow-amber",
+      onClick: () => setUpcomingOpen(true),
+      subtitle: upcomingPoCount > 0 ? `${upcomingPoCount} open PO${upcomingPoCount > 1 ? "s" : ""}` : "None pending",
+    },
   ];
 
   return (
     <AppLayout title="Dashboard" subtitle={`${new Date().toLocaleDateString("en-PK", { weekday: "long" })} · ${formatDateDDMMMYYYY(today)}`}>
-      <div className="space-y-8">
+      <div className="space-y-6">
 
-        {/* ─── TICKER BAR ─── Bloomberg-style status strip */}
-        <div className="flex items-center gap-x-6 gap-y-2 flex-wrap border-y border-border py-2.5 text-[11px] font-mono">
-          <div className="flex items-center gap-2">
-            <Dot tone="success" />
-            <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Live</span>
+        {/* ─── HERO ─── Vibrant mesh greeting */}
+        <div className="mesh-hero-vibrant px-6 py-6 sm:py-7 relative overflow-hidden">
+          <div className="flex items-center justify-between flex-wrap gap-4 relative z-10">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-primary/70 mb-2 font-mono">
+                {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+              </p>
+              <h2 className="text-2xl sm:text-3xl font-bold font-heading">
+                <span className="text-foreground">Good </span>
+                <span className="text-gradient-primary">
+                  {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}
+                </span>
+                {settings?.company_name && <span className="text-foreground">, {settings.company_name}</span>}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1.5">Here's how your business is performing right now.</p>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/80 backdrop-blur border border-border">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span className="text-[11px] font-mono text-muted-foreground">Live</span>
+            </div>
           </div>
+        </div>
+
+        {/* ─── TICKER ─── Vibrant gradient strip */}
+        <div className="ticker-vibrant flex items-center gap-x-6 gap-y-2 flex-wrap px-4 py-2.5 text-[11px] font-mono">
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">MTD</span>
-            <span className="tabular-nums text-foreground">PKR {fmtPkr(monthSales)}</span>
+            <span className="tabular-nums text-foreground font-semibold">PKR {fmtPkr(monthSales)}</span>
             {lastMonthSales > 0 && (
-              <span className={`inline-flex items-center gap-0.5 tabular-nums ${monthGrowth >= 0 ? "text-success" : "text-danger"}`}>
-                {monthGrowth >= 0 ? <ArrowUpRight className="h-3 w-3" strokeWidth={1.5}/> : <ArrowDownRight className="h-3 w-3" strokeWidth={1.5}/>}
+              <span className={`inline-flex items-center gap-0.5 tabular-nums font-semibold ${monthGrowth >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                {monthGrowth >= 0 ? <ArrowUpRight className="h-3 w-3" strokeWidth={2}/> : <ArrowDownRight className="h-3 w-3" strokeWidth={2}/>}
                 {monthGrowth >= 0 ? "+" : ""}{monthGrowth.toFixed(1)}%
               </span>
             )}
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">WTD</span>
-            <span className="tabular-nums text-foreground">PKR {fmtPkr(weekSales)}</span>
+            <span className="tabular-nums text-foreground font-semibold">PKR {fmtPkr(weekSales)}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">A/R</span>
-            <span className="tabular-nums text-foreground">PKR {fmtCompact(totalReceivables)}</span>
+            <span className="tabular-nums text-emerald-500 font-semibold">PKR {fmtCompact(totalReceivables)}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">A/P</span>
-            <span className="tabular-nums text-foreground">PKR {fmtCompact(totalPayables)}</span>
+            <span className="tabular-nums text-rose-500 font-semibold">PKR {fmtCompact(totalPayables)}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">NET</span>
-            <span className={`tabular-nums ${netPosition >= 0 ? "text-success" : "text-danger"}`}>
+            <span className={`tabular-nums font-semibold ${netPosition >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
               {netPosition >= 0 ? "+" : "−"}PKR {fmtCompact(Math.abs(netPosition))}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">PO Open</span>
-            <span className="tabular-nums text-foreground">{upcomingPoCount}</span>
+            <span className="tabular-nums text-foreground font-semibold">{upcomingPoCount}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">Expiring 90d</span>
-            <span className={`tabular-nums ${expiryAlerts.critical > 0 ? "text-danger" : "text-foreground"}`}>
+            <span className={`tabular-nums font-semibold ${expiryAlerts.critical > 0 ? "text-rose-500" : "text-foreground"}`}>
               {expiryAlerts.critical + expiryAlerts.warning + expiryAlerts.info}
             </span>
           </div>
         </div>
 
-        {/* ─── KPI GRID ─── 4 precision tiles */}
+        {/* ─── KPI GRID ─── Vibrant hero tiles */}
         <section>
           <SectionHeader label="Performance — Today" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <button onClick={() => setWeekOpen(true)} className="text-left">
-              <MetricCard
-                label="Week to Date"
-                value={weekSales} prefix="PKR" format="currency"
-                sparkline={weekSparkline} icon={TrendingUp}
-              />
-            </button>
-            <button onClick={() => setMonthOpen(true)} className="text-left">
-              <MetricCard
-                label="Month to Date"
-                value={monthSales} prefix="PKR" format="currency"
-                trend={lastMonthSales > 0 ? { value: monthGrowth, label: "MoM" } : null}
-                sparkline={monthSparkline} icon={CalendarDays}
-              />
-            </button>
-            <button onClick={() => setGpOpen(true)} className="text-left">
-              <MetricCard
-                label="Gross Profit"
-                value={Math.abs(grossMargin)} prefix="PKR" format="currency"
-                trend={monthSales > 0 ? { value: (grossMargin / monthSales) * 100, label: "margin" } : null}
-                icon={CircleDollarSign}
-              />
-            </button>
-            <button onClick={() => setUpcomingOpen(true)} className="text-left">
-              <MetricCard
-                label="Upcoming Orders"
-                value={upcomingPoValue} prefix="PKR" format="currency"
-                trend={upcomingPoCount > 0 ? { value: upcomingPoCount, label: "open" } : null}
-                icon={Truck}
-              />
-            </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {kpiTiles.map((k) => (
+              <button
+                key={k.label}
+                onClick={k.onClick}
+                className={`card-vibrant ${k.glow} text-left p-5 group`}
+              >
+                <div className="flex items-start justify-between mb-4 relative z-10">
+                  <span className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{k.label}</span>
+                  <div className={`flex items-center justify-center h-9 w-9 rounded-xl ${k.gradient} shadow-lg group-hover:scale-110 transition-transform duration-200`}>
+                    <k.icon className="h-4 w-4 text-white" strokeWidth={2} />
+                  </div>
+                </div>
+                <div className="font-mono text-[28px] font-bold leading-none tracking-tight tabular-nums text-foreground relative z-10">
+                  <span className="text-muted-foreground/60 text-[16px] mr-1">PKR</span>
+                  {fmtPkr(k.value)}
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2 relative z-10">
+                  <span className="text-[11px] text-muted-foreground">{k.subtitle}</span>
+                  {typeof k.trend === "number" && (
+                    <span className={`inline-flex items-center gap-0.5 font-mono text-[11px] font-semibold tabular-nums px-1.5 py-0.5 rounded ${k.trend >= 0 ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500"}`}>
+                      {k.trend >= 0 ? <ArrowUpRight className="h-3 w-3" strokeWidth={2}/> : <ArrowDownRight className="h-3 w-3" strokeWidth={2}/>}
+                      {k.trend >= 0 ? "+" : ""}{k.trend.toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+                {k.sparkline && k.sparkline.length > 1 && (
+                  <div className="h-10 -mx-1 mt-2 relative z-10">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={k.sparkline.map((y, i) => ({ i, y }))}>
+                        <defs>
+                          <linearGradient id={`spark-${k.label}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
+                            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <Area type="monotone" dataKey="y" stroke="hsl(var(--primary))" strokeWidth={1.5} fill={`url(#spark-${k.label})`} isAnimationActive={false}/>
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </button>
+            ))}
           </div>
         </section>
 
-        {/* ─── COMMAND ROW ─── Quick actions, terminal-style */}
+        {/* ─── COMMAND ROW ─── Vibrant gradient quick actions */}
         <section>
           <SectionHeader label="Quick Actions" right={
             <span className="text-[10px] font-mono text-muted-foreground/60">Press ⌘K for command palette</span>
           } />
-          <div className="grid grid-cols-4 lg:grid-cols-8 border border-border rounded-md overflow-hidden divide-x divide-border">
-            {quickActions.map((a, i) => (
+          <div className="grid grid-cols-4 lg:grid-cols-8 gap-3">
+            {quickActions.map((a) => (
               <button
                 key={a.label}
                 onClick={() => navigate(a.path)}
-                className={`group flex flex-col items-center gap-2 px-2 py-4 bg-card hover:bg-foreground/[0.03] transition-colors duration-150 ${i >= 4 ? "border-t lg:border-t-0 border-border" : ""}`}
+                className="card-vibrant group flex flex-col items-center gap-2.5 py-4 px-2"
               >
-                <a.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" strokeWidth={1.25} />
-                <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-foreground/80 group-hover:text-foreground text-center leading-tight">
+                <div className={`flex items-center justify-center h-10 w-10 rounded-xl ${a.gradient} ${a.glow} group-hover:scale-110 transition-transform duration-200`}>
+                  <a.icon className="h-4 w-4 text-white" strokeWidth={2} />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-foreground/80 group-hover:text-foreground text-center leading-tight">
                   {a.label}
                 </span>
               </button>
             ))}
           </div>
         </section>
+
 
         {/* ─── CHARTS ─── 30D trend (wide) + MoM bar */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-3">
