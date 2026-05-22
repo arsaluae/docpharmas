@@ -122,37 +122,38 @@ export default function Index() {
     thirtyDaysAgo.setDate(today.getDate() - 29);
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
 
-    const [weekInv, monthInv, yearInv, recentMovements, products, customers, trendInv, lastMonthInv, expenses, overdueInv, custBalances, suppBalances] = await Promise.all([
-      supabase.from("sales_invoices").select("subtotal").gte("date", weekStartStr).lte("date", todayStr),
-      supabase.from("sales_invoices").select("subtotal, customer_id").gte("date", monthStart).lte("date", todayStr),
-      supabase.from("sales_invoices").select("subtotal, customer_id").gte("date", yearStart).lte("date", todayStr),
-      supabase.from("stock_movements").select("product_id, quantity, date").eq("movement_type", "purchase_in").order("created_at", { ascending: false }).limit(5),
-      supabase.from("products").select("id, name, cost_price"),
-      supabase.from("customers").select("id, name, balance"),
-      supabase.from("sales_invoices").select("date, subtotal").gte("date", thirtyDaysAgoStr).lte("date", todayStr),
-      supabase.from("sales_invoices").select("subtotal").gte("date", lastMonthStartStr).lte("date", lastMonthEndStr),
-      supabase.from("expenses").select("category, amount").eq("expense_type", "business").gte("date", monthStart).lte("date", todayStr),
-      supabase.from("purchase_proformas").select("total").in("status", ["draft", "ordered", "confirmed", "sent"]),
-      supabase.from("customers").select("balance"),
-      supabase.from("suppliers").select("balance"),
+    // Two server-side aggregated round-trips replace 12+N client queries.
+    const [{ data: kpis }, { data: charts }] = await Promise.all([
+      supabase.rpc("dashboard_kpis", {
+        p_week_start: weekStartStr,
+        p_month_start: monthStart,
+        p_year_start: yearStart,
+        p_last_month_start: lastMonthStartStr,
+        p_last_month_end: lastMonthEndStr,
+        p_today: todayStr,
+      }),
+      supabase.rpc("dashboard_charts", {
+        p_month_start: monthStart,
+        p_year_start: yearStart,
+        p_trend_start: thirtyDaysAgoStr,
+        p_today: todayStr,
+      }),
     ]);
 
-    const prodMap: Record<string, { name: string; cost: number }> = {};
-    (products.data || []).forEach(p => { prodMap[p.id] = { name: p.name, cost: Number(p.cost_price) }; });
-    const custMap: Record<string, string> = {};
-    (customers.data || []).forEach(c => { custMap[c.id] = c.name; });
+    const k: any = kpis || {};
+    setWeekSales(Number(k.week_sales) || 0);
+    setMonthSales(Number(k.month_sales) || 0);
+    setLastMonthSales(Number(k.last_month_sales) || 0);
+    setGrossMargin(Number(k.gross_profit) || 0);
+    setTotalReceivables(Number(k.receivables) || 0);
+    setTotalPayables(Number(k.payables) || 0);
+    setUpcomingPoCount(Number(k.upcoming_po_count) || 0);
+    setUpcomingPoValue(Number(k.upcoming_po_value) || 0);
 
-    const ws = (weekInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0);
-    const ms = (monthInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0);
-    setWeekSales(ws);
-    setMonthSales(ms);
-
-    setLastMonthSales((lastMonthInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0));
-
+    const c: any = charts || {};
+    // Fill any missing days in the 30-day trend with zeroes
     const dailyMap: Record<string, number> = {};
-    (trendInv.data || []).forEach(inv => {
-      dailyMap[inv.date] = (dailyMap[inv.date] || 0) + Number(inv.subtotal);
-    });
+    (c.daily || []).forEach((d: any) => { dailyMap[d.date] = Number(d.amount); });
     const dailyArr: { date: string; amount: number }[] = [];
     for (let d = new Date(thirtyDaysAgo); d <= today; d.setDate(d.getDate() + 1)) {
       const ds = d.toISOString().split("T")[0];
@@ -160,73 +161,18 @@ export default function Index() {
     }
     setDailySales(dailyArr);
 
-    const catMap: Record<string, number> = {};
-    (expenses.data || []).forEach(e => { catMap[e.category] = (catMap[e.category] || 0) + Number(e.amount); });
     setExpensesByCategory(
-      Object.entries(catMap)
-        .map(([name, value]) => ({ name: name.replace(/_/g, " "), value }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 6)
+      (c.expenses || []).map((e: any) => ({ name: String(e.name || "").replace(/_/g, " "), value: Number(e.value) }))
     );
-
-    const upPos = overdueInv.data || [];
-    setUpcomingPoCount(upPos.length);
-    setUpcomingPoValue(upPos.reduce((s, i) => s + Number(i.total), 0));
-
-    setTotalReceivables((custBalances.data || []).reduce((s, c) => s + Math.max(Number(c.balance), 0), 0));
-    setTotalPayables((suppBalances.data || []).reduce((s, s2) => s + Math.max(Number(s2.balance), 0), 0));
-
-    const { data: monthInvIds } = await supabase.from("sales_invoices").select("id").gte("date", monthStart).lte("date", todayStr);
-    const allMonthIds = (monthInvIds || []).map(inv => inv.id);
-
-    let monthItemsData: any[] = [];
-    for (let i = 0; i < allMonthIds.length; i += 50) {
-      const batch = allMonthIds.slice(i, i + 50);
-      const { data } = await supabase.from("sales_invoice_items").select("product_id, quantity, amount, invoice_id, rate").in("invoice_id", batch);
-      monthItemsData = monthItemsData.concat(data || []);
-    }
-
-    let totalCost = 0;
-    let totalItemRevenue = 0;
-    const prodQtyMonth: Record<string, number> = {};
-    monthItemsData.forEach(item => {
-      if (item.product_id) {
-        const cost = prodMap[item.product_id]?.cost || 0;
-        totalCost += Number(item.quantity) * cost;
-        totalItemRevenue += Number(item.amount);
-        prodQtyMonth[item.product_id] = (prodQtyMonth[item.product_id] || 0) + Number(item.quantity);
-      }
-    });
-    setGrossMargin(totalItemRevenue - totalCost);
-
-    const topSell = Object.entries(prodQtyMonth)
-      .map(([id, qty]) => ({ name: prodMap[id]?.name || "Unknown", qty }))
-      .sort((a, b) => b.qty - a.qty)
-      .slice(0, 5);
-    setTopSelling(topSell);
-
-    const rs = (recentMovements.data || []).map(m => ({
-      name: prodMap[m.product_id]?.name || "Unknown",
-      quantity: Number(m.quantity),
-      date: m.date,
-    }));
-    setRecentStock(rs);
-
-    const monthCust: Record<string, number> = {};
-    (monthInv.data || []).forEach(inv => {
-      if (inv.customer_id) monthCust[inv.customer_id] = (monthCust[inv.customer_id] || 0) + Number(inv.subtotal);
-    });
-    const yearCust: Record<string, number> = {};
-    (yearInv.data || []).forEach(inv => {
-      if (inv.customer_id) yearCust[inv.customer_id] = (yearCust[inv.customer_id] || 0) + Number(inv.subtotal);
-    });
-    const allCustIds = new Set([...Object.keys(monthCust), ...Object.keys(yearCust)]);
-    const tc = Array.from(allCustIds)
-      .map(id => ({ name: custMap[id] || "Unknown", monthSale: monthCust[id] || 0, yearlySale: yearCust[id] || 0 }))
-      .sort((a, b) => b.yearlySale - a.yearlySale)
-      .slice(0, 8);
-    setTopCustomers(tc);
+    setTopSelling((c.top_products || []).map((p: any) => ({ name: p.name, qty: Number(p.qty) })));
+    setTopCustomers((c.top_customers || []).map((cu: any) => ({
+      name: cu.name, monthSale: Number(cu.monthSale), yearlySale: Number(cu.yearlySale),
+    })));
+    setRecentStock((c.recent_stock || []).map((s: any) => ({
+      name: s.name, quantity: Number(s.quantity), date: s.date,
+    })));
   };
+
 
   const loadReorderAlerts = async () => {
     const { data } = await supabase.from("reorder_alerts").select("*").order("days_until_stockout", { ascending: true }).limit(5);
