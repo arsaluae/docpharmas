@@ -210,13 +210,14 @@ export default function PurchaseProforma() {
     setLoading(false);
   };
 
-  // Load allocated products when supplier changes
+  const [showAllProducts, setShowAllProducts] = useState(false);
+  // Load relevant products (past GRN history) when supplier changes
   useEffect(() => {
-    if (!supplierId) { setAllocatedProductIds(null); return; }
+    if (!supplierId) { setAllocatedProductIds(null); setShowAllProducts(false); return; }
     (async () => {
-      const { data } = await supabase.from("supplier_products").select("product_id").eq("supplier_id", supplierId);
-      if (data && data.length > 0) setAllocatedProductIds(data.map(d => d.product_id));
-      else setAllocatedProductIds(null);
+      const { getSupplierProductIds } = await import("@/lib/party-products");
+      const ids = await getSupplierProductIds(supplierId);
+      setAllocatedProductIds(ids.size > 0 ? Array.from(ids) : null);
     })();
   }, [supplierId]);
 
