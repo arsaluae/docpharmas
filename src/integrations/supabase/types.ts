@@ -177,6 +177,30 @@ export type Database = {
           },
         ]
       }
+      areas: {
+        Row: {
+          city: string | null
+          created_at: string
+          id: string
+          name: string
+          tenant_id: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          tenant_id?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
       bank_accounts: {
         Row: {
           account_number: string | null
@@ -2741,6 +2765,7 @@ export type Database = {
       suppliers: {
         Row: {
           address: string | null
+          area: string | null
           balance: number
           city: string | null
           company: string | null
@@ -2760,6 +2785,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          area?: string | null
           balance?: number
           city?: string | null
           company?: string | null
@@ -2779,6 +2805,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          area?: string | null
           balance?: number
           city?: string | null
           company?: string | null
