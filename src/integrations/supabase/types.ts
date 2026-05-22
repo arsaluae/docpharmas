@@ -623,7 +623,9 @@ export type Database = {
           created_at: string
           customer_id: string | null
           date: string
+          delivery_type_label: string | null
           dn_number: string
+          freight_provider_id: string | null
           id: string
           items: Json
           notes: string | null
@@ -637,7 +639,9 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           date?: string
+          delivery_type_label?: string | null
           dn_number: string
+          freight_provider_id?: string | null
           id?: string
           items?: Json
           notes?: string | null
@@ -651,7 +655,9 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           date?: string
+          delivery_type_label?: string | null
           dn_number?: string
+          freight_provider_id?: string | null
           id?: string
           items?: Json
           notes?: string | null
@@ -933,6 +939,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      freight_providers: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: []
       }
       goods_received_notes: {
         Row: {
