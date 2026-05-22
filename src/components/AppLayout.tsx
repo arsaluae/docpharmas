@@ -1,10 +1,27 @@
-import { ReactNode, useState, useEffect, useCallback } from "react";
+import { ReactNode, useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { CalendarDays, Search, ChevronRight } from "lucide-react";
-import { CommandPalette, addRecentPage } from "@/components/CommandPalette";
 import { useGlobalShortcuts } from "@/components/KeyboardShortcuts";
+
+// Tiny inline recent-page tracker so we don't pull in CommandPalette eagerly.
+const RECENT_KEY = "lovable:recent-pages";
+const MAX_RECENT = 5;
+function addRecentPage(title: string, url: string) {
+  try {
+    const recent = (JSON.parse(localStorage.getItem(RECENT_KEY) || "[]") as { title: string; url: string }[])
+      .filter(r => r.url !== url);
+    recent.unshift({ title, url });
+    localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
+  } catch { /* ignore */ }
+}
+
+// Lazy: cmdk + dialog only loaded on first Ctrl+K
+const CommandPalette = lazy(() =>
+  import("@/components/CommandPalette").then(m => ({ default: m.CommandPalette }))
+);
+
 
 interface AppLayoutProps {
   title: string;
@@ -105,7 +122,12 @@ export function AppLayout({ title, subtitle, children, headerActions }: AppLayou
           </div>
         </main>
       </div>
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      {paletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+        </Suspense>
+      )}
     </SidebarProvider>
   );
 }
+

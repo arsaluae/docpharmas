@@ -2922,6 +2922,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      dashboard_charts: {
+        Args: {
+          p_month_start: string
+          p_today: string
+          p_trend_start: string
+          p_year_start: string
+        }
+        Returns: Json
+      }
+      dashboard_kpis: {
+        Args: {
+          p_last_month_end: string
+          p_last_month_start: string
+          p_month_start: string
+          p_today: string
+          p_week_start: string
+          p_year_start: string
+        }
+        Returns: Json
+      }
       generate_document_number: {
         Args: { p_document_type: string }
         Returns: string

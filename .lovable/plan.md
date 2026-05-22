@@ -1,41 +1,100 @@
-# Plan — Forgot Password + Sub-user (Sales) Access
+# Speed & Performance Optimization Plan
 
-## 1. Forgot password — make it actually work end-to-end
+Goal: make the app feel instant — faster dashboards, faster reports, faster navigation between pages — without changing any business logic, UI, or workflows.
 
-The login form already has a "Forgot?" link that calls `supabase.auth.resetPasswordForEmail`, but the recovery side has two gaps:
+I found three real bottlenecks: missing database indexes, no client-side caching (every page re-queries on each visit), and reports/dashboard pulling thousands of rows to compute totals in the browser.
 
-a. **`src/pages/ResetPassword.tsx` is stale** — it still uses removed utilities (`glass-card-glow`, `pharma`-era logo image, glow blur background). Refactor it onto the same `mouj-dark-auth` shell as `Auth.tsx` so the recovery page renders correctly when users click the email link. Same split-panel layout, same wordmark, two password fields, submit button.
+## 1. Database — add missing indexes (biggest win)
 
-b. **Failed-login affordance** — in `Auth.tsx`, when `signInWithPassword` returns `Invalid login credentials`, track a small counter (`failedAttempts`) in component state. After 2 failures, show an inline hint under the password field: *"Trouble signing in? Reset your password →"* that switches `mode` to `"forgot"` with the email field pre-filled. Reset the counter on mode change or successful login.
+Right now `sales_invoices`, `payments`, `purchase_invoices`, `expenses`, `sales_invoice_items` only have primary-key indexes. Every dashboard / report query does a full table scan.
 
-c. **Redirect URL correctness** — keep `redirectTo: ${window.location.origin}/reset-password`. Confirm `/reset-password` is a public route in `App.tsx` (it should already be — verify, no change expected). No Supabase auth-config changes; the existing default email template + signing keys handle delivery.
+Add indexes via migration:
+- `sales_invoices(date)`, `sales_invoices(customer_id)`, `sales_invoices(tenant_id, date)`, `sales_invoices(status)`
+- `sales_invoice_items(invoice_id)`, `sales_invoice_items(product_id)`
+- `purchase_invoices(date)`, `purchase_invoices(supplier_id)`, `purchase_invoices(status)`
+- `purchase_invoice_items(invoice_id)`, `grn_items(product_id)`, `grn_items(expiry_date)`
+- `payments(party_id, party_type, type)`, `payments(invoice_id)`, `payments(date)`
+- `expenses(date)`, `expenses(category)`, `expenses(bank_account_id)`
+- `purchase_proformas(status)`, `proforma_invoices(status)`
+- `stock_movements(date)`, `stock_movements(movement_type)`
+- `customers(tenant_id)`, `suppliers(tenant_id)`, `products(tenant_id)`
 
-d. **UX polish** — in `forgot` mode show a small success state inside the card after the email is sent (instead of just a toast + mode swap), with a "Back to sign in" link. Keeps the user oriented if they miss the toast.
+Expected impact: 5–50× faster queries on tables with >1k rows. No behavior change.
 
-## 2. Give a new sub-user Sales-only access
+## 2. Dashboard — server-side aggregation RPCs
 
-The backend already supports it: `manage-tenant` edge function exposes `owner_create_user` with a `role` field (`owner` | `staff`), enforces the 2-login cap, and `tenant_users.role = 'staff'` already drives the sidebar to "Sales-only" via `useTenant` / `AppSidebar` (`tenantRole === "owner" ? "Admin" : "Staff"`). There is **no UI** today to actually create one — add it.
+`Index.tsx` currently runs 12 queries in parallel, then a second wave that pulls every `sales_invoice_items` row of the month in 50-id batches just to compute totals. For a busy month this can be 500+ rows transferred to compute one Gross Margin number.
 
-**New section in `src/pages/Settings.tsx`** — "Team & Access" card (visible only when `tenantRole === 'owner'`):
+Create two Postgres RPCs (security definer, tenant-scoped via `get_user_tenant_id()`):
+- `dashboard_kpis(p_from date, p_to date)` → returns week/month/year subtotals, gross profit, COGS, receivables, payables, upcoming PO count/value, last-month subtotal — all in one round trip.
+- `dashboard_charts(p_from date, p_to date)` → daily sales series, top products, top customers, expenses by category.
 
-- Lists current `tenant_users` rows for this tenant: email, role badge (Admin / Sales), active toggle, created date.
-- "Add sub-user" button opens a small inline form: Email, Password (min 6), Role (locked to `staff` for now, labeled "Sales — limited to sales module"). On submit:
-  ```ts
-  supabase.functions.invoke("manage-tenant", {
-    body: { action: "owner_create_user", tenant_id, email, password, role: "staff" }
-  })
-  ```
-  Toast success, refresh the list. Surface the edge function's 2-login-cap error verbatim if it fires.
-- Per-row "Deactivate / Reactivate" button calls `manage-tenant` with `action: "toggle_user_active"` (already implemented server-side per the existing pattern — verify in the edge function; if missing, add a tiny branch that flips `tenant_users.is_active`).
-- Helper text under the form: *"Sales users can only see Customers, Sales Orders, Sales Invoices, Delivery Notes, Returns and Payments-received. They cannot access Purchase, Reports or Settings."* — matches the existing Staff sidebar filter.
+Frontend change: replace 12+N queries with 2 RPC calls. No UI change, no KPI calculation change (same formulas, just executed in SQL).
 
-No new DB tables, no migrations. RBAC enforcement already lives in `AppSidebar` + route guards driven by `tenantRole`.
+Same approach for the heavy reports:
+- `report_customer_wise()`, `report_supplier_wise()`, `report_item_wise()`, `report_batch_wise()`, `report_receivables_aging()`, `report_payables_aging()` — each returns the already-grouped result instead of dumping raw rows.
 
-## Files touched
+The `fetchAllRows` helper stays for cases that genuinely need raw data (exports).
 
-- `src/pages/Auth.tsx` — failed-attempt hint, success card for forgot mode, prefill email when switching to forgot.
-- `src/pages/ResetPassword.tsx` — rewrite onto `mouj-dark-auth` shell, drop `glass-card-glow` + logo image.
-- `src/pages/Settings.tsx` — add "Team & Access" card with list + add-user form (owner-only).
-- `supabase/functions/manage-tenant/index.ts` — add `toggle_user_active` branch only if it doesn't already exist (verify first; create_user + role=staff already supported).
+## 3. Client-side caching with React Query
 
-No DB migrations. No new dependencies. No auth-config changes.
+QueryClient is configured (60s staleTime) but **no page uses it** — every navigation triggers fresh `supabase.from(...)` calls inside `useEffect`. Switching between Customers ↔ Invoices ↔ Dashboard re-downloads the same data each time.
+
+Convert the read paths of frequently-visited pages to `useQuery` with stable keys:
+- Dashboard (`['dashboard-kpis']`, `['dashboard-charts']`, `['reorder-alerts']`, `['expiry-alerts']`)
+- Customers, Suppliers, Products list pages
+- ProformaInvoices, PurchaseProforma list pages
+- Sidebar/Tenant/CompanySettings hooks
+- Reports
+
+Mutations (create/update/delete) call `queryClient.invalidateQueries` so data stays correct. No business logic changes, no UI changes — only the data-fetching wrapper changes.
+
+Expected impact: instant back-navigation, no flash of loading state on revisit.
+
+## 4. Code-splitting & lazy heavy modules
+
+`App.tsx` already lazy-loads routes. Remaining wins:
+- Lazy-import `pdf-generator.ts`, `PdfPreviewDialog`, `jspdf`, `html2canvas` only when the user clicks Print/Share (these are large and currently pulled into common chunks).
+- Lazy-import `recharts` chart wrappers inside dashboard sections via `React.lazy`.
+- Add `vite.config.ts` `build.rollupOptions.output.manualChunks` to split `recharts`, `framer-motion`, `xlsx`, `jspdf` into their own chunks so the main bundle shrinks.
+- Lazy `CommandPalette` (only mounts on Ctrl+K).
+
+## 5. Parallelize the remaining N+1 patterns
+
+A few places still loop `await` over batches (`KpiDialogs.tsx`, `Customers.tsx`, `Suppliers.tsx`, `Index.tsx`). Change `for (let i…) { await … }` to `Promise.all(chunks.map(c => supabase…))`. Once the RPCs in §2 land, most of these disappear entirely.
+
+## 6. Memoization & render hygiene
+
+- Wrap heavy chart-data transforms in `useMemo` (dashboard daily sales, expense categories, top customers).
+- Memoize Sidebar nav and KPI cards with `React.memo` so dashboard re-renders during data load don't re-render the shell.
+- Debounce the search inputs (Customers, Suppliers, Products) — currently each keystroke fires a query.
+
+## 7. Prefetch on hover
+
+In `AppSidebar` and main nav links, prefetch the route's chunk on `mouseenter` (`import()` the lazy module). Makes navigation feel instant on desktop.
+
+## Out of scope (not touched)
+
+- No UI/visual changes
+- No new features
+- No changes to triggers, RLS, or business rules
+- No edge-function changes
+- No auth/signup flow changes
+
+## Technical summary
+
+```text
+DB:           ~25 indexes via migration
+RPCs:         dashboard_kpis, dashboard_charts, report_* (~7 functions)
+Frontend:     useQuery on ~12 pages, lazy pdf/recharts, manualChunks,
+              memo on dashboard, debounce search inputs, prefetch on hover
+Files:        src/pages/Index.tsx, src/pages/Customers.tsx,
+              src/pages/Suppliers.tsx, src/pages/Products.tsx,
+              src/pages/Proforma*.tsx, src/pages/Purchase*.tsx,
+              src/pages/reports/*.tsx, src/hooks/useTenant.tsx,
+              src/hooks/useCompanySettings.tsx, src/components/AppSidebar.tsx,
+              src/components/AppLayout.tsx, src/components/PdfPreviewDialog.tsx,
+              src/lib/pdf-generator.ts, vite.config.ts
+```
+
+Rollout order: indexes → dashboard RPC + useQuery (biggest perceived win) → report RPCs → lazy chunks → memoization/prefetch.
