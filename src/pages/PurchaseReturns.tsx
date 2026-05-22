@@ -84,7 +84,17 @@ export default function PurchaseReturns() {
       date: new Date().toISOString().split("T")[0], notes: `Purchase Return ${num}`,
     })));
 
-    toast.success(`Purchase Return ${num} created`);
+    // Auto-create Debit Note (replaces the old direct supplier balance trigger)
+    const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "debit_note" });
+    if (dnNumber) {
+      await supabase.from("debit_notes").insert({
+        debit_note_number: dnNumber, party_type: "supplier", party_id: supplierId,
+        amount: total, reason: reason || `Purchase Return ${num}`, reference: num,
+        date: new Date().toISOString().split("T")[0],
+      });
+    }
+
+    toast.success(`Purchase Return ${num} created — Debit Note auto-issued`);
     setOpen(false); setSupplierId(""); setInvoiceId(""); setReason("");
     setItems([{ product_id: "", batch_number: "", quantity: "1", rate: "0" }]);
     setSaving(false);
