@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, ArrowRight, ShieldCheck, Building2, Phone, User } from "lucide-react";
+import { Mail, Lock, ArrowRight, ShieldCheck, Building2, Phone } from "lucide-react";
 import { toast } from "sonner";
 
 type Mode = "login" | "forgot" | "signup";
