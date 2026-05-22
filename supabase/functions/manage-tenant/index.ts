@@ -187,6 +187,54 @@ Deno.serve(async (req) => {
       });
     }
 
+    // toggle_user_active: owners can deactivate / reactivate their own sub-users
+    if (action === "toggle_user_active") {
+      const { tenant_id, user_id: target_user_id, is_active } = body;
+      if (!tenant_id || !target_user_id || typeof is_active !== "boolean") {
+        return new Response(JSON.stringify({ error: "Missing required fields" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: isAdmin } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      const { data: ownerRecord } = await supabaseAdmin
+        .from("tenant_users")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("tenant_id", tenant_id)
+        .eq("is_active", true)
+        .single();
+
+      if (!isAdmin && ownerRecord?.role !== "owner") {
+        return new Response(JSON.stringify({ error: "Only tenant owners can manage users" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Prevent owners from disabling themselves via this endpoint
+      if (target_user_id === user.id) {
+        return new Response(JSON.stringify({ error: "You cannot change your own active status" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: updErr } = await supabaseAdmin
+        .from("tenant_users")
+        .update({ is_active })
+        .eq("tenant_id", tenant_id)
+        .eq("user_id", target_user_id);
+
+      if (updErr) {
+        return new Response(JSON.stringify({ error: updErr.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // All remaining actions require admin role
     const { data: isAdmin } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "admin" });
     if (!isAdmin) {

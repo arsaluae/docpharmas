@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, ArrowRight, ShieldCheck, Building2, Phone, User } from "lucide-react";
+import { Mail, Lock, ArrowRight, ShieldCheck, Building2, Phone } from "lucide-react";
 import { toast } from "sonner";
 
 type Mode = "login" | "forgot" | "signup";
@@ -14,6 +14,8 @@ export default function Auth() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,15 +30,18 @@ export default function Auth() {
     try {
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          setFailedAttempts((n) => n + 1);
+          throw error;
+        }
+        setFailedAttempts(0);
         navigate("/dashboard");
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
         });
         if (error) throw error;
-        toast.success("Password reset link sent to your email");
-        setMode("login");
+        setResetSent(true);
       } else {
         // signup
         if (!companyName.trim()) throw new Error("Company name is required");
@@ -141,6 +146,21 @@ export default function Auth() {
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
+            ) : resetSent ? (
+              <div>
+                <h2 className="mb-1.5">Check your inbox</h2>
+                <p className="text-[13px] mouj-muted mb-7">
+                  We've sent a password reset link to <span className="text-foreground/90 font-medium">{email}</span>.
+                  The link expires in 1 hour. Don't see it? Check your spam folder.
+                </p>
+                <button
+                  onClick={() => { setResetSent(false); setMode("login"); setPassword(""); }}
+                  className="mouj-cta"
+                >
+                  Back to sign in
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
             ) : (
               <>
                 <h2 className="mb-1.5">{titleMap[mode]}</h2>
@@ -216,6 +236,19 @@ export default function Auth() {
                           minLength={6}
                         />
                       </div>
+                    </div>
+                  )}
+
+                  {mode === "login" && failedAttempts >= 2 && (
+                    <div className="text-[12px] mouj-muted -mt-1 px-0.5">
+                      Trouble signing in?{" "}
+                      <button
+                        type="button"
+                        onClick={() => { setFailedAttempts(0); setMode("forgot"); }}
+                        className="mouj-link"
+                      >
+                        Reset your password →
+                      </button>
                     </div>
                   )}
 
