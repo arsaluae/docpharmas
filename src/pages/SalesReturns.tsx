@@ -46,7 +46,7 @@ export default function SalesReturns() {
     const [{ data: r, count }, { data: c }, { data: inv }, { data: p }] = await Promise.all([
       supabase.from("sales_returns").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to),
       supabase.from("customers").select("id, name").eq("is_active", true),
-      // sales_invoices unchanged
+      supabase.from("sales_invoices").select("id, invoice_number, customer_id"),
       supabase.from("products").select("id, name, selling_price").eq("is_active", true),
     ]);
     if (r) setReturns(r);
