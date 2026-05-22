@@ -312,7 +312,7 @@ export default function PrintJobs() {
     <AppLayout title="Print Jobs" subtitle="Track printing orders, delivery, rejections & cost splitting" headerActions={headerActions}>
       <div className="space-y-4">
             {/* Stats strip */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="glass-card bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center"><Package className="h-5 w-5 text-primary" /></div>
@@ -331,7 +331,28 @@ export default function PrintJobs() {
                   <div><p className="text-xs text-muted-foreground">Total Rejected</p><p className="text-lg font-bold font-mono text-foreground">{totalRejected.toLocaleString()}</p></div>
                 </CardContent>
               </Card>
+              <Card className="glass-card bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 border-emerald-500/20">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-500/15 flex items-center justify-center"><Factory className="h-5 w-5 text-emerald-600" /></div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">At Factory (undispatched)</p>
+                    <p className="text-lg font-bold font-mono text-foreground">{totalAtFactory.toLocaleString()} pcs</p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
+
+            {factoryByPrinter.length > 0 && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="text-muted-foreground">By printer:</span>
+                {factoryByPrinter.map(f => (
+                  <span key={f.name} className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-mono">
+                    {f.name}: {f.qty.toLocaleString()}
+                  </span>
+                ))}
+              </div>
+            )}
+
 
             <div className="flex items-center gap-4">
               <div className="relative max-w-sm flex-1">
