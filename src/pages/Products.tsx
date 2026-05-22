@@ -14,7 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Search, Package, Trash2, Upload, ArrowDownUp, DollarSign, AlertTriangle, TrendingUp, Layers } from "lucide-react";
+import { Plus, Search, Package, Trash2, Upload, ArrowDownUp, DollarSign, AlertTriangle, TrendingUp, Layers, Power } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { ProductBatchProfileDialog } from "@/components/ProductBatchProfileDialog";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -25,7 +26,7 @@ const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", 
 interface Product {
   id: string; name: string; sku: string | null; category: string; drap_reg_number: string | null;
   pack_size: string | null; unit: string; cost_price: number; selling_price: number; gst_rate: number;
-  stock_quantity: number; reorder_level: number; created_at: string;
+  stock_quantity: number; reorder_level: number; created_at: string; is_active?: boolean;
 }
 
 interface StockMovement {
@@ -61,21 +62,32 @@ export default function Products() {
   const [moveDate, setMoveDate] = useState(new Date().toISOString().split("T")[0]);
   const [moveNotes, setMoveNotes] = useState("");
   const [moveTypeFilter, setMoveTypeFilter] = useState("all");
+  const [showInactive, setShowInactive] = useState(false);
 
-  useEffect(() => { loadAll(); }, [productPagination.page, movementPagination.page, moveTypeFilter]);
+  useEffect(() => { loadAll(); }, [productPagination.page, movementPagination.page, moveTypeFilter, showInactive]);
 
   const loadAll = async () => {
     let moveQuery = supabase.from("stock_movements").select("*", { count: "exact" }).order("created_at", { ascending: false });
     if (moveTypeFilter !== "all") moveQuery = moveQuery.eq("movement_type", moveTypeFilter);
     moveQuery = moveQuery.range(movementPagination.from, movementPagination.to);
+    let prodQuery = supabase.from("products").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (!showInactive) prodQuery = prodQuery.eq("is_active", true);
     const [prodRes, moveRes] = await Promise.all([
-      supabase.from("products").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(productPagination.from, productPagination.to),
+      prodQuery.range(productPagination.from, productPagination.to),
       moveQuery,
     ]);
     if (prodRes.data) setProducts(prodRes.data);
     if (prodRes.count !== null) productPagination.setTotalCount(prodRes.count);
     if (moveRes.data) setMovements(moveRes.data);
     if (moveRes.count !== null) movementPagination.setTotalCount(moveRes.count);
+  };
+
+  const toggleActive = async (p: Product, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { error } = await supabase.from("products").update({ is_active: !p.is_active } as any).eq("id", p.id);
+    if (error) { toast.error("Failed: " + error.message); return; }
+    toast.success(p.is_active ? "Product deactivated" : "Product reactivated");
+    loadAll();
   };
 
   const handleSave = async () => {
@@ -232,10 +244,15 @@ export default function Products() {
               </TabsList>
 
               {/* CATALOG TAB */}
-              <TabsContent value="catalog">
-                <div className="mb-4 relative max-w-sm search-pill">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search products..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
+                <TabsContent value="catalog">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="relative max-w-sm flex-1 search-pill">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Search products..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
+                    <Switch checked={showInactive} onCheckedChange={setShowInactive} /> Show inactive
+                  </label>
                 </div>
                 <Card className="glass-card">
                   <CardContent className="p-0">
