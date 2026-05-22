@@ -50,6 +50,7 @@ const BACKUP_TABLES = [
   { table: "agent_customers", sheet: "Agent Customers" },
   { table: "agent_commissions", sheet: "Agent Commissions" },
   { table: "credit_notes", sheet: "Credit Notes" },
+  { table: "debit_notes", sheet: "Debit Notes" },
   { table: "salary_payments", sheet: "Salary Payments" },
   { table: "stock_movements", sheet: "Stock Movements" },
   { table: "sales_returns", sheet: "Sales Returns" },
