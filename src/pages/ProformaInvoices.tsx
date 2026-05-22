@@ -1420,6 +1420,16 @@ export default function ProformaInvoices() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ═══ SALES RETURN DIALOG ═══ */}
+      <SalesReturnDialog
+        open={returnOpen}
+        onOpenChange={setReturnOpen}
+        invoiceId={returnOrder?.converted_invoice_id || null}
+        invoiceNumber={returnOrder?.invoice_number}
+        customerId={returnOrder?.customer_id || null}
+        onSaved={() => { setReturnOpen(false); load(); }}
+      />
     </AppLayout>
   );
 }
