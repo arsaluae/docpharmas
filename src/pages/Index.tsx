@@ -424,7 +424,7 @@ export default function Index() {
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                   <YAxis hide />
                   <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)" }}
+                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "hsl(var(--card))" }}
                     formatter={(value: number) => [`PKR ${value.toLocaleString()}`, "Sales"]}
                   />
                   <Area type="monotone" dataKey="amount" stroke="hsl(199, 89%, 48%)" strokeWidth={2} fill="url(#salesGrad)" />
@@ -477,7 +477,7 @@ export default function Index() {
                   <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
                   <YAxis hide />
                   <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "rgba(255,255,255,0.9)" }}
+                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "hsl(var(--card))" }}
                     formatter={(value: number) => [`PKR ${value.toLocaleString()}`, "Sales"]}
                   />
                   <Bar dataKey="sales" radius={[8, 8, 0, 0]} fill="url(#barGrad)" barSize={60} />
@@ -514,7 +514,7 @@ export default function Index() {
                         ))}
                       </Pie>
                       <Tooltip
-                        contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "rgba(255,255,255,0.9)" }}
+                        contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "hsl(var(--card))" }}
                         formatter={(value: number) => [`PKR ${value.toLocaleString()}`, ""]}
                       />
                     </PieChart>
@@ -623,7 +623,7 @@ export default function Index() {
                         <Cell fill="hsl(0, 72%, 51%)" />
                       </Pie>
                       <Tooltip
-                        contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "rgba(255,255,255,0.9)" }}
+                        contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid hsl(214, 32%, 91%)", background: "hsl(var(--card))" }}
                         formatter={(value: number) => [`PKR ${value.toLocaleString()}`, ""]}
                       />
                     </PieChart>
