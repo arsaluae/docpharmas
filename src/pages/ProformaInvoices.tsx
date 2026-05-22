@@ -47,7 +47,7 @@ interface SalesOrder {
   amount_paid?: number;
 }
 
-interface BatchOption { batch_number: string; available: number; expiry_date?: string; }
+interface BatchOption { batch_number: string; available: number; expiry_date?: string | null; }
 
 export default function ProformaInvoices() {
   const navigate = useNavigate();
