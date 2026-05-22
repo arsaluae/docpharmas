@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Printer, BookOpen, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { CITY_OPTIONS } from "@/lib/pakistan-cities";
 
 interface PrinterEntity {
   id: string; name: string; company: string | null; ntn: string | null;
@@ -100,7 +102,7 @@ export default function Printers() {
         <div className="grid grid-cols-2 gap-3 mt-2">
           <div className="col-span-2"><Label>Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
           <div><Label>Company</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} /></div>
-          <div><Label>City</Label><Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} /></div>
+          <div><Label>City</Label><SearchableSelect options={CITY_OPTIONS} value={form.city} onChange={(v) => setForm({...form, city: v})} placeholder="Select city" /></div>
           <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} /></div>
           <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
           <div><Label>Email</Label><Input value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>

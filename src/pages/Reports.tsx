@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, Scale, BarChart3, Clock, DollarSign, Package, ShieldCheck, Layers, Boxes, UserCheck, Truck, ClipboardList, MapPin, Sparkles, LineChart, Activity, ArchiveX, ShieldAlert } from "lucide-react";
+import { TrendingUp, Scale, BarChart3, Clock, DollarSign, Package, ShieldCheck, Layers, Boxes, UserCheck, Truck, ClipboardList, MapPin, Sparkles, LineChart, Activity, ArchiveX, ShieldAlert, Wallet, Globe2 } from "lucide-react";
 
 const reportSections = [
   { label: "Intelligence", items: [
@@ -18,6 +18,7 @@ const reportSections = [
     { title: "Profit & Loss", desc: "Revenue, costs & net income", url: "/reports/pl", icon: TrendingUp, color: "text-primary" },
     { title: "Balance Sheet", desc: "Assets, liabilities & equity", url: "/reports/balance-sheet", icon: Scale, color: "text-primary" },
     { title: "Cash Flow", desc: "Cash inflows & outflows", url: "/reports/cash-flow", icon: BarChart3, color: "text-warning" },
+    { title: "Daily Cash Position", desc: "Live bank balances & 30-day flow", url: "/reports/daily-cash", icon: Wallet, color: "text-primary" },
   ]},
   { label: "Receivables & Payables", items: [
     { title: "Receivables Aging", desc: "Outstanding customer balances", url: "/reports/receivables", icon: Clock, color: "text-warning" },
@@ -35,7 +36,8 @@ const reportSections = [
     { title: "Supplier-wise", desc: "Purchases & balance by supplier", url: "/reports/supplier-wise", icon: Truck, color: "text-primary" },
     { title: "Product Allocations", desc: "Products allocated to parties with rates", url: "/reports/allocations", icon: ClipboardList, color: "text-warning" },
   ]},
-  { label: "Coverage", items: [
+  { label: "Geographic", items: [
+    { title: "City-wise Sales", desc: "Revenue, orders & top product per city", url: "/reports/citywise-sales", icon: Globe2, color: "text-primary" },
     { title: "Vacant Areas", desc: "Cities without product coverage", url: "/reports/vacant-areas", icon: MapPin, color: "text-destructive" },
   ]},
   { label: "Compliance", items: [

@@ -79,6 +79,8 @@ const SalesTrend = lazy(() => import("./pages/reports/SalesTrend"));
 const ProductPerformance = lazy(() => import("./pages/reports/ProductPerformance"));
 const SupplierPerformance = lazy(() => import("./pages/reports/SupplierPerformance"));
 const SlowDeadStock = lazy(() => import("./pages/reports/SlowDeadStock"));
+const CitywiseSales = lazy(() => import("./pages/reports/CitywiseSales"));
+const DailyCashPosition = lazy(() => import("./pages/reports/DailyCashPosition"));
 const StockAudit = lazy(() => import("./pages/StockAudit"));
 const Salaries = lazy(() => import("./pages/Salaries"));
 const SalesAgents = lazy(() => import("./pages/SalesAgents"));
@@ -164,6 +166,8 @@ const App = () => (
               <Route path="/reports/product-performance" element={<ProductPerformance />} />
               <Route path="/reports/supplier-performance" element={<SupplierPerformance />} />
               <Route path="/reports/slow-dead-stock" element={<SlowDeadStock />} />
+              <Route path="/reports/citywise-sales" element={<CitywiseSales />} />
+              <Route path="/reports/daily-cash" element={<DailyCashPosition />} />
               <Route path="/insights" element={<AIInsights />} />
               <Route path="/credit-notes" element={<CreditNotes />} />
               <Route path="/debit-notes" element={<DebitNotes />} />
