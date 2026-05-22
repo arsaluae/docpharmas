@@ -18,16 +18,17 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { SupplierProfileDialog } from "@/components/SupplierProfileDialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CITY_OPTIONS } from "@/lib/pakistan-cities";
+import { AreaSelect } from "@/components/AreaSelect";
 
 interface Supplier {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
-  phone: string | null; email: string | null; address: string | null; city: string | null;
+  phone: string | null; email: string | null; address: string | null; city: string | null; area: string | null;
   payment_terms_days: number; wht_rate: number; opening_balance: number; balance: number; created_at: string;
   supplier_code: string | null; license_number: string | null;
 }
 
 const emptyForm = {
-  name: "", company: "", ntn: "", strn: "", phone: "", email: "", address: "", city: "",
+  name: "", company: "", ntn: "", strn: "", phone: "", email: "", address: "", city: "", area: "",
   payment_terms_days: "30", wht_rate: "4.5", opening_balance: "0", license_number: "",
 };
 
@@ -58,6 +59,7 @@ export default function Suppliers() {
     const basePayload: any = {
       name: form.name, company: form.company || null, ntn: form.ntn || null, strn: form.strn || null,
       phone: form.phone || null, email: form.email || null, address: form.address || null, city: form.city || null,
+      area: form.area || null,
       payment_terms_days: Number(form.payment_terms_days), wht_rate: Number(form.wht_rate),
       opening_balance: Number(form.opening_balance), license_number: form.license_number || null,
     };
@@ -79,7 +81,7 @@ export default function Suppliers() {
     setEditId(s.id);
     setForm({
       name: s.name, company: s.company || "", ntn: s.ntn || "", strn: s.strn || "",
-      phone: s.phone || "", email: s.email || "", address: s.address || "", city: s.city || "",
+      phone: s.phone || "", email: s.email || "", address: s.address || "", city: s.city || "", area: s.area || "",
       payment_terms_days: String(s.payment_terms_days), wht_rate: String(s.wht_rate), opening_balance: String(s.opening_balance),
       license_number: s.license_number || "",
     });
@@ -136,6 +138,7 @@ export default function Suppliers() {
             <div><Label>Contact Person</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Contact name (optional)" /></div>
             <div><Label>License Number</Label><Input value={form.license_number} onChange={e => setForm({...form, license_number: e.target.value})} placeholder="Drug license #" /></div>
             <div><Label>City</Label><SearchableSelect options={CITY_OPTIONS} value={form.city} onChange={(v) => setForm({...form, city: v})} placeholder="Select city" /></div>
+            <div><Label>Area</Label><AreaSelect value={form.area} city={form.city} onChange={(v) => setForm({...form, area: v})} /></div>
             <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} /></div>
             <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>

@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { CustomerProfileDialog } from "@/components/CustomerProfileDialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CITY_OPTIONS } from "@/lib/pakistan-cities";
+import { AreaSelect } from "@/components/AreaSelect";
 
 interface Customer {
   id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
@@ -188,7 +189,7 @@ export default function Customers() {
             <div className="col-span-2"><Label>Company Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Company / Business name" /></div>
             <div><Label>Contact Person</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Contact name (optional)" /></div>
             <div><Label>City</Label><SearchableSelect options={CITY_OPTIONS} value={form.city} onChange={(v) => setForm({...form, city: v})} placeholder="Select city" /></div>
-            <div><Label>Area</Label><Input value={form.area} onChange={e => setForm({...form, area: e.target.value})} placeholder="Area / Zone" /></div>
+            <div><Label>Area</Label><AreaSelect value={form.area} city={form.city} onChange={(v) => setForm({...form, area: v})} /></div>
             <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} placeholder="National Tax Number" /></div>
             <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} placeholder="Sales Tax Reg." /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
