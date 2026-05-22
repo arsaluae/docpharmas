@@ -1107,6 +1107,11 @@ export default function ProformaInvoices() {
                                       <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
                                     </DropdownMenuItem>
                                   )}
+                                  {order.converted_invoice_id && (
+                                    <DropdownMenuItem onClick={() => { setReturnOrder(order); setReturnOpen(true); }}>
+                                      <RotateCcw className="h-3.5 w-3.5 mr-2 text-orange-600" /> Return Items
+                                    </DropdownMenuItem>
+                                  )}
                                   {(order.status === "invoiced" || order.status === "dispatched") && (
                                     <DropdownMenuItem onClick={() => promptVoid(order)} className="text-destructive">
                                       <RotateCcw className="h-3.5 w-3.5 mr-2" /> Void
