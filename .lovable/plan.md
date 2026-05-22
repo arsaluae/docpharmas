@@ -1,60 +1,63 @@
-## Goals
-1. Consistent Pakistan city dropdown everywhere a party/address is captured.
-2. "Area" works end-to-end (entry → filter → reports).
-3. Memory-based last rate visible in Sales & Purchase item rows (both customer & supplier).
-4. A clear, filterable Vacant Area – Product List.
+## Fix Plan — Critical ERP Hardening
+
+Addresses the failures from the QA audit, in priority order.
+
+### 1. Multi-tenant uniqueness (CRITICAL)
+Drop global unique constraints and replace with `(tenant_id, field)` composites on:
+- `products.sku`, `products.product_code`
+- `chart_of_accounts.code`
+- `customers.customer_code`
+- `document_counters (tenant_id, document_type)` — primary key fix
+- Document number columns: `sales_invoices.invoice_number`, `purchase_invoices.invoice_number`, `goods_received_notes.grn_number`, `purchase_proformas.po_number`, `proforma_invoices.pi_number`, `sales_returns.return_number`, `purchase_returns.return_number`, `delivery_notes.dn_number`, `payments.payment_number`, `credit_notes.credit_note_number`, `debit_notes.debit_note_number`, `expenses.expense_number`, `print_jobs.job_number`.
+
+### 2. Inventory safety (CRITICAL)
+- **DB trigger** `prevent_negative_stock` on `stock_movements` BEFORE INSERT — raises exception if resulting `products.stock_quantity` would go below zero (skipped for opening/adjustment_in).
+- **Batch-level guard** in `ProformaInvoices.tsx` line item picker: compute on-hand per batch via `getActiveBatches()`; block save if any line exceeds available qty (toast with the offending product + batch).
+- Same guard in `SalesReturns` reverse path and `WarrantyInvoices`.
+
+### 3. Ledger automation (HIGH)
+Add `post_journal_entry(p_ref_type, p_ref_id)` SQL function + triggers for:
+- `sales_invoices` INSERT → DR AR / CR Sales + CR GST Payable
+- `purchase_invoices` INSERT → DR Inventory + DR GST Input / CR AP
+- `payments` INSERT → DR/CR Bank vs AR/AP based on type
+- `expenses` INSERT → DR Expense / CR Bank or Cash
+Resolve accounts via `chart_of_accounts.code` lookups; seed missing system accounts (1100 AR, 2100 AP, 4000 Sales, 2200 GST Payable, 1300 Inventory, 1000 Cash, 1010 Bank, 5000 COGS, 6000 Expenses) per tenant on first post.
+Mirror DELETE → reversing entries.
+
+### 4. Master-data `is_active` (HIGH)
+- ALTER `customers`, `suppliers`, `products`, `printers`, `sales_agents`, `couriers` ADD `is_active boolean NOT NULL DEFAULT true`.
+- Add toggle button + filter chip on each list page; default hides inactive. Dropdowns in document forms filter `is_active = true`.
+
+### 5. FEFO enforcement (MEDIUM)
+In `ProformaInvoices.tsx` batch selector: if user picks a batch with later expiry while an earlier-expiry batch has stock, show a yellow warning row with "Override reason" required note (stored in line `notes`). No hard block (user can override with reason).
+
+### 6. Void / rollback workflow (HIGH)
+New `voidDocument(table, id, reason)` helper:
+- Deletes child `stock_movements` (triggers reverse stock)
+- Deletes child `journal_lines` + entry (reverses ledger)
+- Sets parent `status = 'voided'`, `void_reason`, `voided_at`
+- Wrapped in single transaction via RPC `void_document(p_table text, p_id uuid, p_reason text)` SECURITY DEFINER.
+Add "Void" action to Sales Invoices, Purchase Invoices, GRNs, Payments. Confirm dialog.
+
+### 7. Validation polish (LOW)
+Replace generic "Required fields missing" with field-level errors using react-hook-form's existing setup where present; for ad-hoc forms add inline red helper text under each missing field. Scope: Customers, Suppliers, Products, Proforma item rows.
+
+### 8. Expiry dashboard alert (LOW)
+Dashboard KPI card "Expiring ≤60 days" → click drills to `/reports/batch` pre-filtered. Source: `grn_items` joined to remaining batch on-hand.
 
 ---
 
-## 1. City dropdown coverage
-Already wired: Customers, Suppliers, Printers.
-Add `SearchableSelect` with `CITY_OPTIONS` to every remaining party/address form:
-- `CustomerProfileDialog` (distributor sub-form)
-- `SupplierProfileDialog` (if it has city)
-- `Couriers.tsx`, `SalesAgents.tsx` (if they capture city/region)
-- Data Import: validate/normalize city against the list (warn on mismatch)
+### Technical notes
+- All schema changes in one migration with safe `DROP CONSTRAINT IF EXISTS` + recreate.
+- Backfill: before adding composite uniques, dedupe by appending `-{n}` to duplicates across tenants if any. Migration will detect & report.
+- New RPC `void_document` + trigger `post_sales_invoice_journal` etc. — all `SECURITY DEFINER`, `set search_path = public`.
+- Types regenerate automatically post-migration.
 
-## 2. Area – end-to-end
-Currently `customers.area` is a free-text input.
-- Introduce a managed list: new table `areas` (tenant-scoped: `name`, `city`, optional). Seed from existing distinct customer.area values on first load.
-- Replace the plain Area input in Customers with a `SearchableSelect` (areas filtered by selected city) + "Add new area" inline option.
-- Add `area` column to Suppliers (optional) so geographic reports balance.
-- Add **Area filter** to:
-  - `CitywiseSales` (group by City → Area sub-rows)
-  - `CustomerWiseReport`
-  - `SalesTrend`, `ProductPerformance`
-- New report **`AreaWiseSales`** (`/reports/area-sales`): revenue, orders, unique customers, top product per area, with city filter and bar chart.
+### Files
+**Migration**: 1 large file with constraint changes + triggers + RPCs + seed accounts.
+**Edit (~12)**: `ProformaInvoices.tsx`, `SalesInvoices`-equivalents, `PurchaseInvoices` flow, `Customers/Suppliers/Products/Printers/SalesAgents/Couriers.tsx` (active toggle), `Payments.tsx` (void), `Dashboard` (expiry KPI).
+**New**: `src/lib/void-document.ts` helper.
 
-## 3. Last-rate memory (already partial — make it prominent & reliable)
-Today `last_price` is fetched and shown as a tiny "Last: PKR …" label in `ProformaInvoices` and `PurchaseProforma`.
-Improvements:
-- Show the badge in a stronger style (chip next to rate field) and also expose **"Use last rate"** quick-click to repopulate when user has edited.
-- Tooltip with date + document number of the source invoice.
-- Extend coverage to:
-  - Sales Invoice direct add (if any non-PI path)
-  - GRN line entry (`grn_items`) — show last received rate for that supplier+product
-  - Warranty Invoices item picker
-- Centralize the lookup in `src/lib/party-products.ts` (already has `getCustomerProductIds` / supplier variant) by adding `getLastRate(partyType, partyId, productId)` that returns `{rate, date, doc_number}`.
-
-## 4. Vacant Area – Product List
-Current `VacantAreas` report shows per-product cities not covered. Make it the **primary "Vacant Areas" dashboard** the user expects:
-- Two view modes (tab toggle):
-  - **By Product** (current): for each product, list cities/areas with no sales OR no allocation.
-  - **By City/Area**: for each city/area, list products NOT yet sold there (the inverse view — this is what "vacant area product list" reads as).
-- Filters: city, area, product category, "based on" (allocations vs actual sales last 12 months).
-- Export to CSV.
-- Surface KPI cards: total vacant city-product pairs, top 5 underserved cities, top 5 products with weakest coverage.
-- Link from Reports landing under Geographic section, and add a shortcut card on Dashboard.
-
----
-
-## Technical notes
-- New migration: `areas` table (id, tenant_id, name, city, created_at) + RLS (tenant_select/insert/update/delete). Backfill from `SELECT DISTINCT area, city FROM customers WHERE area IS NOT NULL`.
-- Optional `suppliers.area` column.
-- `getLastRate` helper queries `sales_invoice_items` (joined to `sales_invoices` for customer/date/number) or `grn_items` (joined to `goods_received_notes` for supplier/date), ordered by date desc limit 1.
-- New page: `src/pages/reports/AreaWiseSales.tsx`, `src/pages/reports/VacantAreas.tsx` upgraded with tabs (rename keep route).
-- Update `src/App.tsx` routes and `src/pages/Reports.tsx` index.
-
-## Out of scope
-- Changing how documents are numbered or how RLS works.
-- New stock/accounting logic (already audited in prior loop).
+### Out of scope
+- Refactoring existing reports beyond consuming the new ledger (kept current calc as fallback).
+- Subscription / auth changes.
