@@ -36,7 +36,8 @@ const reportSections = [
     { title: "Supplier-wise", desc: "Purchases & balance by supplier", url: "/reports/supplier-wise", icon: Truck, color: "text-primary" },
     { title: "Product Allocations", desc: "Products allocated to parties with rates", url: "/reports/allocations", icon: ClipboardList, color: "text-warning" },
   ]},
-  { label: "Coverage", items: [
+  { label: "Geographic", items: [
+    { title: "City-wise Sales", desc: "Revenue, orders & top product per city", url: "/reports/citywise-sales", icon: Globe2, color: "text-primary" },
     { title: "Vacant Areas", desc: "Cities without product coverage", url: "/reports/vacant-areas", icon: MapPin, color: "text-destructive" },
   ]},
   { label: "Compliance", items: [
