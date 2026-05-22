@@ -357,7 +357,7 @@ export default function ProformaInvoices() {
         agent_id: agentId || null,
       } as any);
       if (error) { console.error("Insert error:", error); toast.error("Failed to create order: " + error.message); setSaving(false); return; }
-      toast.success(`Sales Invoice ${pfNumber} created`);
+      toast.success(`Sales Order ${pfNumber} created`);
       setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); setAgentId(""); load();
     } catch (err: any) {
       console.error("Unexpected error creating sales order:", err);
