@@ -268,6 +268,10 @@ export default function Settings() {
               </CardContent>
             </Card>
 
+            <FreightProvidersCard />
+
+
+
             <Card className="glass-card">
               <CardHeader><CardTitle className="text-lg">Tax Configuration</CardTitle></CardHeader>
               <CardContent className="space-y-5">
