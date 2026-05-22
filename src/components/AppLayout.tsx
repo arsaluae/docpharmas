@@ -122,7 +122,12 @@ export function AppLayout({ title, subtitle, children, headerActions }: AppLayou
           </div>
         </main>
       </div>
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      {paletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+        </Suspense>
+      )}
     </SidebarProvider>
   );
 }
+
