@@ -728,7 +728,12 @@ export default function ProformaInvoices() {
             movement_type: "sale_out", batch_number: item.batch_number || null,
             reference_type: "sales_invoice", reference_id: inv.id, notes: `Invoice ${invNumber}`,
           });
-          if (smErr) { toast.error("Stock movement failed: " + smErr.message); }
+          if (smErr) {
+            const friendly = smErr.message?.includes("Insufficient stock")
+              ? `Insufficient stock for ${item.product_name || "item"} (requested ${item.convert_quantity}). Adjust quantity or pick a different batch.`
+              : "Stock movement failed: " + smErr.message;
+            toast.error(friendly);
+          }
         }
       }
 
