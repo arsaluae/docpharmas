@@ -1005,13 +1005,13 @@ export default function ProformaInvoices() {
  {/* PREMIUM STATUS BUTTONS */}
  <div className="grid grid-cols-3 gap-2 sm:gap-3">
  {[
- { label: "All", ...allStats, secondLine: `PKR ${allStats.value.toLocaleString()}`, icon: FileText, gradient: "from-slate-500/8 to-slate-600/15", iconBg: "from-slate-500 to-slate-600", accent: "from-slate-400 to-slate-600", textColor: "text-foreground", statusKey: "all" },
- { label: "Draft", ...draftStats, secondLine: `PKR ${draftStats.value.toLocaleString()}`, icon: FileEdit, gradient: "from-amber-500/8", iconBg: "from-amber-500", accent: "from-amber-400", textColor: "text-warning", statusKey: "draft" },
- { label: "Invoice", ...invoiceStats, secondLine: `PKR ${invoiceStats.value.toLocaleString()}`, icon: Send, gradient: "from-blue-500/8", iconBg: "from-blue-500", accent: "from-blue-400", textColor: "text-primary", statusKey: "invoiced" },
+ { label: "All", ...allStats, secondLine: `PKR ${allStats.value.toLocaleString()}`, icon: FileText, gradient: "bg-card", iconBg: "bg-surface-2", accent: "bg-primary/40", textColor: "text-foreground", statusKey: "all" },
+ { label: "Draft", ...draftStats, secondLine: `PKR ${draftStats.value.toLocaleString()}`, icon: FileEdit, gradient: "bg-card", iconBg: "bg-surface-2", accent: "bg-primary/40", textColor: "text-warning", statusKey: "draft" },
+ { label: "Invoice", ...invoiceStats, secondLine: `PKR ${invoiceStats.value.toLocaleString()}`, icon: Send, gradient: "bg-card", iconBg: "bg-surface-2", accent: "bg-primary/40", textColor: "text-primary", statusKey: "invoiced" },
  ].map(s => (
  <button key={s.label} onClick={() => setStatusFilter(s.statusKey)}
- className={`group relative flex flex-col items-center justify-center h-[90px] sm:h-[120px] rounded-xl sm:rounded-md ${s.gradient} border border-border/50 transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "ring-2 ring-offset-2 ring-primary/40" : ""}`}>
- <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl ${s.iconBg} flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-110 transition-transform duration-300`}>
+ className={`group relative flex flex-col items-center justify-center h-[90px] sm:h-[120px] rounded-md ${s.gradient} border border-border/50 transition-all duration-300 overflow-hidden ${statusFilter === s.statusKey ? "border-primary" : ""}`}>
+ <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg rounded-md ${s.iconBg} flex items-center justify-center mb-1 sm:mb-1.5 transition-transform duration-300`}>
  <s.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
  </div>
  <span className={`text-base sm:text-lg font-bold font-heading ${s.textColor}`}>{s.count}</span>
