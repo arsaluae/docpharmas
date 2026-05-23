@@ -747,9 +747,19 @@ export default function Index() {
       </div>
 
       {/* KPI drill-downs */}
-      <WeekSalesDialog open={weekOpen} onOpenChange={setWeekOpen} weekStart={(() => { const d = new Date(today); const dow = d.getDay(); d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1)); return d.toISOString().split("T")[0]; })()} />
-      <MonthSalesDialog open={monthOpen} onOpenChange={setMonthOpen} monthStart={today.toISOString().slice(0, 7) + "-01"} />
-      <GrossMarginDialog open={gpOpen} onOpenChange={setGpOpen} monthStart={today.toISOString().slice(0, 7) + "-01"} />
+      {(() => {
+        const tStr = today.toISOString().split("T")[0];
+        const monthStart = tStr.slice(0, 7) + "-01";
+        const dow = today.getDay();
+        const wStart = new Date(today); wStart.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+        return (
+          <>
+            <WeekSalesDialog open={weekOpen} onOpenChange={setWeekOpen} from={wStart.toISOString().split("T")[0]} to={tStr} />
+            <MonthSalesDialog open={monthOpen} onOpenChange={setMonthOpen} from={monthStart} to={tStr} />
+            <GrossMarginDialog open={gpOpen} onOpenChange={setGpOpen} monthStart={monthStart} monthEnd={tStr} />
+          </>
+        );
+      })()}
       <UpcomingOrdersDialog open={upcomingOpen} onOpenChange={setUpcomingOpen} />
     </AppLayout>
   );
