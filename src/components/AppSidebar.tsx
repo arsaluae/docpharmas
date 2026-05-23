@@ -74,8 +74,11 @@ export function AppSidebar() {
     return location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
   };
 
-  const sections = tenantRole === "staff" && !isAdmin
-    ? allSections.filter(s => s.staffVisible)
+  const isStaff = tenantRole === "staff" && !isAdmin;
+  const sections = isStaff
+    ? allSections
+        .filter(s => s.staffVisible)
+        .map(s => ({ ...s, items: s.items.filter((i: any) => i.staffVisible) }))
     : allSections;
 
   const activeSectionIdx = sections.findIndex(s =>
