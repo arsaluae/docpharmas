@@ -11,69 +11,71 @@
 
 @layer base {
   :root {
-    /* Surfaces — cool near-white, complements the dark sidebar */
-    --background: 240 11% 98%;       /* #FAFAFB app canvas */
-    --foreground: 240 6% 4%;         /* #0A0A0B — same ink as sidebar bg, inverted */
-    --card: 0 0% 100%;               /* #FFFFFF panels */
-    --card-foreground: 240 6% 4%;
+    /* MOUJ surfaces — warm off-white canvas */
+    --background: 220 25% 97%;       /* #F4F6FA app canvas */
+    --foreground: 217 76% 20%;       /* #0C2B5C MOUJ navy — primary ink */
+    --card: 220 20% 99%;             /* #FAFBFC panels */
+    --card-foreground: 217 76% 20%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 6% 4%;
-    --surface-2: 240 7% 96%;         /* #F4F4F6 raised wells */
+    --popover-foreground: 217 76% 20%;
+    --surface-2: 220 22% 95%;        /* #EEF1F6 raised wells */
 
-    /* Accent — indigo, identical to sidebar rail */
-    --primary: 244 75% 59%;          /* #4F46E5 */
+    /* Brand — MOUJ navy primary, MOUJ light blue as single accent */
+    --brand-navy: 217 76% 20%;       /* #0C2B5C */
+    --brand-blue: 197 80% 55%;       /* #2EB4E8 — the only accent */
+    --primary: 197 80% 55%;          /* accent for active states / charts */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 232 100% 97%;    /* #EEF0FF hover / selection wash */
-    --ring: 244 75% 59%;
+    --primary-soft: 197 80% 95%;     /* #E2F4FC hover wash */
+    --ring: 197 80% 55%;
 
     /* Secondary / muted */
-    --secondary: 240 7% 96%;
-    --secondary-foreground: 240 6% 14%;
-    --muted: 240 7% 96%;
-    --muted-foreground: 240 4% 43%;  /* #6B6B72 */
-    --subtle: 240 3% 62%;            /* #9A9AA0 tertiary / micro-labels */
-    --accent: 240 7% 96%;
-    --accent-foreground: 240 6% 4%;
+    --secondary: 220 22% 95%;
+    --secondary-foreground: 217 40% 25%;
+    --muted: 220 22% 95%;
+    --muted-foreground: 217 20% 45%; /* #5B6B84 */
+    --subtle: 217 15% 60%;           /* #8693A8 micro-labels */
+    --accent: 220 22% 95%;
+    --accent-foreground: 217 76% 20%;
 
     /* Status — muted, never neon */
-    --destructive: 5 57% 42%;        /* #A8392F */
+    --destructive: 5 57% 42%;
     --destructive-foreground: 0 0% 100%;
     --danger: 5 57% 42%;
-    --warning: 36 50% 36%;           /* #8A6A2E */
+    --warning: 36 50% 36%;
     --warning-foreground: 0 0% 100%;
-    --success: 150 44% 33%;          /* #2F7A52 */
+    --success: 150 44% 33%;
     --success-foreground: 0 0% 100%;
-    --info: 211 50% 36%;             /* #2E5A8A */
+    --info: 197 80% 55%;
 
-    /* Structure */
-    --border: 240 5% 93%;            /* #ECECEF hairline */
-    --border-strong: 240 5% 88%;     /* #E0E0E4 header underline */
-    --input: 240 5% 88%;
-    --radius: 6px;
+    /* Structure — hairline at navy/10 */
+    --border: 217 40% 88%;           /* #D5DEEC hairline w/ navy tint */
+    --border-strong: 217 35% 78%;    /* #B9C7DD */
+    --input: 217 35% 85%;
+    --radius: 4px;
 
-    /* Sidebar (kept dark — companion role) */
+    /* Sidebar — kept dark, retains existing aesthetic */
     --sidebar-background: 240 8% 4%;
     --sidebar-foreground: 240 6% 60%;
-    --sidebar-primary: 244 75% 59%;
+    --sidebar-primary: 197 80% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 4% 12%;
     --sidebar-accent-foreground: 40 22% 92%;
     --sidebar-border: 240 5% 14%;
-    --sidebar-ring: 244 75% 59%;
+    --sidebar-ring: 197 80% 55%;
 
-    /* Playful pastel palette — flat soft chips, no gradients */
+    /* Pastel palette — retained for inner pages that still reference these tokens */
     --pastel-peach: 22 100% 93%;     --pastel-peach-fg: 18 63% 44%;
     --pastel-mint: 138 50% 91%;      --pastel-mint-fg: 150 44% 33%;
-    --pastel-sky: 211 79% 92%;       --pastel-sky-fg: 211 50% 36%;
+    --pastel-sky: 197 80% 92%;       --pastel-sky-fg: 197 80% 35%;
     --pastel-lilac: 251 79% 93%;     --pastel-lilac-fg: 248 47% 53%;
     --pastel-butter: 47 89% 90%;     --pastel-butter-fg: 36 50% 36%;
     --pastel-blush: 338 79% 93%;     --pastel-blush-fg: 339 44% 48%;
 
-    /* Legacy aliases — no-ops */
-    --pharma-teal: 244 75% 59%;
-    --pharma-violet: 244 75% 59%;
+    /* Legacy aliases */
+    --pharma-teal: 197 80% 55%;
+    --pharma-violet: 217 76% 20%;
     --pharma-sage: 150 44% 33%;
-    --medical-cyan: 211 50% 36%;
+    --medical-cyan: 197 80% 55%;
     --medical-cyan-foreground: 0 0% 100%;
   }
 
@@ -89,9 +91,9 @@
     --surface-2: 240 4% 12%;
 
     /* Accent — electric indigo, brightened for dark bg */
-    --primary: 239 84% 67%;          /* #6366F1 */
+    --primary: 197 80% 55%;          /* #2EB4E8 */
     --primary-foreground: 0 0% 100%;
-    --ring: 239 84% 67%;
+    --ring: 197 80% 55%;
 
     --secondary: 240 4% 13%;
     --secondary-foreground: 40 15% 80%;
@@ -117,12 +119,12 @@
 
     --sidebar-background: 240 6% 4%;
     --sidebar-foreground: 240 6% 60%;
-    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary: 197 80% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 4% 12%;
     --sidebar-accent-foreground: 40 22% 92%;
     --sidebar-border: 240 5% 14%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-ring: 197 80% 55%;
 
     --pharma-teal: 239 84% 67%;
     --pharma-violet: 239 84% 67%;
@@ -427,12 +429,12 @@
   .mouj-dark-sidebar {
     --sidebar-background: 240 8% 4%;
     --sidebar-foreground: 240 8% 60%;
-    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary: 197 80% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 6% 11%;
     --sidebar-accent-foreground: 40 22% 92%;
     --sidebar-border: 240 6% 13%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-ring: 197 80% 55%;
     font-family: 'Geist', ui-sans-serif, sans-serif;
     background: #08080A;
     color: #C9C7C2;
@@ -457,14 +459,14 @@
     text-transform: uppercase;
   }
   .mouj-dark-sidebar .mouj-wordmark-accent {
-    color: #818CF8;
+    color: #2EB4E8;
     font-weight: 400;
   }
   .mouj-dark-sidebar .mouj-wordmark-short {
     font-family: 'Geist', sans-serif;
     font-size: 16px;
     font-weight: 600;
-    color: #818CF8;
+    color: #2EB4E8;
     width: 100%;
     text-align: center;
   }
@@ -496,7 +498,7 @@
     position: absolute;
     left: 0; top: 4px; bottom: 4px;
     width: 2px;
-    background: #6366F1;
+    background: #2EB4E8;
   }
 
   .mouj-dark-sidebar .mouj-section-label {
@@ -538,7 +540,7 @@
     position: absolute;
     left: 0; top: 3px; bottom: 3px;
     width: 2px;
-    background: #6366F1;
+    background: #2EB4E8;
   }
 
   .mouj-dark-sidebar .mouj-divider {
@@ -622,7 +624,7 @@
     line-height: 1;
     text-transform: uppercase;
   }
-  .mouj-dark-auth .mouj-auth-wordmark-accent { color: #818CF8; font-weight: 400; }
+  .mouj-dark-auth .mouj-auth-wordmark-accent { color: #2EB4E8; font-weight: 400; }
   .mouj-dark-auth .mouj-auth-sub {
     font-family: 'Geist Mono', monospace;
     font-size: 10px;
@@ -654,7 +656,7 @@
   }
   .mouj-dark-auth .mouj-auth-dot {
     width: 6px; height: 6px; border-radius: 999px;
-    background: #6366F1; display: inline-block; margin-right: 8px;
+    background: #2EB4E8; display: inline-block; margin-right: 8px;
     box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
   }
   .mouj-dark-auth .mouj-auth-form-wrap {
@@ -693,19 +695,19 @@
   }
   .mouj-dark-auth .mouj-input::placeholder { color: #55534F; }
   .mouj-dark-auth .mouj-input:hover { border-color: #2A2A30; }
-  .mouj-dark-auth .mouj-input:focus { outline: none; border-color: #6366F1; background: rgba(255,255,255,0.05); }
+  .mouj-dark-auth .mouj-input:focus { outline: none; border-color: #2EB4E8; background: rgba(255,255,255,0.05); }
   .mouj-dark-auth .mouj-input-icon { color: #55534F; }
-  .mouj-dark-auth .mouj-link { color: #818CF8; font-size: 12px; font-weight: 500; }
+  .mouj-dark-auth .mouj-link { color: #2EB4E8; font-size: 12px; font-weight: 500; }
   .mouj-dark-auth .mouj-link:hover { color: #A5B4FC; }
   .mouj-dark-auth .mouj-cta {
-    width: 100%; background: #6366F1; color: #FFFFFF;
+    width: 100%; background: #2EB4E8; color: #FFFFFF;
     border-radius: 4px; height: 40px; font-weight: 500; font-size: 13px;
     letter-spacing: 0.02em;
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     transition: background-color 150ms ease-out;
     border: 0;
   }
-  .mouj-dark-auth .mouj-cta:hover { background: #4F46E5; }
+  .mouj-dark-auth .mouj-cta:hover { background: #1AA0D4; }
   .mouj-dark-auth .mouj-cta:disabled { opacity: 0.5; cursor: not-allowed; }
   .mouj-dark-auth .mouj-foot {
     margin-top: 24px; padding-top: 18px;

@@ -1,94 +1,73 @@
-## Goal
+## MOUJ Editorial-Precision Dashboard
 
-Turn the dashboard into a place you *want* to open — warm, playful, pastel — without neon, gradients, or glass. Keep the precision and hairline discipline; add personality through type, soft color chips, and small line illustrations.
+Rebuild the dashboard around the selected "Editorial precision" direction. Lock MOUJ brand tokens system-wide so the rest of the app inherits them over time. Sidebar untouched.
 
-## 1. Typography (project-wide)
+### Brand tokens (index.css + tailwind.config.ts)
 
-- Headings: **Sora** (500/600), body: **Manrope** (400/500), mono: **JetBrains Mono** for numbers only.
-- Update `tailwind.config.ts` font families + `src/index.css` `@import` lines.
-- Dashboard greeting uses Sora 28px / 600 with -0.02em tracking. Section titles Sora 15px / 600. Body 13–14px Manrope.
+Replace the indigo/pastel system with the MOUJ palette:
 
-## 2. Playful pastel palette (additive, flat)
+- `--brand-navy: 217 76% 20%` (#0C2B5C) — primary text, brand color, active states
+- `--brand-blue: 197 80% 55%` (#2EB4E8) — single accent (active KPI, hero metric, "Live" pill, active tab underline, sparkline bar of the day)
+- `--surface-page: 220 25% 97%` (#F4F6FA) — page background
+- `--surface-card: 220 20% 98.5%` (#FAFAFB) — card background
+- `--hairline: 217 76% 20% / 0.10` — all borders
+- Remap shadcn semantic tokens: `--background`, `--foreground`, `--primary`, `--border`, `--muted-foreground`, `--card` to the above so existing pages don't break.
+- Delete the pastel chip utilities (`.chip-*`, `.wash-*`) and the SunCloud/EmptyBox illustrations — they don't belong in this aesthetic.
 
-Add six soft category tokens to `src/index.css` (light theme only — sidebar/dark untouched):
+### Typography
 
-```text
---pastel-peach:   #FFE9DE  fg #B5532A
---pastel-mint:    #DDF3E4  fg #2F7A52
---pastel-sky:     #DDEBFB  fg #2E5A8A
---pastel-lilac:   #E8E2FB  fg #5B4BC4
---pastel-butter:  #FCF1CF  fg #8A6A2E
---pastel-blush:   #FBE2EC  fg #B0436B
+Keep Sora (headings) + Manrope (body) + JetBrains Mono (numbers). Set tracking: H1 -0.02em, eyebrow uppercase 0.2em, micro-labels uppercase 0.15em with 700 weight at 11px.
+
+### Dashboard layout — `src/pages/Index.tsx`
+
+Mirror the prototype 1:1, wired to real data already in the page:
+
+```
+┌─ Eyebrow: "OVERVIEW DASHBOARD" ────── Date · Fiscal period ┐
+│  H1: "Good morning, {firstName}"                            │
+├─────────────────────────────────────────────────────────────┤
+│  Glance strip (hairline top+bottom, dot dividers):          │
+│  [LIVE] N pending orders │ N overdue invoices │             │
+│  Inventory health: 98.2%                                     │
+├──────┬──────┬──────┬──────────────────────────────────────┐ │
+│ Sales│ Recv │ Pay  │ Cash (with 2px blue accent bar)      │ │
+│ KPI  │ KPI  │ KPI  │ — divided by 1px hairline grid       │ │
+├──────┴──────┴──────┴──────────────────────────────────────┤ │
+│  30-Day Performance Trend [Volume│Margin tabs]   col-8     │
+│  Recharts bar chart, navy/10 fill, brand-blue today bar    │
+│  ─────────────────────────────────                          │
+│                                            ┌─ col-4 ──────┐│
+│                                            │ Quick Actions││
+│                                            │ (4 outlined  ││
+│                                            │  buttons)    ││
+│                                            │              ││
+│                                            │ Recent       ││
+│                                            │ Activity     ││
+└────────────────────────────────────────────┴──────────────┘
 ```
 
-Used only as small icon chips (28–32px rounded-lg), label backgrounds, and empty-state washes. No gradients, no glow. Primary indigo `#4F46E5` stays the action color.
+Strip everything else from the current Index.tsx: no "Today at a glance" pastel card, no SunCloud illustration, no emoji greeting, no pastel KPI chips, no Up-Late copy.
 
-## 3. Hand-drawn micro illustrations
+### Data wiring (preserve existing logic)
 
-Three inline SVGs in `src/components/dashboard/illustrations/` (single-stroke, currentColor, 1.5px):
-- `WavingHand.svg` — for greeting
-- `SunCloud.svg` — for "Today at a glance"
-- `EmptyBox.svg` — for empty tables
+- Greeting: keep `greetingFor(today)` + firstName from `useAuth`.
+- Glance strip: pull from already-computed counts (pending sales orders, overdue receivables count, inventory health = stock-in-range %).
+- KPI tiles: reuse the four primary metrics already fetched (Gross Sales MTD, Receivables, Payables, Cash on hand). Format with `formatAmount` + JetBrains Mono. Show one delta line per tile; Sales delta uses brand-blue, others use muted.
+- Trend chart: replace existing Area chart with Recharts `BarChart`, 30 daily bars, today highlighted in brand-blue, all others navy/10. Volume/Margin tabs toggle dataset.
+- Quick Actions: 4 outlined buttons → New Sales Order, New Purchase Order, Record Payment, Stock Audit (route via existing nav).
+- Recent Activity: reuse current activity feed source, simplified to dot + title + relative time (max 5 rows).
 
-Tiny (48–72px), placed as accents — never decorative noise.
+### Files
 
-## 4. Dashboard rebuild (`src/pages/Index.tsx`)
+- Edit `src/index.css` — swap palette tokens, remove pastel utilities and illustration glue, add hairline + eyebrow utility classes.
+- Edit `tailwind.config.ts` — register `brand-navy`, `brand-blue`, `hairline` color tokens.
+- Rewrite `src/pages/Index.tsx` — new layout matching prototype, wired to existing data hooks.
+- Delete `src/components/dashboard/illustrations/` (SunCloud, EmptyBox) if present.
+- Leave `AppSidebar.tsx`, `AppLayout.tsx`, all other pages, all business logic untouched.
 
-```text
-┌────────────────────────────────────────────────────────┐
-│  Hi, Ahmad 👋  (Sora 28)         Sat, 23 May 2026      │  ← greeting row, no live dot
-│  Here's where things stand today.                      │
-├────────────────────────────────────────────────────────┤
-│  ┌─ Today at a glance ───────────────────[SunCloud]─┐  │  ← replaces ticker
-│  │ Sales today   Collections   A/R     A/P   Net    │  │     single panel, soft butter wash
-│  │ PKR 230.5K    PKR 88.2K     165.7K  717.5K -551K │  │     5 cells, hairline dividers
-│  └──────────────────────────────────────────────────┘  │
-├──────────────────────┬─────────────────────────────────┤
-│  KPI tile grid       │  Quick actions (list, 8 rows)   │
-│  (4 tiles, pastel    │  each row: pastel icon chip +   │
-│  icon chip per tile) │  label + chevron, hover lifts   │
-├──────────────────────┴─────────────────────────────────┤
-│  30-day sales trend (Area, indigo 1.5px, 8% fill)      │
-├────────────────────────────────────────────────────────┤
-│  Recent activity (table, 44px rows)                    │
-└────────────────────────────────────────────────────────┘
-```
+### Out of scope (this turn)
 
-### Greeting row
-- "Hi, {name} 👋" + subtitle "Here's where things stand today." Date right-aligned in `text-muted-foreground`.
-
-### Today at a glance card
-- White card, 1px border, 20px padding, soft **butter** wash behind the SunCloud illustration in top-right corner (opacity 0.5).
-- 5 cells separated by hairline verticals, each: micro-label (Manrope 10.5px/600/uppercase tracking-0.12em, muted) + value (JetBrains Mono 18px, foreground; negatives in `--danger`).
-
-### KPI tiles (4)
-- Each tile: pastel icon chip top-left (28×28 rounded-lg, category color), micro-label, mono value (24px), tiny delta row.
-- Categories: Sales=mint, Receivables=sky, Payables=peach, Cash=lilac.
-- Hover: border darkens, background to `#FCFCFD`. Active rail: 2px indigo left border.
-
-### Quick actions
-- Single panel, 8 rows × 36px. Row = 28px pastel icon chip + label (Manrope 13px) + chevron right.
-- Hover: row bg `--primary-soft`, label & chevron shift to `--primary`. No scale.
-
-### Sales trend
-- Recharts Area, single indigo series, 8% fill, horizontal hairline grid, white tooltip with 1px border.
-
-### Recent activity
-- Existing table primitives; add `EmptyBox` illustration + friendly copy when empty.
-
-## 5. What goes away
-
-- The MTD/WTD/A/R/A/P/NET/PO ticker strip (user dislikes).
-- Any remaining `gradient-*`, `glow-*`, `mesh-*`, `text-gradient-*` utilities used on the dashboard. Utility classes stay in CSS but unused on this page.
-
-## Technical notes
-
-**Files touched:**
-- `tailwind.config.ts` — Sora/Manrope font families, pastel color tokens
-- `src/index.css` — `@import` Sora+Manrope from Google Fonts, add `--pastel-*` tokens, add `.chip-pastel-{name}` and `.wash-{name}` helpers
-- `src/pages/Index.tsx` — full rebuild per layout above
-- `src/components/dashboard/illustrations/` — 3 new inline SVG components (WavingHand, SunCloud, EmptyBox)
-
-**Out of scope:** sidebar, dark mode, AppLayout, inner pages, tables primitive, buttons. Pure dashboard + tokens.
-
-**Preserved:** existing KPI data queries, dialog wiring (`KpiDialogs.tsx`), navigation routes, all business logic.
+- Sidebar redesign (user said keep it).
+- Inner pages (Customers, Invoices, Reports, etc.) — they'll inherit the new tokens but won't be re-laid-out.
+- Dark mode tuning beyond ensuring tokens resolve.
+- Any backend, RLS, or schema work.
