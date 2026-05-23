@@ -249,6 +249,8 @@ export default function Index() {
       delta: lastMonthSales > 0 ? monthGrowth : null,
       active: monthOpen,
       isPrimary: true,
+      rail: "hsl(var(--brand-blue))",
+      icon: TrendingUp,
     },
     {
       label: "Receivables",
@@ -257,6 +259,8 @@ export default function Index() {
       onClick: () => navigate("/payments?tab=received"),
       delta: null as number | null,
       active: false,
+      rail: "hsl(var(--success))",
+      icon: Wallet,
     },
     {
       label: "Payables",
@@ -265,6 +269,8 @@ export default function Index() {
       onClick: () => navigate("/payments?tab=made"),
       delta: null,
       active: false,
+      rail: "hsl(var(--warning))",
+      icon: CreditCard,
     },
     {
       label: "Gross Profit · MTD",
@@ -273,6 +279,8 @@ export default function Index() {
       onClick: () => setGpOpen(true),
       delta: null,
       active: gpOpen,
+      rail: "hsl(var(--info))",
+      icon: Flame,
     },
   ];
 
