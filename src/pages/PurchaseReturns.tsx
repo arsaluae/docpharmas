@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { BulkActionBar, useBulkSelection, RowCheckbox } from "@/components/BulkActionBar";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ReturnItem { product_id: string; batch_number: string; quantity: string; rate: string; }
 
