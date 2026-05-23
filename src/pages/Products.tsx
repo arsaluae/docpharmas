@@ -43,6 +43,8 @@ const emptyForm = {
 export default function Products() {
  const navigate = useNavigate();
  const { settings } = useCompanySettings();
+ const { tenantRole, isAdmin } = useTenant();
+ const readOnly = tenantRole === "staff" && !isAdmin;
  const [products, setProducts] = useState<Product[]>([]);
  const [movements, setMovements] = useState<StockMovement[]>([]);
  const [search, setSearch] = useState("");
