@@ -22,6 +22,8 @@ import { Plus, Search, FileText, Trash2, Users, Truck, Link2 } from "lucide-reac
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { ApplyNoteDialog } from "@/components/ApplyCreditNoteDialog";
+import { BulkActionBar, useBulkSelection, RowCheckbox } from "@/components/BulkActionBar";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Party { id: string; name: string; company?: string | null; }
 interface CreditNote {
