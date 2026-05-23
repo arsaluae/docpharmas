@@ -690,6 +690,7 @@ function TeamAccessCard() {
  const [showForm, setShowForm] = useState(false);
  const [newEmail, setNewEmail] = useState("");
  const [newPassword, setNewPassword] = useState("");
+ const [newRole, setNewRole] = useState<"owner" | "staff">("staff");
 
  const load = async () => {
  if (!tenantId) return;
@@ -723,13 +724,13 @@ function TeamAccessCard() {
  tenant_id: tenantId,
  email: newEmail.trim(),
  password: newPassword,
- role: "staff",
+ role: newRole,
  },
  });
  if (error) throw new Error(error.message || "Could not create user");
  if (data?.error) throw new Error(data.error);
- toast.success("Sales user created");
- setNewEmail(""); setNewPassword(""); setShowForm(false);
+ toast.success(newRole === "owner" ? "Admin user created" : "Sales user created");
+ setNewEmail(""); setNewPassword(""); setNewRole("staff"); setShowForm(false);
  await load();
  } catch (err: any) {
  toast.error(err.message);
