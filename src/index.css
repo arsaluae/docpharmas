@@ -91,9 +91,9 @@
     --surface-2: 240 4% 12%;
 
     /* Accent — electric indigo, brightened for dark bg */
-    --primary: 239 84% 67%;          /* #6366F1 */
+    --primary: 197 80% 55%;          /* #2EB4E8 */
     --primary-foreground: 0 0% 100%;
-    --ring: 239 84% 67%;
+    --ring: 197 80% 55%;
 
     --secondary: 240 4% 13%;
     --secondary-foreground: 40 15% 80%;
@@ -119,12 +119,12 @@
 
     --sidebar-background: 240 6% 4%;
     --sidebar-foreground: 240 6% 60%;
-    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary: 197 80% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 4% 12%;
     --sidebar-accent-foreground: 40 22% 92%;
     --sidebar-border: 240 5% 14%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-ring: 197 80% 55%;
 
     --pharma-teal: 239 84% 67%;
     --pharma-violet: 239 84% 67%;
@@ -429,12 +429,12 @@
   .mouj-dark-sidebar {
     --sidebar-background: 240 8% 4%;
     --sidebar-foreground: 240 8% 60%;
-    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary: 197 80% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 6% 11%;
     --sidebar-accent-foreground: 40 22% 92%;
     --sidebar-border: 240 6% 13%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-ring: 197 80% 55%;
     font-family: 'Geist', ui-sans-serif, sans-serif;
     background: #08080A;
     color: #C9C7C2;
@@ -459,14 +459,14 @@
     text-transform: uppercase;
   }
   .mouj-dark-sidebar .mouj-wordmark-accent {
-    color: #818CF8;
+    color: #2EB4E8;
     font-weight: 400;
   }
   .mouj-dark-sidebar .mouj-wordmark-short {
     font-family: 'Geist', sans-serif;
     font-size: 16px;
     font-weight: 600;
-    color: #818CF8;
+    color: #2EB4E8;
     width: 100%;
     text-align: center;
   }
@@ -498,7 +498,7 @@
     position: absolute;
     left: 0; top: 4px; bottom: 4px;
     width: 2px;
-    background: #6366F1;
+    background: #2EB4E8;
   }
 
   .mouj-dark-sidebar .mouj-section-label {
@@ -540,7 +540,7 @@
     position: absolute;
     left: 0; top: 3px; bottom: 3px;
     width: 2px;
-    background: #6366F1;
+    background: #2EB4E8;
   }
 
   .mouj-dark-sidebar .mouj-divider {
@@ -624,7 +624,7 @@
     line-height: 1;
     text-transform: uppercase;
   }
-  .mouj-dark-auth .mouj-auth-wordmark-accent { color: #818CF8; font-weight: 400; }
+  .mouj-dark-auth .mouj-auth-wordmark-accent { color: #2EB4E8; font-weight: 400; }
   .mouj-dark-auth .mouj-auth-sub {
     font-family: 'Geist Mono', monospace;
     font-size: 10px;
@@ -656,7 +656,7 @@
   }
   .mouj-dark-auth .mouj-auth-dot {
     width: 6px; height: 6px; border-radius: 999px;
-    background: #6366F1; display: inline-block; margin-right: 8px;
+    background: #2EB4E8; display: inline-block; margin-right: 8px;
     box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
   }
   .mouj-dark-auth .mouj-auth-form-wrap {
@@ -695,19 +695,19 @@
   }
   .mouj-dark-auth .mouj-input::placeholder { color: #55534F; }
   .mouj-dark-auth .mouj-input:hover { border-color: #2A2A30; }
-  .mouj-dark-auth .mouj-input:focus { outline: none; border-color: #6366F1; background: rgba(255,255,255,0.05); }
+  .mouj-dark-auth .mouj-input:focus { outline: none; border-color: #2EB4E8; background: rgba(255,255,255,0.05); }
   .mouj-dark-auth .mouj-input-icon { color: #55534F; }
-  .mouj-dark-auth .mouj-link { color: #818CF8; font-size: 12px; font-weight: 500; }
+  .mouj-dark-auth .mouj-link { color: #2EB4E8; font-size: 12px; font-weight: 500; }
   .mouj-dark-auth .mouj-link:hover { color: #A5B4FC; }
   .mouj-dark-auth .mouj-cta {
-    width: 100%; background: #6366F1; color: #FFFFFF;
+    width: 100%; background: #2EB4E8; color: #FFFFFF;
     border-radius: 4px; height: 40px; font-weight: 500; font-size: 13px;
     letter-spacing: 0.02em;
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     transition: background-color 150ms ease-out;
     border: 0;
   }
-  .mouj-dark-auth .mouj-cta:hover { background: #4F46E5; }
+  .mouj-dark-auth .mouj-cta:hover { background: #1AA0D4; }
   .mouj-dark-auth .mouj-cta:disabled { opacity: 0.5; cursor: not-allowed; }
   .mouj-dark-auth .mouj-foot {
     margin-top: 24px; padding-top: 18px;
