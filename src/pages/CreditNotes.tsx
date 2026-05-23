@@ -97,6 +97,7 @@ export default function CreditNotes() {
     });
 
     if (error) { toast.error("Failed to save: " + error.message); return; }
+    logAudit({ action: "credit_note_issued", entity_type: "credit_note", entity_number: cnNumber, changes: { party_type: partyType, party_id: partyId, amount: Number(amount), reason } });
     toast.success(`Credit Note ${cnNumber} created`);
     resetForm();
     load();
