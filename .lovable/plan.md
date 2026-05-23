@@ -1,117 +1,94 @@
+## Goal
 
-# Settled light theme — companion to the dark sidebar
+Turn the dashboard into a place you *want* to open — warm, playful, pastel — without neon, gradients, or glass. Keep the precision and hairline discipline; add personality through type, soft color chips, and small line illustrations.
 
-The sidebar is already the anchor: near-black `#08080A`, hairline borders, a single 2px indigo active rail, Geist-ish wordmark. The main canvas is currently fighting it with gradient mesh hero, glowing KPI tiles, neon ticker, fuchsia/amber/rose accents. We strip all of that and rebuild the workspace as a quiet, paper-grade light surface so the sidebar reads as the only piece of "chrome" in the room.
+## 1. Typography (project-wide)
 
-No gradients. No glow shadows. No glass/blur. No mesh radials. No rainbow quick-action tiles. One accent color (indigo), used sparingly — only for the active state, the primary CTA, and the single hairline rail that mirrors the sidebar's active rail.
+- Headings: **Sora** (500/600), body: **Manrope** (400/500), mono: **JetBrains Mono** for numbers only.
+- Update `tailwind.config.ts` font families + `src/index.css` `@import` lines.
+- Dashboard greeting uses Sora 28px / 600 with -0.02em tracking. Section titles Sora 15px / 600. Body 13–14px Manrope.
 
-## The light palette (re-tuned)
+## 2. Playful pastel palette (additive, flat)
 
-Replace the current `--background: #F7F6F2` paper with a cooler, near-white that complements the sidebar's cool near-black instead of fighting it warm-vs-cool:
+Add six soft category tokens to `src/index.css` (light theme only — sidebar/dark untouched):
 
-```
---background:      #FAFAFB   (app canvas)
---surface-1:       #FFFFFF   (cards, tables, panels)
---surface-2:       #F4F4F6   (raised wells: ticker strip, code blocks, KPI footer)
---border:          #ECECEF   (hairline, 1px, the only divider we use)
---border-strong:   #E0E0E4   (used only for table header underline + KPI tile)
---foreground:      #0A0A0B   (matches sidebar bg — same ink, inverted role)
---muted-foreground:#6B6B72   (secondary)
---subtle:          #9A9AA0   (tertiary / micro-labels)
---primary:         #4F46E5   (indigo — same as sidebar rail)
---primary-soft:    #EEF0FF   (selection fill, hover wash — never a gradient)
-```
-
-Status colors stay muted, no neon:
-```
---success: #2F7A52   on  #EAF3EE
---warning: #8A6A2E   on  #F5EFE3
---danger:  #A8392F   on  #F5E8E6
---info:    #2E5A8A   on  #E8EEF5
+```text
+--pastel-peach:   #FFE9DE  fg #B5532A
+--pastel-mint:    #DDF3E4  fg #2F7A52
+--pastel-sky:     #DDEBFB  fg #2E5A8A
+--pastel-lilac:   #E8E2FB  fg #5B4BC4
+--pastel-butter:  #FCF1CF  fg #8A6A2E
+--pastel-blush:   #FBE2EC  fg #B0436B
 ```
 
-Dark mode is left as-is for now (it's already calm). Scope of this change is the light theme + the dashboard.
+Used only as small icon chips (28–32px rounded-lg), label backgrounds, and empty-state washes. No gradients, no glow. Primary indigo `#4F46E5` stays the action color.
 
-## Foundations to delete / neutralize
+## 3. Hand-drawn micro illustrations
 
-In `src/index.css`, remove or empty out:
-- `.gradient-indigo / violet / cyan / emerald / amber / rose / fuchsia / sky`
-- `.glow-indigo / violet / cyan / emerald / amber / rose`
-- `.text-gradient-primary`
-- `.card-vibrant` (and its `::before` radial)
-- `.mesh-hero-vibrant`
-- `.ticker-vibrant`
+Three inline SVGs in `src/components/dashboard/illustrations/` (single-stroke, currentColor, 1.5px):
+- `WavingHand.svg` — for greeting
+- `SunCloud.svg` — for "Today at a glance"
+- `EmptyBox.svg` — for empty tables
 
-These either become no-ops or are replaced with a single shared `.panel` / `.well` / `.kpi` set:
+Tiny (48–72px), placed as accents — never decorative noise.
 
-```
-.panel  { background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px; }
-.well   { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; }
-.kpi    { background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px;
-          transition: border-color 120ms ease-out, background-color 120ms ease-out; }
-.kpi:hover { border-color: var(--border-strong); background: #FCFCFD; }
-.kpi[data-active="true"] { border-left: 2px solid var(--primary); padding-left: calc(1rem - 1px); }
-```
+## 4. Dashboard rebuild (`src/pages/Index.tsx`)
 
-That `border-left: 2px solid indigo` is the *only* visual echo of the sidebar's active rail. It's the one moment of color on the entire canvas.
-
-## Dashboard rebuild (`src/pages/Index.tsx`)
-
-A four-zone layout, all on a 4px grid, all aligned to the same gutter as the page header (`px-8`, the existing AppLayout gutter — no change needed there):
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Page header (Dashboard · Saturday, 23 May 2026)                │  (already in AppLayout)
-├─────────────────────────────────────────────────────────────────┤
-│  TICKER STRIP — single row, .well, mono 11px, hairline divider  │
-│  MTD · WTD · A/R · A/P · NET · PO Open · Expiring 90d           │  height: 36px exactly
-├─────────────────────────────────────────────────────────────────┤
-│  KPI ROW — 4 tiles, equal width, .kpi                           │
-│  ┌─Week────┐ ┌─Month───┐ ┌─Gross───┐ ┌─Upcoming┐               │  height: 112px exactly
-│  │ label   │ │ label   │ │ label   │ │ label   │                │  no icons-in-gradient-pills
-│  │ value   │ │ value Δ │ │ value Δ │ │ value   │                │  Δ as plain ±N.N%, color-coded
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘                │
-├─────────────────────────────────────────────────────────────────┤
-│  TWO-COLUMN BODY                                                │
-│  ┌─────────────── 8 col ────────────┐ ┌──── 4 col ──────┐      │
-│  │ Daily sales · 30d (area, indigo) │ │ Quick actions   │      │
-│  │ panel, header underline          │ │ panel, list     │      │
-│  ├──────────────────────────────────┤ ├─────────────────┤      │
-│  │ Top customers · MTD              │ │ Reorder alerts  │      │
-│  │ panel, table                     │ │ panel, list     │      │
-│  └──────────────────────────────────┘ ├─────────────────┤      │
-│                                       │ Expiry · 90d    │      │
-│                                       │ panel, list     │      │
-│                                       └─────────────────┘      │
-└─────────────────────────────────────────────────────────────────┘
+```text
+┌────────────────────────────────────────────────────────┐
+│  Hi, Ahmad 👋  (Sora 28)         Sat, 23 May 2026      │  ← greeting row, no live dot
+│  Here's where things stand today.                      │
+├────────────────────────────────────────────────────────┤
+│  ┌─ Today at a glance ───────────────────[SunCloud]─┐  │  ← replaces ticker
+│  │ Sales today   Collections   A/R     A/P   Net    │  │     single panel, soft butter wash
+│  │ PKR 230.5K    PKR 88.2K     165.7K  717.5K -551K │  │     5 cells, hairline dividers
+│  └──────────────────────────────────────────────────┘  │
+├──────────────────────┬─────────────────────────────────┤
+│  KPI tile grid       │  Quick actions (list, 8 rows)   │
+│  (4 tiles, pastel    │  each row: pastel icon chip +   │
+│  icon chip per tile) │  label + chevron, hover lifts   │
+├──────────────────────┴─────────────────────────────────┤
+│  30-day sales trend (Area, indigo 1.5px, 8% fill)      │
+├────────────────────────────────────────────────────────┤
+│  Recent activity (table, 44px rows)                    │
+└────────────────────────────────────────────────────────┘
 ```
 
-Specific replacements:
+### Greeting row
+- "Hi, {name} 👋" + subtitle "Here's where things stand today." Date right-aligned in `text-muted-foreground`.
 
-- **Hero greeting block** — delete entirely. The page header (`AppLayout title="Dashboard" subtitle="Saturday · 23 May 2026"`) already greets. A second "Good morning, Mouj Pharma" hero is the kind of "AI element" the user explicitly rejected.
-- **Live ping dot** — delete. Pings are SaaS-template tells.
-- **Ticker strip** — keep the data, lose the gradient wash. Render as `.well` with `border-y` only, 36px tall, items separated by a 1px vertical hairline (`divide-x divide-border`). Mono 11px, label in `--subtle`, value in `--foreground`. Up/down deltas as a small caret + percentage in `--success` / `--danger` text only — no pill, no glow.
-- **KPI tiles** — render as `.kpi`. Layout: label (11px, uppercase, tracking 0.12em, `--subtle`) → value (28px, Geist/Sora 500, tabular-nums, `--foreground`, PKR prefix in `--muted-foreground` 14px) → footnote row (12px `--muted-foreground` left, delta right). No icon. No gradient pill. No sparkline inside the tile — sparklines move to the chart panel where they belong. On hover: border darkens one step, background lifts to `#FCFCFD`. On click (active dialog): `data-active="true"` adds the 2px indigo left rail. That's it.
-- **Quick actions** — was an 8-tile rainbow grid. Becomes a single panel with a vertical list of 8 rows. Each row: 32px tall, hairline divider between rows, icon 14px in `--muted-foreground`, label 13px in `--foreground`, chevron-right 12px in `--subtle` on the right. Hover: `background: --primary-soft`, icon + label shift to `--primary`. No gradient backgrounds, no scale transforms.
-- **Daily sales chart** — Recharts `<Area>`, single series, stroke `--primary` 1.5px, fill `--primary` at 8% opacity (flat fill, not a gradient defs block). Grid: horizontal hairlines only, `--border`. Axis text: 10px `--subtle`. Tooltip: white card, 1px border, no shadow.
-- **Tables (top customers, expiry, reorder)** — already standardized to 44px rows / mono columns in Phase 1. Just confirm the header has a 1px `--border-strong` underline and the row hover is `--primary-soft` at 40% — not the current `foreground/0.03` wash.
-- **All emoji-ish color usage** (`text-emerald-500`, `text-rose-500`, `text-amber-500` literal Tailwind) — replace with semantic `text-success` / `text-danger` / `text-warning` tokens. No raw Tailwind palette colors anywhere on the page.
+### Today at a glance card
+- White card, 1px border, 20px padding, soft **butter** wash behind the SunCloud illustration in top-right corner (opacity 0.5).
+- 5 cells separated by hairline verticals, each: micro-label (Manrope 10.5px/600/uppercase tracking-0.12em, muted) + value (JetBrains Mono 18px, foreground; negatives in `--danger`).
 
-## Pixel discipline rules applied across the dashboard
+### KPI tiles (4)
+- Each tile: pastel icon chip top-left (28×28 rounded-lg, category color), micro-label, mono value (24px), tiny delta row.
+- Categories: Sales=mint, Receivables=sky, Payables=peach, Cash=lilac.
+- Hover: border darkens, background to `#FCFCFD`. Active rail: 2px indigo left border.
 
-- Vertical rhythm: 4px base. Section gaps = 24px. Inside-panel padding = 16px. Inside-tile padding = 16px. Header-to-content gap inside panel = 12px.
-- Every panel: 6px radius, 1px `--border`, no shadow, ever.
-- Every number: `font-mono`, `tabular-nums`, `font-variant-numeric: tabular-nums`. PKR prefix always in `--muted-foreground`, never bold.
-- Every micro-label: 11px, 600 weight, 0.12em tracking, uppercase, `--subtle`.
-- Every divider: 1px `--border`. Never 2px. The only 2px line on the canvas is the active-state rail (mirroring the sidebar).
-- Animations: only `border-color` and `background-color`, 120ms ease-out. No transforms, no scale, no translate-y on hover.
+### Quick actions
+- Single panel, 8 rows × 36px. Row = 28px pastel icon chip + label (Manrope 13px) + chevron right.
+- Hover: row bg `--primary-soft`, label & chevron shift to `--primary`. No scale.
 
-## Files to touch
+### Sales trend
+- Recharts Area, single indigo series, 8% fill, horizontal hairline grid, white tooltip with 1px border.
 
-1. `src/index.css` — re-tune `:root` light tokens (lines ~13–67), neutralize the vibrant utilities block (lines ~169–230), add the new `.panel` / `.well` / `.kpi` primitives.
-2. `src/pages/Index.tsx` — rebuild the four zones above; delete the hero greeting and the live-ping; rewrite the ticker, KPI tiles, and quick-actions per spec; switch the chart to a flat single-color area.
-3. `src/components/ui/metric-card.tsx` — already exists from Phase 1 and matches this discipline; re-adopt it on the dashboard instead of the bespoke vibrant tiles.
+### Recent activity
+- Existing table primitives; add `EmptyBox` illustration + friendly copy when empty.
 
-Dark mode tokens, sidebar, AppLayout, tables, buttons, inputs, and all inner pages are out of scope for this pass — same as the user asked ("something that complements the left sidebar in lighter color"). Once approved I'll roll the same discipline outward in a follow-up if you want.
+## 5. What goes away
 
-After implementation I'll take a screenshot of `/dashboard` at the current viewport (1061×673) and verify pixel rhythm before handing back.
+- The MTD/WTD/A/R/A/P/NET/PO ticker strip (user dislikes).
+- Any remaining `gradient-*`, `glow-*`, `mesh-*`, `text-gradient-*` utilities used on the dashboard. Utility classes stay in CSS but unused on this page.
+
+## Technical notes
+
+**Files touched:**
+- `tailwind.config.ts` — Sora/Manrope font families, pastel color tokens
+- `src/index.css` — `@import` Sora+Manrope from Google Fonts, add `--pastel-*` tokens, add `.chip-pastel-{name}` and `.wash-{name}` helpers
+- `src/pages/Index.tsx` — full rebuild per layout above
+- `src/components/dashboard/illustrations/` — 3 new inline SVG components (WavingHand, SunCloud, EmptyBox)
+
+**Out of scope:** sidebar, dark mode, AppLayout, inner pages, tables primitive, buttons. Pure dashboard + tokens.
+
+**Preserved:** existing KPI data queries, dialog wiring (`KpiDialogs.tsx`), navigation routes, all business logic.
