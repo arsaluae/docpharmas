@@ -130,6 +130,8 @@ Deno.serve(async (req) => {
         });
       }
 
+      const resolvedRole = role === "owner" ? "owner" : "staff";
+
       // Verify caller is owner of the specified tenant (or admin)
       const { data: isAdmin } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "admin" });
       const { data: ownerRecord } = await supabaseAdmin
@@ -149,7 +151,7 @@ Deno.serve(async (req) => {
       // Check tenant user limit
       const { data: tenant } = await supabaseAdmin.from("tenants").select("max_users").eq("id", tenant_id).single();
       const { data: existingUsers } = await supabaseAdmin.from("tenant_users").select("id").eq("tenant_id", tenant_id);
-      
+
       if (tenant && existingUsers && existingUsers.length >= tenant.max_users) {
         return new Response(JSON.stringify({ error: `User limit reached (${tenant.max_users} max)` }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -169,11 +171,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Link to the specified tenant
+      // Link to the specified tenant (owner = Admin, staff = Sales)
       const { error: tuError } = await supabaseAdmin.from("tenant_users").insert({
         tenant_id,
         user_id: newUser.user.id,
-        role: role || "staff",
+        role: resolvedRole,
       });
 
       if (tuError) {
