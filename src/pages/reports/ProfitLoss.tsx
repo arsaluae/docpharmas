@@ -17,15 +17,17 @@ export default function ProfitLoss() {
   const [cogs, setCogs] = useState(0);
   const [purchaseReturns, setPurchaseReturns] = useState(0);
   const [expensesByCategory, setExpensesByCategory] = useState<Record<string, number>>({});
+  const [salaries, setSalaries] = useState(0);
 
   useEffect(() => { load(); }, [from, to]);
 
   const load = async () => {
-    const [sales, expenses, sReturns, pReturns] = await Promise.all([
+    const [sales, expenses, sReturns, pReturns, salaryPay] = await Promise.all([
       supabase.from("sales_invoices").select("id, subtotal").gte("date", from).lte("date", to),
       supabase.from("expenses").select("amount, category, expense_type").gte("date", from).lte("date", to),
       supabase.from("sales_returns").select("total").gte("date", from).lte("date", to),
       supabase.from("purchase_returns").select("total").gte("date", from).lte("date", to),
+      supabase.from("salary_payments").select("amount").gte("date", from).lte("date", to),
     ]);
 
     const salesIds = (sales.data || []).map(s => s.id);
@@ -34,7 +36,7 @@ export default function ProfitLoss() {
     let allItems: any[] = [];
     for (let i = 0; i < salesIds.length; i += 50) {
       const batch = salesIds.slice(i, i + 50);
-      const { data } = await supabase.from("sales_invoice_items").select("quantity, invoice_id, product_id").in("invoice_id", batch);
+      const { data } = await supabase.from("sales_invoice_items").select("quantity, invoice_id, product_id, unit_cost").in("invoice_id", batch);
       allItems = allItems.concat(data || []);
     }
 
@@ -42,11 +44,16 @@ export default function ProfitLoss() {
     const costMap: Record<string, number> = {};
     (products || []).forEach(p => { costMap[p.id] = Number(p.cost_price); });
 
-    const cogsTotal = allItems.reduce((s, item) => s + Number(item.quantity) * (costMap[item.product_id || ""] || 0), 0);
+    const cogsTotal = allItems.reduce((s, item) => {
+      const snap = Number(item.unit_cost || 0);
+      const cost = snap > 0 ? snap : (costMap[item.product_id || ""] || 0);
+      return s + Number(item.quantity) * cost;
+    }, 0);
     setCogs(cogsTotal);
 
     setSalesReturns((sReturns.data || []).reduce((s, i) => s + Number(i.total), 0));
     setPurchaseReturns((pReturns.data || []).reduce((s, i) => s + Number(i.total), 0));
+    setSalaries((salaryPay.data || []).reduce((s, i) => s + Number(i.amount), 0));
     const cats: Record<string, number> = {};
     (expenses.data || []).filter(e => e.expense_type === 'business').forEach(e => { cats[e.category] = (cats[e.category] || 0) + Number(e.amount); });
     setExpensesByCategory(cats);
@@ -57,7 +64,8 @@ export default function ProfitLoss() {
   const grossProfit = netRevenue - netCogs;
   const grossMargin = netRevenue > 0 ? (grossProfit / netRevenue) * 100 : 0;
   const totalExpenses = Object.values(expensesByCategory).reduce((s, v) => s + v, 0);
-  const netProfit = grossProfit - totalExpenses;
+  const operatingProfit = grossProfit - totalExpenses;
+  const netProfit = operatingProfit - salaries;
   const netMargin = netRevenue > 0 ? (netProfit / netRevenue) * 100 : 0;
   const formatCategory = (c: string) => c.replace(/_/g, " ");
 
