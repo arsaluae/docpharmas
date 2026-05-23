@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { logAudit } from "@/lib/audit";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
