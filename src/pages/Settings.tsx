@@ -837,13 +837,17 @@ function TeamAccessCard() {
  {members.map((m) => (
  <div
  key={m.user_id}
- className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3"
+ className="rounded-lg border border-border bg-card px-4 py-3"
  >
- <div className="min-w-0">
- <div className="flex items-center gap-2">
+ <div className="flex items-center justify-between gap-3">
+ <div className="min-w-0 flex-1">
+ <div className="flex items-center gap-2 flex-wrap">
  <span className="text-sm font-medium text-foreground truncate">
- {m.user_id === meId ? "You" : m.user_id.slice(0, 8) + "…"}
+ {m.email || (m.user_id.slice(0, 8) + "…")}
  </span>
+ {m.user_id === meId && (
+   <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-primary/40 text-primary">You</span>
+ )}
  <span
  className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${
  m.role === "owner"
@@ -863,6 +867,12 @@ function TeamAccessCard() {
  Joined {new Date(m.created_at).toLocaleDateString()}
  </p>
  </div>
+ <div className="flex items-center gap-2 shrink-0">
+ {m.user_id !== meId && (
+   <Button size="sm" variant="ghost" onClick={() => { setResetFor(resetFor === m.user_id ? null : m.user_id); setResetPwd(""); }}>
+     Reset password
+   </Button>
+ )}
  {m.user_id !== meId && (() => {
  const activeAdmins = members.filter(x => x.role === "owner" && x.is_active).length;
  const isLastAdmin = m.role === "owner" && m.is_active && activeAdmins <= 1;
@@ -873,7 +883,22 @@ function TeamAccessCard() {
  );
  })()}
  </div>
+ </div>
+ {resetFor === m.user_id && (
+   <div className="mt-3 flex items-end gap-2">
+     <div className="flex-1">
+       <Label className="text-xs">New password</Label>
+       <Input type="text" value={resetPwd} onChange={(e) => setResetPwd(e.target.value)} placeholder="min. 6 characters" autoFocus />
+     </div>
+     <Button size="sm" onClick={() => handleResetPassword(m)} disabled={resetting || resetPwd.length < 6}>
+       {resetting ? "Saving…" : "Save"}
+     </Button>
+     <Button size="sm" variant="ghost" onClick={() => { setResetFor(null); setResetPwd(""); }}>Cancel</Button>
+   </div>
+ )}
+ </div>
  ))}
+
  </div>
  )}
 
