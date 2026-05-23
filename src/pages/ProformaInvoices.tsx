@@ -1203,11 +1203,11 @@ export default function ProformaInvoices() {
  </DropdownMenuItem>
  )}
 
- {(order.status === "invoiced" || order.status === "dispatched") && (
- <DropdownMenuItem onClick={() => promptVoid(order)} className="text-destructive">
- <RotateCcw className="h-3.5 w-3.5 mr-2" /> Void
- </DropdownMenuItem>
- )}
+                              {(order.status === "invoiced" || order.status === "dispatched") && (
+                                <DropdownMenuItem onClick={() => promptVoid(order)} className="text-destructive">
+                                  <RotateCcw className="h-3.5 w-3.5 mr-2" /> Void
+                                </DropdownMenuItem>
+                              )}
  {order.status === "draft" && (
  <DropdownMenuItem onClick={() => promptDelete([order.id])} className="text-destructive">
  <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
