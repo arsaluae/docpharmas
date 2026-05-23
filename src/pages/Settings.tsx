@@ -691,6 +691,9 @@ function TeamAccessCard() {
  const [newEmail, setNewEmail] = useState("");
  const [newPassword, setNewPassword] = useState("");
  const [newRole, setNewRole] = useState<"owner" | "staff">("staff");
+ const [resetFor, setResetFor] = useState<string | null>(null);
+ const [resetPwd, setResetPwd] = useState("");
+ const [resetting, setResetting] = useState(false);
 
  const load = async () => {
  if (!tenantId) return;
@@ -704,11 +707,51 @@ function TeamAccessCard() {
  .eq("tenant_id", tenantId)
  .order("created_at", { ascending: true });
 
- setMembers((data || []) as TenantMember[]);
+ const base = (data || []) as TenantMember[];
+ // Enrich with emails via edge function (owner-only on server)
+ try {
+   const { data: emailData } = await supabase.functions.invoke("manage-tenant", {
+     body: { action: "list_tenant_users", tenant_id: tenantId },
+   });
+   const map = new Map<string, string>();
+   for (const u of emailData?.users || []) if (u.email) map.set(u.user_id, u.email);
+   setMembers(base.map(m => ({ ...m, email: map.get(m.user_id) })));
+ } catch {
+   setMembers(base);
+ }
  setLoading(false);
  };
 
  useEffect(() => { load(); }, [tenantId]);
+
+ const handleResetPassword = async (m: TenantMember) => {
+ if (!tenantId) return;
+ if (resetPwd.length < 6) { toast.error("Password must be at least 6 characters"); return; }
+ setResetting(true);
+ try {
+   const { data, error } = await supabase.functions.invoke("manage-tenant", {
+     body: {
+       action: "owner_reset_password",
+       tenant_id: tenantId,
+       user_id: m.user_id,
+       new_password: resetPwd,
+     },
+   });
+   if (error) {
+     let msg = error.message;
+     try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error; } catch {}
+     throw new Error(msg);
+   }
+   if (data?.error) throw new Error(data.error);
+   toast.success("Password updated");
+   setResetFor(null); setResetPwd("");
+ } catch (err: any) {
+   toast.error(err.message);
+ } finally {
+   setResetting(false);
+ }
+ };
+
 
  const handleAdd = async () => {
  if (!tenantId) return;
@@ -794,13 +837,17 @@ function TeamAccessCard() {
  {members.map((m) => (
  <div
  key={m.user_id}
- className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3"
+ className="rounded-lg border border-border bg-card px-4 py-3"
  >
- <div className="min-w-0">
- <div className="flex items-center gap-2">
+ <div className="flex items-center justify-between gap-3">
+ <div className="min-w-0 flex-1">
+ <div className="flex items-center gap-2 flex-wrap">
  <span className="text-sm font-medium text-foreground truncate">
- {m.user_id === meId ? "You" : m.user_id.slice(0, 8) + "…"}
+ {m.email || (m.user_id.slice(0, 8) + "…")}
  </span>
+ {m.user_id === meId && (
+   <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-primary/40 text-primary">You</span>
+ )}
  <span
  className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${
  m.role === "owner"
@@ -820,6 +867,12 @@ function TeamAccessCard() {
  Joined {new Date(m.created_at).toLocaleDateString()}
  </p>
  </div>
+ <div className="flex items-center gap-2 shrink-0">
+ {m.user_id !== meId && (
+   <Button size="sm" variant="ghost" onClick={() => { setResetFor(resetFor === m.user_id ? null : m.user_id); setResetPwd(""); }}>
+     Reset password
+   </Button>
+ )}
  {m.user_id !== meId && (() => {
  const activeAdmins = members.filter(x => x.role === "owner" && x.is_active).length;
  const isLastAdmin = m.role === "owner" && m.is_active && activeAdmins <= 1;
@@ -830,7 +883,22 @@ function TeamAccessCard() {
  );
  })()}
  </div>
+ </div>
+ {resetFor === m.user_id && (
+   <div className="mt-3 flex items-end gap-2">
+     <div className="flex-1">
+       <Label className="text-xs">New password</Label>
+       <Input type="text" value={resetPwd} onChange={(e) => setResetPwd(e.target.value)} placeholder="min. 6 characters" autoFocus />
+     </div>
+     <Button size="sm" onClick={() => handleResetPassword(m)} disabled={resetting || resetPwd.length < 6}>
+       {resetting ? "Saving…" : "Save"}
+     </Button>
+     <Button size="sm" variant="ghost" onClick={() => { setResetFor(null); setResetPwd(""); }}>Cancel</Button>
+   </div>
+ )}
+ </div>
  ))}
+
  </div>
  )}
 
