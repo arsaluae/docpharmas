@@ -922,7 +922,7 @@ export default function ProformaInvoices() {
  headerActions={
  <Dialog open={createOpen} onOpenChange={setCreateOpen}>
  <DialogTrigger asChild>
- <Button className="gap-2 bg-card text-white shadow-blue-500/25 transition-all">
+ <Button className="gap-2 shadow-blue-500/25 transition-all">
  <Plus className="h-4 w-4" /> Create Sales Order
  </Button>
  </DialogTrigger>
@@ -1148,12 +1148,12 @@ export default function ProformaInvoices() {
  <div className="flex items-center gap-1">
  {/* Primary actions: Submit & Payment */}
  {order.status === "draft" && (
- <Button size="sm" onClick={() => openSubmitDialog(order)} className="h-7 text-xs gap-1 bg-card text-white shadow-sm">
+ <Button size="sm" onClick={() => openSubmitDialog(order)} className="h-7 text-xs gap-1 shadow-sm">
  <CheckCircle className="h-3 w-3" /> <span className="hidden sm:inline">Submit</span>
  </Button>
  )}
  {(order.status === "invoiced" || order.status === "dispatched" || order.status === "partial") && order.customer_id && (
- <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 bg-card text-white shadow-sm" title="Receive Payment">
+ <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 shadow-sm" title="Receive Payment">
  <DollarSign className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
  </Button>
  )}
@@ -1401,7 +1401,7 @@ export default function ProformaInvoices() {
  <Button
  onClick={handleSubmit}
  disabled={submitting || (freightProviders.length > 0 && !freightProviderId)}
- className="w-full h-11 gap-2 text-sm font-semibold mt-2 bg-card text-white"
+ className="w-full h-11 gap-2 text-sm font-semibold mt-2"
  >
  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
  Confirm Dispatch — Create Invoice + Delivery Note
@@ -1438,7 +1438,7 @@ export default function ProformaInvoices() {
  <p className="text-sm text-muted-foreground text-center">Invoice and Delivery Note have been created. Which document would you like to view?</p>
  <div className="flex flex-col gap-3 mt-2">
  <Button
- className="h-12 gap-2 bg-card text-white"
+ className="h-12 gap-2"
  onClick={() => { setPostSubmitOpen(false); if (postSubmitOrder) printInvoice(postSubmitOrder); }}
  >
  <FileText className="h-4 w-4" /> View Invoice
@@ -1496,7 +1496,7 @@ export default function ProformaInvoices() {
  </Select>
  </div>
  )}
- <Button onClick={handleReceivePayment} disabled={paymentSaving || !paymentAmount} className="w-full h-11 gap-2 bg-card text-white">
+ <Button onClick={handleReceivePayment} disabled={paymentSaving || !paymentAmount} className="w-full h-11 gap-2">
  {paymentSaving && <Loader2 className="h-4 w-4 animate-spin" />}
  <DollarSign className="h-4 w-4" /> Receive PKR {Number(paymentAmount || 0).toLocaleString()}
  </Button>

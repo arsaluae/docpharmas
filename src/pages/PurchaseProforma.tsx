@@ -935,7 +935,7 @@ export default function PurchaseProforma() {
  <AppLayout title="Purchase Orders" subtitle="Draft → confirm order → receive with batch + expiry → auto GRN + bill"
  headerActions={
  <Dialog open={createOpen} onOpenChange={setCreateOpen}>
- <DialogTrigger asChild><Button className="gap-2 bg-card text-white shadow-emerald-500/25 transition-all"><Plus className="h-4 w-4" /> New Order</Button></DialogTrigger>
+ <DialogTrigger asChild><Button className="gap-2 shadow-emerald-500/25 transition-all"><Plus className="h-4 w-4" /> New Order</Button></DialogTrigger>
  <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
  <DialogHeader><DialogTitle className="font-heading">Create Purchase Order</DialogTitle></DialogHeader>
  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
@@ -1122,7 +1122,7 @@ export default function PurchaseProforma() {
  </Button>
  )}
  {(order.status === "ordered" || order.status === "confirmed" || order.status === "received") && order.supplier_id && !isPaid && (
- <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 bg-card text-white shadow-sm" title="Make Payment">
+ <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 shadow-sm" title="Make Payment">
  <DollarSign className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
  </Button>
  )}
@@ -1338,7 +1338,7 @@ export default function PurchaseProforma() {
  <p className="text-sm text-muted-foreground text-center">Purchase Invoice and Delivery Note have been created. Which document would you like to view?</p>
  <div className="flex flex-col gap-3 mt-2">
  <Button
- className="h-12 gap-2 bg-card text-white"
+ className="h-12 gap-2"
  onClick={() => { setPostConfirmOpen(false); if (postConfirmOrder) printPurchaseInvoice(postConfirmOrder); }}
  >
  <FileText className="h-4 w-4" /> View Purchase Invoice
@@ -1396,7 +1396,7 @@ export default function PurchaseProforma() {
  </Select>
  </div>
  )}
- <Button onClick={handleMakePayment} disabled={paymentSaving || !paymentAmount} className="w-full h-11 gap-2 bg-card text-white">
+ <Button onClick={handleMakePayment} disabled={paymentSaving || !paymentAmount} className="w-full h-11 gap-2">
  {paymentSaving && <Loader2 className="h-4 w-4 animate-spin" />}
  <DollarSign className="h-4 w-4" /> Pay PKR {Number(paymentAmount || 0).toLocaleString()}
  </Button>

@@ -441,7 +441,7 @@ export default function WarrantyInvoices() {
  const headerActions = (
  <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
  <DialogTrigger asChild>
- <Button className="gap-2 bg-card text-white shadow-violet-500/25 transition-all">
+ <Button className="gap-2 shadow-violet-500/25 transition-all">
  <Plus className="h-4 w-4" /> New Warranty Invoice
  </Button>
  </DialogTrigger>
