@@ -209,16 +209,20 @@ export default function SalesReturns() {
             </div>
             <Card className="glass-card"><CardContent className="p-0">
               <Table>
-                <TableHeader><TableRow><TableHead>Return #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow>
+                  <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && bulk.selected.length === filtered.length} onCheckedChange={() => bulk.toggleAll(filtered.map(r => r.id))} /></TableHead>
+                  <TableHead>Return #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Status</TableHead>
+                </TableRow></TableHeader>
                 <TableBody>
                   {loading ? (
                     Array.from({ length: 3 }).map((_, i) => (
-                      <TableRow key={i}>{Array.from({ length: 6 }).map((_, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}</TableRow>
+                      <TableRow key={i}>{Array.from({ length: 7 }).map((_, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}</TableRow>
                     ))
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground"><RotateCcw className="h-8 w-8 mx-auto mb-2 opacity-40" />No sales returns found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground"><RotateCcw className="h-8 w-8 mx-auto mb-2 opacity-40" />No sales returns found.</TableCell></TableRow>
                   ) : filtered.map(r => (
-                    <TableRow key={r.id}>
+                    <TableRow key={r.id} data-state={bulk.isSelected(r.id) ? "selected" : undefined}>
+                      <TableCell><RowCheckbox checked={bulk.isSelected(r.id)} onCheckedChange={() => bulk.toggle(r.id)} /></TableCell>
                       <TableCell className="font-medium font-mono">{r.return_number}</TableCell>
                       <TableCell>{r.date}</TableCell>
                       <TableCell>{r.customers?.name || "—"}</TableCell>
@@ -232,6 +236,7 @@ export default function SalesReturns() {
               <PaginationControls page={pagination.page} totalPages={pagination.totalPages} totalCount={pagination.totalCount} hasNext={pagination.hasNext} hasPrev={pagination.hasPrev} onNext={pagination.nextPage} onPrev={pagination.prevPage} pageSize={pagination.pageSize} />
             </CardContent></Card>
           </div>
+          <BulkActionBar selectedIds={bulk.selected} onClear={bulk.clear} onDeleteOne={deleteOne} entityLabel="sales return" onDone={loadData} />
     </AppLayout>
   );
 }
