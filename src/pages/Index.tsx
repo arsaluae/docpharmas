@@ -503,7 +503,7 @@ export default function Index() {
 
             {/* Recent activity */}
             <div>
-              <div className="mb-5"><MicroLabel>Recent Activity</MicroLabel></div>
+              <div className="mb-5"><MicroLabel accent="hsl(var(--info))">Recent Activity</MicroLabel></div>
               {recentStock.length === 0 ? (
                 <p className="text-[12px]" style={{ color: "hsl(var(--subtle))" }}>
                   No recent intake to show.
