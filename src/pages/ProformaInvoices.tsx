@@ -29,6 +29,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { checkTerritoryLock } from "@/lib/territory";
 import { useFreightProviders } from "@/hooks/useFreightProviders";
 import { SalesReturnDialog } from "@/components/sales/SalesReturnDialog";
+import { useDraftAutosave } from "@/hooks/useDraftAutosave";
+import { useTenant } from "@/hooks/useTenant";
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
@@ -91,7 +93,24 @@ export default function ProformaInvoices() {
  const [editDate, setEditDate] = useState("");
  const [editValidity, setEditValidity] = useState("30");
  const [editPaymentInstr, setEditPaymentInstr] = useState("");
- const [editItems, setEditItems] = useState<ProformaItem[]>([]);
+  const [editItems, setEditItems] = useState<ProformaItem[]>([]);
+
+  // Draft autosave for the Create Sales Order form
+  const { tenantId } = useTenant();
+  const draftKey = `sales-order:${tenantId ?? "anon"}`;
+  const { existingDraft, save: saveDraft, clear: clearDraft } = useDraftAutosave<{
+    customerId: string; pfDate: string; validityDays: string;
+    paymentInstructions: string; agentId: string; items: ProformaItem[];
+  }>({ key: draftKey, enabled: createOpen });
+  const [draftDismissed, setDraftDismissed] = useState(false);
+
+  // Persist on field change (debounced inside the hook)
+  useEffect(() => {
+    if (!createOpen) return;
+    const hasContent = !!customerId || items.length > 0 || !!paymentInstructions;
+    if (!hasContent) return;
+    saveDraft({ customerId, pfDate, validityDays, paymentInstructions, agentId, items });
+  }, [createOpen, customerId, pfDate, validityDays, paymentInstructions, agentId, items, saveDraft]);
 
  // Submit (convert) dialog
  const [submitOpen, setSubmitOpen] = useState(false);
@@ -359,7 +378,7 @@ export default function ProformaInvoices() {
  } as any);
  if (error) { console.error("Insert error:", error); toast.error("Failed to create order: " + error.message); setSaving(false); return; }
  toast.success(`Sales Order ${pfNumber} created`);
- setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); setAgentId(""); load();
+ clearDraft(); setCreateOpen(false); setCustomerId(""); setItems([]); setPaymentInstructions(""); setAgentId(""); load();
  } catch (err: any) {
  console.error("Unexpected error creating sales order:", err);
  toast.error("Unexpected error: " + (err?.message || "Please try again"));
@@ -899,6 +918,29 @@ export default function ProformaInvoices() {
  </DialogTrigger>
  <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
  <DialogHeader><DialogTitle className="font-heading">Create Sales Order</DialogTitle></DialogHeader>
+ {existingDraft && !draftDismissed && items.length === 0 && !customerId && (
+   <div className="mt-3 flex items-center justify-between gap-3 border border-border bg-foreground/[0.03] px-3 py-2 text-[12px]">
+     <span className="text-muted-foreground">
+       Unsaved draft · saved{" "}
+       {new Date(existingDraft.savedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
+     </span>
+     <div className="flex gap-2">
+       <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]"
+         onClick={() => {
+           const d = existingDraft.data;
+           setCustomerId(d.customerId || "");
+           setPfDate(d.pfDate || new Date().toISOString().split("T")[0]);
+           setValidityDays(d.validityDays || "30");
+           setPaymentInstructions(d.paymentInstructions || "");
+           setAgentId(d.agentId || "");
+           setItems(d.items || []);
+           setDraftDismissed(true);
+         }}>Restore</Button>
+       <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]"
+         onClick={() => { clearDraft(); setDraftDismissed(true); }}>Discard</Button>
+     </div>
+   </div>
+ )}
  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
  <div>
  <Label className="text-xs font-medium text-muted-foreground">Customer *</Label>
