@@ -65,15 +65,14 @@ export default function BalanceSheet() {
     const salesReturnTotal = (sReturns.data || []).reduce((s, i) => s + Number(i.total), 0);
     const purchReturnTotal = (pReturns.data || []).reduce((s, i) => s + Number(i.total), 0);
 
-    // Use per-document GST amounts on returns instead of hard-coded 17%
-    const { data: sReturnsTax } = await supabase.from("sales_returns").select("gst_amount").lte("date", asOfDate);
-    const { data: pReturnsTax } = await supabase.from("purchase_returns").select("gst").lte("date", asOfDate);
-    const gstOnSReturns = (sReturnsTax || []).reduce((s, r: any) => s + Number(r.gst_amount || 0), 0);
-    const gstOnPReturns = (pReturnsTax || []).reduce((s, r: any) => s + Number(r.gst || 0), 0);
-
+    // Effective GST rate per side (sales / purchase) derived from actual invoices in range
+    const salesSubtotal = (salesInv.data || []).reduce((s, i) => s + Number(i.subtotal || 0), 0);
+    const purchSubtotal = (purchInv.data || []).reduce((s, i) => s + Number(i.subtotal || 0), 0);
     const gstOut = (salesInv.data || []).reduce((s, i) => s + Number(i.gst_amount), 0);
     const gstIn = (purchInv.data || []).reduce((s, i) => s + Number(i.gst), 0);
-    setTaxPayable((gstOut - gstOnSReturns) - (gstIn - gstOnPReturns));
+    const effSalesRate = salesSubtotal > 0 ? gstOut / (salesSubtotal + gstOut) : 0;
+    const effPurchRate = purchSubtotal > 0 ? gstIn / (purchSubtotal + gstIn) : 0;
+    setTaxPayable((gstOut - salesReturnTotal * effSalesRate) - (gstIn - purchReturnTotal * effPurchRate));
 
     const totalRevenue = (salesInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0);
     const totalCOGS = (purchInv.data || []).reduce((s, i) => s + Number(i.subtotal), 0);
