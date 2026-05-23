@@ -30,7 +30,7 @@ const ENTITY_TYPES = [
 ];
 
 export default function AuditLogPage() {
-  const { role } = useTenant();
+  const { tenantRole, isAdmin } = useTenant();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -38,7 +38,7 @@ export default function AuditLogPage() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
 
-  const canView = role === "owner" || role === "admin";
+  const canView = tenantRole === "owner" || isAdmin;
 
   useEffect(() => {
     if (!canView) { setLoading(false); return; }
