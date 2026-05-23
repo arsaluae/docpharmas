@@ -46,8 +46,9 @@ interface SalesOrder {
  converted_invoice_id: string | null;
  customers: { name: string; company?: string | null; phone?: string | null; address?: string | null; area?: string | null } | null;
  created_at: string;
- invoice_number?: string;
- amount_paid?: number;
+  invoice_number?: string;
+  amount_paid?: number;
+  invoice_approved_at?: string | null;
 }
 
 interface BatchOption { batch_number: string; available: number; expiry_date?: string | null; }
@@ -206,26 +207,31 @@ export default function ProformaInvoices() {
  const invoicedIds = pf.data.filter((p: any) => p.converted_invoice_id).map((p: any) => p.converted_invoice_id);
  let invoiceMap: Record<string, string> = {};
  let amountPaidMap: Record<string, number> = {};
- if (invoicedIds.length > 0) {
- const { data: invs } = await supabase.from("sales_invoices").select("id, invoice_number, status, amount_paid").in("id", invoicedIds);
- if (invs) {
- invs.forEach((inv: any) => { 
- invoiceMap[inv.id] = inv.invoice_number;
- amountPaidMap[inv.id] = Number(inv.amount_paid || 0);
- });
- const statusMap: Record<string, string> = {};
- invs.forEach((inv: any) => { statusMap[inv.id] = inv.status; });
- pf.data.forEach((p: any) => {
- if (p.converted_invoice_id && statusMap[p.converted_invoice_id]) {
- const invStatus = statusMap[p.converted_invoice_id];
- if (invStatus === "paid") p.status = "paid";
- else if (invStatus === "partial") p.status = "partial";
- else if (invStatus === "dispatched") p.status = "dispatched";
- else if (p.status === "draft" && p.converted_invoice_id) p.status = "invoiced";
- }
- });
- }
- }
+    if (invoicedIds.length > 0) {
+      const { data: invs } = await supabase.from("sales_invoices").select("id, invoice_number, status, amount_paid, approved_at").in("id", invoicedIds);
+      if (invs) {
+        const approvedAtMap: Record<string, string | null> = {};
+        invs.forEach((inv: any) => { 
+          invoiceMap[inv.id] = inv.invoice_number;
+          amountPaidMap[inv.id] = Number(inv.amount_paid || 0);
+          approvedAtMap[inv.id] = inv.approved_at || null;
+        });
+        const statusMap: Record<string, string> = {};
+        invs.forEach((inv: any) => { statusMap[inv.id] = inv.status; });
+        pf.data.forEach((p: any) => {
+          if (p.converted_invoice_id) {
+            p.invoice_approved_at = approvedAtMap[p.converted_invoice_id] ?? null;
+          }
+          if (p.converted_invoice_id && statusMap[p.converted_invoice_id]) {
+            const invStatus = statusMap[p.converted_invoice_id];
+            if (invStatus === "paid") p.status = "paid";
+            else if (invStatus === "partial") p.status = "partial";
+            else if (invStatus === "dispatched") p.status = "dispatched";
+            else if (p.status === "draft" && p.converted_invoice_id) p.status = "invoiced";
+          }
+        });
+      }
+    }
 
  pf.data.forEach((p: any) => {
  let status = p.status;
