@@ -32,17 +32,19 @@ const Eyebrow = ({ children }: { children: React.ReactNode }) => (
   </span>
 );
 
-const MicroLabel = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <span className={`text-[10.5px] font-bold uppercase tracking-[0.15em] ${className}`}
+const MicroLabel = ({ children, className = "", accent }: { children: React.ReactNode; className?: string; accent?: string }) => (
+  <span className={`text-[10.5px] font-bold uppercase tracking-[0.15em] inline-flex items-center gap-2 ${className}`}
     style={{ color: "hsl(var(--subtle))" }}>
+    {accent && <span className="h-1.5 w-1.5" style={{ background: accent }} />}
     {children}
   </span>
 );
 
-const PanelHead = ({ title, action }: { title: string; action?: React.ReactNode }) => (
+const PanelHead = ({ title, action, accent }: { title: string; action?: React.ReactNode; accent?: string }) => (
   <div className="flex items-center justify-between px-5 h-11 border-b" style={{ borderColor: "hsl(var(--border))" }}>
-    <span className="font-heading text-[12.5px] font-semibold uppercase tracking-[0.15em]"
+    <span className="font-heading text-[12.5px] font-semibold uppercase tracking-[0.15em] inline-flex items-center gap-2.5"
       style={{ color: "hsl(var(--foreground))" }}>
+      {accent && <span className="h-2 w-2" style={{ background: accent }} />}
       {title}
     </span>
     {action}
@@ -228,13 +230,13 @@ export default function Index() {
   })();
 
   const quickActions = [
-    { label: "New Sales Invoice",    path: "/proforma",          icon: FileText },
-    { label: "Purchase Order",       path: "/purchase-proforma", icon: ShoppingBag },
-    { label: "Record Payment",       path: "/payments",          icon: Wallet },
-    { label: "Warranty Invoice",     path: "/warranty-invoices", icon: Shield },
-    { label: "Inventory",            path: "/products",          icon: Package },
-    { label: "Expense Entry",        path: "/expenses",          icon: Receipt },
-    { label: "Credit Note",          path: "/credit-notes",      icon: CreditCard },
+    { label: "New Sales Invoice",    path: "/proforma",          icon: FileText,    color: "hsl(var(--brand-blue))" },
+    { label: "Purchase Order",       path: "/purchase-proforma", icon: ShoppingBag, color: "hsl(var(--info))" },
+    { label: "Record Payment",       path: "/payments",          icon: Wallet,      color: "hsl(var(--success))" },
+    { label: "Warranty Invoice",     path: "/warranty-invoices", icon: Shield,      color: "hsl(var(--brand-navy))" },
+    { label: "Inventory",            path: "/products",          icon: Package,     color: "hsl(var(--warning))" },
+    { label: "Expense Entry",        path: "/expenses",          icon: Receipt,     color: "hsl(var(--danger))" },
+    { label: "Credit Note",          path: "/credit-notes",      icon: CreditCard,  color: "hsl(var(--subtle))" },
   ];
 
   // KPI tiles — 4 primary metrics, MOUJ navy text, JetBrains Mono numbers
@@ -247,6 +249,8 @@ export default function Index() {
       delta: lastMonthSales > 0 ? monthGrowth : null,
       active: monthOpen,
       isPrimary: true,
+      rail: "hsl(var(--brand-blue))",
+      icon: TrendingUp,
     },
     {
       label: "Receivables",
@@ -255,6 +259,8 @@ export default function Index() {
       onClick: () => navigate("/payments?tab=received"),
       delta: null as number | null,
       active: false,
+      rail: "hsl(var(--success))",
+      icon: Wallet,
     },
     {
       label: "Payables",
@@ -263,6 +269,8 @@ export default function Index() {
       onClick: () => navigate("/payments?tab=made"),
       delta: null,
       active: false,
+      rail: "hsl(var(--warning))",
+      icon: CreditCard,
     },
     {
       label: "Gross Profit · MTD",
@@ -271,6 +279,8 @@ export default function Index() {
       onClick: () => setGpOpen(true),
       delta: null,
       active: gpOpen,
+      rail: "hsl(var(--info))",
+      icon: Flame,
     },
   ];
 
@@ -285,12 +295,15 @@ export default function Index() {
 
         {/* ─── HERO ─── eyebrow + greeting + date */}
         <header className="flex items-end justify-between gap-6 flex-wrap pb-2">
-          <div>
-            <div className="mb-3"><Eyebrow>Overview Dashboard</Eyebrow></div>
-            <h1 className="font-heading text-[40px] sm:text-[44px] leading-[1.05] font-semibold tracking-[-0.025em]"
-              style={{ color: "hsl(var(--brand-navy))" }}>
-              {greetingFor(today)}, {firstName}.
-            </h1>
+          <div className="flex gap-4">
+            <div className="w-[2px] mt-2 mb-1 self-stretch" style={{ background: "hsl(var(--brand-blue))" }} />
+            <div>
+              <div className="mb-3"><Eyebrow>Overview Dashboard</Eyebrow></div>
+              <h1 className="font-heading text-[40px] sm:text-[44px] leading-[1.05] font-semibold tracking-[-0.025em]"
+                style={{ color: "hsl(var(--brand-navy))" }}>
+                {greetingFor(today)}, {firstName}.
+              </h1>
+            </div>
           </div>
           <div className="text-right">
             <div className="text-[13px] font-medium" style={{ color: "hsl(var(--brand-navy))" }}>
@@ -302,28 +315,36 @@ export default function Index() {
           </div>
         </header>
 
-        {/* ─── GLANCE STRIP ─── hairline top + bottom, dot separators */}
-        <div className="flex items-center gap-8 py-5 flex-wrap"
+        {/* ─── GLANCE STRIP ─── hairline top + bottom, colored signal dots */}
+        <div className="flex items-center gap-7 py-5 flex-wrap"
           style={{ borderTop: "1px solid hsl(var(--border))", borderBottom: "1px solid hsl(var(--border))" }}>
-          <div className="flex items-baseline gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="relative inline-flex h-2 w-2">
+              <span className="absolute inset-0 rounded-full animate-ping" style={{ background: "hsl(var(--brand-blue) / 0.5)" }} />
+              <span className="relative inline-block h-2 w-2 rounded-full" style={{ background: "hsl(var(--brand-blue))" }} />
+            </span>
             <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: "hsl(var(--brand-blue))" }}>Live</span>
             <span className="text-[13.5px] font-semibold" style={{ color: "hsl(var(--brand-navy))" }}>
-              PKR {fmtCompact(todaySales)} sold today
+              PKR <span className="font-mono tabular-nums" style={{ color: "hsl(var(--brand-blue))" }}>{fmtCompact(todaySales)}</span>
+              <span className="ml-1" style={{ color: "hsl(var(--subtle))" }}>sold today</span>
             </span>
           </div>
-          <div className="h-4 w-px" style={{ background: "hsl(var(--border-strong))" }} />
+          <Dot tone="success" />
           <div className="text-[13.5px] font-semibold" style={{ color: "hsl(var(--brand-navy))" }}>
-            PKR {fmtCompact(todayCollections)} collected
+            PKR <span className="font-mono tabular-nums" style={{ color: "hsl(var(--success))" }}>{fmtCompact(todayCollections)}</span>
+            <span className="ml-1" style={{ color: "hsl(var(--subtle))" }}>collected</span>
           </div>
-          <div className="h-4 w-px" style={{ background: "hsl(var(--border-strong))" }} />
+          <Dot tone="info" />
           <div className="text-[13.5px] font-semibold" style={{ color: "hsl(var(--brand-navy))" }}>
-            {upcomingPoCount} open PO{upcomingPoCount === 1 ? "" : "s"}
+            <span className="font-mono tabular-nums" style={{ color: "hsl(var(--info))" }}>{upcomingPoCount}</span>
+            <span className="ml-1.5" style={{ color: "hsl(var(--subtle))" }}>open PO{upcomingPoCount === 1 ? "" : "s"}</span>
           </div>
           {(overdueCount > 0 || expiringCount > 0) && (
             <>
-              <div className="h-4 w-px" style={{ background: "hsl(var(--border-strong))" }} />
+              <Dot tone="danger" />
               <div className="text-[13.5px] font-semibold" style={{ color: "hsl(var(--danger))" }}>
-                {overdueCount + expiringCount} need attention
+                <span className="font-mono tabular-nums">{overdueCount + expiringCount}</span>
+                <span className="ml-1.5 font-medium">need attention</span>
               </div>
             </>
           )}
@@ -340,7 +361,18 @@ export default function Index() {
               className="group relative text-left px-6 py-7 transition-colors duration-150"
               style={{ background: "hsl(var(--card))" }}
             >
-              <div className="mb-4"><MicroLabel>{k.label}</MicroLabel></div>
+              <div className="mb-4 flex items-start justify-between gap-2">
+                <MicroLabel>{k.label}</MicroLabel>
+                {k.icon && (
+                  <span className="inline-flex items-center justify-center h-6 w-6 shrink-0"
+                    style={{
+                      background: `color-mix(in srgb, ${k.rail} 10%, transparent)`,
+                      border: `1px solid color-mix(in srgb, ${k.rail} 35%, transparent)`,
+                    }}>
+                    <k.icon className="h-3 w-3" strokeWidth={1.75} style={{ color: k.rail }} />
+                  </span>
+                )}
+              </div>
               <div className="font-mono text-[26px] leading-none tabular-nums font-medium"
                 style={{ color: "hsl(var(--brand-navy))" }}>
                 <span className="text-[13px] mr-1.5 align-baseline" style={{ color: "hsl(var(--muted-foreground))" }}>PKR</span>
@@ -349,7 +381,7 @@ export default function Index() {
               <div className="mt-3 flex items-center gap-2">
                 {k.delta !== null && (
                   <span className="inline-flex items-center gap-0.5 font-mono text-[11px] font-bold"
-                    style={{ color: k.delta >= 0 ? "hsl(var(--brand-blue))" : "hsl(var(--danger))" }}>
+                    style={{ color: k.delta >= 0 ? "hsl(var(--success))" : "hsl(var(--danger))" }}>
                     {k.delta >= 0 ? <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
                                   : <ArrowDownRight className="h-3 w-3" strokeWidth={2} />}
                     {k.delta >= 0 ? "+" : ""}{k.delta.toFixed(1)}%
@@ -359,10 +391,8 @@ export default function Index() {
                   {k.footnote}
                 </span>
               </div>
-              {/* 2px brand-blue accent rail on the hero KPI */}
-              {k.isPrimary && (
-                <div className="absolute left-0 top-0 bottom-0 w-[2px]" style={{ background: "hsl(var(--brand-blue))" }} />
-              )}
+              {/* 2px colored accent rail per metric */}
+              <div className="absolute left-0 top-0 bottom-0 w-[2px]" style={{ background: k.rail }} />
             </button>
           ))}
         </div>
@@ -411,10 +441,19 @@ export default function Index() {
                       cursor={{ fill: "hsl(var(--brand-blue) / 0.06)" }}
                     />
                     <Bar dataKey="amount" radius={0} isAnimationActive={false}>
-                      {dailySales.map((_, i) => (
-                        <Cell key={i}
-                          fill={i === dailySales.length - 1 ? "hsl(var(--brand-blue))" : "hsl(var(--brand-navy) / 0.10)"} />
-                      ))}
+                      {(() => {
+                        const max = Math.max(...dailySales.map(d => d.amount));
+                        return dailySales.map((d, i) => {
+                          const isToday = i === dailySales.length - 1;
+                          const isPeak = !isToday && d.amount === max && max > 0;
+                          const fill = isToday
+                            ? "hsl(var(--brand-blue))"
+                            : isPeak
+                              ? "hsl(var(--success) / 0.55)"
+                              : "hsl(var(--brand-navy) / 0.12)";
+                          return <Cell key={i} fill={fill} />;
+                        });
+                      })()}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -432,7 +471,7 @@ export default function Index() {
           <div className="lg:col-span-4 space-y-8">
             {/* Quick actions */}
             <div>
-              <div className="mb-5"><MicroLabel>Quick Actions</MicroLabel></div>
+              <div className="mb-5"><MicroLabel accent="hsl(var(--brand-blue))">Quick Actions</MicroLabel></div>
               <div className="space-y-2">
                 {quickActions.slice(0, 4).map((a) => (
                   <button
@@ -447,7 +486,13 @@ export default function Index() {
                     onMouseEnter={(e) => (e.currentTarget.style.borderColor = "hsl(var(--brand-blue))")}
                     onMouseLeave={(e) => (e.currentTarget.style.borderColor = "hsl(var(--border))")}
                   >
-                    <a.icon className="h-3.5 w-3.5" strokeWidth={1.75} style={{ color: "hsl(var(--brand-blue))" }} />
+                    <span className="inline-flex items-center justify-center h-6 w-6 shrink-0"
+                      style={{
+                        background: `color-mix(in srgb, ${a.color} 10%, transparent)`,
+                        border: `1px solid color-mix(in srgb, ${a.color} 30%, transparent)`,
+                      }}>
+                      <a.icon className="h-3 w-3" strokeWidth={1.75} style={{ color: a.color }} />
+                    </span>
                     <span className="flex-1">{a.label}</span>
                     <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity"
                       strokeWidth={1.75} style={{ color: "hsl(var(--brand-blue))" }} />
@@ -458,7 +503,7 @@ export default function Index() {
 
             {/* Recent activity */}
             <div>
-              <div className="mb-5"><MicroLabel>Recent Activity</MicroLabel></div>
+              <div className="mb-5"><MicroLabel accent="hsl(var(--info))">Recent Activity</MicroLabel></div>
               {recentStock.length === 0 ? (
                 <p className="text-[12px]" style={{ color: "hsl(var(--subtle))" }}>
                   No recent intake to show.
@@ -491,6 +536,7 @@ export default function Index() {
           <div className="lg:col-span-4 border" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
             <PanelHead
               title="Receivable · Payable"
+              accent="hsl(var(--brand-blue))"
               action={
                 <button onClick={() => navigate("/payments")}
                   className="text-[11px] font-bold uppercase tracking-[0.12em] hover:opacity-80"
@@ -542,6 +588,7 @@ export default function Index() {
           <div className="lg:col-span-4 border" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
             <PanelHead
               title="Top Customers · MTD"
+              accent="hsl(var(--success))"
               action={<Users className="h-3.5 w-3.5" strokeWidth={1.5} style={{ color: "hsl(var(--subtle))" }} />}
             />
             {topCustomers.length === 0 ? (
@@ -574,6 +621,7 @@ export default function Index() {
           <div className="lg:col-span-4 border" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
             <PanelHead
               title="Top Selling · MTD"
+              accent="hsl(var(--info))"
               action={<Flame className="h-3.5 w-3.5" strokeWidth={1.5} style={{ color: "hsl(var(--subtle))" }} />}
             />
             {topSelling.length === 0 ? (
@@ -610,6 +658,7 @@ export default function Index() {
           <div className="lg:col-span-7 border" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
             <PanelHead
               title="Expiry Watch · 90D"
+              accent="hsl(var(--warning))"
               action={
                 <div className="flex gap-3 font-mono text-[10.5px] tabular-nums">
                   {expiryAlerts.critical > 0 && (
@@ -682,6 +731,7 @@ export default function Index() {
           <div className="lg:col-span-5 border" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
             <PanelHead
               title="Smart Reorder"
+              accent="hsl(var(--danger))"
               action={
                 <Button size="sm" variant="outline" onClick={generateReorderAlerts} disabled={loadingReorder}
                   className="h-6 text-[10.5px] px-2">
