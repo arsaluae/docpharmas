@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, ClipboardCheck, Package, Truck, CheckCircle2, Trash2, Eye, Send, Factory } from "lucide-react";
+import { Plus, Search, ClipboardCheck, Package, Truck, CheckCircle2, Trash2, Eye, Send, Factory, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdfHtml } from "@/lib/pdf-generator";
@@ -74,6 +74,14 @@ export default function PrintJobs() {
 
  // Delete
  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+ // Rejection
+ const [rejectJob, setRejectJob] = useState<PrintJob | null>(null);
+ const [rejQty, setRejQty] = useState("");
+ const [rejReason, setRejReason] = useState("");
+ const [rejOurPct, setRejOurPct] = useState("50");
+ const [rejEvidence, setRejEvidence] = useState("");
+ const [rejBusy, setRejBusy] = useState(false);
 
  // Names lookup
  const [printerNames, setPrinterNames] = useState<Record<string, string>>({});
@@ -434,15 +442,20 @@ export default function PrintJobs() {
  <CheckCircle2 className="h-3 w-3 mr-1" /> Settle
  </Button>
  )}
- {Number(j.quantity_at_factory) > 0 && (
- <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
- setDispatchJob(j);
- setDispatchQty(String(j.quantity_at_factory));
- setDispatchSupplierId(j.allotted_supplier_id || "");
- }} title="Dispatch to Supplier">
- <Send className="h-3 w-3 mr-1" /> Dispatch
- </Button>
- )}
+  {Number(j.quantity_at_factory) > 0 && (
+    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
+      setDispatchJob(j);
+      setDispatchQty(String(j.quantity_at_factory));
+      setDispatchSupplierId(j.allotted_supplier_id || "");
+    }} title="Dispatch to Supplier">
+      <Send className="h-3 w-3 mr-1" /> Dispatch
+    </Button>
+  )}
+  {(j.status === "draft" || j.status === "delivered") && (
+    <Button variant="outline" size="sm" className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/5" onClick={() => { setRejectJob(j); setRejQty(""); setRejReason(""); setRejOurPct("50"); setRejEvidence(""); }} title="Record rejection">
+      <AlertTriangle className="h-3 w-3 mr-1" /> Reject
+    </Button>
+  )}
  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(j.id)}>
  <Trash2 className="h-3.5 w-3.5" />
  </Button>
@@ -565,7 +578,59 @@ export default function PrintJobs() {
  </DialogContent>
  </Dialog>
 
- <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+  <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+
+  {/* Record Rejection Dialog */}
+  <Dialog open={!!rejectJob} onOpenChange={o => { if (!o) setRejectJob(null); }}>
+    <DialogContent className="max-w-md">
+      <DialogHeader><DialogTitle>Record Rejection — {rejectJob?.job_number}</DialogTitle></DialogHeader>
+      {rejectJob && (() => {
+        const qty = Number(rejQty) || 0;
+        const cpu = Number(rejectJob.cost_per_unit) || 0;
+        const total = qty * cpu;
+        const ourPct = Number(rejOurPct) || 0;
+        const ourAmt = total * ourPct / 100;
+        const vendorAmt = total - ourAmt;
+        const maxRej = Math.max(Number(rejectJob.quantity_delivered) - Number(rejectJob.quantity_rejected), 0);
+        return (
+          <div className="space-y-3 mt-2">
+            <p className="text-xs text-muted-foreground">Delivered so far: <span className="font-mono text-foreground">{Number(rejectJob.quantity_delivered).toLocaleString()}</span> · Already rejected: <span className="font-mono text-foreground">{Number(rejectJob.quantity_rejected).toLocaleString()}</span></p>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Qty Rejected *</Label><Input type="number" max={maxRej} value={rejQty} onChange={e => setRejQty(e.target.value)} /></div>
+              <div><Label>Our Share % *</Label><Input type="number" min={0} max={100} value={rejOurPct} onChange={e => setRejOurPct(e.target.value)} /></div>
+            </div>
+            <div><Label>Reason</Label><Input value={rejReason} onChange={e => setRejReason(e.target.value)} placeholder="Misprint, color mismatch, damaged packaging..." /></div>
+            <div><Label>Evidence / Notes</Label><Textarea rows={2} value={rejEvidence} onChange={e => setRejEvidence(e.target.value)} placeholder="Photo refs, batch #, who inspected..." /></div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2 rounded-lg bg-warning/10 border border-warning/20 text-center">
+                <p className="text-muted-foreground">Vendor (Debit Note)</p>
+                <p className="font-mono font-bold text-warning">PKR {vendorAmt.toLocaleString()}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-center">
+                <p className="text-muted-foreground">Our Expense</p>
+                <p className="font-mono font-bold text-destructive">PKR {ourAmt.toLocaleString()}</p>
+              </div>
+            </div>
+            <Button className="w-full" disabled={rejBusy || !qty || qty <= 0 || qty > maxRej} onClick={async () => {
+              setRejBusy(true);
+              const { error } = await supabase.from("print_rejections" as any).insert({
+                print_job_id: rejectJob.id,
+                qty_rejected: qty,
+                cost_per_unit: cpu,
+                our_share_percent: ourPct,
+                reason: rejReason || null,
+                evidence_notes: rejEvidence || null,
+              } as any);
+              setRejBusy(false);
+              if (error) { toast.error(error.message); return; }
+              toast.success(`Rejection recorded. Debit Note (PKR ${vendorAmt.toLocaleString()}) and Expense (PKR ${ourAmt.toLocaleString()}) posted.`);
+              setRejectJob(null); load();
+            }}>{rejBusy ? "Posting..." : "Post Rejection"}</Button>
+          </div>
+        );
+      })()}
+    </DialogContent>
+  </Dialog>
  </AppLayout>
  );
 }

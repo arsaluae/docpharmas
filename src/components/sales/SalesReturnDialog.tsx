@@ -7,7 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, RotateCcw } from "lucide-react";
+
+const RETURN_REASONS = [
+  { value: "damaged", label: "Damaged in transit" },
+  { value: "wrong_product", label: "Wrong product / mis-shipment" },
+  { value: "expiry", label: "Expired / near-expiry stock" },
+  { value: "customer_request", label: "Customer cancelled / refused" },
+  { value: "quality_issue", label: "Quality issue" },
+  { value: "other", label: "Other (specify in notes)" },
+];
 import { toast } from "sonner";
 
 interface Props {
@@ -34,6 +44,7 @@ interface ReturnLine {
 export function SalesReturnDialog({ open, onOpenChange, invoiceId, invoiceNumber, customerId, onSaved }: Props) {
  const [lines, setLines] = useState<ReturnLine[]>([]);
  const [reason, setReason] = useState("");
+ const [reasonCode, setReasonCode] = useState<string>("");
  const [loading, setLoading] = useState(false);
  const [saving, setSaving] = useState(false);
 
@@ -89,7 +100,7 @@ export function SalesReturnDialog({ open, onOpenChange, invoiceId, invoiceNumber
  };
 
  const totalReturn = lines.reduce((s, l) => s + l.amount, 0);
- const canSubmit = lines.some(l => l.return_qty > 0) && reason.trim().length > 0;
+ const canSubmit = lines.some(l => l.return_qty > 0) && reasonCode.length > 0;
 
  const handleSubmit = async () => {
  if (!invoiceId || !customerId) return;
@@ -104,7 +115,8 @@ export function SalesReturnDialog({ open, onOpenChange, invoiceId, invoiceNumber
  invoice_id: invoiceId,
  date: new Date().toISOString().split("T")[0],
  total: subtotal,
- reason,
+ return_reason: reasonCode,
+ reason: reason || RETURN_REASONS.find(r => r.value === reasonCode)?.label || reasonCode,
  status: "active",
  }).select("id").single();
  if (srRes.error || !srRes.data) throw new Error(srRes.error?.message || "Return create failed");
@@ -191,11 +203,20 @@ export function SalesReturnDialog({ open, onOpenChange, invoiceId, invoiceNumber
  })}
  </TableBody>
  </Table>
- <div className="mt-3 space-y-2">
- <Label className="text-xs font-medium text-muted-foreground">Reason *</Label>
- <Textarea value={reason} onChange={e => setReason(e.target.value)} rows={2}
- placeholder="Damaged in transit, wrong shipment, expired stock..." />
- </div>
+  <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div className="space-y-1">
+      <Label className="text-xs font-medium text-muted-foreground">Reason *</Label>
+      <Select value={reasonCode} onValueChange={setReasonCode}>
+        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select reason..." /></SelectTrigger>
+        <SelectContent>{RETURN_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+      </Select>
+    </div>
+    <div className="sm:col-span-2 space-y-1">
+      <Label className="text-xs font-medium text-muted-foreground">Notes</Label>
+      <Textarea value={reason} onChange={e => setReason(e.target.value)} rows={2}
+        placeholder="Optional detail — batch, vehicle, contact..." />
+    </div>
+  </div>
  <div className="flex justify-between items-center mt-4 pt-3 border-t border-border">
  <span className="text-sm text-muted-foreground">Total Return Value</span>
  <span className="text-lg font-bold font-mono">PKR {totalReturn.toLocaleString()}</span>
