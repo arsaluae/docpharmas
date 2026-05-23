@@ -441,10 +441,19 @@ export default function Index() {
                       cursor={{ fill: "hsl(var(--brand-blue) / 0.06)" }}
                     />
                     <Bar dataKey="amount" radius={0} isAnimationActive={false}>
-                      {dailySales.map((_, i) => (
-                        <Cell key={i}
-                          fill={i === dailySales.length - 1 ? "hsl(var(--brand-blue))" : "hsl(var(--brand-navy) / 0.10)"} />
-                      ))}
+                      {(() => {
+                        const max = Math.max(...dailySales.map(d => d.amount));
+                        return dailySales.map((d, i) => {
+                          const isToday = i === dailySales.length - 1;
+                          const isPeak = !isToday && d.amount === max && max > 0;
+                          const fill = isToday
+                            ? "hsl(var(--brand-blue))"
+                            : isPeak
+                              ? "hsl(var(--success) / 0.55)"
+                              : "hsl(var(--brand-navy) / 0.12)";
+                          return <Cell key={i} fill={fill} />;
+                        });
+                      })()}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
