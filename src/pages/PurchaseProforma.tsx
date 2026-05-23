@@ -21,6 +21,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { GraceDeleteButton } from "@/components/GraceDeleteButton";
 import { generatePdfHtml } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
@@ -36,7 +37,7 @@ interface PurchaseOrder {
  validity_days: number; subtotal: number; gst: number; total: number;
  status: string; notes: string | null; created_at: string;
  converted_po_id: string | null;
- po_number?: string; grn_number?: string; bill_number?: string;
+ po_number?: string; grn_number?: string; bill_number?: string; bill_id?: string | null; bill_approved_at?: string | null;
  suppliers: { name: string; company?: string | null; phone?: string | null; address?: string | null } | null;
 }
 
@@ -162,7 +163,7 @@ export default function PurchaseProforma() {
  supabase.from("purchase_proformas").select("*, suppliers(name, company, phone, address)").order("created_at", { ascending: false }),
  supabase.from("purchase_orders").select("id, po_number, status, proforma_id").order("created_at", { ascending: false }),
  supabase.from("goods_received_notes").select("id, grn_number, po_id").order("created_at", { ascending: false }),
- supabase.from("purchase_invoices").select("id, bill_number, grn_id, status").order("created_at", { ascending: false }),
+ supabase.from("purchase_invoices").select("id, bill_number, grn_id, status, approved_at").order("created_at", { ascending: false }),
  supabase.from("suppliers").select("id, name, wht_rate, company, phone, address").eq("is_active", true),
  supabase.from("products").select("id, name, cost_price").eq("is_active", true),
  ]);
@@ -189,6 +190,8 @@ export default function PurchaseProforma() {
  const linkedBill = bills.data?.find((b: any) => b.grn_id === linkedGRN.id);
  if (linkedBill) {
  billNum = linkedBill.bill_number;
+ (p as any)._bill_id = linkedBill.id;
+ (p as any)._bill_approved_at = linkedBill.approved_at || null;
  if (linkedBill.status === "paid") status = "paid";
  }
  }
@@ -201,7 +204,8 @@ export default function PurchaseProforma() {
  validity_days: p.validity_days, subtotal: p.subtotal, gst: p.gst, total: p.total,
  status, notes: p.notes, created_at: p.created_at,
  converted_po_id: p.converted_po_id, po_number: poNum, grn_number: grnNum,
- bill_number: billNum, suppliers: p.suppliers as any,
+ bill_number: billNum, bill_id: (p as any)._bill_id || null, bill_approved_at: (p as any)._bill_approved_at || null,
+ suppliers: p.suppliers as any,
  });
  });
  }
@@ -1126,6 +1130,18 @@ export default function PurchaseProforma() {
  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shareWhatsApp(order)} title="Share via WhatsApp">
  <MessageCircle className="h-3.5 w-3.5 text-success" />
  </Button>
+ {/* Grace-window delete for received bills */}
+ {order.bill_id && (order.status === "received" || order.status === "paid") && (
+   <GraceDeleteButton
+     table="purchase_invoices"
+     invoiceId={order.bill_id}
+     invoiceNumber={order.bill_number}
+     approvedAt={order.bill_approved_at ?? order.created_at}
+     graceHours={settings?.invoice_delete_grace_hours ?? 48}
+     onDeleted={() => load()}
+     onRaiseReturn={() => navigate("/purchase-returns?supplier=" + (order.supplier_id || ""))}
+   />
+ )}
  <DropdownMenu>
  <DropdownMenuTrigger asChild>
  <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>

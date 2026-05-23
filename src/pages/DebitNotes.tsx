@@ -18,15 +18,16 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, FileText, Trash2, Users, Truck } from "lucide-react";
+import { Plus, Search, FileText, Trash2, Users, Truck, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { ApplyNoteDialog } from "@/components/ApplyCreditNoteDialog";
 
 interface Party { id: string; name: string; company?: string | null; }
 interface DebitNote {
   id: string; debit_note_number: string; party_type: string; party_id: string;
   date: string; amount: number; reason: string | null; reference: string | null;
-  notes: string | null; status: string; created_at: string;
+  notes: string | null; status: string; created_at: string; applied_amount?: number;
 }
 
 export default function DebitNotes() {
@@ -37,6 +38,7 @@ export default function DebitNotes() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [applyNote, setApplyNote] = useState<DebitNote | null>(null);
   const pagination = usePagination();
 
   const [partyType, setPartyType] = useState("supplier");
@@ -207,13 +209,19 @@ export default function DebitNotes() {
                 <TableRow>
                   <TableHead>DN #</TableHead><TableHead>Type</TableHead><TableHead>Party</TableHead>
                   <TableHead>Reason</TableHead><TableHead>Reference</TableHead><TableHead>Date</TableHead>
-                  <TableHead className="text-right">Amount</TableHead><TableHead className="text-center w-16">Actions</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Remaining</TableHead>
+                  <TableHead className="text-center w-28">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground"><FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No debit notes yet.</TableCell></TableRow>
-                ) : filtered.map(dn => (
+                  <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground"><FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No debit notes yet.</TableCell></TableRow>
+                ) : filtered.map(dn => {
+                  const applied = Number(dn.applied_amount || 0);
+                  const remaining = Number(dn.amount) - applied;
+                  const canApply = dn.party_type === "supplier" && remaining > 0.001;
+                  return (
                   <TableRow key={dn.id}>
                     <TableCell className="font-medium font-mono">{dn.debit_note_number}</TableCell>
                     <TableCell><Badge variant={dn.party_type === "supplier" ? "default" : "secondary"} className="capitalize">{dn.party_type === "supplier" ? "To Supplier" : "From Customer"}</Badge></TableCell>
@@ -222,13 +230,22 @@ export default function DebitNotes() {
                     <TableCell className="text-muted-foreground font-mono text-xs">{dn.reference || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{dn.date}</TableCell>
                     <TableCell className="text-right font-mono font-medium text-primary">PKR {Number(dn.amount).toLocaleString()}</TableCell>
+                    <TableCell className={`text-right font-mono ${remaining <= 0.001 ? "text-muted-foreground line-through" : "text-success font-semibold"}`}>PKR {remaining.toLocaleString()}</TableCell>
                     <TableCell className="text-center">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(dn.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center justify-center gap-1">
+                        {canApply && (
+                          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setApplyNote(dn)} title="Apply to purchase invoice">
+                            <Link2 className="h-3 w-3 mr-1" /> Apply
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(dn.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
             <PaginationControls
@@ -252,6 +269,16 @@ export default function DebitNotes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {applyNote && (
+        <ApplyNoteDialog
+          open={!!applyNote} onOpenChange={(o) => { if (!o) setApplyNote(null); }}
+          kind="debit" noteId={applyNote.id} noteNumber={applyNote.debit_note_number}
+          partyId={applyNote.party_id} noteAmount={Number(applyNote.amount)}
+          appliedAlready={Number(applyNote.applied_amount || 0)}
+          onApplied={() => { setApplyNote(null); load(); }}
+        />
+      )}
     </AppLayout>
   );
 }

@@ -17,6 +17,7 @@ export interface CompanySettings {
   wht_enabled: boolean;
   default_wht_rate: number;
   whatsapp_number: string | null;
+  invoice_delete_grace_hours: number;
 }
 
 export function useCompanySettings() {
