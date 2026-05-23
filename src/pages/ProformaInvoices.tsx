@@ -1161,6 +1161,18 @@ export default function ProformaInvoices() {
  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shareWhatsApp(order)} title="Share via WhatsApp">
  <MessageCircle className="h-3.5 w-3.5 text-success" />
  </Button>
+ {/* Grace-window delete for approved invoices */}
+ {order.converted_invoice_id && (order.status === "invoiced" || order.status === "dispatched" || order.status === "partial") && (
+   <GraceDeleteButton
+     table="sales_invoices"
+     invoiceId={order.converted_invoice_id}
+     invoiceNumber={order.invoice_number}
+     approvedAt={order.invoice_approved_at ?? order.created_at}
+     graceHours={settings?.invoice_delete_grace_hours ?? 48}
+     onDeleted={() => load()}
+     onRaiseReturn={() => { setReturnOrder(order); setReturnOpen(true); }}
+   />
+ )}
  <DropdownMenu>
  <DropdownMenuTrigger asChild>
  <Button variant="ghost" size="icon" className="h-7 w-7">
