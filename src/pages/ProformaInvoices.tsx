@@ -726,7 +726,8 @@ export default function ProformaInvoices() {
  agent_id: orderAgentId,
  } as any).select("*, customers(name)").single();
 
- if (invErr || !inv) { toast.error("Failed to create invoice: " + (invErr?.message || "Unknown error")); setSubmitting(false); return; }
+  if (invErr || !inv) { toast.error("Failed to create invoice: " + (invErr?.message || "Unknown error")); setSubmitting(false); return; }
+  logAudit({ action: "invoice_generated", entity_type: "sales_invoice", entity_id: inv.id, entity_number: invNumber, changes: { from_order: submitOrder.proforma_number, total: submitOrder.total } });
  const lineItems = submitItems.map((i: any) => ({
  invoice_id: inv.id, product_id: i.product_id || null,
  quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
