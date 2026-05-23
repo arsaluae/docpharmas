@@ -11,109 +11,109 @@ import { toast } from "sonner";
 interface LedgerEntry { date: string; type: string; reference: string; debit: number; credit: number; balance: number; }
 
 export default function CustomerLedger() {
-  const { id } = useParams<{ id: string }>();
-  const [customer, setCustomer] = useState<any>(null);
-  const [entries, setEntries] = useState<LedgerEntry[]>([]);
+ const { id } = useParams<{ id: string }>();
+ const [customer, setCustomer] = useState<any>(null);
+ const [entries, setEntries] = useState<LedgerEntry[]>([]);
 
-  useEffect(() => { if (id) loadLedger(id); }, [id]);
+ useEffect(() => { if (id) loadLedger(id); }, [id]);
 
-  const loadLedger = async (customerId: string) => {
-    const [{ data: cust }, { data: invoices }, { data: payments }, { data: returns }, { data: warranties }] = await Promise.all([
-      supabase.from("customers").select("*").eq("id", customerId).single(),
-      supabase.from("sales_invoices").select("*").eq("customer_id", customerId),
-      supabase.from("payments").select("*").eq("party_id", customerId).eq("party_type", "customer"),
-      supabase.from("sales_returns").select("*").eq("customer_id", customerId),
-      supabase.from("warranty_invoices").select("*").eq("customer_id", customerId),
-    ]);
-    if (cust) setCustomer(cust);
+ const loadLedger = async (customerId: string) => {
+ const [{ data: cust }, { data: invoices }, { data: payments }, { data: returns }, { data: warranties }] = await Promise.all([
+ supabase.from("customers").select("*").eq("id", customerId).single(),
+ supabase.from("sales_invoices").select("*").eq("customer_id", customerId),
+ supabase.from("payments").select("*").eq("party_id", customerId).eq("party_type", "customer"),
+ supabase.from("sales_returns").select("*").eq("customer_id", customerId),
+ supabase.from("warranty_invoices").select("*").eq("customer_id", customerId),
+ ]);
+ if (cust) setCustomer(cust);
 
-    const raw: Omit<LedgerEntry, "balance">[] = [];
-    if (cust) raw.push({ date: cust.created_at.split("T")[0], type: "Opening Balance", reference: "—", debit: Number(cust.opening_balance), credit: 0 });
-    (invoices || []).forEach(inv => raw.push({ date: inv.date, type: "Sales Invoice", reference: inv.invoice_number, debit: Number(inv.total), credit: 0 }));
-    (payments || []).forEach(p => raw.push({ date: p.date, type: "Payment Received", reference: p.payment_number, debit: 0, credit: Number(p.amount) }));
-    (returns || []).forEach(r => raw.push({ date: r.date, type: "Sales Return", reference: r.return_number, debit: 0, credit: Number(r.total) }));
-    (warranties || []).forEach(w => raw.push({ date: w.date, type: "Warranty Invoice", reference: w.warranty_number, debit: 0, credit: Number(w.total) }));
+ const raw: Omit<LedgerEntry, "balance">[] = [];
+ if (cust) raw.push({ date: cust.created_at.split("T")[0], type: "Opening Balance", reference: "—", debit: Number(cust.opening_balance), credit: 0 });
+ (invoices || []).forEach(inv => raw.push({ date: inv.date, type: "Sales Invoice", reference: inv.invoice_number, debit: Number(inv.total), credit: 0 }));
+ (payments || []).forEach(p => raw.push({ date: p.date, type: "Payment Received", reference: p.payment_number, debit: 0, credit: Number(p.amount) }));
+ (returns || []).forEach(r => raw.push({ date: r.date, type: "Sales Return", reference: r.return_number, debit: 0, credit: Number(r.total) }));
+ (warranties || []).forEach(w => raw.push({ date: w.date, type: "Warranty Invoice", reference: w.warranty_number, debit: 0, credit: Number(w.total) }));
 
-    raw.sort((a, b) => a.date.localeCompare(b.date));
-    let bal = 0;
-    setEntries(raw.map(e => { bal += e.debit - e.credit; return { ...e, balance: bal }; }));
-  };
+ raw.sort((a, b) => a.date.localeCompare(b.date));
+ let bal = 0;
+ setEntries(raw.map(e => { bal += e.debit - e.credit; return { ...e, balance: bal }; }));
+ };
 
-  const totalSales = entries.filter(e => e.type === "Sales Invoice").reduce((s, e) => s + e.debit, 0);
-  const totalReceived = entries.filter(e => e.type === "Payment Received").reduce((s, e) => s + e.credit, 0);
-  const totalReturns = entries.filter(e => e.type === "Sales Return").reduce((s, e) => s + e.credit, 0);
-  const totalWarranty = entries.filter(e => e.type === "Warranty Invoice").reduce((s, e) => s + e.credit, 0);
-  const outstanding = entries.length > 0 ? entries[entries.length - 1].balance : 0;
+ const totalSales = entries.filter(e => e.type === "Sales Invoice").reduce((s, e) => s + e.debit, 0);
+ const totalReceived = entries.filter(e => e.type === "Payment Received").reduce((s, e) => s + e.credit, 0);
+ const totalReturns = entries.filter(e => e.type === "Sales Return").reduce((s, e) => s + e.credit, 0);
+ const totalWarranty = entries.filter(e => e.type === "Warranty Invoice").reduce((s, e) => s + e.credit, 0);
+ const outstanding = entries.length > 0 ? entries[entries.length - 1].balance : 0;
 
-  const shareViaWhatsApp = () => {
-    if (!customer?.phone) { toast.error("No phone number on record for this customer"); return; }
-    const msg = `📊 *Ledger Summary — ${customer.name}*\n\n` +
-      `Total Sales: PKR ${totalSales.toLocaleString()}\n` +
-      `Total Received: PKR ${totalReceived.toLocaleString()}\n` +
-      `Returns: PKR ${totalReturns.toLocaleString()}\n` +
-      (totalWarranty > 0 ? `Warranty: PKR ${totalWarranty.toLocaleString()}\n` : "") +
-      `*Outstanding Balance: PKR ${outstanding.toLocaleString()}*\n\n` +
-      `As of ${new Date().toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}`;
-    const num = customer.phone.replace(/[^0-9]/g, "");
-    window.open(`https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(msg)}`, "_blank");
-  };
+ const shareViaWhatsApp = () => {
+ if (!customer?.phone) { toast.error("No phone number on record for this customer"); return; }
+ const msg = `📊 *Ledger Summary — ${customer.name}*\n\n` +
+ `Total Sales: PKR ${totalSales.toLocaleString()}\n` +
+ `Total Received: PKR ${totalReceived.toLocaleString()}\n` +
+ `Returns: PKR ${totalReturns.toLocaleString()}\n` +
+ (totalWarranty > 0 ? `Warranty: PKR ${totalWarranty.toLocaleString()}\n` : "") +
+ `*Outstanding Balance: PKR ${outstanding.toLocaleString()}*\n\n` +
+ `As of ${new Date().toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}`;
+ const num = customer.phone.replace(/[^0-9]/g, "");
+ window.open(`https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(msg)}`, "_blank");
+ };
 
-  const headerActions = (
-    <div className="flex items-center gap-2">
-      <Button variant="outline" size="sm" className="text-xs gap-1.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/5" onClick={shareViaWhatsApp}>
-        <MessageCircle className="h-3.5 w-3.5" /> Share via WhatsApp
-      </Button>
-      <Button variant="ghost" size="icon" asChild><Link to="/customers"><ArrowLeft className="h-4 w-4" /></Link></Button>
-    </div>
-  );
+ const headerActions = (
+ <div className="flex items-center gap-2">
+ <Button variant="outline" size="sm" className="text-xs gap-1.5 text-success border-border hover:bg-success/5" onClick={shareViaWhatsApp}>
+ <MessageCircle className="h-3.5 w-3.5" /> Share via WhatsApp
+ </Button>
+ <Button variant="ghost" size="icon" asChild><Link to="/customers"><ArrowLeft className="h-4 w-4" /></Link></Button>
+ </div>
+ );
 
-  return (
-    <AppLayout title={`${customer?.name || "Customer"} — Ledger`} subtitle={`${customer?.company || ""} ${customer?.city ? `• ${customer.city}` : ""}`} headerActions={headerActions}>
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {[
-            { label: "Total Sales", value: totalSales, icon: FileText, color: "text-primary" },
-            { label: "Received", value: totalReceived, icon: Wallet, color: "text-primary" },
-            { label: "Returns", value: totalReturns, icon: RotateCcw, color: "text-amber-500" },
-            { label: "Warranty", value: totalWarranty, icon: FileText, color: "text-amber-500" },
-            { label: "Outstanding", value: outstanding, icon: FileText, color: outstanding > 0 ? "text-destructive" : "text-primary" },
-          ].map(c => (
-            <Card key={c.label} className="glass-card">
-              <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">{c.label}</p>
-                <p className={`text-lg font-bold font-mono ${c.color}`}>{c.value.toLocaleString()}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+ return (
+ <AppLayout title={`${customer?.name || "Customer"} — Ledger`} subtitle={`${customer?.company || ""} ${customer?.city ? `• ${customer.city}` : ""}`} headerActions={headerActions}>
+ <div className="space-y-4">
+ <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+ {[
+ { label: "Total Sales", value: totalSales, icon: FileText, color: "text-primary" },
+ { label: "Received", value: totalReceived, icon: Wallet, color: "text-primary" },
+ { label: "Returns", value: totalReturns, icon: RotateCcw, color: "text-warning" },
+ { label: "Warranty", value: totalWarranty, icon: FileText, color: "text-warning" },
+ { label: "Outstanding", value: outstanding, icon: FileText, color: outstanding > 0 ? "text-destructive" : "text-primary" },
+ ].map(c => (
+ <Card key={c.label} className="glass-card">
+ <CardContent className="p-4">
+ <p className="text-xs text-muted-foreground">{c.label}</p>
+ <p className={`text-lg font-bold font-mono ${c.color}`}>{c.value.toLocaleString()}</p>
+ </CardContent>
+ </Card>
+ ))}
+ </div>
 
-        <Card className="glass-card">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Reference</TableHead>
-                  <TableHead className="text-right">Debit</TableHead><TableHead className="text-right">Credit</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">No transactions found.</TableCell></TableRow>
-                ) : entries.map((e, i) => (
-                  <TableRow key={i}>
-                    <TableCell>{e.date}</TableCell><TableCell>{e.type}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{e.reference}</TableCell>
-                    <TableCell className="text-right font-mono">{e.debit ? e.debit.toLocaleString() : "—"}</TableCell>
-                    <TableCell className="text-right font-mono">{e.credit ? e.credit.toLocaleString() : "—"}</TableCell>
-                    <TableCell className="text-right font-mono font-semibold">{e.balance.toLocaleString()}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
-    </AppLayout>
-  );
+ <Card className="glass-card">
+ <CardContent className="p-0">
+ <Table>
+ <TableHeader>
+ <TableRow>
+ <TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Reference</TableHead>
+ <TableHead className="text-right">Debit</TableHead><TableHead className="text-right">Credit</TableHead>
+ <TableHead className="text-right">Balance</TableHead>
+ </TableRow>
+ </TableHeader>
+ <TableBody>
+ {entries.length === 0 ? (
+ <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">No transactions found.</TableCell></TableRow>
+ ) : entries.map((e, i) => (
+ <TableRow key={i}>
+ <TableCell>{e.date}</TableCell><TableCell>{e.type}</TableCell>
+ <TableCell className="text-xs text-muted-foreground">{e.reference}</TableCell>
+ <TableCell className="text-right font-mono">{e.debit ? e.debit.toLocaleString() : "—"}</TableCell>
+ <TableCell className="text-right font-mono">{e.credit ? e.credit.toLocaleString() : "—"}</TableCell>
+ <TableCell className="text-right font-mono font-semibold">{e.balance.toLocaleString()}</TableCell>
+ </TableRow>
+ ))}
+ </TableBody>
+ </Table>
+ </CardContent>
+ </Card>
+ </div>
+ </AppLayout>
+ );
 }
