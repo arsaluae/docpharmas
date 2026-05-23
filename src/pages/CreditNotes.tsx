@@ -257,6 +257,7 @@ export default function CreditNotes() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && bulk.selected.length === filtered.length} onCheckedChange={() => bulk.toggleAll(filtered.map(n => n.id))} /></TableHead>
                   <TableHead>CN #</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Party</TableHead>
@@ -271,7 +272,7 @@ export default function CreditNotes() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                       <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No credit notes yet.
                     </TableCell>
                   </TableRow>
@@ -280,7 +281,8 @@ export default function CreditNotes() {
                   const remaining = Number(cn.amount) - applied;
                   const canApply = cn.party_type === "customer" && remaining > 0.001;
                   return (
-                  <TableRow key={cn.id}>
+                  <TableRow key={cn.id} data-state={bulk.isSelected(cn.id) ? "selected" : undefined}>
+                    <TableCell><RowCheckbox checked={bulk.isSelected(cn.id)} onCheckedChange={() => bulk.toggle(cn.id)} /></TableCell>
                     <TableCell className="font-medium font-mono">{cn.credit_note_number}</TableCell>
                     <TableCell>
                       <Badge variant={cn.party_type === "supplier" ? "default" : "secondary"} className="capitalize">
