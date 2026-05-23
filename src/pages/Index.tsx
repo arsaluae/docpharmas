@@ -621,6 +621,7 @@ export default function Index() {
           <div className="lg:col-span-4 border" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
             <PanelHead
               title="Top Selling · MTD"
+              accent="hsl(var(--info))"
               action={<Flame className="h-3.5 w-3.5" strokeWidth={1.5} style={{ color: "hsl(var(--subtle))" }} />}
             />
             {topSelling.length === 0 ? (
