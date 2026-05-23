@@ -93,8 +93,10 @@ export default function PurchaseReturns() {
         amount: total, reason: reason || `Purchase Return ${num}`, reference: num,
         date: new Date().toISOString().split("T")[0],
       });
+      logAudit({ action: "debit_note_issued", entity_type: "debit_note", entity_number: dnNumber, changes: { from_return: num, amount: total, party: "supplier" } });
     }
 
+    logAudit({ action: "return_raised", entity_type: "purchase_return", entity_id: pr.id, entity_number: num, changes: { reason, total, invoice_id: invoiceId || null } });
     toast.success(`Purchase Return ${num} created — Debit Note auto-issued`);
     setOpen(false); setSupplierId(""); setInvoiceId(""); setReason("");
     setItems([{ product_id: "", batch_number: "", quantity: "1", rate: "0" }]);
