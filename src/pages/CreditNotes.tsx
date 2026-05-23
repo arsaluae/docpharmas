@@ -42,6 +42,13 @@ export default function CreditNotes() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [applyNote, setApplyNote] = useState<CreditNote | null>(null);
   const pagination = usePagination();
+  const bulk = useBulkSelection();
+
+  const deleteOne = async (id: string) => {
+    await supabase.from("credit_note_applications").delete().eq("credit_note_id", id);
+    const { error } = await supabase.from("credit_notes").delete().eq("id", id);
+    if (error) throw error;
+  };
 
   // Form state
   const [partyType, setPartyType] = useState("supplier");
