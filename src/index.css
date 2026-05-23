@@ -206,18 +206,74 @@
     border-left: 2px solid hsl(var(--primary));
   }
 
-  /* Pastel chips — for icon backgrounds & playful labels */
-  .chip-peach  { background: hsl(var(--pastel-peach));  color: hsl(var(--pastel-peach-fg)); }
-  .chip-mint   { background: hsl(var(--pastel-mint));   color: hsl(var(--pastel-mint-fg)); }
-  .chip-sky    { background: hsl(var(--pastel-sky));    color: hsl(var(--pastel-sky-fg)); }
-  .chip-lilac  { background: hsl(var(--pastel-lilac));  color: hsl(var(--pastel-lilac-fg)); }
-  .chip-butter { background: hsl(var(--pastel-butter)); color: hsl(var(--pastel-butter-fg)); }
-  .chip-blush  { background: hsl(var(--pastel-blush));  color: hsl(var(--pastel-blush-fg)); }
+  /* Pastel chips & washes — flattened to muted surface tokens
+     (kept as no-ops so legacy JSX doesn't break the layout) */
+  .chip-peach, .chip-mint, .chip-sky, .chip-lilac, .chip-butter, .chip-blush {
+    background: hsl(var(--surface-2));
+    color: hsl(var(--muted-foreground));
+  }
+  .wash-butter, .wash-mint, .wash-sky {
+    background: hsl(var(--surface-2));
+  }
 
-  /* Soft pastel washes — for hero/empty-state backgrounds */
-  .wash-butter { background: hsl(var(--pastel-butter) / 0.5); }
-  .wash-mint   { background: hsl(var(--pastel-mint) / 0.5); }
-  .wash-sky    { background: hsl(var(--pastel-sky) / 0.5); }
+  /* ─────────── Page-level type rhythm (used everywhere) ─────────── */
+  .page-eyebrow {
+    font-family: 'Sora', sans-serif;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+  .page-h1 {
+    font-family: 'Sora', sans-serif;
+    font-size: clamp(26px, 3.2vw, 32px);
+    font-weight: 300;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+    color: hsl(var(--foreground));
+  }
+  .section-title {
+    font-family: 'Sora', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    color: hsl(var(--foreground));
+  }
+  .metric-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: hsl(var(--foreground));
+  }
+
+  /* Precision table styling for tables across reports/ledgers */
+  .table-precision { width: 100%; border-collapse: collapse; }
+  .table-precision thead th {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid hsl(var(--border));
+    background: hsl(var(--surface-2));
+  }
+  .table-precision tbody td {
+    padding: 11px 14px;
+    font-size: 13px;
+    color: hsl(var(--foreground));
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .table-precision tbody tr:last-child td { border-bottom: 0; }
+  .table-precision tbody tr { transition: background-color 120ms ease-out; }
+  .table-precision tbody tr:hover { background: hsl(var(--primary) / 0.04); }
+
+
 
 
   /* Legacy vibrant classes → flattened to nothing.
@@ -310,14 +366,7 @@
     box-shadow: none;
     overflow: hidden;
   }
-  .mesh-hero::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(ellipse at 100% 0%, hsl(var(--primary) / 0.06), transparent 55%);
-    pointer-events: none;
-  }
+
 
   .frosted-header {
     background: hsl(var(--background));
