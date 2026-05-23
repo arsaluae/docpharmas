@@ -32,9 +32,10 @@ const Eyebrow = ({ children }: { children: React.ReactNode }) => (
   </span>
 );
 
-const MicroLabel = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <span className={`text-[10.5px] font-bold uppercase tracking-[0.15em] ${className}`}
+const MicroLabel = ({ children, className = "", accent }: { children: React.ReactNode; className?: string; accent?: string }) => (
+  <span className={`text-[10.5px] font-bold uppercase tracking-[0.15em] inline-flex items-center gap-2 ${className}`}
     style={{ color: "hsl(var(--subtle))" }}>
+    {accent && <span className="h-1.5 w-1.5" style={{ background: accent }} />}
     {children}
   </span>
 );
