@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_periods: {
+        Row: {
+          created_at: string
+          id: string
+          is_locked: boolean
+          lock_reason: string | null
+          locked_at: string | null
+          locked_by: string | null
+          period_end: string
+          period_start: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_locked?: boolean
+          lock_reason?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          period_end: string
+          period_start: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_locked?: boolean
+          lock_reason?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          period_end?: string
+          period_start?: string
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
       additional_costs: {
         Row: {
           amount: number
@@ -2365,6 +2401,7 @@ export type Database = {
           quantity: number
           rate: number
           tenant_id: string | null
+          unit_cost: number
         }
         Insert: {
           amount?: number
@@ -2377,6 +2414,7 @@ export type Database = {
           quantity?: number
           rate?: number
           tenant_id?: string | null
+          unit_cost?: number
         }
         Update: {
           amount?: number
@@ -2389,6 +2427,7 @@ export type Database = {
           quantity?: number
           rate?: number
           tenant_id?: string | null
+          unit_cost?: number
         }
         Relationships: [
           {
