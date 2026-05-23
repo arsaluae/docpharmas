@@ -731,6 +731,7 @@ export default function Index() {
           <div className="lg:col-span-5 border" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
             <PanelHead
               title="Smart Reorder"
+              accent="hsl(var(--danger))"
               action={
                 <Button size="sm" variant="outline" onClick={generateReorderAlerts} disabled={loadingReorder}
                   className="h-6 text-[10.5px] px-2">
