@@ -536,6 +536,7 @@ export default function Index() {
           <div className="lg:col-span-4 border" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
             <PanelHead
               title="Receivable · Payable"
+              accent="hsl(var(--brand-blue))"
               action={
                 <button onClick={() => navigate("/payments")}
                   className="text-[11px] font-bold uppercase tracking-[0.12em] hover:opacity-80"
