@@ -312,28 +312,36 @@ export default function Index() {
           </div>
         </header>
 
-        {/* ─── GLANCE STRIP ─── hairline top + bottom, dot separators */}
-        <div className="flex items-center gap-8 py-5 flex-wrap"
+        {/* ─── GLANCE STRIP ─── hairline top + bottom, colored signal dots */}
+        <div className="flex items-center gap-7 py-5 flex-wrap"
           style={{ borderTop: "1px solid hsl(var(--border))", borderBottom: "1px solid hsl(var(--border))" }}>
-          <div className="flex items-baseline gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="relative inline-flex h-2 w-2">
+              <span className="absolute inset-0 rounded-full animate-ping" style={{ background: "hsl(var(--brand-blue) / 0.5)" }} />
+              <span className="relative inline-block h-2 w-2 rounded-full" style={{ background: "hsl(var(--brand-blue))" }} />
+            </span>
             <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: "hsl(var(--brand-blue))" }}>Live</span>
             <span className="text-[13.5px] font-semibold" style={{ color: "hsl(var(--brand-navy))" }}>
-              PKR {fmtCompact(todaySales)} sold today
+              PKR <span className="font-mono tabular-nums" style={{ color: "hsl(var(--brand-blue))" }}>{fmtCompact(todaySales)}</span>
+              <span className="ml-1" style={{ color: "hsl(var(--subtle))" }}>sold today</span>
             </span>
           </div>
-          <div className="h-4 w-px" style={{ background: "hsl(var(--border-strong))" }} />
+          <Dot tone="success" />
           <div className="text-[13.5px] font-semibold" style={{ color: "hsl(var(--brand-navy))" }}>
-            PKR {fmtCompact(todayCollections)} collected
+            PKR <span className="font-mono tabular-nums" style={{ color: "hsl(var(--success))" }}>{fmtCompact(todayCollections)}</span>
+            <span className="ml-1" style={{ color: "hsl(var(--subtle))" }}>collected</span>
           </div>
-          <div className="h-4 w-px" style={{ background: "hsl(var(--border-strong))" }} />
+          <Dot tone="info" />
           <div className="text-[13.5px] font-semibold" style={{ color: "hsl(var(--brand-navy))" }}>
-            {upcomingPoCount} open PO{upcomingPoCount === 1 ? "" : "s"}
+            <span className="font-mono tabular-nums" style={{ color: "hsl(var(--info))" }}>{upcomingPoCount}</span>
+            <span className="ml-1.5" style={{ color: "hsl(var(--subtle))" }}>open PO{upcomingPoCount === 1 ? "" : "s"}</span>
           </div>
           {(overdueCount > 0 || expiringCount > 0) && (
             <>
-              <div className="h-4 w-px" style={{ background: "hsl(var(--border-strong))" }} />
+              <Dot tone="danger" />
               <div className="text-[13.5px] font-semibold" style={{ color: "hsl(var(--danger))" }}>
-                {overdueCount + expiringCount} need attention
+                <span className="font-mono tabular-nums">{overdueCount + expiringCount}</span>
+                <span className="ml-1.5 font-medium">need attention</span>
               </div>
             </>
           )}
