@@ -175,7 +175,9 @@ export default function Products() {
  return <Badge className="bg-primary/10 text-primary border-0">OK</Badge>;
  };
 
- const headerActions = (
+ const headerActions = readOnly ? (
+ <span className="text-xs uppercase tracking-wider px-2 py-1 rounded-full border border-border text-muted-foreground">Read-only</span>
+ ) : (
  <>
  <Button variant="outline" size="sm" onClick={() => navigate("/import?tab=products")}><Upload className="h-4 w-4 mr-1" /> Import</Button>
  {activeTab === "movements" ? (
