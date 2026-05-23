@@ -22,6 +22,8 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdfHtml } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
+import { AddDistributorDialog } from "@/components/AddDistributorDialog";
+
 
 interface Customer { id: string; name: string; company: string | null; }
 interface Product { id: string; name: string; selling_price: number; mrp: number; }
@@ -73,6 +75,9 @@ export default function WarrantyInvoices() {
  const [discountValue, setDiscountValue] = useState(0);
  const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
  const [formNotes, setFormNotes] = useState("");
+ const [addDistOpen, setAddDistOpen] = useState(false);
+
+
 
  const pagination = usePagination();
  const [searchParams, setSearchParams] = useSearchParams();
@@ -346,9 +351,16 @@ export default function WarrantyInvoices() {
  <div className="grid grid-cols-2 gap-3">
  <div><Label>Date</Label><Input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} /></div>
  <div>
+ <div className="flex items-center justify-between mb-1">
  <Label>Distributor / Pharmacy</Label>
+ {selectedCustomerId && (
+ <Button type="button" variant="ghost" size="sm" className="h-6 text-xs gap-1 -mr-2" onClick={() => setAddDistOpen(true)}>
+ <Plus className="h-3 w-3" /> Add Distributor
+ </Button>
+ )}
+ </div>
  <Select value={selectedDistributorId} onValueChange={setSelectedDistributorId}>
- <SelectTrigger><SelectValue placeholder="Select distributor..." /></SelectTrigger>
+ <SelectTrigger><SelectValue placeholder={distributors.length === 0 ? "No distributors — add one" : "Select distributor..."} /></SelectTrigger>
  <SelectContent>
  {distributors.map(d => (
  <SelectItem key={d.id} value={d.id}>
@@ -358,6 +370,7 @@ export default function WarrantyInvoices() {
  </SelectContent>
  </Select>
  </div>
+
  </div>
 
  {/* Items table */}
@@ -621,6 +634,18 @@ export default function WarrantyInvoices() {
  </Card>
  </div>
  <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+ <AddDistributorDialog
+ open={addDistOpen}
+ onOpenChange={setAddDistOpen}
+ customerId={selectedCustomerId}
+ onCreated={async (newId) => {
+ const { data: dists } = await supabase.from("customer_distributors")
+ .select("*").eq("customer_id", selectedCustomerId).order("name") as { data: Distributor[] | null };
+ setDistributors(dists || []);
+ setSelectedDistributorId(newId);
+ }}
+ />
  </AppLayout>
  );
 }
+
