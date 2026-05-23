@@ -658,6 +658,7 @@ export default function Index() {
           <div className="lg:col-span-7 border" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
             <PanelHead
               title="Expiry Watch · 90D"
+              accent="hsl(var(--warning))"
               action={
                 <div className="flex gap-3 font-mono text-[10.5px] tabular-nums">
                   {expiryAlerts.critical > 0 && (
