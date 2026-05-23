@@ -203,7 +203,8 @@ export default function PurchaseProforma() {
  validity_days: p.validity_days, subtotal: p.subtotal, gst: p.gst, total: p.total,
  status, notes: p.notes, created_at: p.created_at,
  converted_po_id: p.converted_po_id, po_number: poNum, grn_number: grnNum,
- bill_number: billNum, suppliers: p.suppliers as any,
+ bill_number: billNum, bill_id: (p as any)._bill_id || null, bill_approved_at: (p as any)._bill_approved_at || null,
+ suppliers: p.suppliers as any,
  });
  });
  }
