@@ -9,9 +9,11 @@ import {
   FileText, Shield, Wallet, Package, Printer, Receipt, CreditCard,
   Clock, AlertTriangle, MessageCircle, PackageCheck, Users, Flame,
   ChevronRight, ArrowUpRight, ArrowDownRight, TrendingUp,
+  Coins, HandCoins, Banknote, ShoppingBag,
 } from "lucide-react";
 import { WeekSalesDialog, MonthSalesDialog, GrossMarginDialog, UpcomingOrdersDialog } from "@/components/dashboard/KpiDialogs";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -23,10 +25,29 @@ const fmtPkr = (n: number) =>
 const fmtCompact = (n: number) =>
   new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n);
 
+/* ─── inline hand-drawn illustrations (single-stroke, currentColor) ─── */
+
+const SunCloud = ({ className = "" }: { className?: string }) => (
+  <svg viewBox="0 0 96 64" className={className} fill="none" stroke="currentColor"
+    strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <circle cx="32" cy="24" r="10" />
+    <path d="M32 6v4M32 38v4M14 24h4M46 24h4M19 11l3 3M42 11l-3 3M19 37l3-3M42 37l-3-3" />
+    <path d="M48 46c0-6 5-10 11-10 4 0 7 2 9 5 1 0 2-0.4 3-0.4 5 0 9 4 9 9s-4 9-9 9H52c-5 0-9-4-9-9 0-2 2-4 5-4z" />
+  </svg>
+);
+
+const EmptyBox = ({ className = "" }: { className?: string }) => (
+  <svg viewBox="0 0 64 64" className={className} fill="none" stroke="currentColor"
+    strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M10 22l22-10 22 10v22L32 54 10 44V22z" />
+    <path d="M10 22l22 10 22-10M32 32v22" />
+  </svg>
+);
+
 /* ─── tiny presentational helpers ─── */
 
 const MicroLabel = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <span className={`text-[10.5px] font-semibold uppercase tracking-[0.12em] text-subtle ${className}`}
+  <span className={`text-[10.5px] font-semibold uppercase tracking-[0.12em] ${className}`}
     style={{ color: "hsl(var(--subtle))" }}>
     {children}
   </span>
@@ -39,8 +60,7 @@ const PanelHead = ({
     className="flex items-center justify-between px-4 h-10"
     style={{ borderBottom: "1px solid hsl(var(--border))" }}
   >
-    <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em]"
-      style={{ color: "hsl(var(--subtle))" }}>
+    <span className="font-heading text-[13px] font-semibold tracking-[-0.01em] text-foreground">
       {title}
     </span>
     {action}
@@ -71,9 +91,19 @@ const Dot = ({ tone }: { tone: "success" | "danger" | "warning" | "info" | "mute
   return <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ background: color }} />;
 };
 
+const greetingFor = (d: Date) => {
+  const h = d.getHours();
+  if (h < 5)  return "Up late";
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  if (h < 21) return "Good evening";
+  return "Good night";
+};
+
 export default function Index() {
   const navigate = useNavigate();
   const { settings } = useCompanySettings();
+  const { user } = useAuth();
 
   const [weekSales, setWeekSales] = useState(0);
   const [monthSales, setMonthSales] = useState(0);
@@ -89,6 +119,8 @@ export default function Index() {
   const [upcomingPoValue, setUpcomingPoValue] = useState(0);
   const [totalReceivables, setTotalReceivables] = useState(0);
   const [totalPayables, setTotalPayables] = useState(0);
+  const [todaySales, setTodaySales] = useState(0);
+  const [todayCollections, setTodayCollections] = useState(0);
 
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
@@ -105,7 +137,17 @@ export default function Index() {
 
   const [expiryAlerts, setExpiryAlerts] = useState<{ critical: number; warning: number; info: number; items: { name: string; batch: string; expiry: string; qty: number; severity: string }[] }>({ critical: 0, warning: 0, info: 0, items: [] });
 
-  useEffect(() => { loadDashboard(); loadReorderAlerts(); loadExpiryAlerts(); }, []);
+  useEffect(() => { loadDashboard(); loadReorderAlerts(); loadExpiryAlerts(); loadToday(); }, []);
+
+  const loadToday = async () => {
+    const t = new Date().toISOString().split("T")[0];
+    const [{ data: invs }, { data: pays }] = await Promise.all([
+      supabase.from("sales_invoices").select("total").eq("date", t),
+      supabase.from("payments").select("amount").eq("date", t).eq("type", "received"),
+    ]);
+    setTodaySales((invs || []).reduce((s: number, r: any) => s + Number(r.total || 0), 0));
+    setTodayCollections((pays || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0));
+  };
 
   const loadDashboard = async () => {
     const t = new Date();
@@ -212,45 +254,40 @@ export default function Index() {
   const gpMargin = monthSales > 0 ? (grossMargin / monthSales) * 100 : 0;
   const netPosition = totalReceivables - totalPayables;
 
+  const firstName = (() => {
+    const raw = (user?.email || "").split("@")[0] || "there";
+    const cleaned = raw.replace(/[._-]+/g, " ").trim().split(" ")[0] || "there";
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  })();
+
   const quickActions = [
-    { label: "Sales Invoice", path: "/proforma", icon: FileText },
-    { label: "Warranty Invoice", path: "/warranty-invoices", icon: Shield },
-    { label: "Payment In", path: "/payments", icon: Wallet },
-    { label: "Inventory", path: "/products", icon: Package },
-    { label: "Purchase Order", path: "/purchase-proforma", icon: FileText },
-    { label: "Print Jobs", path: "/print-jobs", icon: Printer },
-    { label: "Expenses", path: "/expenses", icon: Receipt },
-    { label: "Credit Notes", path: "/credit-notes", icon: CreditCard },
+    { label: "Sales Invoice",    path: "/proforma",          icon: FileText,   chip: "chip-mint" },
+    { label: "Warranty Invoice", path: "/warranty-invoices", icon: Shield,     chip: "chip-sky" },
+    { label: "Payment In",       path: "/payments",          icon: Wallet,     chip: "chip-butter" },
+    { label: "Inventory",        path: "/products",          icon: Package,    chip: "chip-lilac" },
+    { label: "Purchase Order",   path: "/purchase-proforma", icon: ShoppingBag,chip: "chip-peach" },
+    { label: "Print Jobs",       path: "/print-jobs",        icon: Printer,    chip: "chip-blush" },
+    { label: "Expenses",         path: "/expenses",          icon: Receipt,    chip: "chip-sky" },
+    { label: "Credit Notes",     path: "/credit-notes",      icon: CreditCard, chip: "chip-mint" },
   ];
 
-  const tickerCells: { label: string; value: React.ReactNode }[] = [
-    { label: "MTD", value: (
-      <span className="flex items-center gap-1.5">
-        <span>PKR {fmtCompact(monthSales)}</span>
-        {lastMonthSales > 0 && <Delta value={monthGrowth} />}
-      </span>
-    )},
-    { label: "WTD", value: <>PKR {fmtCompact(weekSales)}</> },
-    { label: "A/R", value: <>PKR {fmtCompact(totalReceivables)}</> },
-    { label: "A/P", value: <>PKR {fmtCompact(totalPayables)}</> },
-    { label: "NET", value: (
+  const glanceCells: { label: string; value: React.ReactNode; tone?: string }[] = [
+    { label: "Sales today",   value: `PKR ${fmtCompact(todaySales)}` },
+    { label: "Collected",     value: `PKR ${fmtCompact(todayCollections)}` },
+    { label: "Receivables",   value: `PKR ${fmtCompact(totalReceivables)}` },
+    { label: "Payables",      value: `PKR ${fmtCompact(totalPayables)}` },
+    { label: "Net position",  value: (
       <span style={{ color: netPosition >= 0 ? "hsl(var(--success))" : "hsl(var(--danger))" }}>
         {netPosition >= 0 ? "+" : "−"}PKR {fmtCompact(Math.abs(netPosition))}
-      </span>
-    )},
-    { label: "PO OPEN", value: <>{upcomingPoCount}</> },
-    { label: "EXP 90D", value: (
-      <span style={{ color: expiryAlerts.critical > 0 ? "hsl(var(--danger))" : undefined }}>
-        {expiryAlerts.critical + expiryAlerts.warning + expiryAlerts.info}
       </span>
     )},
   ];
 
   const kpis = [
-    { label: "Week to Date", value: weekSales, footnote: "Mon → today", onClick: () => setWeekOpen(true), delta: null as number | null, active: weekOpen },
-    { label: "Month to Date", value: monthSales, footnote: lastMonthSales > 0 ? `vs PKR ${fmtCompact(lastMonthSales)} last month` : "No prior month", onClick: () => setMonthOpen(true), delta: lastMonthSales > 0 ? monthGrowth : null, active: monthOpen },
-    { label: "Gross Profit", value: Math.abs(grossMargin), footnote: "Revenue − COGS", onClick: () => setGpOpen(true), delta: monthSales > 0 ? gpMargin : null, active: gpOpen },
-    { label: "Upcoming Orders", value: upcomingPoValue, footnote: upcomingPoCount > 0 ? `${upcomingPoCount} open PO${upcomingPoCount > 1 ? "s" : ""}` : "None pending", onClick: () => setUpcomingOpen(true), delta: null, active: upcomingOpen },
+    { label: "Week to Date",     value: weekSales,            footnote: "Mon → today",                                                                                onClick: () => setWeekOpen(true),     delta: null as number | null,                                  active: weekOpen,     chip: "chip-mint",   Icon: Coins },
+    { label: "Month to Date",    value: monthSales,           footnote: lastMonthSales > 0 ? `vs PKR ${fmtCompact(lastMonthSales)} last month` : "No prior month",     onClick: () => setMonthOpen(true),    delta: lastMonthSales > 0 ? monthGrowth : null,                active: monthOpen,    chip: "chip-sky",    Icon: TrendingUp },
+    { label: "Gross Profit",     value: Math.abs(grossMargin),footnote: "Revenue − COGS",                                                                              onClick: () => setGpOpen(true),       delta: monthSales > 0 ? gpMargin : null,                       active: gpOpen,       chip: "chip-lilac",  Icon: HandCoins },
+    { label: "Upcoming Orders",  value: upcomingPoValue,      footnote: upcomingPoCount > 0 ? `${upcomingPoCount} open PO${upcomingPoCount > 1 ? "s" : ""}` : "None pending", onClick: () => setUpcomingOpen(true), delta: null,                                                  active: upcomingOpen, chip: "chip-peach",  Icon: Banknote },
   ];
 
   return (
@@ -260,38 +297,71 @@ export default function Index() {
     >
       <div className="space-y-6">
 
-        {/* ─── TICKER STRIP ─── 36px, surface-2 well, divided cells */}
-        <div className="well flex items-stretch h-9 overflow-x-auto">
-          {tickerCells.map((c, i) => (
-            <div
-              key={c.label}
-              className="flex items-center gap-2 px-4 whitespace-nowrap"
-              style={i > 0 ? { borderLeft: "1px solid hsl(var(--border))" } : undefined}
-            >
-              <span className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "hsl(var(--subtle))" }}>
-                {c.label}
-              </span>
-              <span className="font-mono text-[11.5px] tabular-nums text-foreground">
-                {c.value}
-              </span>
-            </div>
-          ))}
+        {/* ─── GREETING ─── warm hello, no live dot, no AI */}
+        <div className="flex items-end justify-between gap-4 pt-1">
+          <div>
+            <h1 className="font-heading text-[28px] leading-[1.15] font-semibold tracking-[-0.025em] text-foreground">
+              {greetingFor(today)}, {firstName} <span className="inline-block ml-1">👋</span>
+            </h1>
+            <p className="text-[13.5px] mt-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+              Here's where things stand today.
+            </p>
+          </div>
         </div>
 
-        {/* ─── KPI ROW ─── four equal tiles, 112px tall */}
+        {/* ─── TODAY AT A GLANCE ─── replaces the ticker, soft butter wash */}
+        <div className="panel relative overflow-hidden">
+          <div className="wash-butter pointer-events-none absolute -top-6 -right-6 h-32 w-44 rounded-full opacity-70" />
+          <div className="absolute top-4 right-4 pointer-events-none" style={{ color: "hsl(var(--pastel-butter-fg))", opacity: 0.55 }}>
+            <SunCloud className="w-16 h-10" />
+          </div>
+          <div className="relative px-5 pt-4 pb-2">
+            <span className="font-heading text-[13px] font-semibold tracking-[-0.01em] text-foreground">
+              Today at a glance
+            </span>
+            <span className="ml-2 font-mono text-[11px]" style={{ color: "hsl(var(--subtle))" }}>
+              {formatDateDDMMMYYYY(today)}
+            </span>
+          </div>
+          <div className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+            {glanceCells.map((c, i) => (
+              <div
+                key={c.label}
+                className="px-5 py-4"
+                style={{
+                  borderTop: "1px solid hsl(var(--border))",
+                  borderLeft: i > 0 ? "1px solid hsl(var(--border))" : undefined,
+                }}
+              >
+                <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em]" style={{ color: "hsl(var(--subtle))" }}>
+                  {c.label}
+                </div>
+                <div className="mt-1.5 font-mono text-[17px] tabular-nums text-foreground">
+                  {c.value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ─── KPI ROW ─── four tiles with pastel icon chips */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {kpis.map((k) => (
             <button
               key={k.label}
               onClick={k.onClick}
               data-active={k.active || undefined}
-              className="kpi p-4 flex flex-col justify-between"
-              style={{ minHeight: 112 }}
+              className="kpi p-4 flex flex-col gap-3"
+              style={{ minHeight: 124 }}
             >
-              <MicroLabel>{k.label}</MicroLabel>
-              <div className="font-mono text-[26px] leading-none tracking-[-0.02em] tabular-nums text-foreground">
-                <span className="text-[14px] mr-1" style={{ color: "hsl(var(--muted-foreground))" }}>PKR</span>
+              <div className="flex items-center justify-between">
+                <span className={`${k.chip} inline-flex items-center justify-center h-7 w-7 rounded-lg`}>
+                  <k.Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </span>
+                <MicroLabel>{k.label}</MicroLabel>
+              </div>
+              <div className="font-mono text-[24px] leading-none tracking-[-0.02em] tabular-nums text-foreground">
+                <span className="text-[13px] mr-1" style={{ color: "hsl(var(--muted-foreground))" }}>PKR</span>
                 {fmtPkr(k.value)}
               </div>
               <div className="flex items-center justify-between">
@@ -302,7 +372,7 @@ export default function Index() {
           ))}
         </div>
 
-        {/* ─── BODY ─── 8/4 split: trend + quick actions */}
+        {/* ─── BODY ─── trend + quick actions */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
 
           {/* Daily sales · 30D */}
@@ -315,7 +385,7 @@ export default function Index() {
                 </span>
               }
             />
-            <div className="h-[200px] px-2 py-3">
+            <div className="h-[220px] px-2 py-3">
               {dailySales.length === 0 ? (
                 <EmptyState icon={TrendingUp} title="No sales data" />
               ) : (
@@ -342,8 +412,8 @@ export default function Index() {
                     />
                     <Area
                       type="monotone" dataKey="amount"
-                      stroke="hsl(var(--primary))" strokeWidth={1.5}
-                      fill="hsl(var(--primary))" fillOpacity={0.08}
+                      stroke="hsl(var(--primary))" strokeWidth={1.75}
+                      fill="hsl(var(--primary))" fillOpacity={0.10}
                       isAnimationActive={false}
                     />
                   </AreaChart>
@@ -352,7 +422,7 @@ export default function Index() {
             </div>
           </div>
 
-          {/* Quick actions */}
+          {/* Quick actions — pastel icon chips */}
           <div className="panel lg:col-span-4">
             <PanelHead
               title="Quick Actions"
@@ -368,17 +438,17 @@ export default function Index() {
                 <li key={a.label}>
                   <button
                     onClick={() => navigate(a.path)}
-                    className="group w-full flex items-center gap-3 h-9 px-4 text-left transition-colors duration-100 hover:bg-[hsl(var(--primary-soft))]"
+                    className="group w-full flex items-center gap-3 h-[42px] px-3 text-left transition-colors duration-100 hover:bg-[hsl(var(--primary-soft))]"
                     style={i > 0 ? { borderTop: "1px solid hsl(var(--border))" } : undefined}
                   >
-                    <a.icon className="h-3.5 w-3.5 shrink-0 transition-colors group-hover:text-primary"
-                      strokeWidth={1.5}
-                      style={{ color: "hsl(var(--muted-foreground))" }} />
-                    <span className="text-[12.5px] flex-1 text-foreground group-hover:text-primary">
+                    <span className={`${a.chip} inline-flex items-center justify-center h-7 w-7 rounded-lg shrink-0`}>
+                      <a.icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </span>
+                    <span className="text-[13px] flex-1 text-foreground group-hover:text-primary font-medium">
                       {a.label}
                     </span>
-                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity"
-                      strokeWidth={1.5}
+                    <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      strokeWidth={1.75}
                       style={{ color: "hsl(var(--primary))" }} />
                   </button>
                 </li>
@@ -407,10 +477,10 @@ export default function Index() {
                   <MicroLabel>Receivable</MicroLabel>
                   <span className="font-mono tabular-nums text-foreground">PKR {fmtPkr(totalReceivables)}</span>
                 </div>
-                <div className="h-[3px]" style={{ background: "hsl(var(--surface-2))" }}>
-                  <div className="h-full" style={{
+                <div className="h-[4px] rounded-full overflow-hidden" style={{ background: "hsl(var(--pastel-mint))" }}>
+                  <div className="h-full rounded-full" style={{
                     width: `${totalReceivables + totalPayables > 0 ? (totalReceivables / (totalReceivables + totalPayables)) * 100 : 0}%`,
-                    background: "hsl(var(--success))",
+                    background: "hsl(var(--pastel-mint-fg))",
                   }} />
                 </div>
               </div>
@@ -419,10 +489,10 @@ export default function Index() {
                   <MicroLabel>Payable</MicroLabel>
                   <span className="font-mono tabular-nums text-foreground">PKR {fmtPkr(totalPayables)}</span>
                 </div>
-                <div className="h-[3px]" style={{ background: "hsl(var(--surface-2))" }}>
-                  <div className="h-full" style={{
+                <div className="h-[4px] rounded-full overflow-hidden" style={{ background: "hsl(var(--pastel-peach))" }}>
+                  <div className="h-full rounded-full" style={{
                     width: `${totalReceivables + totalPayables > 0 ? (totalPayables / (totalReceivables + totalPayables)) * 100 : 0}%`,
-                    background: "hsl(var(--danger))",
+                    background: "hsl(var(--pastel-peach-fg))",
                   }} />
                 </div>
               </div>
@@ -441,7 +511,7 @@ export default function Index() {
           <div className="panel lg:col-span-4">
             <PanelHead
               title="Top Customers · MTD"
-              action={<Users className="h-3 w-3" strokeWidth={1.5} style={{ color: "hsl(var(--subtle))" }} />}
+              action={<Users className="h-3.5 w-3.5" strokeWidth={1.5} style={{ color: "hsl(var(--subtle))" }} />}
             />
             {topCustomers.length === 0 ? (
               <EmptyState icon={Users} title="No customer data" />
@@ -474,7 +544,7 @@ export default function Index() {
           <div className="panel lg:col-span-4">
             <PanelHead
               title="Top Selling · MTD"
-              action={<Flame className="h-3 w-3" strokeWidth={1.5} style={{ color: "hsl(var(--subtle))" }} />}
+              action={<Flame className="h-3.5 w-3.5" strokeWidth={1.5} style={{ color: "hsl(var(--pastel-peach-fg))" }} />}
             />
             {topSelling.length === 0 ? (
               <EmptyState icon={Flame} title="No sales this month" />
@@ -532,7 +602,12 @@ export default function Index() {
               }
             />
             {expiryAlerts.items.length === 0 ? (
-              <EmptyState icon={Clock} title="Nothing expiring in 90 days" />
+              <div className="flex flex-col items-center justify-center py-10 gap-3" style={{ color: "hsl(var(--pastel-mint-fg))" }}>
+                <EmptyBox className="w-14 h-14 opacity-80" />
+                <p className="text-[13px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  Nothing expiring in the next 90 days
+                </p>
+              </div>
             ) : (
               <Table>
                 <TableHeader>
@@ -666,7 +741,7 @@ export default function Index() {
                         {formatDateDDMMMYYYY(s.date)}
                       </div>
                     </div>
-                    <span className="font-mono text-[12px] tabular-nums" style={{ color: "hsl(var(--success))" }}>
+                    <span className="font-mono text-[12px] tabular-nums" style={{ color: "hsl(var(--pastel-mint-fg))" }}>
                       +{s.quantity.toLocaleString()}
                     </span>
                   </li>
