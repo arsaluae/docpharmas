@@ -394,6 +394,7 @@ export type Database = {
           fbr_enabled: boolean
           gst_enabled: boolean
           id: string
+          invoice_delete_grace_hours: number
           logo_url: string | null
           ntn: string | null
           phone: string | null
@@ -414,6 +415,7 @@ export type Database = {
           fbr_enabled?: boolean
           gst_enabled?: boolean
           id?: string
+          invoice_delete_grace_hours?: number
           logo_url?: string | null
           ntn?: string | null
           phone?: string | null
@@ -434,6 +436,7 @@ export type Database = {
           fbr_enabled?: boolean
           gst_enabled?: boolean
           id?: string
+          invoice_delete_grace_hours?: number
           logo_url?: string | null
           ntn?: string | null
           phone?: string | null
@@ -454,9 +457,62 @@ export type Database = {
           },
         ]
       }
+      credit_note_applications: {
+        Row: {
+          amount: number
+          created_at: string
+          credit_note_id: string
+          date: string
+          id: string
+          invoice_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          credit_note_id: string
+          date?: string
+          id?: string
+          invoice_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credit_note_id?: string
+          date?: string
+          id?: string
+          invoice_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_note_applications_credit_note_id_fkey"
+            columns: ["credit_note_id"]
+            isOneToOne: false
+            referencedRelation: "credit_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_note_applications_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_note_applications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_notes: {
         Row: {
           amount: number
+          applied_amount: number
           created_at: string
           credit_note_number: string
           date: string
@@ -471,6 +527,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          applied_amount?: number
           created_at?: string
           credit_note_number: string
           date?: string
@@ -485,6 +542,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          applied_amount?: number
           created_at?: string
           credit_note_number?: string
           date?: string
@@ -729,9 +787,62 @@ export type Database = {
           },
         ]
       }
+      debit_note_applications: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          debit_note_id: string
+          id: string
+          invoice_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          date?: string
+          debit_note_id: string
+          id?: string
+          invoice_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          debit_note_id?: string
+          id?: string
+          invoice_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debit_note_applications_debit_note_id_fkey"
+            columns: ["debit_note_id"]
+            isOneToOne: false
+            referencedRelation: "debit_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debit_note_applications_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debit_note_applications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       debit_notes: {
         Row: {
           amount: number
+          applied_amount: number
           created_at: string
           date: string
           debit_note_number: string
@@ -746,6 +857,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          applied_amount?: number
           created_at?: string
           date?: string
           debit_note_number: string
@@ -760,6 +872,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          applied_amount?: number
           created_at?: string
           date?: string
           debit_note_number?: string
@@ -1517,12 +1630,64 @@ export type Database = {
         }
         Relationships: []
       }
+      print_deliveries: {
+        Row: {
+          created_at: string
+          date: string
+          delivery_note_no: string | null
+          id: string
+          notes: string | null
+          print_job_id: string
+          qty_delivered: number
+          received_by: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          delivery_note_no?: string | null
+          id?: string
+          notes?: string | null
+          print_job_id: string
+          qty_delivered: number
+          received_by?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          delivery_note_no?: string | null
+          id?: string
+          notes?: string | null
+          print_job_id?: string
+          qty_delivered?: number
+          received_by?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_deliveries_print_job_id_fkey"
+            columns: ["print_job_id"]
+            isOneToOne: false
+            referencedRelation: "print_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_deliveries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       print_jobs: {
         Row: {
           allotted_supplier_id: string | null
           cost_per_unit: number
           created_at: string
           date: string
+          factory_name: string | null
           id: string
           job_number: string
           notes: string | null
@@ -1531,12 +1696,14 @@ export type Database = {
           printer_share_amount: number
           printer_share_percent: number
           product_id: string | null
+          purchase_order_id: string | null
           quantity_at_factory: number | null
           quantity_delivered: number
           quantity_dispatched_to_supplier: number
           quantity_ordered: number
           quantity_rejected: number
           rejection_reason: string | null
+          special_instructions: string | null
           status: string
           tenant_id: string | null
           total_cost: number
@@ -1546,6 +1713,7 @@ export type Database = {
           cost_per_unit?: number
           created_at?: string
           date?: string
+          factory_name?: string | null
           id?: string
           job_number: string
           notes?: string | null
@@ -1554,12 +1722,14 @@ export type Database = {
           printer_share_amount?: number
           printer_share_percent?: number
           product_id?: string | null
+          purchase_order_id?: string | null
           quantity_at_factory?: number | null
           quantity_delivered?: number
           quantity_dispatched_to_supplier?: number
           quantity_ordered?: number
           quantity_rejected?: number
           rejection_reason?: string | null
+          special_instructions?: string | null
           status?: string
           tenant_id?: string | null
           total_cost?: number
@@ -1569,6 +1739,7 @@ export type Database = {
           cost_per_unit?: number
           created_at?: string
           date?: string
+          factory_name?: string | null
           id?: string
           job_number?: string
           notes?: string | null
@@ -1577,12 +1748,14 @@ export type Database = {
           printer_share_amount?: number
           printer_share_percent?: number
           product_id?: string | null
+          purchase_order_id?: string | null
           quantity_at_factory?: number | null
           quantity_delivered?: number
           quantity_dispatched_to_supplier?: number
           quantity_ordered?: number
           quantity_rejected?: number
           rejection_reason?: string | null
+          special_instructions?: string | null
           status?: string
           tenant_id?: string | null
           total_cost?: number
@@ -1603,7 +1776,97 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "print_jobs_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_proformas"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "print_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      print_rejections: {
+        Row: {
+          cost_per_unit: number
+          created_at: string
+          date: string
+          debit_note_id: string | null
+          evidence_notes: string | null
+          expense_id: string | null
+          id: string
+          our_share_amount: number
+          our_share_percent: number
+          print_job_id: string
+          qty_rejected: number
+          reason: string | null
+          tenant_id: string | null
+          total_cost: number
+          vendor_share_amount: number
+        }
+        Insert: {
+          cost_per_unit?: number
+          created_at?: string
+          date?: string
+          debit_note_id?: string | null
+          evidence_notes?: string | null
+          expense_id?: string | null
+          id?: string
+          our_share_amount?: number
+          our_share_percent?: number
+          print_job_id: string
+          qty_rejected: number
+          reason?: string | null
+          tenant_id?: string | null
+          total_cost?: number
+          vendor_share_amount?: number
+        }
+        Update: {
+          cost_per_unit?: number
+          created_at?: string
+          date?: string
+          debit_note_id?: string | null
+          evidence_notes?: string | null
+          expense_id?: string | null
+          id?: string
+          our_share_amount?: number
+          our_share_percent?: number
+          print_job_id?: string
+          qty_rejected?: number
+          reason?: string | null
+          tenant_id?: string | null
+          total_cost?: number
+          vendor_share_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_rejections_debit_note_id_fkey"
+            columns: ["debit_note_id"]
+            isOneToOne: false
+            referencedRelation: "debit_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_rejections_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_rejections_print_job_id_fkey"
+            columns: ["print_job_id"]
+            isOneToOne: false
+            referencedRelation: "print_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_rejections_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1826,6 +2089,7 @@ export type Database = {
       }
       purchase_invoices: {
         Row: {
+          approved_at: string | null
           bill_number: string
           created_at: string
           date: string
@@ -1843,6 +2107,7 @@ export type Database = {
           wht_amount: number
         }
         Insert: {
+          approved_at?: string | null
           bill_number: string
           created_at?: string
           date?: string
@@ -1860,6 +2125,7 @@ export type Database = {
           wht_amount?: number
         }
         Update: {
+          approved_at?: string | null
           bill_number?: string
           created_at?: string
           date?: string
@@ -2216,6 +2482,7 @@ export type Database = {
           purchase_invoice_id: string | null
           reason: string | null
           return_number: string
+          return_reason: string | null
           status: string
           supplier_id: string | null
           tenant_id: string | null
@@ -2228,6 +2495,7 @@ export type Database = {
           purchase_invoice_id?: string | null
           reason?: string | null
           return_number: string
+          return_reason?: string | null
           status?: string
           supplier_id?: string | null
           tenant_id?: string | null
@@ -2240,6 +2508,7 @@ export type Database = {
           purchase_invoice_id?: string | null
           reason?: string | null
           return_number?: string
+          return_reason?: string | null
           status?: string
           supplier_id?: string | null
           tenant_id?: string | null
@@ -2505,6 +2774,7 @@ export type Database = {
         Row: {
           agent_id: string | null
           amount_paid: number
+          approved_at: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -2526,6 +2796,7 @@ export type Database = {
         Insert: {
           agent_id?: string | null
           amount_paid?: number
+          approved_at?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -2547,6 +2818,7 @@ export type Database = {
         Update: {
           agent_id?: string | null
           amount_paid?: number
+          approved_at?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -2653,6 +2925,7 @@ export type Database = {
           invoice_id: string | null
           reason: string | null
           return_number: string
+          return_reason: string | null
           status: string
           tenant_id: string | null
           total: number
@@ -2665,6 +2938,7 @@ export type Database = {
           invoice_id?: string | null
           reason?: string | null
           return_number: string
+          return_reason?: string | null
           status?: string
           tenant_id?: string | null
           total?: number
@@ -2677,6 +2951,7 @@ export type Database = {
           invoice_id?: string | null
           reason?: string | null
           return_number?: string
+          return_reason?: string | null
           status?: string
           tenant_id?: string | null
           total?: number
@@ -3227,6 +3502,10 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_invoice_with_grace: {
+        Args: { p_id: string; p_reason: string; p_table: string }
+        Returns: undefined
+      }
       generate_document_number: {
         Args: { p_document_type: string }
         Returns: string
@@ -3240,9 +3519,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      invoice_delete_grace_remaining: {
+        Args: { p_id: string; p_table: string }
+        Returns: string
+      }
       is_authenticated: { Args: never; Returns: boolean }
       recalc_customer_invoice_status: {
         Args: { p_customer_id: string }
+        Returns: undefined
+      }
+      recalc_note_applied: {
+        Args: { p_kind: string; p_note_id: string }
         Returns: undefined
       }
       recalc_supplier_invoice_status: {
