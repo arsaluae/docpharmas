@@ -486,7 +486,13 @@ export default function Index() {
                     onMouseEnter={(e) => (e.currentTarget.style.borderColor = "hsl(var(--brand-blue))")}
                     onMouseLeave={(e) => (e.currentTarget.style.borderColor = "hsl(var(--border))")}
                   >
-                    <a.icon className="h-3.5 w-3.5" strokeWidth={1.75} style={{ color: "hsl(var(--brand-blue))" }} />
+                    <span className="inline-flex items-center justify-center h-6 w-6 shrink-0"
+                      style={{
+                        background: `color-mix(in srgb, ${a.color} 10%, transparent)`,
+                        border: `1px solid color-mix(in srgb, ${a.color} 30%, transparent)`,
+                      }}>
+                      <a.icon className="h-3 w-3" strokeWidth={1.75} style={{ color: a.color }} />
+                    </span>
                     <span className="flex-1">{a.label}</span>
                     <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity"
                       strokeWidth={1.75} style={{ color: "hsl(var(--brand-blue))" }} />
