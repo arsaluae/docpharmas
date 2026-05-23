@@ -20,6 +20,7 @@ const reportSections = [
     { title: "Cash Flow", desc: "Cash inflows & outflows", url: "/reports/cash-flow", icon: BarChart3, color: "text-warning" },
     { title: "Daily Cash Position", desc: "Live bank balances & 30-day flow", url: "/reports/daily-cash", icon: Wallet, color: "text-primary" },
     { title: "Accounting Periods", desc: "Lock periods to prevent backdated edits", url: "/accounting/periods", icon: Lock, color: "text-destructive" },
+    { title: "Audit Log", desc: "Immutable record of every action (who/what/when)", url: "/audit-log", icon: History, color: "text-primary" },
   ]},
   { label: "Receivables & Payables", items: [
     { title: "Receivables Aging", desc: "Outstanding customer balances", url: "/reports/receivables", icon: Clock, color: "text-warning" },
