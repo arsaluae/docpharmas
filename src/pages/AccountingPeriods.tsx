@@ -64,6 +64,7 @@ export default function AccountingPeriods() {
       .update({ is_locked: true, locked_at: new Date().toISOString(), lock_reason: reason || null })
       .eq("id", id);
     if (error) { toast.error(error.message); return; }
+    logAudit({ action: "period_locked", entity_type: "accounting_period", entity_id: id, changes: { reason } });
     toast.success("Period locked");
     setReasonOpen(null); setLockReasonDraft(""); load();
   };
@@ -73,6 +74,7 @@ export default function AccountingPeriods() {
       .update({ is_locked: false, locked_at: null, lock_reason: null })
       .eq("id", id);
     if (error) { toast.error(error.message); return; }
+    logAudit({ action: "period_unlocked", entity_type: "accounting_period", entity_id: id });
     toast.success("Period unlocked");
     load();
   };
