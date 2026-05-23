@@ -530,8 +530,8 @@ export default function PurchaseProforma() {
  bill_number: billNumber, supplier_id: order.supplier_id,
  date: po.date, subtotal: Number(order.subtotal), gst: Number(order.gst),
  wht_amount: whtAmount, total: netTotal, status: "unpaid",
- }).select("id").single();
- if (bill) createdBillId = bill.id;
+  }).select("id").single();
+  if (bill) { createdBillId = bill.id; logAudit({ action: "invoice_generated", entity_type: "purchase_invoice", entity_id: bill.id, entity_number: billNumber, changes: { total: netTotal, supplier_id: order.supplier_id } }); }
  }
  } catch { /* bill generation is best-effort */ }
 
