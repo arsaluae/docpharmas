@@ -93,7 +93,24 @@ export default function ProformaInvoices() {
  const [editDate, setEditDate] = useState("");
  const [editValidity, setEditValidity] = useState("30");
  const [editPaymentInstr, setEditPaymentInstr] = useState("");
- const [editItems, setEditItems] = useState<ProformaItem[]>([]);
+  const [editItems, setEditItems] = useState<ProformaItem[]>([]);
+
+  // Draft autosave for the Create Sales Order form
+  const { tenantId } = useTenant();
+  const draftKey = `sales-order:${tenantId ?? "anon"}`;
+  const { existingDraft, save: saveDraft, clear: clearDraft } = useDraftAutosave<{
+    customerId: string; pfDate: string; validityDays: string;
+    paymentInstructions: string; agentId: string; items: ProformaItem[];
+  }>({ key: draftKey, enabled: createOpen });
+  const [draftDismissed, setDraftDismissed] = useState(false);
+
+  // Persist on field change (debounced inside the hook)
+  useEffect(() => {
+    if (!createOpen) return;
+    const hasContent = !!customerId || items.length > 0 || !!paymentInstructions;
+    if (!hasContent) return;
+    saveDraft({ customerId, pfDate, validityDays, paymentInstructions, agentId, items });
+  }, [createOpen, customerId, pfDate, validityDays, paymentInstructions, agentId, items, saveDraft]);
 
  // Submit (convert) dialog
  const [submitOpen, setSubmitOpen] = useState(false);
