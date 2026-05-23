@@ -819,12 +819,33 @@ function TeamAccessCard() {
 
  {!showForm ? (
  <Button onClick={() => setShowForm(true)} size="sm">
- <Plus className="h-4 w-4 mr-1" /> Add Sales User
+ <Plus className="h-4 w-4 mr-1" /> Add Team Member
  </Button>
  ) : (
  <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
- <ShieldCheck className="h-4 w-4 text-primary" /> New sales-only user
+ <ShieldCheck className="h-4 w-4 text-primary" /> New team member
+ </div>
+ <div>
+ <Label className="text-xs">Role</Label>
+ <div className="grid grid-cols-2 gap-2 mt-1">
+ <button
+ type="button"
+ onClick={() => setNewRole("owner")}
+ className={`text-left rounded-md border px-3 py-2 transition-colors ${newRole === "owner" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
+ >
+ <div className="text-sm font-medium">Admin</div>
+ <div className="text-[11px] text-muted-foreground mt-0.5">Full access to every module, settings & reports.</div>
+ </button>
+ <button
+ type="button"
+ onClick={() => setNewRole("staff")}
+ className={`text-left rounded-md border px-3 py-2 transition-colors ${newRole === "staff" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
+ >
+ <div className="text-sm font-medium">Sales</div>
+ <div className="text-[11px] text-muted-foreground mt-0.5">Sales modules + read-only Products & Stock.</div>
+ </button>
+ </div>
  </div>
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <div>
@@ -833,7 +854,7 @@ function TeamAccessCard() {
  type="email"
  value={newEmail}
  onChange={(e) => setNewEmail(e.target.value)}
- placeholder="sales@company.com"
+ placeholder={newRole === "owner" ? "admin@company.com" : "sales@company.com"}
  />
  </div>
  <div>
@@ -847,15 +868,16 @@ function TeamAccessCard() {
  </div>
  </div>
  <p className="text-xs text-muted-foreground">
- Sales users only see Customers, Sales Orders, Sales Invoices, Delivery Notes,
- Returns and Payments-received. They cannot access Purchase, Reports or Settings.
- The 2-login cap is enforced per workspace.
+ {newRole === "owner"
+ ? "Admins can access every module, manage settings, users and accounting periods."
+ : "Sales users see Customers, Sales Orders, Warranty Invoices, Returns and read-only Products & Stock. They cannot access Purchase, Finance, Reports or Settings."}
+ {" "}Workspace cap is enforced per plan.
  </p>
  <div className="flex gap-2">
  <Button size="sm" onClick={handleAdd} disabled={adding}>
- {adding ? "Creating…" : "Create user"}
+ {adding ? "Creating…" : `Create ${newRole === "owner" ? "admin" : "sales"} user`}
  </Button>
- <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setNewEmail(""); setNewPassword(""); }}>
+ <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setNewEmail(""); setNewPassword(""); setNewRole("staff"); }}>
  Cancel
  </Button>
  </div>
