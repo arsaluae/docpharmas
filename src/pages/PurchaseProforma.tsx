@@ -708,11 +708,12 @@ export default function PurchaseProforma() {
  const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
  const whtAmount = settings?.wht_enabled ? Number(poData.subtotal) * whtRate / 100 : 0;
  const netTotal = Number(poData.subtotal) + Number(poData.gst) - whtAmount;
- await supabase.from("purchase_invoices").insert({
- bill_number: billNumber, supplier_id: poData.supplier_id, grn_id: grn.id,
- date: grn.date, subtotal: Number(poData.subtotal), gst: Number(poData.gst),
- wht_amount: whtAmount, total: netTotal, status: "unpaid",
- });
+  await supabase.from("purchase_invoices").insert({
+  bill_number: billNumber, supplier_id: poData.supplier_id, grn_id: grn.id,
+  date: grn.date, subtotal: Number(poData.subtotal), gst: Number(poData.gst),
+  wht_amount: whtAmount, total: netTotal, status: "unpaid",
+  });
+  logAudit({ action: "invoice_generated", entity_type: "purchase_invoice", entity_number: billNumber, changes: { total: netTotal, grn_id: grn.id, supplier_id: poData.supplier_id } });
  toast.success(`GRN ${grnNumber} + Bill ${billNumber} created`, {
  action: { label: "Create Print Job", onClick: () => navigate(`/print-jobs?from_grn=1`) },
  });
