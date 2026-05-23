@@ -803,11 +803,15 @@ function TeamAccessCard() {
  Joined {new Date(m.created_at).toLocaleDateString()}
  </p>
  </div>
- {m.role !== "owner" && m.user_id !== meId && (
- <Button size="sm" variant="outline" onClick={() => handleToggle(m)}>
+ {m.user_id !== meId && (() => {
+ const activeAdmins = members.filter(x => x.role === "owner" && x.is_active).length;
+ const isLastAdmin = m.role === "owner" && m.is_active && activeAdmins <= 1;
+ return (
+ <Button size="sm" variant="outline" disabled={isLastAdmin} onClick={() => handleToggle(m)} title={isLastAdmin ? "Cannot deactivate the last admin" : ""}>
  {m.is_active ? "Deactivate" : "Reactivate"}
  </Button>
- )}
+ );
+ })()}
  </div>
  ))}
  </div>
