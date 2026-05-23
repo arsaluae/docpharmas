@@ -921,8 +921,8 @@ export default function ProformaInvoices() {
  {existingDraft && !draftDismissed && items.length === 0 && !customerId && (
    <div className="mt-3 flex items-center justify-between gap-3 border border-border bg-foreground/[0.03] px-3 py-2 text-[12px]">
      <span className="text-muted-foreground">
-       Unsaved draft from {formatDateDDMMMYYYY(new Date(existingDraft.savedAt).toISOString().split("T")[0])} ·{" "}
-       {new Date(existingDraft.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+       Unsaved draft · saved{" "}
+       {new Date(existingDraft.savedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
      </span>
      <div className="flex gap-2">
        <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]"
