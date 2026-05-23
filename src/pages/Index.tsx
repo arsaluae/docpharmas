@@ -350,7 +350,18 @@ export default function Index() {
               className="group relative text-left px-6 py-7 transition-colors duration-150"
               style={{ background: "hsl(var(--card))" }}
             >
-              <div className="mb-4"><MicroLabel>{k.label}</MicroLabel></div>
+              <div className="mb-4 flex items-start justify-between gap-2">
+                <MicroLabel>{k.label}</MicroLabel>
+                {k.icon && (
+                  <span className="inline-flex items-center justify-center h-6 w-6 shrink-0"
+                    style={{
+                      background: `color-mix(in srgb, ${k.rail} 10%, transparent)`,
+                      border: `1px solid color-mix(in srgb, ${k.rail} 35%, transparent)`,
+                    }}>
+                    <k.icon className="h-3 w-3" strokeWidth={1.75} style={{ color: k.rail }} />
+                  </span>
+                )}
+              </div>
               <div className="font-mono text-[26px] leading-none tabular-nums font-medium"
                 style={{ color: "hsl(var(--brand-navy))" }}>
                 <span className="text-[13px] mr-1.5 align-baseline" style={{ color: "hsl(var(--muted-foreground))" }}>PKR</span>
@@ -359,7 +370,7 @@ export default function Index() {
               <div className="mt-3 flex items-center gap-2">
                 {k.delta !== null && (
                   <span className="inline-flex items-center gap-0.5 font-mono text-[11px] font-bold"
-                    style={{ color: k.delta >= 0 ? "hsl(var(--brand-blue))" : "hsl(var(--danger))" }}>
+                    style={{ color: k.delta >= 0 ? "hsl(var(--success))" : "hsl(var(--danger))" }}>
                     {k.delta >= 0 ? <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
                                   : <ArrowDownRight className="h-3 w-3" strokeWidth={2} />}
                     {k.delta >= 0 ? "+" : ""}{k.delta.toFixed(1)}%
@@ -369,10 +380,8 @@ export default function Index() {
                   {k.footnote}
                 </span>
               </div>
-              {/* 2px brand-blue accent rail on the hero KPI */}
-              {k.isPrimary && (
-                <div className="absolute left-0 top-0 bottom-0 w-[2px]" style={{ background: "hsl(var(--brand-blue))" }} />
-              )}
+              {/* 2px colored accent rail per metric */}
+              <div className="absolute left-0 top-0 bottom-0 w-[2px]" style={{ background: k.rail }} />
             </button>
           ))}
         </div>
