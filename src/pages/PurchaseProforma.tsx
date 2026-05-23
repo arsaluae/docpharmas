@@ -833,10 +833,11 @@ export default function PurchaseProforma() {
  await supabase.from("additional_costs").delete().eq("reference_type", "purchase_order").eq("reference_id", poId);
  await supabase.from("purchase_orders").delete().eq("id", poId);
  // 5. Reset proforma to draft
- await supabase.from("purchase_proformas").update({ status: "draft", converted_po_id: null }).eq("id", voidOrder.id);
- toast.success(`Order ${voidOrder.proforma_number} voided — PO, bill, delivery note & stock reversed`);
- setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); load();
- };
+  await supabase.from("purchase_proformas").update({ status: "draft", converted_po_id: null }).eq("id", voidOrder.id);
+  logAudit({ action: "voided", entity_type: "purchase_invoice", entity_number: voidOrder.proforma_number, changes: { reason: "void from order page" } });
+  toast.success(`Order ${voidOrder.proforma_number} voided — PO, bill, delivery note & stock reversed`);
+  setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); load();
+  };
 
  // ── DELETE ──
  const promptDelete = (ids: string[]) => { setDeleteIds(ids); setDeleteConfirmOpen(true); };
