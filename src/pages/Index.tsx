@@ -39,10 +39,11 @@ const MicroLabel = ({ children, className = "" }: { children: React.ReactNode; c
   </span>
 );
 
-const PanelHead = ({ title, action }: { title: string; action?: React.ReactNode }) => (
+const PanelHead = ({ title, action, accent }: { title: string; action?: React.ReactNode; accent?: string }) => (
   <div className="flex items-center justify-between px-5 h-11 border-b" style={{ borderColor: "hsl(var(--border))" }}>
-    <span className="font-heading text-[12.5px] font-semibold uppercase tracking-[0.15em]"
+    <span className="font-heading text-[12.5px] font-semibold uppercase tracking-[0.15em] inline-flex items-center gap-2.5"
       style={{ color: "hsl(var(--foreground))" }}>
+      {accent && <span className="h-2 w-2" style={{ background: accent }} />}
       {title}
     </span>
     {action}
