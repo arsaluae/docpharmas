@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { logAudit } from "@/lib/audit";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
