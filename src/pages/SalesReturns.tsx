@@ -42,7 +42,17 @@ export default function SalesReturns() {
   const [dateRange, setDateRange] = useState("all");
   const pagination = usePagination();
 
+  const bulk = useBulkSelection();
+
   useEffect(() => { loadData(); }, [pagination.page]);
+
+  const deleteOne = async (id: string) => {
+    // Delete child stock movements first so balance trigger reverses cleanly
+    await supabase.from("stock_movements").delete().eq("reference_type", "sales_return").eq("reference_id", id);
+    await supabase.from("sales_return_items").delete().eq("return_id", id);
+    const { error } = await supabase.from("sales_returns").delete().eq("id", id);
+    if (error) throw error;
+  };
 
   const loadData = async () => {
     setLoading(true);
