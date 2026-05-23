@@ -471,7 +471,7 @@ export default function Index() {
           <div className="lg:col-span-4 space-y-8">
             {/* Quick actions */}
             <div>
-              <div className="mb-5"><MicroLabel>Quick Actions</MicroLabel></div>
+              <div className="mb-5"><MicroLabel accent="hsl(var(--brand-blue))">Quick Actions</MicroLabel></div>
               <div className="space-y-2">
                 {quickActions.slice(0, 4).map((a) => (
                   <button
