@@ -61,6 +61,14 @@
     --sidebar-border: 240 5% 14%;
     --sidebar-ring: 244 75% 59%;
 
+    /* Playful pastel palette — flat soft chips, no gradients */
+    --pastel-peach: 22 100% 93%;     --pastel-peach-fg: 18 63% 44%;
+    --pastel-mint: 138 50% 91%;      --pastel-mint-fg: 150 44% 33%;
+    --pastel-sky: 211 79% 92%;       --pastel-sky-fg: 211 50% 36%;
+    --pastel-lilac: 251 79% 93%;     --pastel-lilac-fg: 248 47% 53%;
+    --pastel-butter: 47 89% 90%;     --pastel-butter-fg: 36 50% 36%;
+    --pastel-blush: 338 79% 93%;     --pastel-blush-fg: 339 44% 48%;
+
     /* Legacy aliases — no-ops */
     --pharma-teal: 244 75% 59%;
     --pharma-violet: 244 75% 59%;
@@ -68,6 +76,7 @@
     --medical-cyan: 211 50% 36%;
     --medical-cyan-foreground: 0 0% 100%;
   }
+
 
   .dark {
     /* Surfaces — near-black, not pure */
@@ -194,6 +203,20 @@
   .kpi[data-active="true"] {
     border-left: 2px solid hsl(var(--primary));
   }
+
+  /* Pastel chips — for icon backgrounds & playful labels */
+  .chip-peach  { background: hsl(var(--pastel-peach));  color: hsl(var(--pastel-peach-fg)); }
+  .chip-mint   { background: hsl(var(--pastel-mint));   color: hsl(var(--pastel-mint-fg)); }
+  .chip-sky    { background: hsl(var(--pastel-sky));    color: hsl(var(--pastel-sky-fg)); }
+  .chip-lilac  { background: hsl(var(--pastel-lilac));  color: hsl(var(--pastel-lilac-fg)); }
+  .chip-butter { background: hsl(var(--pastel-butter)); color: hsl(var(--pastel-butter-fg)); }
+  .chip-blush  { background: hsl(var(--pastel-blush));  color: hsl(var(--pastel-blush-fg)); }
+
+  /* Soft pastel washes — for hero/empty-state backgrounds */
+  .wash-butter { background: hsl(var(--pastel-butter) / 0.5); }
+  .wash-mint   { background: hsl(var(--pastel-mint) / 0.5); }
+  .wash-sky    { background: hsl(var(--pastel-sky) / 0.5); }
+
 
   /* Legacy vibrant classes → flattened to nothing.
      Kept as no-ops so existing JSX doesn't break. */
