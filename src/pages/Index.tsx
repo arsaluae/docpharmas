@@ -295,12 +295,15 @@ export default function Index() {
 
         {/* ─── HERO ─── eyebrow + greeting + date */}
         <header className="flex items-end justify-between gap-6 flex-wrap pb-2">
-          <div>
-            <div className="mb-3"><Eyebrow>Overview Dashboard</Eyebrow></div>
-            <h1 className="font-heading text-[40px] sm:text-[44px] leading-[1.05] font-semibold tracking-[-0.025em]"
-              style={{ color: "hsl(var(--brand-navy))" }}>
-              {greetingFor(today)}, {firstName}.
-            </h1>
+          <div className="flex gap-4">
+            <div className="w-[2px] mt-2 mb-1 self-stretch" style={{ background: "hsl(var(--brand-blue))" }} />
+            <div>
+              <div className="mb-3"><Eyebrow>Overview Dashboard</Eyebrow></div>
+              <h1 className="font-heading text-[40px] sm:text-[44px] leading-[1.05] font-semibold tracking-[-0.025em]"
+                style={{ color: "hsl(var(--brand-navy))" }}>
+                {greetingFor(today)}, {firstName}.
+              </h1>
+            </div>
           </div>
           <div className="text-right">
             <div className="text-[13px] font-medium" style={{ color: "hsl(var(--brand-navy))" }}>
