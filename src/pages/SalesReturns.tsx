@@ -93,8 +93,10 @@ export default function SalesReturns() {
         amount: total, reason: reason || `Sales Return ${num}`, reference: num,
         date: new Date().toISOString().split("T")[0],
       });
+      logAudit({ action: "credit_note_issued", entity_type: "credit_note", entity_number: cnNumber, changes: { from_return: num, amount: total, party: "customer" } });
     }
 
+    logAudit({ action: "return_raised", entity_type: "sales_return", entity_id: sr.id, entity_number: num, changes: { reason, total, invoice_id: invoiceId || null } });
     toast.success(`Sales Return ${num} created — Credit Note auto-issued`);
     setOpen(false); setCustomerId(""); setInvoiceId(""); setReason("");
     setItems([{ product_id: "", product_name: "", batch_number: "", quantity: "1", rate: "0" }]);
