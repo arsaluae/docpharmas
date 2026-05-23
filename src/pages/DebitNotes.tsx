@@ -18,15 +18,16 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, FileText, Trash2, Users, Truck } from "lucide-react";
+import { Plus, Search, FileText, Trash2, Users, Truck, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { ApplyNoteDialog } from "@/components/ApplyCreditNoteDialog";
 
 interface Party { id: string; name: string; company?: string | null; }
 interface DebitNote {
   id: string; debit_note_number: string; party_type: string; party_id: string;
   date: string; amount: number; reason: string | null; reference: string | null;
-  notes: string | null; status: string; created_at: string;
+  notes: string | null; status: string; created_at: string; applied_amount?: number;
 }
 
 export default function DebitNotes() {
@@ -37,6 +38,7 @@ export default function DebitNotes() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [applyNote, setApplyNote] = useState<DebitNote | null>(null);
   const pagination = usePagination();
 
   const [partyType, setPartyType] = useState("supplier");
