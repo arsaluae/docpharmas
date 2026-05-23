@@ -716,28 +716,37 @@ function TeamAccessCard() {
  toast.error("Email and a password of at least 6 characters are required");
  return;
  }
- setAdding(true);
- try {
- const { data, error } = await supabase.functions.invoke("manage-tenant", {
- body: {
- action: "owner_create_user",
- tenant_id: tenantId,
- email: newEmail.trim(),
- password: newPassword,
- role: newRole,
- },
- });
- if (error) throw new Error(error.message || "Could not create user");
- if (data?.error) throw new Error(data.error);
- toast.success(newRole === "owner" ? "Admin user created" : "Sales user created");
- setNewEmail(""); setNewPassword(""); setNewRole("staff"); setShowForm(false);
- await load();
- } catch (err: any) {
- toast.error(err.message);
- } finally {
- setAdding(false);
- }
- };
+    setAdding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-tenant", {
+        body: {
+          action: "owner_create_user",
+          tenant_id: tenantId,
+          email: newEmail.trim(),
+          password: newPassword,
+          role: newRole,
+        },
+      });
+      // Surface real server-side error message (FunctionsHttpError hides body)
+      if (error) {
+        let serverMsg = error.message || "Could not create user";
+        try {
+          const body = await (error as any).context?.json?.();
+          if (body?.error) serverMsg = body.error;
+        } catch { /* ignore */ }
+        throw new Error(serverMsg);
+      }
+      if (data?.error) throw new Error(data.error);
+      toast.success(newRole === "owner" ? "Admin user created" : "Sales user created");
+      setNewEmail(""); setNewPassword(""); setNewRole("staff"); setShowForm(false);
+      await load();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setAdding(false);
+    }
+  };
+
 
  const handleToggle = async (m: TenantMember) => {
  if (!tenantId) return;
@@ -750,14 +759,22 @@ function TeamAccessCard() {
  is_active: !m.is_active,
  },
  });
- if (error) throw new Error(error.message);
- if (data?.error) throw new Error(data.error);
- toast.success(m.is_active ? "User deactivated" : "User reactivated");
- await load();
- } catch (err: any) {
- toast.error(err.message);
- }
- };
+      if (error) {
+        let serverMsg = error.message;
+        try {
+          const body = await (error as any).context?.json?.();
+          if (body?.error) serverMsg = body.error;
+        } catch { /* ignore */ }
+        throw new Error(serverMsg);
+      }
+      if (data?.error) throw new Error(data.error);
+      toast.success(m.is_active ? "User deactivated" : "User reactivated");
+      await load();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
 
  return (
  <div className="space-y-6">
