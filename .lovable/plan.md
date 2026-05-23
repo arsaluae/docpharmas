@@ -1,71 +1,58 @@
-## Goal
-The Dashboard currently reads as one flat tone of navy on off-white. Add restrained, meaningful color — never neon, never washes covering whole cards — so each section has its own quiet identity and the eye knows where to land. Scope is **`src/pages/Index.tsx`** only.
+# Performance & Reliability Fixes
 
-## Design rules (still locked)
-- No gradients, no glass, no shadows, no rounded-2xl pillows.
-- Color is used as **signal**, not decoration. Each color earns its place.
-- Hairlines stay 1px `--border`. Radius stays 4–6px. Typography unchanged.
+Implement the 4 recommendations from the test report.
 
-## Color system on the dashboard
-Reuse existing tokens only — no new hex:
-- `--brand-blue` (MOUJ light blue) → primary metric, trend "today" bar, live indicator
-- `--brand-navy` → headings/numbers (unchanged)
-- `--success` (muted green) → collections, positive deltas, in-stock
-- `--warning` (muted amber) → expiring 30–60d, low stock soon
-- `--danger` (muted red) → overdue, expired, critical reorder
-- `--info` / soft violet token → upcoming POs / scheduled
-- `--subtle` → secondary copy (unchanged)
+## 1. TenantContext — cache tenant lookup (kills 1–1.5s per navigation)
 
-Apply each as: **2px left rail + tiny tinted icon chip (24px, color/10 background, color/40 border) + colored numeric value where it's a signal**. Card body stays `bg-card`.
+Currently every page that needs `tenant_id` or role re-queries `tenant_users`. We'll add a single provider that fetches once per session.
 
-## Per-section changes
+- New file: `src/contexts/TenantContext.tsx`
+  - Fetches `tenant_users` once on auth state change
+  - Exposes `{ tenantId, role, companyName, loading }` via `useTenant()`
+  - Caches result in `sessionStorage` keyed by user id for instant warm reloads
+- Mount `<TenantProvider>` inside `App.tsx` above the router (under existing auth provider)
+- Update the 4–5 highest-traffic call sites that currently do their own `tenant_users` fetch (AppLayout, Index/dashboard, ProtectedRoute) to consume `useTenant()` instead. Leave other pages on their existing pattern for now — they'll naturally hit the cached `sessionStorage` value when they re-fetch since RLS is unchanged.
 
-**1. Glance strip**
-- Today sold → blue dot + `--brand-blue` value
-- Today collected → success dot + `--success` value
-- Open POs → info dot + `--info` value
-- Needs attention → danger dot + `--danger` value (already red)
-- Dot replaces the vertical hairline separator between items so the strip reads as 4 colored signals on a hairline rail.
+## 2. Lazy-load Recharts on the dashboard
 
-**2. KPI grid (4 tiles)**
-Each tile gets a 2px left rail in its semantic color + matching 24px icon chip top-right:
-- MTD Sales → `--brand-blue` (primary, already has rail) + TrendingUp chip
-- Receivables → `--success` rail + Wallet chip (money owed *to* us)
-- Payables → `--warning` rail + CreditCard chip (money we owe)
-- Gross Profit → `--info` rail + Flame chip
-Numbers stay navy mono. Delta pill keeps blue/red.
+Recharts is ~220 KB and currently blocks initial paint of `/dashboard`. Split the trend bar chart into its own module and load it lazily.
 
-**3. 30-Day trend bars**
-- Default bars: `--brand-navy / 18` (current flat)
-- Today's bar: solid `--brand-blue`
-- Highest bar of the month: `--brand-blue / 40` (subtle peak highlight)
-- Hover bar: `--brand-blue / 70`
-- Grid line at average: 1px dashed `--brand-blue / 30` with a tiny "Avg" tag
+- New file: `src/components/dashboard/PerformanceTrendChart.tsx` — move the existing Recharts `<BarChart>` JSX out of `src/pages/Index.tsx`
+- In `Index.tsx`, replace the inline chart with `const PerformanceTrendChart = lazy(() => import("@/components/dashboard/PerformanceTrendChart"))` wrapped in `<Suspense fallback={<div className="h-[180px]" />}>`
+- Visual output unchanged
 
-**4. Sidebar panels (right column)**
-Each panel header gets a single 8px colored square before the title (color-coded by domain):
-- Reorder Alerts → `--danger`
-- Expiring Batches → `--warning`
-- Top Selling → `--success`
-- Top Customers → `--brand-blue`
-- Recent Stock In → `--info`
-Row severity dots already exist; keep them, just ensure they use the same token mapping.
+## 3. Realtime on stock_movements + sales_invoices + payments
 
-**5. Quick Actions row**
-Currently uniform. Give each action a tiny 1px hover ring in `--brand-blue / 30` and a 16px icon in its domain color (Sales=blue, Purchase=info, Payment=success, Warranty=navy, Inventory=warning, Expense=danger, Credit=muted). No background fills — just the icon picks up color, label stays navy.
+So two-tab edits (the test case) reflect immediately without refresh.
 
-**6. Hero greeting**
-Add a single 2px × 28px `--brand-blue` accent bar to the left of the greeting H1. One pixel of color anchors the page.
+- Migration: `ALTER PUBLICATION supabase_realtime ADD TABLE public.stock_movements, public.sales_invoices, public.payments;`
+- Also set `REPLICA IDENTITY FULL` on those three tables
+- No client code changes required for this step — existing subscriptions will start receiving events. (Pages that want live updates can opt in later.)
+
+## 4. Invoice draft autosave (Sales Invoice form)
+
+Prevents the "refresh mid-form = data lost" failure mode for the most painful form.
+
+- Locate the Sales Invoice creation form (under `src/pages/` or `src/components/sales/`)
+- Add a `useEffect` that debounces (1s) and writes the current form state to `localStorage` under `draft:sales-invoice:<tenantId>`
+- On mount, if a draft exists and the form is empty, show a small inline banner: "Restore unsaved draft from {time}?" with Restore / Discard buttons
+- Clear the draft key on successful submit or on explicit Discard
 
 ## Out of scope
-- Other pages, components, sidebar chrome, dialogs.
-- New tokens, new fonts, new layouts.
-- Backend, data, business logic.
 
-## Files
-- `src/pages/Index.tsx` (only file edited)
+- Changing RLS, schema beyond the publication change
+- Touching other forms (PO, GRN) — same pattern can be applied later if useful
+- Production bundling/CDN changes (those happen automatically on publish)
+
+## Files touched (estimate)
+
+- New: `src/contexts/TenantContext.tsx`, `src/components/dashboard/PerformanceTrendChart.tsx`
+- Edited: `src/App.tsx`, `src/components/AppLayout.tsx`, `src/pages/Index.tsx`, the Sales Invoice form file, possibly `ProtectedRoute`
+- Migration: 1 SQL file (publication + replica identity)
 
 ## Verification
-- Visual: page reads with 5–6 distinct quiet colors, none dominating, no card has a colored background fill.
-- `rg "bg-gradient|shadow-xl|rounded-2xl|rounded-3xl"` in Index.tsx → 0 hits.
-- All colors via `hsl(var(--token))` — no raw hex added.
+
+- Reload `/dashboard` cold → confirm `tenant_users` fetch fires once, not on every nav
+- Network panel: Recharts chunk loaded as separate async chunk
+- Open two tabs, change stock in one → second tab updates without refresh (if subscribed) or at minimum on next refresh continues working
+- Fill 3 sales-invoice lines, refresh → restore banner appears
