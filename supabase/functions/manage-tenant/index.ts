@@ -237,6 +237,75 @@ Deno.serve(async (req) => {
       });
     }
 
+    // list_tenant_users: return { user_id, email } for current tenant (owner-only)
+    if (action === "list_tenant_users") {
+      const { tenant_id } = body;
+      if (!tenant_id) {
+        return new Response(JSON.stringify({ error: "Missing tenant_id" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: isAdminL } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      const { data: ownerL } = await supabaseAdmin
+        .from("tenant_users").select("role")
+        .eq("user_id", user.id).eq("tenant_id", tenant_id).eq("is_active", true).single();
+      if (!isAdminL && ownerL?.role !== "owner") {
+        return new Response(JSON.stringify({ error: "Only tenant owners can view team emails" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: tus } = await supabaseAdmin
+        .from("tenant_users").select("user_id").eq("tenant_id", tenant_id);
+      const results: { user_id: string; email: string | null }[] = [];
+      for (const t of tus || []) {
+        const { data: au } = await supabaseAdmin.auth.admin.getUserById(t.user_id);
+        results.push({ user_id: t.user_id, email: au?.user?.email ?? null });
+      }
+      return new Response(JSON.stringify({ users: results }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // owner_reset_password: owner-only; set a sub-user's password
+    if (action === "owner_reset_password") {
+      const { tenant_id, user_id: target_user_id, new_password } = body;
+      if (!tenant_id || !target_user_id || !new_password || new_password.length < 6) {
+        return new Response(JSON.stringify({ error: "Missing fields or password too short (min 6)" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: isAdminR } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      const { data: ownerR } = await supabaseAdmin
+        .from("tenant_users").select("role")
+        .eq("user_id", user.id).eq("tenant_id", tenant_id).eq("is_active", true).single();
+      if (!isAdminR && ownerR?.role !== "owner") {
+        return new Response(JSON.stringify({ error: "Only tenant owners can reset passwords" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: targetTU } = await supabaseAdmin
+        .from("tenant_users").select("user_id")
+        .eq("tenant_id", tenant_id).eq("user_id", target_user_id).single();
+      if (!targetTU) {
+        return new Response(JSON.stringify({ error: "User is not part of this workspace" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(target_user_id, {
+        password: new_password,
+      });
+      if (updErr) {
+        return new Response(JSON.stringify({ error: updErr.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+
+
     // All remaining actions require admin role
     const { data: isAdmin } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "admin" });
     if (!isAdmin) {
