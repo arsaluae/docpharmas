@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { logAudit } from "@/lib/audit";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -87,6 +88,7 @@ export default function DebitNotes() {
     });
 
     if (error) { toast.error("Failed to save: " + error.message); return; }
+    logAudit({ action: "debit_note_issued", entity_type: "debit_note", entity_number: dnNumber, changes: { party_type: partyType, party_id: partyId, amount: Number(amount), reason } });
     toast.success(`Debit Note ${dnNumber} created`);
     resetForm(); load();
   };

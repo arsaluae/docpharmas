@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { logAudit } from "@/lib/audit";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -529,8 +530,8 @@ export default function PurchaseProforma() {
  bill_number: billNumber, supplier_id: order.supplier_id,
  date: po.date, subtotal: Number(order.subtotal), gst: Number(order.gst),
  wht_amount: whtAmount, total: netTotal, status: "unpaid",
- }).select("id").single();
- if (bill) createdBillId = bill.id;
+  }).select("id").single();
+  if (bill) { createdBillId = bill.id; logAudit({ action: "invoice_generated", entity_type: "purchase_invoice", entity_id: bill.id, entity_number: billNumber, changes: { total: netTotal, supplier_id: order.supplier_id } }); }
  }
  } catch { /* bill generation is best-effort */ }
 
@@ -707,11 +708,12 @@ export default function PurchaseProforma() {
  const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
  const whtAmount = settings?.wht_enabled ? Number(poData.subtotal) * whtRate / 100 : 0;
  const netTotal = Number(poData.subtotal) + Number(poData.gst) - whtAmount;
- await supabase.from("purchase_invoices").insert({
- bill_number: billNumber, supplier_id: poData.supplier_id, grn_id: grn.id,
- date: grn.date, subtotal: Number(poData.subtotal), gst: Number(poData.gst),
- wht_amount: whtAmount, total: netTotal, status: "unpaid",
- });
+  await supabase.from("purchase_invoices").insert({
+  bill_number: billNumber, supplier_id: poData.supplier_id, grn_id: grn.id,
+  date: grn.date, subtotal: Number(poData.subtotal), gst: Number(poData.gst),
+  wht_amount: whtAmount, total: netTotal, status: "unpaid",
+  });
+  logAudit({ action: "invoice_generated", entity_type: "purchase_invoice", entity_number: billNumber, changes: { total: netTotal, grn_id: grn.id, supplier_id: poData.supplier_id } });
  toast.success(`GRN ${grnNumber} + Bill ${billNumber} created`, {
  action: { label: "Create Print Job", onClick: () => navigate(`/print-jobs?from_grn=1`) },
  });
@@ -831,10 +833,11 @@ export default function PurchaseProforma() {
  await supabase.from("additional_costs").delete().eq("reference_type", "purchase_order").eq("reference_id", poId);
  await supabase.from("purchase_orders").delete().eq("id", poId);
  // 5. Reset proforma to draft
- await supabase.from("purchase_proformas").update({ status: "draft", converted_po_id: null }).eq("id", voidOrder.id);
- toast.success(`Order ${voidOrder.proforma_number} voided — PO, bill, delivery note & stock reversed`);
- setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); load();
- };
+  await supabase.from("purchase_proformas").update({ status: "draft", converted_po_id: null }).eq("id", voidOrder.id);
+  logAudit({ action: "voided", entity_type: "purchase_invoice", entity_number: voidOrder.proforma_number, changes: { reason: "void from order page" } });
+  toast.success(`Order ${voidOrder.proforma_number} voided — PO, bill, delivery note & stock reversed`);
+  setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); load();
+  };
 
  // ── DELETE ──
  const promptDelete = (ids: string[]) => { setDeleteIds(ids); setDeleteConfirmOpen(true); };

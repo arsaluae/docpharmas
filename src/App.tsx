@@ -88,6 +88,7 @@ const SalesAgents = lazy(() => import("./pages/SalesAgents"));
 const DeliveryNotes = lazy(() => import("./pages/DeliveryNotes"));
 const Couriers = lazy(() => import("./pages/Couriers"));
 const AccountingPeriods = lazy(() => import("./pages/AccountingPeriods"));
+const AuditLog = lazy(() => import("./pages/AuditLog"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -178,6 +179,7 @@ const App = () => (
               <Route path="/salaries" element={<Salaries />} />
               <Route path="/sales-agents" element={<SalesAgents />} />
               <Route path="/accounting/periods" element={<AccountingPeriods />} />
+              <Route path="/audit-log" element={<AuditLog />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

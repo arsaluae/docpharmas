@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { logAudit } from "@/lib/audit";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -725,7 +726,8 @@ export default function ProformaInvoices() {
  agent_id: orderAgentId,
  } as any).select("*, customers(name)").single();
 
- if (invErr || !inv) { toast.error("Failed to create invoice: " + (invErr?.message || "Unknown error")); setSubmitting(false); return; }
+  if (invErr || !inv) { toast.error("Failed to create invoice: " + (invErr?.message || "Unknown error")); setSubmitting(false); return; }
+  logAudit({ action: "invoice_generated", entity_type: "sales_invoice", entity_id: inv.id, entity_number: invNumber, changes: { from_order: submitOrder.proforma_number, total: submitOrder.total } });
  const lineItems = submitItems.map((i: any) => ({
  invoice_id: inv.id, product_id: i.product_id || null,
  quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
@@ -815,15 +817,16 @@ export default function ProformaInvoices() {
  await supabase.from("payments").delete().eq("invoice_id", invoiceId);
  // 3. Delete invoice items
  await supabase.from("sales_invoice_items").delete().eq("invoice_id", invoiceId);
- // 4. Delete invoice (trigger reverses customer balance)
- await supabase.from("sales_invoices").delete().eq("id", invoiceId);
- // 5. Delete delivery note
- await supabase.from("delivery_notes").delete().eq("reference_id", invoiceId);
- // 6. Reset proforma to draft
- await supabase.from("proforma_invoices").update({ status: "draft", converted_invoice_id: null }).eq("id", voidOrder.id);
- toast.success(`Order ${voidOrder.proforma_number} voided — invoice, payments, delivery note & stock reversed`);
- setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); load();
- };
+  // 4. Delete invoice (trigger reverses customer balance)
+  await supabase.from("sales_invoices").delete().eq("id", invoiceId);
+  // 5. Delete delivery note
+  await supabase.from("delivery_notes").delete().eq("reference_id", invoiceId);
+  // 6. Reset proforma to draft
+  await supabase.from("proforma_invoices").update({ status: "draft", converted_invoice_id: null }).eq("id", voidOrder.id);
+  logAudit({ action: "voided", entity_type: "sales_invoice", entity_id: invoiceId, entity_number: voidOrder.proforma_number, changes: { reason: "void from order page" } });
+  toast.success(`Order ${voidOrder.proforma_number} voided — invoice, payments, delivery note & stock reversed`);
+  setVoidConfirmOpen(false); setVoidOrder(null); setVoiding(false); load();
+  };
 
  // ── DELETE ──
  const promptDelete = (ids: string[]) => { setDeleteIds(ids); setDeleteConfirmOpen(true); };
