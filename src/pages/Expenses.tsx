@@ -20,6 +20,9 @@ import {
 import { Plus, Search, Receipt, Briefcase, User, Wallet, Pencil, Trash2, BookOpen, ArrowLeft, X } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { BulkActionBar, useBulkSelection, RowCheckbox } from "@/components/BulkActionBar";
+import { Checkbox } from "@/components/ui/checkbox";
+
 
 const DEFAULT_BUSINESS_CATEGORIES = [
   "salaries", "rent", "utilities", "transport", "travel",
@@ -50,6 +53,12 @@ export default function Expenses() {
   const [activeTab, setActiveTab] = useState("business");
   const [open, setOpen] = useState(false);
   const pagination = usePagination();
+  const bulk = useBulkSelection();
+  const deleteOne = async (id: string) => {
+    const { error } = await supabase.from("expenses").delete().eq("id", id);
+    if (error) throw error;
+  };
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingNumber, setEditingNumber] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -379,6 +388,7 @@ export default function Expenses() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"><Checkbox checked={filtered.length > 0 && bulk.selected.length === filtered.length} onCheckedChange={() => bulk.toggleAll(filtered.map(f => f.id))} /></TableHead>
                   <TableHead>Expense #</TableHead>
                   {(activeTab === "all" || selectedLedger) && <TableHead>Type</TableHead>}
                   <TableHead>Category</TableHead>
@@ -393,12 +403,14 @@ export default function Expenses() {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                  <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
                     <Receipt className="h-8 w-8 mx-auto mb-2 opacity-40" />No expenses recorded.
                   </TableCell></TableRow>
                 ) : filtered.map(e => (
-                  <TableRow key={e.id}>
+                  <TableRow key={e.id} data-state={bulk.isSelected(e.id) ? "selected" : undefined}>
+                    <TableCell><RowCheckbox checked={bulk.isSelected(e.id)} onCheckedChange={() => bulk.toggle(e.id)} /></TableCell>
                     <TableCell className="font-medium font-mono">{e.expense_number}</TableCell>
+
                     {(activeTab === "all" || selectedLedger) && (
                       <TableCell><Badge variant={e.expense_type === "business" ? "default" : "secondary"} className="capitalize">{e.expense_type}</Badge></TableCell>
                     )}
@@ -440,6 +452,8 @@ export default function Expenses() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <BulkActionBar selectedIds={bulk.selected} onClear={bulk.clear} entityLabel="expense" onDeleteOne={deleteOne} onDone={load} />
     </AppLayout>
+
   );
 }
