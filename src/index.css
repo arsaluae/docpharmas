@@ -11,58 +11,61 @@
 
 @layer base {
   :root {
-    /* Surfaces */
-    --background: 40 12% 96%;        /* #F7F6F2 paper */
-    --foreground: 240 14% 9%;        /* #15151A */
-    --card: 0 0% 100%;
-    --card-foreground: 240 14% 9%;
+    /* Surfaces — cool near-white, complements the dark sidebar */
+    --background: 240 11% 98%;       /* #FAFAFB app canvas */
+    --foreground: 240 6% 4%;         /* #0A0A0B — same ink as sidebar bg, inverted */
+    --card: 0 0% 100%;               /* #FFFFFF panels */
+    --card-foreground: 240 6% 4%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 14% 9%;
-    --surface-2: 240 6% 94%;         /* raised */
+    --popover-foreground: 240 6% 4%;
+    --surface-2: 240 7% 96%;         /* #F4F4F6 raised wells */
 
-    /* Accent — electric indigo */
-    --primary: 239 84% 60%;          /* #4F46E5 */
+    /* Accent — indigo, identical to sidebar rail */
+    --primary: 244 75% 59%;          /* #4F46E5 */
     --primary-foreground: 0 0% 100%;
-    --ring: 239 84% 60%;
+    --primary-soft: 232 100% 97%;    /* #EEF0FF hover / selection wash */
+    --ring: 244 75% 59%;
 
     /* Secondary / muted */
-    --secondary: 240 6% 94%;
-    --secondary-foreground: 240 12% 18%;
-    --muted: 240 6% 94%;
-    --muted-foreground: 240 6% 42%;
-    --accent: 240 6% 94%;
-    --accent-foreground: 240 14% 9%;
+    --secondary: 240 7% 96%;
+    --secondary-foreground: 240 6% 14%;
+    --muted: 240 7% 96%;
+    --muted-foreground: 240 4% 43%;  /* #6B6B72 */
+    --subtle: 240 3% 62%;            /* #9A9AA0 tertiary / micro-labels */
+    --accent: 240 7% 96%;
+    --accent-foreground: 240 6% 4%;
 
     /* Status — muted, never neon */
-    --destructive: 0 50% 42%;
+    --destructive: 5 57% 42%;        /* #A8392F */
     --destructive-foreground: 0 0% 100%;
-    --danger: 0 50% 42%;
-    --warning: 36 60% 38%;
+    --danger: 5 57% 42%;
+    --warning: 36 50% 36%;           /* #8A6A2E */
     --warning-foreground: 0 0% 100%;
-    --success: 150 35% 32%;
+    --success: 150 44% 33%;          /* #2F7A52 */
     --success-foreground: 0 0% 100%;
-    --info: 210 45% 36%;
+    --info: 211 50% 36%;             /* #2E5A8A */
 
     /* Structure */
-    --border: 240 6% 88%;
-    --input: 240 6% 84%;
+    --border: 240 5% 93%;            /* #ECECEF hairline */
+    --border-strong: 240 5% 88%;     /* #E0E0E4 header underline */
+    --input: 240 5% 88%;
     --radius: 6px;
 
-    /* Sidebar (kept for shadcn primitive) */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 6% 35%;
-    --sidebar-primary: 239 84% 60%;
+    /* Sidebar (kept dark — companion role) */
+    --sidebar-background: 240 8% 4%;
+    --sidebar-foreground: 240 6% 60%;
+    --sidebar-primary: 244 75% 59%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 6% 94%;
-    --sidebar-accent-foreground: 240 14% 9%;
-    --sidebar-border: 240 6% 90%;
-    --sidebar-ring: 239 84% 60%;
+    --sidebar-accent: 240 4% 12%;
+    --sidebar-accent-foreground: 40 22% 92%;
+    --sidebar-border: 240 5% 14%;
+    --sidebar-ring: 244 75% 59%;
 
-    /* Legacy aliases — retained as no-ops so old class refs don't shatter */
-    --pharma-teal: 239 84% 60%;
-    --pharma-violet: 239 84% 60%;
-    --pharma-sage: 150 35% 32%;
-    --medical-cyan: 210 45% 36%;
+    /* Legacy aliases — no-ops */
+    --pharma-teal: 244 75% 59%;
+    --pharma-violet: 244 75% 59%;
+    --pharma-sage: 150 44% 33%;
+    --medical-cyan: 211 50% 36%;
     --medical-cyan-foreground: 0 0% 100%;
   }
 
