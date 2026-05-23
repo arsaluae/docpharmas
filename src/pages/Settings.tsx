@@ -759,14 +759,22 @@ function TeamAccessCard() {
  is_active: !m.is_active,
  },
  });
- if (error) throw new Error(error.message);
- if (data?.error) throw new Error(data.error);
- toast.success(m.is_active ? "User deactivated" : "User reactivated");
- await load();
- } catch (err: any) {
- toast.error(err.message);
- }
- };
+      if (error) {
+        let serverMsg = error.message;
+        try {
+          const body = await (error as any).context?.json?.();
+          if (body?.error) serverMsg = body.error;
+        } catch { /* ignore */ }
+        throw new Error(serverMsg);
+      }
+      if (data?.error) throw new Error(data.error);
+      toast.success(m.is_active ? "User deactivated" : "User reactivated");
+      await load();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
 
  return (
  <div className="space-y-6">
