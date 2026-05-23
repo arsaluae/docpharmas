@@ -22,6 +22,9 @@ import { Plus, Search, FileText, Trash2, Users, Truck, Link2 } from "lucide-reac
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { ApplyNoteDialog } from "@/components/ApplyCreditNoteDialog";
+import { BulkActionBar, useBulkSelection, RowCheckbox } from "@/components/BulkActionBar";
+import { Checkbox } from "@/components/ui/checkbox";
+
 
 interface Party { id: string; name: string; company?: string | null; }
 interface DebitNote {
@@ -40,6 +43,14 @@ export default function DebitNotes() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [applyNote, setApplyNote] = useState<DebitNote | null>(null);
   const pagination = usePagination();
+  const bulk = useBulkSelection();
+
+  const deleteOne = async (id: string) => {
+    await supabase.from("debit_note_applications").delete().eq("debit_note_id", id);
+    const { error } = await supabase.from("debit_notes").delete().eq("id", id);
+    if (error) throw error;
+  };
+
 
   const [partyType, setPartyType] = useState("supplier");
   const [partyId, setPartyId] = useState("");
@@ -207,6 +218,7 @@ export default function DebitNotes() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"><Checkbox checked={filtered.length > 0 && bulk.selected.length === filtered.length} onCheckedChange={() => bulk.toggleAll(filtered.map(f => f.id))} /></TableHead>
                   <TableHead>DN #</TableHead><TableHead>Type</TableHead><TableHead>Party</TableHead>
                   <TableHead>Reason</TableHead><TableHead>Reference</TableHead><TableHead>Date</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
@@ -216,14 +228,17 @@ export default function DebitNotes() {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground"><FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No debit notes yet.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center py-12 text-muted-foreground"><FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No debit notes yet.</TableCell></TableRow>
+
                 ) : filtered.map(dn => {
                   const applied = Number(dn.applied_amount || 0);
                   const remaining = Number(dn.amount) - applied;
                   const canApply = dn.party_type === "supplier" && remaining > 0.001;
                   return (
-                  <TableRow key={dn.id}>
+                  <TableRow key={dn.id} data-state={bulk.isSelected(dn.id) ? "selected" : undefined}>
+                    <TableCell><RowCheckbox checked={bulk.isSelected(dn.id)} onCheckedChange={() => bulk.toggle(dn.id)} /></TableCell>
                     <TableCell className="font-medium font-mono">{dn.debit_note_number}</TableCell>
+
                     <TableCell><Badge variant={dn.party_type === "supplier" ? "default" : "secondary"} className="capitalize">{dn.party_type === "supplier" ? "To Supplier" : "From Customer"}</Badge></TableCell>
                     <TableCell className="font-medium">{partyNames[dn.party_id] || "—"}</TableCell>
                     <TableCell className="text-muted-foreground max-w-48 truncate">{dn.reason || "—"}</TableCell>
@@ -279,6 +294,8 @@ export default function DebitNotes() {
           onApplied={() => { setApplyNote(null); load(); }}
         />
       )}
+      <BulkActionBar selectedIds={bulk.selected} onClear={bulk.clear} entityLabel="debit note" onDeleteOne={deleteOne} onDone={load} />
     </AppLayout>
   );
 }
+
