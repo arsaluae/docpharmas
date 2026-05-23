@@ -230,13 +230,13 @@ export default function Index() {
   })();
 
   const quickActions = [
-    { label: "New Sales Invoice",    path: "/proforma",          icon: FileText },
-    { label: "Purchase Order",       path: "/purchase-proforma", icon: ShoppingBag },
-    { label: "Record Payment",       path: "/payments",          icon: Wallet },
-    { label: "Warranty Invoice",     path: "/warranty-invoices", icon: Shield },
-    { label: "Inventory",            path: "/products",          icon: Package },
-    { label: "Expense Entry",        path: "/expenses",          icon: Receipt },
-    { label: "Credit Note",          path: "/credit-notes",      icon: CreditCard },
+    { label: "New Sales Invoice",    path: "/proforma",          icon: FileText,    color: "hsl(var(--brand-blue))" },
+    { label: "Purchase Order",       path: "/purchase-proforma", icon: ShoppingBag, color: "hsl(var(--info))" },
+    { label: "Record Payment",       path: "/payments",          icon: Wallet,      color: "hsl(var(--success))" },
+    { label: "Warranty Invoice",     path: "/warranty-invoices", icon: Shield,      color: "hsl(var(--brand-navy))" },
+    { label: "Inventory",            path: "/products",          icon: Package,     color: "hsl(var(--warning))" },
+    { label: "Expense Entry",        path: "/expenses",          icon: Receipt,     color: "hsl(var(--danger))" },
+    { label: "Credit Note",          path: "/credit-notes",      icon: CreditCard,  color: "hsl(var(--subtle))" },
   ];
 
   // KPI tiles — 4 primary metrics, MOUJ navy text, JetBrains Mono numbers
