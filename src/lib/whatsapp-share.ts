@@ -187,7 +187,22 @@ export function openWhatsApp(phone: string | undefined, message: string) {
  */
 export async function uploadSharedDocument(html: string, docRef: string): Promise<string | null> {
   try {
-    const fileName = `${docRef.replace(/[^a-zA-Z0-9-]/g, "_")}_${Date.now()}.html`;
+    // Scope upload path to user's tenant so RLS folder check passes
+    const { data: userRes } = await supabase.auth.getUser();
+    const userId = userRes?.user?.id;
+    if (!userId) return null;
+    const { data: tu } = await (supabase as any)
+      .from("tenant_users")
+      .select("tenant_id")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .limit(1)
+      .single();
+    const tenantId = tu?.tenant_id;
+    if (!tenantId) return null;
+
+    const safeRef = docRef.replace(/[^a-zA-Z0-9-]/g, "_");
+    const fileName = `${tenantId}/${safeRef}_${Date.now()}.html`;
     const blob = new Blob([html], { type: "text/html" });
     const { error } = await supabase.storage
       .from("shared-documents")

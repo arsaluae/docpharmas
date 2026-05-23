@@ -74,7 +74,7 @@ const BACKUP_TABLES = [
 
 export default function Settings() {
  const navigate = useNavigate();
- const { tenantRole } = useTenant();
+ const { tenantRole, tenantId } = useTenant();
  const [loading, setLoading] = useState(true);
  const [saving, setSaving] = useState(false);
  const [settingsId, setSettingsId] = useState<string | null>(null);
@@ -141,8 +141,9 @@ export default function Settings() {
  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
  const file = e.target.files?.[0];
  if (!file) return;
+ if (!tenantId) { toast.error("Tenant not loaded"); return; }
  const ext = file.name.split(".").pop();
- const path = `logo.${ext}`;
+ const path = `${tenantId}/logo.${ext}`;
  const { error } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true });
  if (error) { toast.error("Upload failed"); return; }
  const { data: { publicUrl } } = supabase.storage.from("company-assets").getPublicUrl(path);
