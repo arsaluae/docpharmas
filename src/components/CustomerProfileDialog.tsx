@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, X, Edit, Users, TrendingUp, DollarSign, Package } from "lucide-react";
+import { Plus, Trash2, X, Edit, Users, TrendingUp, DollarSign, Package, ShieldCheck, ExternalLink } from "lucide-react";
 import { AllocatedProducts } from "@/components/AllocatedProducts";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
+
 
 interface CustomerProfileDialogProps {
  open: boolean;
@@ -32,9 +34,11 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
  const [topItems, setTopItems] = useState<TopItem[]>([]);
  const [monthlySales, setMonthlySales] = useState<MonthlySale[]>([]);
  const [distributors, setDistributors] = useState<Distributor[]>([]);
+ const [warrantyInvoices, setWarrantyInvoices] = useState<{ id: string; warranty_number: string; date: string; total: number; pharmacy_name: string }[]>([]);
  const [showDistForm, setShowDistForm] = useState(false);
  const [editDistId, setEditDistId] = useState<string | null>(null);
  const [distForm, setDistForm] = useState(emptyDistForm);
+
 
  useEffect(() => {
  if (open && customerId) loadProfile();
@@ -100,7 +104,19 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
  }
 
  await loadDistributors();
+ await loadWarrantyInvoices();
  };
+
+ const loadWarrantyInvoices = async () => {
+ if (!customerId) return;
+ const { data } = await supabase.from("warranty_invoices")
+ .select("id, warranty_number, date, total, pharmacy_name")
+ .eq("customer_id", customerId)
+ .order("date", { ascending: false })
+ .limit(20);
+ setWarrantyInvoices((data || []) as any);
+ };
+
 
  const loadDistributors = async () => {
  if (!customerId) return;
@@ -204,9 +220,39 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
  {/* Allocated Products */}
  {customerId && <AllocatedProducts partyId={customerId} partyType="customer" />}
 
+ {/* Warranty Invoices history */}
+ <div>
+ <div className="flex items-center justify-between mb-2">
+ <h4 className="text-sm font-semibold flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Warranty Invoices ({warrantyInvoices.length})</h4>
+ <Link to="/warranty-invoices" className="text-xs text-primary hover:underline flex items-center gap-1" onClick={() => onOpenChange(false)}>
+ View all <ExternalLink className="h-3 w-3" />
+ </Link>
+ </div>
+ {warrantyInvoices.length > 0 ? (
+ <div className="border rounded-lg overflow-hidden">
+ <Table>
+ <TableHeader><TableRow><TableHead className="text-xs">WI #</TableHead><TableHead className="text-xs">Date</TableHead><TableHead className="text-xs">Pharmacy</TableHead><TableHead className="text-right text-xs">Total</TableHead></TableRow></TableHeader>
+ <TableBody>
+ {warrantyInvoices.map(w => (
+ <TableRow key={w.id} className="cursor-pointer hover:bg-accent/50" onClick={() => { onOpenChange(false); window.location.href = `/warranty-invoices?highlight=${w.id}`; }}>
+ <TableCell className="font-mono text-xs">{w.warranty_number}</TableCell>
+ <TableCell className="text-xs">{w.date}</TableCell>
+ <TableCell className="text-xs">{w.pharmacy_name}</TableCell>
+ <TableCell className="text-right font-mono text-xs">{Number(w.total).toLocaleString()}</TableCell>
+ </TableRow>
+ ))}
+ </TableBody>
+ </Table>
+ </div>
+ ) : (
+ <p className="text-xs text-muted-foreground text-center py-3">No warranty invoices issued yet.</p>
+ )}
+ </div>
+
  {/* Distributors */}
  <div>
  <div className="flex items-center justify-between mb-2">
+
  <h4 className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Distributors / Pharmacies</h4>
  {!showDistForm && (
  <Button size="sm" variant="outline" onClick={() => { setShowDistForm(true); setEditDistId(null); setDistForm(emptyDistForm); }}>

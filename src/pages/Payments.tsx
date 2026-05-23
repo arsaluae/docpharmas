@@ -20,6 +20,9 @@ import { Plus, Search, Wallet, ArrowDownLeft, ArrowUpRight, Pencil, Trash2, Mess
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
+import { BulkActionBar, useBulkSelection, RowCheckbox } from "@/components/BulkActionBar";
+import { Checkbox } from "@/components/ui/checkbox";
+
 
 interface Customer { id: string; name: string; }
 interface Supplier { id: string; name: string; }
@@ -43,6 +46,12 @@ export default function Payments() {
  const initialTab = searchParams.get("tab") || "all";
  const [tab, setTab] = useState(initialTab);
  const pagination = usePagination();
+ const bulk = useBulkSelection();
+ const deleteOne = async (id: string) => {
+ const { error } = await supabase.from("payments").delete().eq("id", id);
+ if (error) throw error;
+ };
+
  const { settings } = useCompanySettings();
  const [editingId, setEditingId] = useState<string | null>(null);
  const [editingNumber, setEditingNumber] = useState("");
@@ -315,6 +324,7 @@ export default function Payments() {
  <Table>
  <TableHeader>
  <TableRow>
+ <TableHead className="w-8"><Checkbox checked={filtered.length > 0 && bulk.selected.length === filtered.length} onCheckedChange={() => bulk.toggleAll(filtered.map(f => f.id))} /></TableHead>
  <TableHead>Payment #</TableHead><TableHead>Type</TableHead><TableHead>Party</TableHead>
  <TableHead>Method</TableHead><TableHead>Cheque</TableHead><TableHead>Date</TableHead>
  <TableHead className="text-right">Amount</TableHead>
@@ -323,11 +333,13 @@ export default function Payments() {
  </TableHeader>
  <TableBody>
  {filtered.length === 0 ? (
- <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+ <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
  <Wallet className="h-8 w-8 mx-auto mb-2 opacity-40" />No payments recorded.
  </TableCell></TableRow>
  ) : filtered.map(p => (
- <TableRow key={p.id}>
+ <TableRow key={p.id} data-state={bulk.isSelected(p.id) ? "selected" : undefined}>
+ <TableCell><RowCheckbox checked={bulk.isSelected(p.id)} onCheckedChange={() => bulk.toggle(p.id)} /></TableCell>
+
  <TableCell className="font-medium font-mono">{p.payment_number}</TableCell>
  <TableCell>
  {p.type === "received" ? (
@@ -406,6 +418,8 @@ export default function Payments() {
  </AlertDialogFooter>
  </AlertDialogContent>
  </AlertDialog>
+ <BulkActionBar selectedIds={bulk.selected} onClear={bulk.clear} entityLabel="payment" onDeleteOne={deleteOne} onDone={load} />
  </AppLayout>
  );
+
 }
