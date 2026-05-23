@@ -42,7 +42,16 @@ export default function PurchaseReturns() {
   const [dateRange, setDateRange] = useState("all");
   const pagination = usePagination();
 
+  const bulk = useBulkSelection();
+
   useEffect(() => { loadData(); }, [pagination.page]);
+
+  const deleteOne = async (id: string) => {
+    await supabase.from("stock_movements").delete().eq("reference_type", "purchase_return").eq("reference_id", id);
+    await supabase.from("purchase_return_items").delete().eq("return_id", id);
+    const { error } = await supabase.from("purchase_returns").delete().eq("id", id);
+    if (error) throw error;
+  };
 
   const loadData = async () => {
     setLoading(true);
