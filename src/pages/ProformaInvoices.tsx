@@ -918,6 +918,29 @@ export default function ProformaInvoices() {
  </DialogTrigger>
  <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
  <DialogHeader><DialogTitle className="font-heading">Create Sales Order</DialogTitle></DialogHeader>
+ {existingDraft && !draftDismissed && items.length === 0 && !customerId && (
+   <div className="mt-3 flex items-center justify-between gap-3 border border-border bg-foreground/[0.03] px-3 py-2 text-[12px]">
+     <span className="text-muted-foreground">
+       Unsaved draft from {formatDateDDMMMYYYY(new Date(existingDraft.savedAt).toISOString().split("T")[0])} ·{" "}
+       {new Date(existingDraft.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+     </span>
+     <div className="flex gap-2">
+       <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]"
+         onClick={() => {
+           const d = existingDraft.data;
+           setCustomerId(d.customerId || "");
+           setPfDate(d.pfDate || new Date().toISOString().split("T")[0]);
+           setValidityDays(d.validityDays || "30");
+           setPaymentInstructions(d.paymentInstructions || "");
+           setAgentId(d.agentId || "");
+           setItems(d.items || []);
+           setDraftDismissed(true);
+         }}>Restore</Button>
+       <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]"
+         onClick={() => { clearDraft(); setDraftDismissed(true); }}>Discard</Button>
+     </div>
+   </div>
+ )}
  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
  <div>
  <Label className="text-xs font-medium text-muted-foreground">Customer *</Label>
