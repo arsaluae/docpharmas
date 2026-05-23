@@ -21,6 +21,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { GraceDeleteButton } from "@/components/GraceDeleteButton";
 import { generatePdfHtml } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
@@ -1129,6 +1130,18 @@ export default function PurchaseProforma() {
  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shareWhatsApp(order)} title="Share via WhatsApp">
  <MessageCircle className="h-3.5 w-3.5 text-success" />
  </Button>
+ {/* Grace-window delete for received bills */}
+ {order.bill_id && (order.status === "received" || order.status === "paid") && (
+   <GraceDeleteButton
+     table="purchase_invoices"
+     invoiceId={order.bill_id}
+     invoiceNumber={order.bill_number}
+     approvedAt={order.bill_approved_at ?? order.created_at}
+     graceHours={settings?.invoice_delete_grace_hours ?? 48}
+     onDeleted={() => load()}
+     onRaiseReturn={() => navigate("/purchase-returns?supplier=" + (order.supplier_id || ""))}
+   />
+ )}
  <DropdownMenu>
  <DropdownMenuTrigger asChild>
  <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
