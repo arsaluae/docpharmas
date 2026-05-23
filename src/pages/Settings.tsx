@@ -701,25 +701,29 @@ function TeamAccessCard() {
  const { data: { user } } = await supabase.auth.getUser();
  setMeId(user?.id ?? null);
 
- const { data } = await (supabase as any)
- .from("tenant_users")
- .select("user_id, role, is_active, created_at")
- .eq("tenant_id", tenantId)
- .order("created_at", { ascending: true });
+  // Try edge function first (uses service role, sees all tenant members)
+  try {
+    const { data: emailData, error: efErr } = await supabase.functions.invoke("manage-tenant", {
+      body: { action: "list_tenant_users", tenant_id: tenantId },
+    });
+    if (!efErr && Array.isArray(emailData?.users)) {
+      setMembers((emailData.users as any[]).map(u => ({
+        user_id: u.user_id, role: u.role, is_active: u.is_active,
+        created_at: u.created_at, email: u.email ?? undefined,
+      })));
+      setLoading(false);
+      return;
+    }
+  } catch { /* fall through */ }
 
- const base = (data || []) as TenantMember[];
- // Enrich with emails via edge function (owner-only on server)
- try {
-   const { data: emailData } = await supabase.functions.invoke("manage-tenant", {
-     body: { action: "list_tenant_users", tenant_id: tenantId },
-   });
-   const map = new Map<string, string>();
-   for (const u of emailData?.users || []) if (u.email) map.set(u.user_id, u.email);
-   setMembers(base.map(m => ({ ...m, email: map.get(m.user_id) })));
- } catch {
-   setMembers(base);
- }
- setLoading(false);
+  // Fallback (non-owner): direct query, RLS limits to own row
+  const { data } = await (supabase as any)
+    .from("tenant_users")
+    .select("user_id, role, is_active, created_at")
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: true });
+  setMembers((data || []) as TenantMember[]);
+  setLoading(false);
  };
 
  useEffect(() => { load(); }, [tenantId]);
