@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, ClipboardCheck, Package, Truck, CheckCircle2, Trash2, Eye, Send, Factory } from "lucide-react";
+import { Plus, Search, ClipboardCheck, Package, Truck, CheckCircle2, Trash2, Eye, Send, Factory, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { generatePdfHtml } from "@/lib/pdf-generator";
@@ -74,6 +74,14 @@ export default function PrintJobs() {
 
  // Delete
  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+ // Rejection
+ const [rejectJob, setRejectJob] = useState<PrintJob | null>(null);
+ const [rejQty, setRejQty] = useState("");
+ const [rejReason, setRejReason] = useState("");
+ const [rejOurPct, setRejOurPct] = useState("50");
+ const [rejEvidence, setRejEvidence] = useState("");
+ const [rejBusy, setRejBusy] = useState(false);
 
  // Names lookup
  const [printerNames, setPrinterNames] = useState<Record<string, string>>({});
