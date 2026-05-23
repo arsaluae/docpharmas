@@ -93,7 +93,12 @@ export default function StockMovements() {
     return <Badge variant="secondary">{t}</Badge>;
   };
 
-  const headerActions = (
+  const { tenantRole, isAdmin } = useTenant();
+  const readOnly = tenantRole === "staff" && !isAdmin;
+
+  const headerActions = readOnly ? (
+    <span className="text-xs uppercase tracking-wider px-2 py-1 rounded-full border border-border text-muted-foreground">Read-only</span>
+  ) : (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Movement</Button></DialogTrigger>
       <DialogContent>
