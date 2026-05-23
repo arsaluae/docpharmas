@@ -130,7 +130,8 @@ export function SalesReturnDialog({ open, onOpenChange, invoiceId, invoiceNumber
  notes: `Return ${srNum} from invoice ${invoiceNumber || ""}`,
  } as any);
  }
- toast.success(`Sales Return ${srNum} created (PKR ${subtotal.toLocaleString()})`);
+  logAudit({ action: "return_raised", entity_type: "sales_return", entity_id: returnId, entity_number: srNum, changes: { reason, total: subtotal, invoice_number: invoiceNumber } });
+  toast.success(`Sales Return ${srNum} created (PKR ${subtotal.toLocaleString()})`);
  onSaved?.();
  onOpenChange(false);
  } catch (e: any) {
