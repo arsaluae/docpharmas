@@ -269,6 +269,16 @@ export default function DebitNotes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {applyNote && (
+        <ApplyNoteDialog
+          open={!!applyNote} onOpenChange={(o) => { if (!o) setApplyNote(null); }}
+          kind="debit" noteId={applyNote.id} noteNumber={applyNote.debit_note_number}
+          partyId={applyNote.party_id} noteAmount={Number(applyNote.amount)}
+          appliedAlready={Number(applyNote.applied_amount || 0)}
+          onApplied={() => { setApplyNote(null); load(); }}
+        />
+      )}
     </AppLayout>
   );
 }
