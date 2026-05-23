@@ -7,7 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, RotateCcw } from "lucide-react";
+
+const RETURN_REASONS = [
+  { value: "damaged", label: "Damaged in transit" },
+  { value: "wrong_product", label: "Wrong product / mis-shipment" },
+  { value: "expiry", label: "Expired / near-expiry stock" },
+  { value: "customer_request", label: "Customer cancelled / refused" },
+  { value: "quality_issue", label: "Quality issue" },
+  { value: "other", label: "Other (specify in notes)" },
+];
 import { toast } from "sonner";
 
 interface Props {
@@ -34,6 +44,7 @@ interface ReturnLine {
 export function SalesReturnDialog({ open, onOpenChange, invoiceId, invoiceNumber, customerId, onSaved }: Props) {
  const [lines, setLines] = useState<ReturnLine[]>([]);
  const [reason, setReason] = useState("");
+ const [reasonCode, setReasonCode] = useState<string>("");
  const [loading, setLoading] = useState(false);
  const [saving, setSaving] = useState(false);
 
