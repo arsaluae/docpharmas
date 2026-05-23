@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { ProductBatchProfileDialog } from "@/components/ProductBatchProfileDialog";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useTenant } from "@/hooks/useTenant";
 
 const categories = ["tablet", "capsule", "syrup", "injection", "cream", "ointment", "drops", "sachet", "other"] as const;
 const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", "return_out", "adjustment", "adjustment_in", "adjustment_out", "opening", "damage", "expired"];
@@ -42,6 +43,8 @@ const emptyForm = {
 export default function Products() {
  const navigate = useNavigate();
  const { settings } = useCompanySettings();
+ const { tenantRole, isAdmin } = useTenant();
+ const readOnly = tenantRole === "staff" && !isAdmin;
  const [products, setProducts] = useState<Product[]>([]);
  const [movements, setMovements] = useState<StockMovement[]>([]);
  const [search, setSearch] = useState("");
@@ -172,7 +175,9 @@ export default function Products() {
  return <Badge className="bg-primary/10 text-primary border-0">OK</Badge>;
  };
 
- const headerActions = (
+ const headerActions = readOnly ? (
+ <span className="text-xs uppercase tracking-wider px-2 py-1 rounded-full border border-border text-muted-foreground">Read-only</span>
+ ) : (
  <>
  <Button variant="outline" size="sm" onClick={() => navigate("/import?tab=products")}><Upload className="h-4 w-4 mr-1" /> Import</Button>
  {activeTab === "movements" ? (
@@ -269,7 +274,7 @@ export default function Products() {
  {filtered.length === 0 ? (
  <TableRow><TableCell colSpan={10} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
  ) : filtered.map(p => (
- <TableRow key={p.id} className={`cursor-pointer table-row-hover ${p.is_active === false ? "opacity-50" : ""}`} onClick={() => handleEdit(p)}>
+ <TableRow key={p.id} className={`${readOnly ? "" : "cursor-pointer"} table-row-hover ${p.is_active === false ? "opacity-50" : ""}`} onClick={() => { if (!readOnly) handleEdit(p); }}>
  <TableCell className="text-xs font-mono text-muted-foreground">{(p as any).product_code || "—"}</TableCell>
  <TableCell className="font-medium">{p.name}</TableCell>
  <TableCell className="text-xs text-muted-foreground">{p.sku || "—"}</TableCell>
@@ -290,14 +295,18 @@ export default function Products() {
  >
  <Layers className="h-3.5 w-3.5" />
  </Button>
- <Button variant="ghost" size="icon" className={`h-7 w-7 ${p.is_active === false ? "text-success" : "text-warning"}`} onClick={(e) => toggleActive(p, e)} title={p.is_active === false ? "Reactivate" : "Deactivate"}><Power className="h-3.5 w-3.5" /></Button>
- <AlertDialog>
- <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
- <AlertDialogContent>
- <AlertDialogHeader><AlertDialogTitle>Delete {p.name}?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this product.</AlertDialogDescription></AlertDialogHeader>
- <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => handleDelete(p.id, e)}>Delete</AlertDialogAction></AlertDialogFooter>
- </AlertDialogContent>
- </AlertDialog>
+  {!readOnly && (
+  <>
+  <Button variant="ghost" size="icon" className={`h-7 w-7 ${p.is_active === false ? "text-success" : "text-warning"}`} onClick={(e) => toggleActive(p, e)} title={p.is_active === false ? "Reactivate" : "Deactivate"}><Power className="h-3.5 w-3.5" /></Button>
+  <AlertDialog>
+  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+  <AlertDialogContent>
+  <AlertDialogHeader><AlertDialogTitle>Delete {p.name}?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this product.</AlertDialogDescription></AlertDialogHeader>
+  <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => handleDelete(p.id, e)}>Delete</AlertDialogAction></AlertDialogFooter>
+  </AlertDialogContent>
+  </AlertDialog>
+  </>
+  )}
  </div>
  </TableCell>
  </TableRow>

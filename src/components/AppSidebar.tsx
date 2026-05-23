@@ -24,19 +24,19 @@ import { useTheme } from "@/components/ThemeToggle";
 
 const allSections = [
   { label: "Sales", icon: FileText, staffVisible: true, items: [
-    { title: "Customers", url: "/customers", icon: Users },
-    { title: "Sales Orders", url: "/proforma", icon: FileText },
-    { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList },
-    { title: "Returns", url: "/sales-returns", icon: RotateCcw },
+    { title: "Customers", url: "/customers", icon: Users, staffVisible: true },
+    { title: "Sales Orders", url: "/proforma", icon: FileText, staffVisible: true },
+    { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList, staffVisible: true },
+    { title: "Returns", url: "/sales-returns", icon: RotateCcw, staffVisible: true },
   ]},
   { label: "Purchase", icon: Truck, staffVisible: false, items: [
     { title: "Suppliers", url: "/suppliers", icon: Truck },
     { title: "Purchase Orders", url: "/purchase-proforma", icon: FileText },
     { title: "Returns", url: "/purchase-returns", icon: RotateCcw },
   ]},
-  { label: "Inventory", icon: Package, staffVisible: false, items: [
-    { title: "Products & Stock", url: "/products", icon: Package },
-    { title: "Stock Movements", url: "/stock", icon: RotateCcw },
+  { label: "Inventory", icon: Package, staffVisible: true, items: [
+    { title: "Products & Stock", url: "/products", icon: Package, staffVisible: true },
+    { title: "Stock Movements", url: "/stock", icon: RotateCcw, staffVisible: true },
     { title: "Landed Costs", url: "/landed-costs", icon: DollarSign },
     { title: "Printers", url: "/printers", icon: Printer },
     { title: "Print Jobs", url: "/print-jobs", icon: ClipboardList },
@@ -74,8 +74,11 @@ export function AppSidebar() {
     return location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
   };
 
-  const sections = tenantRole === "staff" && !isAdmin
-    ? allSections.filter(s => s.staffVisible)
+  const isStaff = tenantRole === "staff" && !isAdmin;
+  const sections = isStaff
+    ? allSections
+        .filter(s => s.staffVisible)
+        .map(s => ({ ...s, items: s.items.filter((i: any) => i.staffVisible) }))
     : allSections;
 
   const activeSectionIdx = sections.findIndex(s =>

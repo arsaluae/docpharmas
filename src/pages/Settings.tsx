@@ -690,6 +690,7 @@ function TeamAccessCard() {
  const [showForm, setShowForm] = useState(false);
  const [newEmail, setNewEmail] = useState("");
  const [newPassword, setNewPassword] = useState("");
+ const [newRole, setNewRole] = useState<"owner" | "staff">("staff");
 
  const load = async () => {
  if (!tenantId) return;
@@ -723,13 +724,13 @@ function TeamAccessCard() {
  tenant_id: tenantId,
  email: newEmail.trim(),
  password: newPassword,
- role: "staff",
+ role: newRole,
  },
  });
  if (error) throw new Error(error.message || "Could not create user");
  if (data?.error) throw new Error(data.error);
- toast.success("Sales user created");
- setNewEmail(""); setNewPassword(""); setShowForm(false);
+ toast.success(newRole === "owner" ? "Admin user created" : "Sales user created");
+ setNewEmail(""); setNewPassword(""); setNewRole("staff"); setShowForm(false);
  await load();
  } catch (err: any) {
  toast.error(err.message);
@@ -802,11 +803,15 @@ function TeamAccessCard() {
  Joined {new Date(m.created_at).toLocaleDateString()}
  </p>
  </div>
- {m.role !== "owner" && m.user_id !== meId && (
- <Button size="sm" variant="outline" onClick={() => handleToggle(m)}>
+ {m.user_id !== meId && (() => {
+ const activeAdmins = members.filter(x => x.role === "owner" && x.is_active).length;
+ const isLastAdmin = m.role === "owner" && m.is_active && activeAdmins <= 1;
+ return (
+ <Button size="sm" variant="outline" disabled={isLastAdmin} onClick={() => handleToggle(m)} title={isLastAdmin ? "Cannot deactivate the last admin" : ""}>
  {m.is_active ? "Deactivate" : "Reactivate"}
  </Button>
- )}
+ );
+ })()}
  </div>
  ))}
  </div>
@@ -814,12 +819,33 @@ function TeamAccessCard() {
 
  {!showForm ? (
  <Button onClick={() => setShowForm(true)} size="sm">
- <Plus className="h-4 w-4 mr-1" /> Add Sales User
+ <Plus className="h-4 w-4 mr-1" /> Add Team Member
  </Button>
  ) : (
  <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
- <ShieldCheck className="h-4 w-4 text-primary" /> New sales-only user
+ <ShieldCheck className="h-4 w-4 text-primary" /> New team member
+ </div>
+ <div>
+ <Label className="text-xs">Role</Label>
+ <div className="grid grid-cols-2 gap-2 mt-1">
+ <button
+ type="button"
+ onClick={() => setNewRole("owner")}
+ className={`text-left rounded-md border px-3 py-2 transition-colors ${newRole === "owner" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
+ >
+ <div className="text-sm font-medium">Admin</div>
+ <div className="text-[11px] text-muted-foreground mt-0.5">Full access to every module, settings & reports.</div>
+ </button>
+ <button
+ type="button"
+ onClick={() => setNewRole("staff")}
+ className={`text-left rounded-md border px-3 py-2 transition-colors ${newRole === "staff" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
+ >
+ <div className="text-sm font-medium">Sales</div>
+ <div className="text-[11px] text-muted-foreground mt-0.5">Sales modules + read-only Products & Stock.</div>
+ </button>
+ </div>
  </div>
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <div>
@@ -828,7 +854,7 @@ function TeamAccessCard() {
  type="email"
  value={newEmail}
  onChange={(e) => setNewEmail(e.target.value)}
- placeholder="sales@company.com"
+ placeholder={newRole === "owner" ? "admin@company.com" : "sales@company.com"}
  />
  </div>
  <div>
@@ -842,15 +868,16 @@ function TeamAccessCard() {
  </div>
  </div>
  <p className="text-xs text-muted-foreground">
- Sales users only see Customers, Sales Orders, Sales Invoices, Delivery Notes,
- Returns and Payments-received. They cannot access Purchase, Reports or Settings.
- The 2-login cap is enforced per workspace.
+ {newRole === "owner"
+ ? "Admins can access every module, manage settings, users and accounting periods."
+ : "Sales users see Customers, Sales Orders, Warranty Invoices, Returns and read-only Products & Stock. They cannot access Purchase, Finance, Reports or Settings."}
+ {" "}Workspace cap is enforced per plan.
  </p>
  <div className="flex gap-2">
  <Button size="sm" onClick={handleAdd} disabled={adding}>
- {adding ? "Creating…" : "Create user"}
+ {adding ? "Creating…" : `Create ${newRole === "owner" ? "admin" : "sales"} user`}
  </Button>
- <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setNewEmail(""); setNewPassword(""); }}>
+ <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setNewEmail(""); setNewPassword(""); setNewRole("staff"); }}>
  Cancel
  </Button>
  </div>

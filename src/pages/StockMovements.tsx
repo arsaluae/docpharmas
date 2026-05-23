@@ -13,6 +13,7 @@ import { Plus, Search, ArrowDownUp } from "lucide-react";
 import { toast } from "sonner";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { useTenant } from "@/hooks/useTenant";
 
 const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", "return_out", "adjustment", "adjustment_in", "adjustment_out", "opening", "damage", "expired"];
 
@@ -92,7 +93,12 @@ export default function StockMovements() {
     return <Badge variant="secondary">{t}</Badge>;
   };
 
-  const headerActions = (
+  const { tenantRole, isAdmin } = useTenant();
+  const readOnly = tenantRole === "staff" && !isAdmin;
+
+  const headerActions = readOnly ? (
+    <span className="text-xs uppercase tracking-wider px-2 py-1 rounded-full border border-border text-muted-foreground">Read-only</span>
+  ) : (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Movement</Button></DialogTrigger>
       <DialogContent>
