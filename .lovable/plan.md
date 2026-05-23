@@ -1,32 +1,23 @@
-## Confirmation first
+## Problem
 
-`moujpharmaceuticals@gmail.com` **already exists** as an active **Admin** in your workspace (joined 10 Mar 2026). No new user will be created — it's already row #1 in your Team Members list, just shown as a cryptic `8990f88e…` instead of its email.
+The Team Members card only shows the currently logged-in user (`arsaluae@gmail.com`), even though `moujpharmaceuticals@gmail.com` is also an active Admin in the same workspace.
 
-Both of your existing admins:
-- `moujpharmaceuticals@gmail.com` — Admin, active
-- `arsaluae@gmail.com` — Admin, active (this is you)
+**Root cause:** The RLS policy `read_own_tenant` on `tenant_users` restricts each user to seeing only their **own** row (unless they have the app-level `admin` role, which workspace owners do not). The Settings page queries `tenant_users` directly from the browser, so it can never see other members.
 
-## Changes
+The edge function `list_tenant_users` (which uses the service role) was added to fetch emails, but it only returns `{ user_id, email }` — so members not already in the RLS-filtered base list never appear.
 
-**1. Show emails in Team Members list**
-- Add a new `list_tenant_users` action to `supabase/functions/manage-tenant/index.ts` that returns `{ user_id, email }[]` for the tenant (uses service role to read `auth.users`, scoped to caller's tenant — owner-only).
-- Update `TeamAccessCard` in `src/pages/Settings.tsx` to call it after loading members and display the email next to (or instead of) the truncated ID. "You" badge stays for the current user, with their email shown beneath.
+## Fix
 
-**2. Add "Reset password" button per member**
-- New `owner_reset_password` action in the edge function (owner-only, can't reset your own from here — use account menu for that). Accepts `tenant_id`, `user_id`, `new_password` (min 6 chars).
-- Small "Reset password" button on each member row → opens a tiny inline input → on submit calls the action and toasts "Password updated". This lets you set `moujpharmaceuticals@gmail.com` to `Mouj_2010` directly from the UI without me touching auth secrets behind your back.
+**1. `supabase/functions/manage-tenant/index.ts` — `list_tenant_users` action**
+Return the full member record, not just emails:
+`{ user_id, email, role, is_active, created_at }[]` — fetched via service role so RLS doesn't hide siblings.
 
-**3. (Optional) immediately set the password**
-After the button ships, you click "Reset password" on `moujpharmaceuticals@gmail.com`, type `Mouj_2010`, done.
+**2. `src/pages/Settings.tsx` — `TeamAccessCard.load()`**
+Stop using the direct `tenant_users` query as the source of truth. Use the edge function response to build `members`, falling back to the direct query only if the edge function fails (e.g. for the non-owner case).
 
-## Out of scope
-- Creating a duplicate user for that email (not possible — auth would reject it).
-- Sending a password reset email (you said you want to set it directly).
-- Editing roles after creation (still owner-initiated only via deactivate + re-add).
+No DB migration, no schema changes, no new actions.
 
-## Technical notes
-- Both new actions reuse the existing owner-check pattern (`tenant_users.role = 'owner'` for caller's tenant).
-- Email lookup batches `supabaseAdmin.auth.admin.getUserById` for each member — fine for ≤5 users.
-- No DB migration needed; no schema changes.
+## Verification
 
-Reply "go" and I'll ship it.
+- Reload Settings → Team & Access. Both `arsaluae@gmail.com` (You / Admin) and `moujpharmaceuticals@gmail.com` (Admin) should appear.
+- Reset-password button on the second row should work as before.

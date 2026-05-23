@@ -255,11 +255,12 @@ Deno.serve(async (req) => {
         });
       }
       const { data: tus } = await supabaseAdmin
-        .from("tenant_users").select("user_id").eq("tenant_id", tenant_id);
-      const results: { user_id: string; email: string | null }[] = [];
+        .from("tenant_users").select("user_id, role, is_active, created_at").eq("tenant_id", tenant_id)
+        .order("created_at", { ascending: true });
+      const results: { user_id: string; email: string | null; role: string; is_active: boolean; created_at: string }[] = [];
       for (const t of tus || []) {
         const { data: au } = await supabaseAdmin.auth.admin.getUserById(t.user_id);
-        results.push({ user_id: t.user_id, email: au?.user?.email ?? null });
+        results.push({ user_id: t.user_id, email: au?.user?.email ?? null, role: t.role, is_active: t.is_active, created_at: t.created_at });
       }
       return new Response(JSON.stringify({ users: results }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
