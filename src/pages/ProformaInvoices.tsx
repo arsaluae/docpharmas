@@ -29,6 +29,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { checkTerritoryLock } from "@/lib/territory";
 import { useFreightProviders } from "@/hooks/useFreightProviders";
 import { SalesReturnDialog } from "@/components/sales/SalesReturnDialog";
+import { useDraftAutosave } from "@/hooks/useDraftAutosave";
+import { useTenant } from "@/hooks/useTenant";
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
