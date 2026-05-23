@@ -343,6 +343,7 @@ export default function CreditNotes() {
           onApplied={() => { setApplyNote(null); load(); }}
         />
       )}
+      <BulkActionBar selectedIds={bulk.selected} onClear={bulk.clear} onDeleteOne={deleteOne} entityLabel="credit note" onDone={load} />
     </AppLayout>
   );
 }
