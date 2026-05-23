@@ -36,7 +36,7 @@ interface PurchaseOrder {
  validity_days: number; subtotal: number; gst: number; total: number;
  status: string; notes: string | null; created_at: string;
  converted_po_id: string | null;
- po_number?: string; grn_number?: string; bill_number?: string;
+ po_number?: string; grn_number?: string; bill_number?: string; bill_id?: string | null; bill_approved_at?: string | null;
  suppliers: { name: string; company?: string | null; phone?: string | null; address?: string | null } | null;
 }
 
@@ -162,7 +162,7 @@ export default function PurchaseProforma() {
  supabase.from("purchase_proformas").select("*, suppliers(name, company, phone, address)").order("created_at", { ascending: false }),
  supabase.from("purchase_orders").select("id, po_number, status, proforma_id").order("created_at", { ascending: false }),
  supabase.from("goods_received_notes").select("id, grn_number, po_id").order("created_at", { ascending: false }),
- supabase.from("purchase_invoices").select("id, bill_number, grn_id, status").order("created_at", { ascending: false }),
+ supabase.from("purchase_invoices").select("id, bill_number, grn_id, status, approved_at").order("created_at", { ascending: false }),
  supabase.from("suppliers").select("id, name, wht_rate, company, phone, address").eq("is_active", true),
  supabase.from("products").select("id, name, cost_price").eq("is_active", true),
  ]);
@@ -189,6 +189,8 @@ export default function PurchaseProforma() {
  const linkedBill = bills.data?.find((b: any) => b.grn_id === linkedGRN.id);
  if (linkedBill) {
  billNum = linkedBill.bill_number;
+ (p as any)._bill_id = linkedBill.id;
+ (p as any)._bill_approved_at = linkedBill.approved_at || null;
  if (linkedBill.status === "paid") status = "paid";
  }
  }
