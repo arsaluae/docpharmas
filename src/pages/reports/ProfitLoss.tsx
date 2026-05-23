@@ -155,11 +155,20 @@ export default function ProfitLoss() {
           </CardContent>
         </Card>
         <Separator />
+        <Card className="glass-card">
+          <CardHeader><CardTitle className="text-base">Staff Salaries</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex justify-between font-medium">
+              <span>Total Salaries Paid</span><span className="font-mono text-destructive">PKR {salaries.toLocaleString()}</span>
+            </div>
+          </CardContent>
+        </Card>
+        <Separator />
         <Card className={`glass-card border-2 ${netProfit >= 0 ? "border-primary/30" : "border-destructive/30"}`}>
           <CardHeader><CardTitle className="text-base">Net Profit</CardTitle></CardHeader>
           <CardContent>
             <p className={`text-3xl font-bold font-mono ${netProfit >= 0 ? "text-primary" : "text-destructive"}`}>PKR {netProfit.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">Net Profit Margin: {netMargin.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground mt-1">Net Profit Margin: {netMargin.toFixed(1)}% · After Expenses & Salaries</p>
           </CardContent>
         </Card>
       </div>
