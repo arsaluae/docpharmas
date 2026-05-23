@@ -87,6 +87,7 @@ const Salaries = lazy(() => import("./pages/Salaries"));
 const SalesAgents = lazy(() => import("./pages/SalesAgents"));
 const DeliveryNotes = lazy(() => import("./pages/DeliveryNotes"));
 const Couriers = lazy(() => import("./pages/Couriers"));
+const AccountingPeriods = lazy(() => import("./pages/AccountingPeriods"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
