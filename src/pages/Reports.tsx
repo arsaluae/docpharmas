@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, Scale, BarChart3, Clock, DollarSign, Package, ShieldCheck, Layers, Boxes, UserCheck, Truck, ClipboardList, MapPin, Sparkles, LineChart, Activity, ArchiveX, ShieldAlert, Wallet, Globe2 } from "lucide-react";
+import { TrendingUp, Scale, BarChart3, Clock, DollarSign, Package, ShieldCheck, Layers, Boxes, UserCheck, Truck, ClipboardList, MapPin, Sparkles, LineChart, Activity, ArchiveX, ShieldAlert, Wallet, Globe2, Lock } from "lucide-react";
 
 const reportSections = [
   { label: "Intelligence", items: [
