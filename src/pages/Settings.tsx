@@ -691,6 +691,9 @@ function TeamAccessCard() {
  const [newEmail, setNewEmail] = useState("");
  const [newPassword, setNewPassword] = useState("");
  const [newRole, setNewRole] = useState<"owner" | "staff">("staff");
+ const [resetFor, setResetFor] = useState<string | null>(null);
+ const [resetPwd, setResetPwd] = useState("");
+ const [resetting, setResetting] = useState(false);
 
  const load = async () => {
  if (!tenantId) return;
@@ -704,11 +707,51 @@ function TeamAccessCard() {
  .eq("tenant_id", tenantId)
  .order("created_at", { ascending: true });
 
- setMembers((data || []) as TenantMember[]);
+ const base = (data || []) as TenantMember[];
+ // Enrich with emails via edge function (owner-only on server)
+ try {
+   const { data: emailData } = await supabase.functions.invoke("manage-tenant", {
+     body: { action: "list_tenant_users", tenant_id: tenantId },
+   });
+   const map = new Map<string, string>();
+   for (const u of emailData?.users || []) if (u.email) map.set(u.user_id, u.email);
+   setMembers(base.map(m => ({ ...m, email: map.get(m.user_id) })));
+ } catch {
+   setMembers(base);
+ }
  setLoading(false);
  };
 
  useEffect(() => { load(); }, [tenantId]);
+
+ const handleResetPassword = async (m: TenantMember) => {
+ if (!tenantId) return;
+ if (resetPwd.length < 6) { toast.error("Password must be at least 6 characters"); return; }
+ setResetting(true);
+ try {
+   const { data, error } = await supabase.functions.invoke("manage-tenant", {
+     body: {
+       action: "owner_reset_password",
+       tenant_id: tenantId,
+       user_id: m.user_id,
+       new_password: resetPwd,
+     },
+   });
+   if (error) {
+     let msg = error.message;
+     try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error; } catch {}
+     throw new Error(msg);
+   }
+   if (data?.error) throw new Error(data.error);
+   toast.success("Password updated");
+   setResetFor(null); setResetPwd("");
+ } catch (err: any) {
+   toast.error(err.message);
+ } finally {
+   setResetting(false);
+ }
+ };
+
 
  const handleAdd = async () => {
  if (!tenantId) return;
