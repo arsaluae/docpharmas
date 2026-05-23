@@ -578,7 +578,59 @@ export default function PrintJobs() {
  </DialogContent>
  </Dialog>
 
- <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+  <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+
+  {/* Record Rejection Dialog */}
+  <Dialog open={!!rejectJob} onOpenChange={o => { if (!o) setRejectJob(null); }}>
+    <DialogContent className="max-w-md">
+      <DialogHeader><DialogTitle>Record Rejection — {rejectJob?.job_number}</DialogTitle></DialogHeader>
+      {rejectJob && (() => {
+        const qty = Number(rejQty) || 0;
+        const cpu = Number(rejectJob.cost_per_unit) || 0;
+        const total = qty * cpu;
+        const ourPct = Number(rejOurPct) || 0;
+        const ourAmt = total * ourPct / 100;
+        const vendorAmt = total - ourAmt;
+        const maxRej = Math.max(Number(rejectJob.quantity_delivered) - Number(rejectJob.quantity_rejected), 0);
+        return (
+          <div className="space-y-3 mt-2">
+            <p className="text-xs text-muted-foreground">Delivered so far: <span className="font-mono text-foreground">{Number(rejectJob.quantity_delivered).toLocaleString()}</span> · Already rejected: <span className="font-mono text-foreground">{Number(rejectJob.quantity_rejected).toLocaleString()}</span></p>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Qty Rejected *</Label><Input type="number" max={maxRej} value={rejQty} onChange={e => setRejQty(e.target.value)} /></div>
+              <div><Label>Our Share % *</Label><Input type="number" min={0} max={100} value={rejOurPct} onChange={e => setRejOurPct(e.target.value)} /></div>
+            </div>
+            <div><Label>Reason</Label><Input value={rejReason} onChange={e => setRejReason(e.target.value)} placeholder="Misprint, color mismatch, damaged packaging..." /></div>
+            <div><Label>Evidence / Notes</Label><Textarea rows={2} value={rejEvidence} onChange={e => setRejEvidence(e.target.value)} placeholder="Photo refs, batch #, who inspected..." /></div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2 rounded-lg bg-warning/10 border border-warning/20 text-center">
+                <p className="text-muted-foreground">Vendor (Debit Note)</p>
+                <p className="font-mono font-bold text-warning">PKR {vendorAmt.toLocaleString()}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-center">
+                <p className="text-muted-foreground">Our Expense</p>
+                <p className="font-mono font-bold text-destructive">PKR {ourAmt.toLocaleString()}</p>
+              </div>
+            </div>
+            <Button className="w-full" disabled={rejBusy || !qty || qty <= 0 || qty > maxRej} onClick={async () => {
+              setRejBusy(true);
+              const { error } = await supabase.from("print_rejections" as any).insert({
+                print_job_id: rejectJob.id,
+                qty_rejected: qty,
+                cost_per_unit: cpu,
+                our_share_percent: ourPct,
+                reason: rejReason || null,
+                evidence_notes: rejEvidence || null,
+              } as any);
+              setRejBusy(false);
+              if (error) { toast.error(error.message); return; }
+              toast.success(`Rejection recorded. Debit Note (PKR ${vendorAmt.toLocaleString()}) and Expense (PKR ${ourAmt.toLocaleString()}) posted.`);
+              setRejectJob(null); load();
+            }}>{rejBusy ? "Posting..." : "Post Rejection"}</Button>
+          </div>
+        );
+      })()}
+    </DialogContent>
+  </Dialog>
  </AppLayout>
  );
 }
