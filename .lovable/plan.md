@@ -1,58 +1,50 @@
-# Performance & Reliability Fixes
+## Phase 1 Accounting Hardening
 
-Implement the 4 recommendations from the test report.
+Implement the three must-have compliance fixes from the audit. Scope is limited to Phase 1; double-entry GL (Phase 2) and bank reconciliation (Phase 3) are out of scope.
 
-## 1. TenantContext — cache tenant lookup (kills 1–1.5s per navigation)
+### 1. Period Locking
 
-Currently every page that needs `tenant_id` or role re-queries `tenant_users`. We'll add a single provider that fetches once per session.
+**New table `accounting_periods`** (tenant-scoped, RLS via `get_user_tenant_id()`):
+- `period_start date`, `period_end date`, `is_locked boolean`, `locked_at`, `locked_by`, `lock_reason text`
 
-- New file: `src/contexts/TenantContext.tsx`
-  - Fetches `tenant_users` once on auth state change
-  - Exposes `{ tenantId, role, companyName, loading }` via `useTenant()`
-  - Caches result in `sessionStorage` keyed by user id for instant warm reloads
-- Mount `<TenantProvider>` inside `App.tsx` above the router (under existing auth provider)
-- Update the 4–5 highest-traffic call sites that currently do their own `tenant_users` fetch (AppLayout, Index/dashboard, ProtectedRoute) to consume `useTenant()` instead. Leave other pages on their existing pattern for now — they'll naturally hit the cached `sessionStorage` value when they re-fetch since RLS is unchanged.
+**DB trigger `enforce_period_lock()`** attached to: `sales_invoices`, `purchase_invoices`, `payments`, `expenses`, `sales_returns`, `purchase_returns`, `goods_received_notes`, `credit_notes`, `debit_notes`, `salary_payments`.
+- On INSERT/UPDATE/DELETE: if row `date` falls inside a locked period → `RAISE EXCEPTION 'Period locked: ...'`.
+- Admin role bypass via `get_user_tenant_role() = 'owner'` + explicit override flag (skipped for now — owners just unlock the period).
 
-## 2. Lazy-load Recharts on the dashboard
+**UI:** New page `src/pages/AccountingPeriods.tsx` (under Accounting menu) — list periods, Lock/Unlock buttons, restricted to `owner`/`admin` roles. Add route in `App.tsx` and nav entry.
 
-Recharts is ~220 KB and currently blocks initial paint of `/dashboard`. Split the trend bar chart into its own module and load it lazily.
+### 2. COGS Cost Snapshot
 
-- New file: `src/components/dashboard/PerformanceTrendChart.tsx` — move the existing Recharts `<BarChart>` JSX out of `src/pages/Index.tsx`
-- In `Index.tsx`, replace the inline chart with `const PerformanceTrendChart = lazy(() => import("@/components/dashboard/PerformanceTrendChart"))` wrapped in `<Suspense fallback={<div className="h-[180px]" />}>`
-- Visual output unchanged
+**Schema:** `ALTER TABLE sales_invoice_items ADD COLUMN unit_cost numeric DEFAULT 0;`
 
-## 3. Realtime on stock_movements + sales_invoices + payments
+**Trigger `snapshot_sales_item_cost()`** BEFORE INSERT on `sales_invoice_items`:
+- If `NEW.unit_cost = 0 or NULL`, copy from `products.cost_price` at insert time.
 
-So two-tab edits (the test case) reflect immediately without refresh.
+**Backfill:** one-time UPDATE for existing rows where `unit_cost = 0`, set to current `products.cost_price` (best-effort, documented as historical estimate).
 
-- Migration: `ALTER PUBLICATION supabase_realtime ADD TABLE public.stock_movements, public.sales_invoices, public.payments;`
-- Also set `REPLICA IDENTITY FULL` on those three tables
-- No client code changes required for this step — existing subscriptions will start receiving events. (Pages that want live updates can opt in later.)
+**Reports updated:**
+- `dashboard_kpis()` SQL function: replace `quantity * COALESCE(p.cost_price,0)` with `quantity * COALESCE(sii.unit_cost, p.cost_price, 0)`.
+- `src/pages/ProfitLoss.tsx`: switch COGS aggregation to `sii.unit_cost`.
+- `src/pages/BalanceSheet.tsx`: same.
 
-## 4. Invoice draft autosave (Sales Invoice form)
+### 3. P&L / Balance Sheet Consistency
 
-Prevents the "refresh mid-form = data lost" failure mode for the most painful form.
+**Fix:** subtract salaries from Net Profit on `ProfitLoss.tsx` (currently only BS subtracts them). Align both reports to the same Net Profit formula:
 
-- Locate the Sales Invoice creation form (under `src/pages/` or `src/components/sales/`)
-- Add a `useEffect` that debounces (1s) and writes the current form state to `localStorage` under `draft:sales-invoice:<tenantId>`
-- On mount, if a draft exists and the form is empty, show a small inline banner: "Restore unsaved draft from {time}?" with Restore / Discard buttons
-- Clear the draft key on successful submit or on explicit Discard
+```
+Net Profit = Revenue − Sales Returns − COGS − Operating Expenses − Salaries − Tax
+```
 
-## Out of scope
+**Fix hard-coded GST in `BalanceSheet.tsx` line ~70:** read per-line `tax_rate` / `tax_amount` from invoice items instead of multiplying by 0.17.
 
-- Changing RLS, schema beyond the publication change
-- Touching other forms (PO, GRN) — same pattern can be applied later if useful
-- Production bundling/CDN changes (those happen automatically on publish)
+### Files
 
-## Files touched (estimate)
+**New:** `src/pages/AccountingPeriods.tsx`, 1 SQL migration (`accounting_periods` table + RLS + `enforce_period_lock` trigger + `unit_cost` column + `snapshot_sales_item_cost` trigger + backfill + updated `dashboard_kpis`).
 
-- New: `src/contexts/TenantContext.tsx`, `src/components/dashboard/PerformanceTrendChart.tsx`
-- Edited: `src/App.tsx`, `src/components/AppLayout.tsx`, `src/pages/Index.tsx`, the Sales Invoice form file, possibly `ProtectedRoute`
-- Migration: 1 SQL file (publication + replica identity)
+**Edited:** `src/App.tsx` (route), `src/components/AppSidebar.tsx` or equivalent nav (menu entry), `src/pages/ProfitLoss.tsx`, `src/pages/BalanceSheet.tsx`.
 
-## Verification
-
-- Reload `/dashboard` cold → confirm `tenant_users` fetch fires once, not on every nav
-- Network panel: Recharts chunk loaded as separate async chunk
-- Open two tabs, change stock in one → second tab updates without refresh (if subscribed) or at minimum on next refresh continues working
-- Fill 3 sales-invoice lines, refresh → restore banner appears
+### Out of Scope
+- Double-entry journal posting (Phase 2)
+- Bank reconciliation (Phase 3)
+- FIFO/weighted-average costing (still snapshot-of-current-cost-at-sale-time)
+- Fixed-asset module / Capital & Drawings accounts
