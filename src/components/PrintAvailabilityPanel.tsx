@@ -9,6 +9,7 @@ interface Props {
   productName?: string;
   requiredQty: number;
   supplierId?: string;
+  purchaseInvoiceId?: string;
 }
 
 interface PrintJobRow {
