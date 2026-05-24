@@ -383,6 +383,36 @@ export type Database = {
           },
         ]
       }
+      city_products: {
+        Row: {
+          city: string
+          created_at: string
+          id: string
+          preferred_rate: number | null
+          priority: number
+          product_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          id?: string
+          preferred_rate?: number | null
+          priority?: number
+          product_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          id?: string
+          preferred_rate?: number | null
+          priority?: number
+          product_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           address: string | null
@@ -736,6 +766,7 @@ export type Database = {
           ntn: string | null
           opening_balance: number
           phone: string | null
+          phones: Json
           strn: string | null
           tenant_id: string | null
         }
@@ -755,6 +786,7 @@ export type Database = {
           ntn?: string | null
           opening_balance?: number
           phone?: string | null
+          phones?: Json
           strn?: string | null
           tenant_id?: string | null
         }
@@ -774,6 +806,7 @@ export type Database = {
           ntn?: string | null
           opening_balance?: number
           phone?: string | null
+          phones?: Json
           strn?: string | null
           tenant_id?: string | null
         }
@@ -3183,6 +3216,7 @@ export type Database = {
           opening_balance: number
           payment_terms_days: number
           phone: string | null
+          phones: Json
           strn: string | null
           supplier_code: string | null
           tenant_id: string | null
@@ -3204,6 +3238,7 @@ export type Database = {
           opening_balance?: number
           payment_terms_days?: number
           phone?: string | null
+          phones?: Json
           strn?: string | null
           supplier_code?: string | null
           tenant_id?: string | null
@@ -3225,6 +3260,7 @@ export type Database = {
           opening_balance?: number
           payment_terms_days?: number
           phone?: string | null
+          phones?: Json
           strn?: string | null
           supplier_code?: string | null
           tenant_id?: string | null
