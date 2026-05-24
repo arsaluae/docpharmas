@@ -91,6 +91,31 @@ export function PrintAvailabilityPanel({ productId, productName, requiredQty, su
 
   if (loading) return null;
 
+  // ── Auto-reservation summary (after PO confirm) ──
+  if (allocations.length > 0) {
+    const totalReserved = allocations.reduce((s, a) => s + Number(a.quantity_reserved), 0);
+    const totalConsumed = allocations.reduce((s, a) => s + Number(a.quantity_consumed), 0);
+    const bySource = allocations.reduce((acc, a) => {
+      acc[a.source] = (acc[a.source] || 0) + Number(a.quantity_reserved);
+      return acc;
+    }, {} as Record<string, number>);
+    const avgCost = allocations.reduce((s, a) => s + Number(a.quantity_reserved) * Number(a.printing_cost_per_unit), 0) / Math.max(totalReserved, 1);
+    return (
+      <div className="col-span-12 -mt-1 mb-2 ml-[1px] rounded-md border border-success/40 bg-success/5 px-3 py-2 text-[11px]">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="font-medium text-success">✓ Printing auto-reserved</span>
+          <span className="text-muted-foreground">for <b className="text-foreground">{productName}</b>:</span>
+          <span>Reserved <b className="font-mono">{totalReserved.toLocaleString()}</b></span>
+          {totalConsumed > 0 && <span className="text-success">Consumed <b className="font-mono">{totalConsumed.toLocaleString()}</b></span>}
+          {Object.entries(bySource).map(([src, q]) => (
+            <span key={src} className="text-muted-foreground">{src.replace("_", " ")}: <b className="font-mono text-foreground">{q.toLocaleString()}</b></span>
+          ))}
+          <span className="text-muted-foreground">Cost/pc <b className="font-mono text-foreground">{avgCost.toFixed(2)}</b></span>
+        </div>
+      </div>
+    );
+  }
+
   // If nothing relevant and no requirement, hide
   if (totalAvailable === 0 && inProgress === 0 && !requiredQty) return null;
 
