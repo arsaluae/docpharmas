@@ -997,9 +997,11 @@ export default function ProformaInvoices() {
  <div className="px-3 py-6 text-center text-xs text-muted-foreground">No items yet — click "Add Item" to begin</div>
  ) : items.map((item, idx) => (
  <div key={idx} className="grid grid-cols-12 gap-2 px-3 py-2 items-center border-t border-border/60 hover:bg-muted/20">
- <div className="col-span-4">
- <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Select product…" triggerClassName="text-xs h-9" />
+ <div className="col-span-4 flex items-center gap-2">
+ <span className="text-[10px] font-mono text-muted-foreground w-5 shrink-0">#{idx + 1}</span>
+ <div className="flex-1"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Select product…" triggerClassName="text-xs h-9" /></div>
  </div>
+
  <div className="col-span-2">
  <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs text-right h-9" placeholder="0" />
  </div>
