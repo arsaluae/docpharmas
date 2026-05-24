@@ -26,6 +26,7 @@ interface PdfOptions {
   settings: CompanySettings | null;
   template?: DocumentTemplate | null;
   statusTheme?: StatusTheme;
+  numbered?: boolean;
 }
 
 function numberToWords(num: number): string {
@@ -100,9 +101,15 @@ function buildPdfHtml(opts: PdfOptions): string {
   const companyName = s?.company_name || "Company Name";
 
   const docTitle = t?.title || opts.title;
-  const columns = t?.columns_config?.length ? t.columns_config : opts.columns;
+  const baseColumns = t?.columns_config?.length ? t.columns_config : opts.columns;
+  // Always prepend a "#" serial column unless explicitly disabled
+  const numbered = opts.numbered !== false;
+  const columns: PdfColumn[] = numbered
+    ? [{ header: "#", key: "__rowNum", align: "left" }, ...baseColumns]
+    : baseColumns;
   const signatureLabels = t?.signature_labels?.length ? t.signature_labels : ["Prepared By", "Authorized Signature"];
-  const showTotalInWords = t?.show_total_in_words ?? false;
+  // Always show total in figures + words on financial docs
+  const showTotalInWords = true;
   const showBankDetails = t?.show_bank_details ?? false;
   const bankDetailsText = t?.bank_details_text || "";
   const footerText = t?.footer_text || "";
@@ -149,9 +156,12 @@ function buildPdfHtml(opts: PdfOptions): string {
 
   const bodyRows = opts.rows.map((row, i) => {
     const bg = i % 2 === 0 ? "#ffffff" : C.rowAlt;
+    const rowWithNum = numbered ? { __rowNum: String(i + 1), ...row } : row;
     const cells = columns.map((c, cIdx) => {
       const isNum = c.align === "right";
-      return `<td style="padding:9px 10px;font-size:11.5px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};${colMinWidth(c, cIdx)}${isNum ? "font-family:'Courier New',monospace;font-weight:500;letter-spacing:0.5px;" : "font-weight:400;"}">${row[c.key] ?? ""}</td>`;
+      const isSerial = c.key === "__rowNum";
+      const widthCss = isSerial ? "min-width:28px;max-width:36px;" : colMinWidth(c, cIdx);
+      return `<td style="padding:9px 10px;font-size:11.5px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};${widthCss}${isNum || isSerial ? "font-family:'Courier New',monospace;font-weight:500;letter-spacing:0.5px;" : "font-weight:400;"}">${rowWithNum[c.key] ?? ""}</td>`;
     }).join("");
     return `<tr style="background:${bg};">${cells}</tr>`;
   }).join("");

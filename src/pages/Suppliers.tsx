@@ -20,6 +20,8 @@ import { SupplierProfileDialog } from "@/components/SupplierProfileDialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CITY_OPTIONS } from "@/lib/pakistan-cities";
 import { AreaSelect } from "@/components/AreaSelect";
+import { CityInput } from "@/components/CityInput";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Supplier {
  id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
@@ -149,13 +151,13 @@ export default function Suppliers() {
  <div className="col-span-2"><Label>Company Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Company / Business name" /></div>
  <div><Label>Contact Person</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Contact name (optional)" /></div>
  <div><Label>License Number</Label><Input value={form.license_number} onChange={e => setForm({...form, license_number: e.target.value})} placeholder="Drug license #" /></div>
- <div><Label>City</Label><SearchableSelect options={CITY_OPTIONS} value={form.city} onChange={(v) => setForm({...form, city: v})} placeholder="Select city" /></div>
+ <div><Label>City</Label><CityInput value={form.city} onChange={(v) => setForm({...form, city: v})} /></div>
  <div><Label>Area</Label><AreaSelect value={form.area} city={form.city} onChange={(v) => setForm({...form, area: v})} /></div>
  <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} /></div>
  <div><Label>STRN</Label><Input value={form.strn} onChange={e => setForm({...form, strn: e.target.value})} /></div>
- <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
- <div><Label>Email</Label><Input value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
- <div className="col-span-2"><Label>Address</Label><Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} /></div>
+ <div className="col-span-2"><Label>Phone Numbers</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="e.g. 0300-1234567, 042-3567890 (separate with commas)" /></div>
+ <div className="col-span-2"><Label>Email</Label><Input value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
+ <div className="col-span-2"><Label>Address</Label><Textarea rows={3} value={form.address} onChange={e => setForm({...form, address: e.target.value})} placeholder="Street, area, landmarks…" /></div>
  <div><Label>Payment Terms (days)</Label><Input type="number" value={form.payment_terms_days} onChange={e => setForm({...form, payment_terms_days: e.target.value})} /></div>
  {settings?.wht_enabled && <div><Label>WHT Rate (%)</Label><Input type="number" step="0.1" value={form.wht_rate} onChange={e => setForm({...form, wht_rate: e.target.value})} /></div>}
  <div><Label>Opening Balance (PKR)</Label><Input type="number" value={form.opening_balance} onChange={e => setForm({...form, opening_balance: e.target.value})} /></div>
