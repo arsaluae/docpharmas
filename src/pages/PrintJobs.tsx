@@ -96,7 +96,27 @@ export default function PrintJobs() {
  const [pdfTitle, setPdfTitle] = useState("");
  const { settings } = useCompanySettings();
 
+ const [searchParams, setSearchParams] = useSearchParams();
  useEffect(() => { load(); }, [pagination.page, tab]);
+
+ // Prefill create dialog from URL params (?product_id=…&supplier_id=…&qty=…)
+ useEffect(() => {
+ const pid = searchParams.get("product_id");
+ const sid = searchParams.get("supplier_id");
+ const qty = searchParams.get("qty");
+ if (pid || sid || qty) {
+ if (pid) setProductId(pid);
+ if (sid) setAllottedSupplierId(sid);
+ if (qty) setQtyOrdered(qty);
+ setCreateOpen(true);
+ // Clean URL so reload won't re-trigger
+ const next = new URLSearchParams(searchParams);
+ next.delete("product_id"); next.delete("supplier_id"); next.delete("qty");
+ setSearchParams(next, { replace: true });
+ }
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [searchParams]);
+
 
  const load = async () => {
  let jobQuery = supabase.from("print_jobs").select("*", { count: "exact" }).order("created_at", { ascending: false });
