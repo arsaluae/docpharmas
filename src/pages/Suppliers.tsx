@@ -20,6 +20,8 @@ import { SupplierProfileDialog } from "@/components/SupplierProfileDialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CITY_OPTIONS } from "@/lib/pakistan-cities";
 import { AreaSelect } from "@/components/AreaSelect";
+import { CityInput } from "@/components/CityInput";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Supplier {
  id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
