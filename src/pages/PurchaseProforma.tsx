@@ -959,8 +959,10 @@ export default function PurchaseProforma() {
  </div>
  </div>
  {items.map((item, idx) => (
- <div key={idx} className="grid grid-cols-12 gap-2 mb-2 items-end">
- <div className="col-span-5"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
+ <div key={idx} className="contents">
+ <div className="grid grid-cols-12 gap-2 mb-1 items-end">
+ <div className="col-span-1 text-xs font-mono text-muted-foreground pt-2 pl-1">#{idx + 1}</div>
+ <div className="col-span-4"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
  <div className="col-span-2"><Input type="number" value={item.quantity_requested} onChange={e => updateItem(idx, "quantity_requested", e.target.value)} className="text-xs" placeholder="Qty" /></div>
  <div className="col-span-2 relative">
  <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
@@ -971,7 +973,14 @@ export default function PurchaseProforma() {
  <div className="col-span-2 text-right text-sm font-mono pt-2 text-foreground">{item.amount.toLocaleString()}</div>
  <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
  </div>
+ {item.product_id && Number(item.quantity_requested) > 0 && (
+ <div className="grid grid-cols-12 gap-2 mb-2">
+ <PrintAvailabilityPanel productId={item.product_id} productName={item.product_name} requiredQty={Number(item.quantity_requested)} supplierId={supplierId} />
+ </div>
+ )}
+ </div>
  ))}
+
  <Separator className="my-3" />
  <div>
  <Label className="text-sm font-semibold">Additional Costs</Label>
