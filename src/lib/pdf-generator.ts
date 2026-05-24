@@ -94,6 +94,43 @@ function getColors(theme?: StatusTheme) {
   return { ...BASE_C, ...STATUS_THEMES[theme] };
 }
 
+// Aliases so callers using one key (e.g. "name") still render in templates that expect another (e.g. "product_name").
+const SERIAL_KEYS = new Set(["srno", "sr", "sno", "serial", "idx", "__rowNum", "#", "s_no"]);
+const SERIAL_HEADERS = new Set(["#", "sr", "sr#", "sr.", "s#", "sno", "s.no", "s.no.", "serial", "s/n"]);
+const KEY_ALIASES: Record<string, string[]> = {
+  product_name: ["product_name", "name", "item_name", "description", "product"],
+  name: ["name", "product_name", "item_name", "description"],
+  item_name: ["item_name", "product_name", "name", "description"],
+  quantity: ["quantity", "qty", "quantity_requested", "quantity_received", "quantity_ordered", "quantity_confirmed", "convert_quantity"],
+  qty: ["qty", "quantity", "quantity_requested", "quantity_received"],
+  quantity_requested: ["quantity_requested", "quantity", "qty"],
+  quantity_received: ["quantity_received", "quantity", "qty"],
+  quantity_ordered: ["quantity_ordered", "quantity", "qty"],
+  quantity_confirmed: ["quantity_confirmed", "quantity", "qty"],
+  batch_number: ["batch_number", "batch", "batch_no"],
+  expiry_date: ["expiry_date", "expiry", "exp"],
+  rate: ["rate", "price", "unit_price", "tp_rate"],
+  tp_rate: ["tp_rate", "rate", "price"],
+  amount: ["amount", "total", "line_total"],
+  mrp: ["mrp", "mrp_price"],
+  mrp_inc_tax: ["mrp_inc_tax", "mrp", "mrp_with_tax"],
+  discount: ["discount", "disc", "discount_amount", "discount_pct"],
+  discount_pct: ["discount_pct", "discount_percent", "disc_pct"],
+  gst_rate: ["gst_rate", "gst", "tax_rate"],
+};
+
+function resolveCell(row: Record<string, any>, key: string, rowIndex: number): any {
+  if (row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
+  const aliases = KEY_ALIASES[key];
+  if (aliases) {
+    for (const a of aliases) {
+      if (row[a] !== undefined && row[a] !== null && row[a] !== "") return row[a];
+    }
+  }
+  if (SERIAL_KEYS.has(key)) return String(rowIndex + 1);
+  return "";
+}
+
 function buildPdfHtml(opts: PdfOptions): string {
   const C = getColors(opts.statusTheme);
   const s = opts.settings;
@@ -102,8 +139,9 @@ function buildPdfHtml(opts: PdfOptions): string {
 
   const docTitle = t?.title || opts.title;
   const baseColumns = t?.columns_config?.length ? t.columns_config : opts.columns;
-  // Always prepend a "#" serial column unless explicitly disabled
-  const numbered = opts.numbered !== false;
+  // Detect existing serial column so we don't duplicate it
+  const hasSerial = baseColumns.some(c => SERIAL_KEYS.has(c.key) || SERIAL_HEADERS.has(c.header.trim().toLowerCase()));
+  const numbered = opts.numbered !== false && !hasSerial;
   const columns: PdfColumn[] = numbered
     ? [{ header: "#", key: "__rowNum", align: "left" }, ...baseColumns]
     : baseColumns;
@@ -113,55 +151,15 @@ function buildPdfHtml(opts: PdfOptions): string {
   const showBankDetails = t?.show_bank_details ?? false;
   const bankDetailsText = t?.bank_details_text || "";
   const footerText = t?.footer_text || "";
-
-  const logoHtml = s?.logo_url
-    ? `<img src="${s.logo_url}" style="max-height:68px;max-width:180px;object-fit:contain;" />`
-    : `<div style="font-family:'Inter',sans-serif;font-size:24px;font-weight:800;color:${C.text};letter-spacing:-0.5px;line-height:1.1;">${companyName}</div>`;
-
-  const companyDetails = [
-    s?.address,
-    [s?.phone, s?.email].filter(Boolean).join(" · "),
-    s?.website,
-    s?.ntn ? `NTN: ${s.ntn}` : null,
-    s?.strn ? `STRN: ${s.strn}` : null,
-  ].filter(Boolean);
-
-  const partyLines = [
-    opts.partyName ? `<div style="font-size:14px;font-weight:700;color:${C.text};letter-spacing:-0.2px;">${opts.partyName}</div>` : "",
-    opts.partyAddress ? `<div style="font-size:11px;color:${C.textMuted};margin-top:3px;line-height:1.5;">${opts.partyAddress}</div>` : "",
-    opts.partyPhone ? `<div style="font-size:11px;color:${C.textMuted};">Tel: ${opts.partyPhone}</div>` : "",
-    opts.partyNtn ? `<div style="font-size:10px;color:${C.textLight};margin-top:2px;letter-spacing:0.3px;">${opts.partyNtn}</div>` : "",
-    t?.show_party_area && opts.partyArea ? `<div style="font-size:10px;color:${C.textLight};">Area: ${opts.partyArea}</div>` : "",
-    t?.show_party_license && opts.partyLicense ? `<div style="font-size:10px;color:${C.textLight};">License No: ${opts.partyLicense}</div>` : "",
-    t?.show_party_cnic && opts.partyCnic ? `<div style="font-size:10px;color:${C.textLight};">CNIC: ${opts.partyCnic}</div>` : "",
-  ].filter(Boolean).join("");
-
-  const metaItems = [
-    { label: "Document #", value: opts.documentNumber },
-    { label: "Date", value: opts.date },
-    ...(opts.meta || []),
-  ];
-
-  const thAlign = (c: PdfColumn) => c.align || "left";
-
-  const colMinWidth = (c: PdfColumn, idx: number) => {
-    if (idx === 0) return "min-width:40px;max-width:50px;";
-    if (idx === 1) return "min-width:160px;";
-    return "";
-  };
-
-  const headerCells = columns.map((c, idx) =>
-    `<th style="padding:10px 10px;text-align:${thAlign(c)};font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:#e2e8f0;border-bottom:2px solid ${C.primary};${colMinWidth(c, idx)}">${c.header}</th>`
-  ).join("");
-
+...
   const bodyRows = opts.rows.map((row, i) => {
     const bg = i % 2 === 0 ? "#ffffff" : C.rowAlt;
-    const rowWithNum = numbered ? { __rowNum: String(i + 1), ...row } : row;
     const cells = columns.map((c, cIdx) => {
       const isNum = c.align === "right";
-      const isSerial = c.key === "__rowNum";
+      const isSerial = SERIAL_KEYS.has(c.key);
       const widthCss = isSerial ? "min-width:28px;max-width:36px;" : colMinWidth(c, cIdx);
-      return `<td style="padding:9px 10px;font-size:11.5px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};${widthCss}${isNum || isSerial ? "font-family:'Courier New',monospace;font-weight:500;letter-spacing:0.5px;" : "font-weight:400;"}">${rowWithNum[c.key] ?? ""}</td>`;
+      const value = resolveCell(row, c.key, i);
+      return `<td style="padding:9px 10px;font-size:11.5px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};${widthCss}${isNum || isSerial ? "font-family:'Courier New',monospace;font-weight:500;letter-spacing:0.5px;" : "font-weight:400;"}">${value ?? ""}</td>`;
     }).join("");
     return `<tr style="background:${bg};">${cells}</tr>`;
   }).join("");
