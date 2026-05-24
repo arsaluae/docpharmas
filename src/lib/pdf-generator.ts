@@ -151,7 +151,46 @@ function buildPdfHtml(opts: PdfOptions): string {
   const showBankDetails = t?.show_bank_details ?? false;
   const bankDetailsText = t?.bank_details_text || "";
   const footerText = t?.footer_text || "";
-...
+
+  const logoHtml = s?.logo_url
+    ? `<img src="${s.logo_url}" style="max-height:68px;max-width:180px;object-fit:contain;" />`
+    : `<div style="font-family:'Inter',sans-serif;font-size:24px;font-weight:800;color:${C.text};letter-spacing:-0.5px;line-height:1.1;">${companyName}</div>`;
+
+  const companyDetails = [
+    s?.address,
+    [s?.phone, s?.email].filter(Boolean).join(" · "),
+    s?.website,
+    s?.ntn ? `NTN: ${s.ntn}` : null,
+    s?.strn ? `STRN: ${s.strn}` : null,
+  ].filter(Boolean);
+
+  const partyLines = [
+    opts.partyName ? `<div style="font-size:14px;font-weight:700;color:${C.text};letter-spacing:-0.2px;">${opts.partyName}</div>` : "",
+    opts.partyAddress ? `<div style="font-size:11px;color:${C.textMuted};margin-top:3px;line-height:1.5;">${opts.partyAddress}</div>` : "",
+    opts.partyPhone ? `<div style="font-size:11px;color:${C.textMuted};">Tel: ${opts.partyPhone}</div>` : "",
+    opts.partyNtn ? `<div style="font-size:10px;color:${C.textLight};margin-top:2px;letter-spacing:0.3px;">${opts.partyNtn}</div>` : "",
+    t?.show_party_area && opts.partyArea ? `<div style="font-size:10px;color:${C.textLight};">Area: ${opts.partyArea}</div>` : "",
+    t?.show_party_license && opts.partyLicense ? `<div style="font-size:10px;color:${C.textLight};">License No: ${opts.partyLicense}</div>` : "",
+    t?.show_party_cnic && opts.partyCnic ? `<div style="font-size:10px;color:${C.textLight};">CNIC: ${opts.partyCnic}</div>` : "",
+  ].filter(Boolean).join("");
+
+  const metaItems = [
+    { label: "Document #", value: opts.documentNumber },
+    { label: "Date", value: opts.date },
+    ...(opts.meta || []),
+  ];
+
+  const thAlign = (c: PdfColumn) => c.align || "left";
+
+  const colMinWidth = (c: PdfColumn, idx: number) => {
+    if (idx === 0) return 'min-width:40px;max-width:50px;';
+    if (idx === 1) return 'min-width:160px;';
+    return '';
+  };
+
+  const headerCells = columns.map((c, idx) =>
+    `<th style="padding:10px 10px;text-align:${thAlign(c)};font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:#e2e8f0;border-bottom:2px solid ${C.primary};${colMinWidth(c, idx)}">${c.header}</th>`
+  ).join("");
   const bodyRows = opts.rows.map((row, i) => {
     const bg = i % 2 === 0 ? "#ffffff" : C.rowAlt;
     const cells = columns.map((c, cIdx) => {
