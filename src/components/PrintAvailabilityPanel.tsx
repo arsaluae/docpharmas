@@ -29,26 +29,38 @@ interface PrintJobRow {
  * with a one-click button to create a new print job for any shortfall.
  * Purely advisory — never blocks order creation.
  */
-export function PrintAvailabilityPanel({ productId, productName, requiredQty, supplierId }: Props) {
+export function PrintAvailabilityPanel({ productId, productName, requiredQty, supplierId, purchaseInvoiceId }: Props) {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<PrintJobRow[]>([]);
+  const [allocations, setAllocations] = useState<Array<{ source: string; quantity_reserved: number; quantity_consumed: number; status: string; print_job_id: string; printing_cost_per_unit: number }>>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!productId) { setJobs([]); return; }
+    if (!productId) { setJobs([]); setAllocations([]); return; }
     (async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("print_jobs")
-        .select("id, job_number, quantity_ordered, quantity_delivered, quantity_dispatched_to_supplier, quantity_at_factory, allotted_supplier_id, status")
-        .eq("product_id", productId)
-        .neq("status", "settled")
-        .order("created_at", { ascending: false })
-        .limit(20);
-      setJobs((data as any) || []);
+      const [jobsRes, allocRes] = await Promise.all([
+        supabase
+          .from("print_jobs")
+          .select("id, job_number, quantity_ordered, quantity_delivered, quantity_dispatched_to_supplier, quantity_at_factory, allotted_supplier_id, status")
+          .eq("product_id", productId)
+          .neq("status", "settled")
+          .order("created_at", { ascending: false })
+          .limit(20),
+        purchaseInvoiceId
+          ? supabase
+              .from("purchase_print_allocations")
+              .select("source, quantity_reserved, quantity_consumed, status, print_job_id, printing_cost_per_unit")
+              .eq("purchase_invoice_id", purchaseInvoiceId)
+              .eq("product_id", productId)
+              .neq("status", "released")
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      setJobs((jobsRes.data as any) || []);
+      setAllocations((allocRes.data as any) || []);
       setLoading(false);
     })();
-  }, [productId]);
+  }, [productId, purchaseInvoiceId]);
 
   if (!productId) return null;
 
