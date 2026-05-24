@@ -506,15 +506,33 @@ export default function PurchaseProforma() {
  }).select().single();
  if (poErr || !po) { toast.error("Failed to create PO: " + (poErr?.message || "Unknown error")); setSaving(false); return; }
 
- const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*").eq("proforma_id", order.id);
- if (ppItems?.length) {
- await supabase.from("purchase_order_items").insert(
- ppItems.map((i: any) => ({
- po_id: po.id, product_id: i.product_id, quantity: Number(i.quantity_requested),
- quantity_confirmed: Number(i.quantity_requested), rate: Number(i.rate), amount: Number(i.amount),
- }))
- );
- }
+  const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*").eq("proforma_id", order.id);
+  if (ppItems?.length) {
+  await supabase.from("purchase_order_items").insert(
+  ppItems.map((i: any) => ({
+  po_id: po.id, product_id: i.product_id, quantity: Number(i.quantity_requested),
+  quantity_confirmed: Number(i.quantity_requested), rate: Number(i.rate), amount: Number(i.amount),
+  }))
+  );
+
+  // Auto-reserve printed packaging (FIFO: at_supplier → at_factory → in_progress)
+  try {
+  const { allocatePrinting } = await import("@/lib/auto-print-allocator");
+  let totalAllocated = 0, totalShortfall = 0, lineCount = 0;
+  for (const i of ppItems as any[]) {
+  if (!i.product_id) continue;
+  const res = await allocatePrinting(i.product_id, order.supplier_id, Number(i.quantity_requested), po.id);
+  totalAllocated += res.allocated;
+  totalShortfall += res.shortfall;
+  lineCount += res.lines.length;
+  }
+  if (lineCount > 0 || totalShortfall > 0) {
+  const msg = `Auto-reserved ${totalAllocated.toLocaleString()} pcs printed packaging` +
+  (totalShortfall > 0 ? ` · Shortfall ${totalShortfall.toLocaleString()} pcs` : "");
+  toast.info(msg);
+  }
+  } catch (e) { console.warn("Print auto-allocation failed", e); }
+  }
 
  const { data: ppCosts } = await supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", order.id);
  if (ppCosts?.length) {
@@ -808,8 +826,10 @@ export default function PurchaseProforma() {
  const confirmVoid = async () => {
  if (!voidOrder || !voidOrder.converted_po_id) return;
  setVoiding(true);
- const poId = voidOrder.converted_po_id;
- // 1. Delete stock movements linked to any GRN for this PO
+  const poId = voidOrder.converted_po_id;
+  // 0. Release any reserved print-job allocations for this PO
+  try { const { releasePurchaseAllocations } = await import("@/lib/auto-print-allocator"); await releasePurchaseAllocations(poId); } catch {}
+  // 1. Delete stock movements linked to any GRN for this PO
  const { data: grns } = await supabase.from("goods_received_notes").select("id").eq("po_id", poId);
  if (grns?.length) {
  for (const grn of grns) {

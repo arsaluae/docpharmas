@@ -9,6 +9,7 @@ interface Props {
   productName?: string;
   requiredQty: number;
   supplierId?: string;
+  purchaseInvoiceId?: string;
 }
 
 interface PrintJobRow {
@@ -28,26 +29,38 @@ interface PrintJobRow {
  * with a one-click button to create a new print job for any shortfall.
  * Purely advisory — never blocks order creation.
  */
-export function PrintAvailabilityPanel({ productId, productName, requiredQty, supplierId }: Props) {
+export function PrintAvailabilityPanel({ productId, productName, requiredQty, supplierId, purchaseInvoiceId }: Props) {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<PrintJobRow[]>([]);
+  const [allocations, setAllocations] = useState<Array<{ source: string; quantity_reserved: number; quantity_consumed: number; status: string; print_job_id: string; printing_cost_per_unit: number }>>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!productId) { setJobs([]); return; }
+    if (!productId) { setJobs([]); setAllocations([]); return; }
     (async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("print_jobs")
-        .select("id, job_number, quantity_ordered, quantity_delivered, quantity_dispatched_to_supplier, quantity_at_factory, allotted_supplier_id, status")
-        .eq("product_id", productId)
-        .neq("status", "settled")
-        .order("created_at", { ascending: false })
-        .limit(20);
-      setJobs((data as any) || []);
+      const [jobsRes, allocRes] = await Promise.all([
+        supabase
+          .from("print_jobs")
+          .select("id, job_number, quantity_ordered, quantity_delivered, quantity_dispatched_to_supplier, quantity_at_factory, allotted_supplier_id, status")
+          .eq("product_id", productId)
+          .neq("status", "settled")
+          .order("created_at", { ascending: false })
+          .limit(20),
+        purchaseInvoiceId
+          ? supabase
+              .from("purchase_print_allocations")
+              .select("source, quantity_reserved, quantity_consumed, status, print_job_id, printing_cost_per_unit")
+              .eq("purchase_invoice_id", purchaseInvoiceId)
+              .eq("product_id", productId)
+              .neq("status", "released")
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      setJobs((jobsRes.data as any) || []);
+      setAllocations((allocRes.data as any) || []);
       setLoading(false);
     })();
-  }, [productId]);
+  }, [productId, purchaseInvoiceId]);
 
   if (!productId) return null;
 
@@ -77,6 +90,31 @@ export function PrintAvailabilityPanel({ productId, productName, requiredQty, su
   };
 
   if (loading) return null;
+
+  // ── Auto-reservation summary (after PO confirm) ──
+  if (allocations.length > 0) {
+    const totalReserved = allocations.reduce((s, a) => s + Number(a.quantity_reserved), 0);
+    const totalConsumed = allocations.reduce((s, a) => s + Number(a.quantity_consumed), 0);
+    const bySource = allocations.reduce((acc, a) => {
+      acc[a.source] = (acc[a.source] || 0) + Number(a.quantity_reserved);
+      return acc;
+    }, {} as Record<string, number>);
+    const avgCost = allocations.reduce((s, a) => s + Number(a.quantity_reserved) * Number(a.printing_cost_per_unit), 0) / Math.max(totalReserved, 1);
+    return (
+      <div className="col-span-12 -mt-1 mb-2 ml-[1px] rounded-md border border-success/40 bg-success/5 px-3 py-2 text-[11px]">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="font-medium text-success">✓ Printing auto-reserved</span>
+          <span className="text-muted-foreground">for <b className="text-foreground">{productName}</b>:</span>
+          <span>Reserved <b className="font-mono">{totalReserved.toLocaleString()}</b></span>
+          {totalConsumed > 0 && <span className="text-success">Consumed <b className="font-mono">{totalConsumed.toLocaleString()}</b></span>}
+          {Object.entries(bySource).map(([src, q]) => (
+            <span key={src} className="text-muted-foreground">{src.replace("_", " ")}: <b className="font-mono text-foreground">{q.toLocaleString()}</b></span>
+          ))}
+          <span className="text-muted-foreground">Cost/pc <b className="font-mono text-foreground">{avgCost.toFixed(2)}</b></span>
+        </div>
+      </div>
+    );
+  }
 
   // If nothing relevant and no requirement, hide
   if (totalAvailable === 0 && inProgress === 0 && !requiredQty) return null;

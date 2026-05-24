@@ -1,62 +1,83 @@
-## Plan
+## Goal
 
-### 1. Fix invoice PDF rows so old and new invoices show serial number + item name
-- Update the PDF generator to normalize row keys before rendering templates:
-  - `srno` / `idx` / `__rowNum` all resolve to the visible serial number.
-  - `product_name` / `name` / `item_name` / `description` all resolve to the visible item name.
-- Stop duplicate serial columns by making the auto `#` column compatible with templates that already contain `Sr#`.
-- Apply this to Sales Invoice, Purchase Invoice, Purchase Order, GRN, Delivery Note, Print Job PDFs, including previous invoices opened from history.
+Today the Print Availability Panel is informational — user reads numbers, clicks "Create Print Job". Make the whole flow automatic: when a purchase invoice/PO is confirmed and received, the system itself decides which printed packaging to use, deducts it from print-job balances, and attaches the printing cost per unit to the stock so reports show material + printing cost separately.
 
-### 2. Add visible row serial numbers on Sales + Purchase creation screens
-- Add a clear `#` column/label in the item entry rows for:
-  - Sales Order creation.
-  - Purchase Order creation.
-  - Edit forms where the same row layout is used.
-
-### 3. Build the print-job availability panel inside purchase invoice flow
-On Purchase Order / Purchase Invoice creation, once product + supplier + quantity are selected, show a compact operational panel per item with three choices:
+## How the automation works
 
 ```text
-Product: Coliza
-Required for invoice: 10,000 pcs
-
-1) Already at pharma factory/supplier: 2,000 pcs
-2) Existing print jobs available to dispatch/use: 10,000 pcs
-3) Create new print job for shortfall
+Purchase Invoice (Coliza 10,000 pcs @ 50)
+        │
+        ▼
+On CONFIRM  → auto-RESERVE packaging from print jobs
+   priority order, per supplier on the PO:
+     1. At supplier (allotted_supplier_id = this supplier) — use first
+     2. At our factory (undispatched) — auto-dispatch on GRN
+     3. In-progress print jobs — reserve future delivery
+     4. Shortfall → flag, optional auto-create draft print job
+        │
+        ▼
+On GRN RECEIVE → auto-CONSUME reserved packaging
+   • Deduct from print_jobs (dispatched/at-factory balances)
+   • Insert purchase_print_allocations rows (audit trail)
+   • Attach printing_cost_per_unit to received stock layer
+        │
+        ▼
+Reports & Ledgers
+   • Supplier ledger: material only (10,000 × 50 = 500,000)
+   • Printer/vendor ledger: untouched (already booked at print-job creation)
+   • Stock cost layer: 50 (material) + 5 (printing) = 55 landed
+   • Item-wise / P&L: shows split → Material 50, Printing 5, GP per unit
 ```
 
-The panel will show:
-- Packaging already dispatched to this supplier/factory but not yet consumed.
-- Existing delivered print-job stock still available at our side/factory.
-- Open/in-progress print jobs for the same product.
-- Shortfall against the purchase invoice quantity.
-- Action buttons: `Use Factory Qty`, `Use Print Job`, `Create Print Job`.
+## Database changes
 
-### 4. Track printing stock correctly by product + supplier
-Add a small allocation table to record printing usage against purchase items, so the system knows:
-- How many printed pieces were dispatched to a pharma supplier/factory.
-- How many were consumed when a purchase invoice/GRN is created.
-- What remains at that factory for that product.
+New table `purchase_print_allocations` (tenant-scoped, RLS like siblings):
 
-This covers your example:
-- Print job = 5,000 pcs.
-- Pharma factory makes/GRN receives 3,000 pcs.
-- Remaining available for Coliza at that factory = 2,000 pcs.
+- `purchase_invoice_id` (PO/proforma id), `grn_id`, `product_id`, `supplier_id`
+- `print_job_id`, `source` enum: `at_supplier` | `at_factory` | `in_progress`
+- `quantity_reserved`, `quantity_consumed`
+- `printing_cost_per_unit` (snapshot from print job at allocation time)
+- `status`: `reserved` | `consumed` | `released`
 
-### 5. Keep ledgers separated correctly
-- Purchase Invoice stays material only: supplier ledger gets only product cost, e.g. `1,000 × 50 = 50,000`.
-- Print Job settlement hits only the Printer/Vendor ledger, e.g. `5,000 × 5 = 25,000`.
-- Pharma suppliers and printer vendors remain separate ledgers.
-- Remove/avoid any purchase invoice flow that adds printing/packaging cost into the pharma supplier invoice total.
+Trigger `trg_consume_print_allocations_on_grn`:
+- On `grn_items` insert with `product_id` having reserved allocations, for each matching allocation FIFO:
+  - decrement `print_jobs.quantity_dispatched_to_supplier` (at_supplier) or auto-bump `quantity_dispatched_to_supplier` then decrement (at_factory)
+  - mark allocation `consumed`, set `grn_id`
+- Insert a `stock_movements` adjustment row tagged `printing_cost` so cost layer reflects landed cost.
 
-### 6. Connect printing cost to stock/reporting, not customer invoice value
-- When purchase stock is received, attach the used printing cost per unit to the received stock costing layer.
-- Sales invoice amount remains customer sale value only.
-- Reports can later show: material cost + printing cost + gross profit without inflating the customer invoice.
+Trigger `trg_release_print_allocations_on_void`:
+- When PO/GRN voided, set allocations back to `released` and restore print-job balances.
 
-### Technical changes
-- Migration: add `purchase_print_allocations` or equivalent tenant-scoped table with RLS for product, supplier, purchase/GRN link, print job link, allocated quantity, consumed quantity, and printing cost per unit.
-- `PurchaseProforma.tsx`: add the print availability panel and allocation actions in create/receive invoice flow.
-- `PrintJobs.tsx`: expose available delivered qty, dispatched qty, and remaining factory/supplier balance cleanly.
-- `PrinterLedger.tsx` / print job settlement: verify printer balance is updated only from print jobs/payments, not supplier invoices.
-- `pdf-generator.ts`: repair template key aliases so previous invoice PDFs show `Sr#` and product names correctly.
+## Code changes
+
+1. **`src/lib/auto-print-allocator.ts`** (new) — pure function `allocatePrinting(productId, supplierId, qty)` returning the FIFO plan (at_supplier → at_factory → in_progress → shortfall). Writes `purchase_print_allocations` rows in `reserved` state.
+
+2. **`src/pages/PurchaseProforma.tsx`**
+   - On **Confirm PO**: for each line with `product_id`, call `allocatePrinting`. Show a compact summary toast ("Auto-reserved 8,000 pcs printed packaging from 2 jobs; 2,000 pcs shortfall — print job draft created").
+   - Replace `PrintAvailabilityPanel`'s "Create Print Job" with a read-only summary that shows what was auto-reserved (live from `purchase_print_allocations`), plus an "Adjust" link for power users.
+   - On **Receive GRN** (`handleReceive`): no new code needed beyond firing the existing insert — trigger handles consumption.
+   - On **Void**: rely on `void_document` cascade + new release trigger.
+
+3. **`src/components/PrintAvailabilityPanel.tsx`** — switch to "Allocation Summary" mode when a confirmed PO exists: lists reserved jobs, source, qty, cost/unit; falls back to current advisory view for drafts.
+
+4. **`src/pages/PrintJobs.tsx`** — show "Reserved for PO #" badge on jobs whose at-factory/at-supplier balance has open allocations; block deletion if reserved.
+
+5. **Reports** (`ItemWiseReport.tsx`, product costing, P&L) — read `purchase_print_allocations` joined with GRN to split Material vs Printing cost columns. Sales-side already shows revenue; gross profit becomes `sale - (material + printing)`.
+
+## Ledger correctness (unchanged, re-verified)
+
+- Purchase Invoice posts **material only** to supplier ledger.
+- Print Job posts **printing cost** to printer/vendor ledger at job creation/settlement (existing behaviour).
+- Auto-allocation is a stock + costing event, **no new journal entries** — prevents double-booking.
+
+## Out of scope for this step
+
+- City-product smart suggestions on Sales Orders (separate task).
+- UI for manually overriding an auto-allocation (will add only if requested after this lands).
+
+## Files touched
+
+- new: `supabase/migrations/<timestamp>_purchase_print_allocations.sql`
+- new: `src/lib/auto-print-allocator.ts`
+- edit: `src/pages/PurchaseProforma.tsx`, `src/components/PrintAvailabilityPanel.tsx`, `src/pages/PrintJobs.tsx`
+- edit: `src/pages/reports/ItemWiseReport.tsx` and product-costing/P&L report files for the split column

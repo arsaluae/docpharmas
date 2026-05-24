@@ -2327,6 +2327,62 @@ export type Database = {
           },
         ]
       }
+      purchase_print_allocations: {
+        Row: {
+          created_at: string
+          grn_id: string | null
+          id: string
+          print_job_id: string
+          printing_cost_per_unit: number
+          product_id: string
+          purchase_invoice_id: string | null
+          quantity_consumed: number
+          quantity_reserved: number
+          source: string
+          status: string
+          supplier_id: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          grn_id?: string | null
+          id?: string
+          print_job_id: string
+          printing_cost_per_unit?: number
+          product_id: string
+          purchase_invoice_id?: string | null
+          quantity_consumed?: number
+          quantity_reserved?: number
+          source: string
+          status?: string
+          supplier_id?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          grn_id?: string | null
+          id?: string
+          print_job_id?: string
+          printing_cost_per_unit?: number
+          product_id?: string
+          purchase_invoice_id?: string | null
+          quantity_consumed?: number
+          quantity_reserved?: number
+          source?: string
+          status?: string
+          supplier_id?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_print_allocations_print_job_id_fkey"
+            columns: ["print_job_id"]
+            isOneToOne: false
+            referencedRelation: "print_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_proforma_items: {
         Row: {
           amount: number
