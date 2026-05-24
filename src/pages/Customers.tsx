@@ -20,6 +20,8 @@ import { CustomerProfileDialog } from "@/components/CustomerProfileDialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { CITY_OPTIONS } from "@/lib/pakistan-cities";
 import { AreaSelect } from "@/components/AreaSelect";
+import { CityInput } from "@/components/CityInput";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Customer {
  id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
