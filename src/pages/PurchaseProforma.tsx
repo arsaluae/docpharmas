@@ -826,8 +826,10 @@ export default function PurchaseProforma() {
  const confirmVoid = async () => {
  if (!voidOrder || !voidOrder.converted_po_id) return;
  setVoiding(true);
- const poId = voidOrder.converted_po_id;
- // 1. Delete stock movements linked to any GRN for this PO
+  const poId = voidOrder.converted_po_id;
+  // 0. Release any reserved print-job allocations for this PO
+  try { const { releasePurchaseAllocations } = await import("@/lib/auto-print-allocator"); await releasePurchaseAllocations(poId); } catch {}
+  // 1. Delete stock movements linked to any GRN for this PO
  const { data: grns } = await supabase.from("goods_received_notes").select("id").eq("po_id", poId);
  if (grns?.length) {
  for (const grn of grns) {
