@@ -1,21 +1,35 @@
-# Phase 3 — RBAC Expansion + Wipe Execution (COMPLETED)
+## Phase 4 — Finish remaining RBAC work
 
-## Status
+Complete the leftover items from Phase 3 so the 7-role system is fully enforced end-to-end.
 
-✅ Wipe migration executed (all transactional + master data cleared; tenants/users/auth preserved).
-✅ `tenant_role` enum expanded: owner, staff, accountant, sales_mgr, sales_agent, inventory, purchase_mgr, viewer.
-✅ `role_capabilities` matrix table + seed.
-✅ Helper RPCs: `current_tenant_role()`, `current_user_can(resource, action)`, `table_resource(table)`.
-✅ Restrictive RBAC policies (`rbac_read`, `rbac_write`, `rbac_update`) layered on top of tenant RLS for ~58 business tables.
-✅ `void_document` hardened with capability check + insufficient_privilege error.
-✅ Frontend: `src/lib/rbac.ts`, `useRoles()` hook, sidebar filtered by capability, VoidDocumentButton + GraceDeleteButton hidden without `void` capability.
-✅ Settings → Team Members: 7-role picker with descriptions; legacy 2-button picker removed.
-✅ `manage-tenant` edge function accepts all 7 roles.
+### 1. Sales-agent row scoping (server)
+- New SQL helper `is_agent_customer(p_customer_id)` (SECURITY DEFINER) that returns true when the current user is `owner`/`sales_mgr`/`accountant`/`viewer`, OR when role is `sales_agent` and the customer is in `agent_customers` for `auth.uid()`.
+- Add RESTRICTIVE policy `rbac_agent_scope` on: `customers`, `proforma_invoices`, `sales_invoices`, `sales_returns`, `delivery_notes`, `credit_notes`, `payments` (when `party_type='customer'`), `warranty_invoices`. Each filters by `is_agent_customer(customer_id)` (or party_id for payments).
+- Same scope applied to UPDATE/INSERT via WITH CHECK.
 
-## Phase 4 (next, awaiting go)
+### 2. Route-level capability guard (frontend)
+- New `src/components/RequireCap.tsx` — wraps `<Outlet/>`, redirects to `/dashboard` with toast if `can(resource, 'read')` is false.
+- Apply in `src/App.tsx` to module routes (Purchase, Finance, Inventory, Reports, Settings, SystemHealth, AuditLog) so a sales_agent visiting `/expenses` directly is bounced.
+- Keep existing `ProtectedRoute` for auth-only check.
 
-- Sales agent row-scoping: add policy that limits sales_agent reads/writes on sales tables to `customer_id IN (SELECT customer_id FROM agent_customers WHERE agent_user_id = auth.uid())`.
-- Add `RequireCap` route guard + capability-aware ProtectedRoute for routes that need module-level lock.
-- Linter cleanup (84 warnings remain — mostly pre-existing).
-- Audit log: emit `role_assigned`/`role_changed` events.
-- E2E test matrix: one user per role × representative actions.
+### 3. Tenant context fix
+- `useTenant` currently types `tenantRole` as `"owner" | "staff"`. Widen to the full `TenantRole` union and stop forcing `isAdmin=false`. Set `isAdmin = role === 'owner'` so legacy callers keep working.
+
+### 4. Audit-log role events
+- Extend `AuditAction` union with `role_assigned`, `role_changed`, `role_removed`, `member_invited`, `member_removed`.
+- Call `logAudit` from Settings → Team Members add/update/delete handlers and from `manage-tenant` responses.
+
+### 5. Cleanup
+- Remove the legacy "staff" enum branch from `manage-tenant` whitelist comment and from `useUserRole` (keep `isAdmin` shim).
+- Update `.lovable/memory/features/role-based-access-control.md` with the agent-scope rule and RequireCap pattern.
+- Update `.lovable/plan.md` to mark Phase 4 done.
+
+### Out of scope (explicit)
+- No new UI screens beyond the route guard.
+- No business-logic changes to invoices/payments themselves.
+- Linter warning sweep — only fix warnings touched by these edits.
+
+### Technical notes
+- All new policies are RESTRICTIVE so they AND with existing tenant + rbac policies — no risk of widening access.
+- `is_agent_customer` short-circuits for non-agent roles to avoid join cost on owner/manager queries.
+- `RequireCap` reads from `useRoles()`; while `loading` it renders a spinner (same pattern as `ProtectedRoute`).
