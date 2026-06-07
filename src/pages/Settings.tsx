@@ -750,7 +750,7 @@ function TeamAccessCard() {
    }
    if (data?.error) throw new Error(data.error);
     toast.success("Password updated");
-    void logAudit({ action: "member_password_reset", entity_type: "tenant_member", entity_id: m.user_id, entity_number: m.email });
+    void logAudit({ action: "member_password_reset", entity_type: "tenant_member", entity_id: m.user_id, entity_number: m.email ?? null });
     setResetFor(null); setResetPwd("");
  } catch (err: any) {
    toast.error(err.message);
@@ -830,7 +830,7 @@ function TeamAccessCard() {
         action: m.is_active ? "member_removed" : "member_reactivated",
         entity_type: "tenant_member",
         entity_id: m.user_id,
-        entity_number: m.email,
+        entity_number: m.email ?? null,
         changes: { role: m.role },
       });
       await load();
