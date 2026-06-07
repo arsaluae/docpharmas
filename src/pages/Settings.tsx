@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as XLSX from "xlsx";
 import { FreightProvidersCard } from "@/components/settings/FreightProvidersCard";
 import { CREATABLE_ROLES, ROLE_DESCRIPTION, ROLE_LABEL, type TenantRole } from "@/lib/rbac";
+import { logAudit } from "@/lib/audit";
 
 const DOC_TYPE_LABELS: Record<string, string> = {
  sales_invoice: "Sales Invoice / Sales Order",
@@ -748,8 +749,9 @@ function TeamAccessCard() {
      throw new Error(msg);
    }
    if (data?.error) throw new Error(data.error);
-   toast.success("Password updated");
-   setResetFor(null); setResetPwd("");
+    toast.success("Password updated");
+    void logAudit({ action: "member_password_reset", entity_type: "tenant_member", entity_id: m.user_id, entity_number: m.email ?? null });
+    setResetFor(null); setResetPwd("");
  } catch (err: any) {
    toast.error(err.message);
  } finally {
@@ -785,9 +787,16 @@ function TeamAccessCard() {
         throw new Error(serverMsg);
       }
       if (data?.error) throw new Error(data.error);
-       toast.success(`${ROLE_LABEL[newRole]} user created`);
-       setNewEmail(""); setNewPassword(""); setNewRole("sales_agent"); setShowForm(false);
-       await load();
+        toast.success(`${ROLE_LABEL[newRole]} user created`);
+        void logAudit({
+          action: "member_invited",
+          entity_type: "tenant_member",
+          entity_id: (data as any)?.user_id ?? null,
+          entity_number: newEmail.trim(),
+          changes: { role: newRole },
+        });
+        setNewEmail(""); setNewPassword(""); setNewRole("sales_agent"); setShowForm(false);
+        await load();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -817,6 +826,13 @@ function TeamAccessCard() {
       }
       if (data?.error) throw new Error(data.error);
       toast.success(m.is_active ? "User deactivated" : "User reactivated");
+      void logAudit({
+        action: m.is_active ? "member_removed" : "member_reactivated",
+        entity_type: "tenant_member",
+        entity_id: m.user_id,
+        entity_number: m.email ?? null,
+        changes: { role: m.role },
+      });
       await load();
     } catch (err: any) {
       toast.error(err.message);

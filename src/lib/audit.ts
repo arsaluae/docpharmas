@@ -14,7 +14,14 @@ export type AuditAction =
   | "invoice_generated"
   | "stock_adjusted"
   | "period_locked"
-  | "period_unlocked";
+  | "period_unlocked"
+  | "role_assigned"
+  | "role_changed"
+  | "role_removed"
+  | "member_invited"
+  | "member_removed"
+  | "member_reactivated"
+  | "member_password_reset";
 
 export type AuditEntity =
   | "sales_order"
@@ -29,7 +36,8 @@ export type AuditEntity =
   | "grn"
   | "stock_movement"
   | "print_job"
-  | "accounting_period";
+  | "accounting_period"
+  | "tenant_member";
 
 interface LogAuditInput {
   action: AuditAction;

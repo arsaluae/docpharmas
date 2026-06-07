@@ -1,11 +1,13 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import type { TenantRole } from "@/lib/rbac";
 
 interface TenantContextType {
   tenantId: string | null;
-  tenantRole: "owner" | "staff" | null;
+  tenantRole: TenantRole | null;
   tenantName: string | null;
+  /** Legacy: true only for the tenant owner. Prefer useRoles().can(...) for fine-grained checks. */
   isAdmin: boolean;
   loading: boolean;
 }
@@ -36,11 +38,7 @@ function writeCache(uid: string, state: TenantContextType) {
 
 export function TenantProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
-  const [state, setState] = useState<TenantContextType>(() => {
-    if (typeof window === "undefined") return DEFAULT;
-    // We don't know user id here yet — wait for effect
-    return DEFAULT;
-  });
+  const [state, setState] = useState<TenantContextType>(DEFAULT);
 
   useEffect(() => {
     if (authLoading) return;
@@ -49,7 +47,6 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Hydrate instantly from sessionStorage cache, then refresh in background
     const cached = readCache(user.id);
     if (cached) setState(cached);
 
@@ -64,11 +61,12 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
       if (cancelled) return;
       const tenantInfo = tuData?.tenants as any;
+      const role = (tuData?.role as TenantRole) ?? null;
       const next: TenantContextType = {
         tenantId: tuData?.tenant_id ?? null,
-        tenantRole: (tuData?.role as "owner" | "staff") ?? null,
+        tenantRole: role,
         tenantName: tenantInfo?.company_name ?? null,
-        isAdmin: false,
+        isAdmin: role === "owner",
         loading: false,
       };
       setState(next);
