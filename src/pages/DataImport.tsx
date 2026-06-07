@@ -337,7 +337,8 @@ export default function DataImport() {
  const numericFields: Record<TabType, string[]> = {
  customers: ["credit_limit", "opening_balance"],
  suppliers: ["payment_terms_days", "wht_rate", "opening_balance"],
- products: ["cost_price", "selling_price", "gst_rate", "stock_quantity", "reorder_level"],
+      // stock_quantity intentionally excluded — handled separately via stock_movements
+      products: ["cost_price", "selling_price", "gst_rate", "reorder_level"],
  inventory: ["quantity"],
  };
 
@@ -486,15 +487,35 @@ export default function DataImport() {
  setProgress({ current: Math.min(i + CHUNK_SIZE, rowData.length), total: rowData.length });
  }
 
- // Update existing products
- for (const upd of toUpdate) {
- const { error } = await supabase.from("products").update(upd.fields).eq("id", upd.id);
- if (error) {
- errorDetails.push(`Update ${upd.id}: ${error.message}`);
- } else {
- updated++;
- }
- }
+    // Update existing products. NEVER write stock_quantity directly — strip it and,
+    // if a value was provided, post a stock_movements 'adjustment_in/out' instead so
+    // the negative-stock guard, audit trail, and balance derivations all fire.
+    for (const upd of toUpdate) {
+      const { stock_quantity: importedQty, ...safeFields } = (upd.fields ?? {}) as Record<string, any>;
+      const { error } = await supabase.from("products").update(safeFields).eq("id", upd.id);
+      if (error) {
+        errorDetails.push(`Update ${upd.id}: ${error.message}`);
+        continue;
+      }
+      updated++;
+      const qty = Number(importedQty);
+      if (Number.isFinite(qty) && qty !== 0) {
+        // Read current stock and post a delta as an opening/adjustment movement.
+        const { data: cur } = await supabase.from("products").select("stock_quantity").eq("id", upd.id).single();
+        const delta = qty - Number(cur?.stock_quantity ?? 0);
+        if (delta !== 0) {
+          const { error: mErr } = await supabase.from("stock_movements").insert({
+            product_id: upd.id,
+            quantity: Math.abs(delta),
+            movement_type: delta > 0 ? "adjustment_in" : "adjustment_out",
+            date: new Date().toISOString().slice(0, 10),
+            reference_type: "import",
+            notes: `CSV import — stock reconciled to ${qty}`,
+          } as any);
+          if (mErr) errorDetails.push(`Stock adjust ${upd.id}: ${mErr.message}`);
+        }
+      }
+    }
 
  report(success, errors, updated, errorDetails);
  };

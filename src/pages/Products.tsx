@@ -93,24 +93,43 @@ export default function Products() {
  loadAll();
  };
 
- const handleSave = async () => {
- if (!form.name.trim()) { toast.error("Product name required"); return; }
- const payload = {
- name: form.name, sku: form.sku || null, category: form.category,
- drap_reg_number: form.drap_reg_number || null, pack_size: form.pack_size || null, unit: form.unit,
- cost_price: Number(form.cost_price), selling_price: Number(form.selling_price),
- gst_rate: Number(form.gst_rate), stock_quantity: Number(form.stock_quantity), reorder_level: Number(form.reorder_level),
- };
- if (editId) {
- await supabase.from("products").update(payload).eq("id", editId);
- toast.success("Product updated");
- } else {
- const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "product" });
- await supabase.from("products").insert({ ...payload, product_code: code || null } as any);
- toast.success("Product created");
- }
- setOpen(false); setForm(emptyForm); setEditId(null); loadAll();
- };
+  const handleSave = async () => {
+  if (!form.name.trim()) { toast.error("Product name required"); return; }
+  // Stock quantity is intentionally NOT in update payload — all stock changes must
+  // flow through stock_movements so triggers, audit, and negative-stock guard fire.
+  const basePayload = {
+  name: form.name, sku: form.sku || null, category: form.category,
+  drap_reg_number: form.drap_reg_number || null, pack_size: form.pack_size || null, unit: form.unit,
+  cost_price: Number(form.cost_price), selling_price: Number(form.selling_price),
+  gst_rate: Number(form.gst_rate), reorder_level: Number(form.reorder_level),
+  };
+  if (editId) {
+  await supabase.from("products").update(basePayload).eq("id", editId);
+  toast.success("Product updated");
+  } else {
+  const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "product" });
+  // Opening stock on create still allowed — write the product then post an opening movement.
+  const openingQty = Number(form.stock_quantity) || 0;
+  const { data: created, error: createErr } = await supabase
+  .from("products")
+  .insert({ ...basePayload, stock_quantity: 0, product_code: code || null } as any)
+  .select("id")
+  .single();
+  if (createErr) { toast.error("Failed: " + createErr.message); return; }
+  if (openingQty > 0 && created?.id) {
+  await supabase.from("stock_movements").insert({
+  product_id: created.id,
+  quantity: openingQty,
+  movement_type: "opening",
+  date: new Date().toISOString().slice(0, 10),
+  reference_type: "opening_balance",
+  notes: "Opening stock set on product creation",
+  } as any);
+  }
+  toast.success("Product created");
+  }
+  setOpen(false); setForm(emptyForm); setEditId(null); loadAll();
+  };
 
  const handleEdit = (p: Product) => {
  setEditId(p.id);
@@ -229,7 +248,7 @@ export default function Products() {
  {settings?.gst_enabled && <div><Label>GST Rate (%)</Label><Input type="number" value={form.gst_rate} onChange={e => setForm({...form, gst_rate: e.target.value})} /></div>}
  <div><Label>Cost Price (PKR)</Label><Input type="number" value={form.cost_price} onChange={e => setForm({...form, cost_price: e.target.value})} /></div>
  <div><Label>Selling Price (PKR)</Label><Input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} /></div>
- <div><Label>Stock Quantity</Label><Input type="number" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} /></div>
+ {!editId && <div><Label>Opening Stock</Label><Input type="number" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} placeholder="0" /><p className="text-xs text-muted-foreground mt-1">Only set on creation. Use Stock Movements to adjust later.</p></div>}
  <div><Label>Reorder Level</Label><Input type="number" value={form.reorder_level} onChange={e => setForm({...form, reorder_level: e.target.value})} /></div>
  </div>
  <Button onClick={handleSave} className="w-full mt-4">{editId ? "Update" : "Create"} Product</Button>
