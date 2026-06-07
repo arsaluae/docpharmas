@@ -256,7 +256,7 @@ export function AppSidebar() {
               <div className="mouj-avatar">{getInitials()}</div>
               <div className="flex-1 min-w-0">
                 <span className="mouj-tenant-name">{tenantName || "My Company"}</span>
-                <span className="mouj-tenant-role">{tenantRole === "owner" ? "Admin" : "Staff"}</span>
+                <span className="mouj-tenant-role">{(ROLE_LABEL as any)[tenantRole as any] ?? (tenantRole === "owner" ? "Admin" : "Staff")}</span>
               </div>
             </div>
 
