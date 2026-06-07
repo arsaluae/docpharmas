@@ -918,23 +918,18 @@ function TeamAccessCard() {
  </div>
  <div>
  <Label className="text-xs">Role</Label>
- <div className="grid grid-cols-2 gap-2 mt-1">
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 max-h-72 overflow-auto">
+ {CREATABLE_ROLES.map((r) => (
  <button
+ key={r}
  type="button"
- onClick={() => setNewRole("owner")}
- className={`text-left rounded-md border px-3 py-2 transition-colors ${newRole === "owner" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
+ onClick={() => setNewRole(r)}
+ className={`text-left rounded-md border px-3 py-2 transition-colors ${newRole === r ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
  >
- <div className="text-sm font-medium">Admin</div>
- <div className="text-[11px] text-muted-foreground mt-0.5">Full access to every module, settings & reports.</div>
+ <div className="text-sm font-medium">{ROLE_LABEL[r]}</div>
+ <div className="text-[11px] text-muted-foreground mt-0.5">{ROLE_DESCRIPTION[r]}</div>
  </button>
- <button
- type="button"
- onClick={() => setNewRole("staff")}
- className={`text-left rounded-md border px-3 py-2 transition-colors ${newRole === "staff" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
- >
- <div className="text-sm font-medium">Sales</div>
- <div className="text-[11px] text-muted-foreground mt-0.5">Sales modules + read-only Products & Stock.</div>
- </button>
+ ))}
  </div>
  </div>
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -944,7 +939,7 @@ function TeamAccessCard() {
  type="email"
  value={newEmail}
  onChange={(e) => setNewEmail(e.target.value)}
- placeholder={newRole === "owner" ? "admin@company.com" : "sales@company.com"}
+ placeholder={`${newRole}@company.com`}
  />
  </div>
  <div>
@@ -958,16 +953,13 @@ function TeamAccessCard() {
  </div>
  </div>
  <p className="text-xs text-muted-foreground">
- {newRole === "owner"
- ? "Admins can access every module, manage settings, users and accounting periods."
- : "Sales users see Customers, Sales Orders, Warranty Invoices, Returns and read-only Products & Stock. They cannot access Purchase, Finance, Reports or Settings."}
- {" "}Workspace cap is enforced per plan.
+ {ROLE_DESCRIPTION[newRole]} Workspace cap is enforced per plan.
  </p>
  <div className="flex gap-2">
  <Button size="sm" onClick={handleAdd} disabled={adding}>
- {adding ? "Creating…" : `Create ${newRole === "owner" ? "admin" : "sales"} user`}
+ {adding ? "Creating…" : `Create ${ROLE_LABEL[newRole]}`}
  </Button>
- <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setNewEmail(""); setNewPassword(""); setNewRole("staff"); }}>
+ <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setNewEmail(""); setNewPassword(""); setNewRole("sales_agent"); }}>
  Cancel
  </Button>
  </div>
