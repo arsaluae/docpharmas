@@ -58,6 +58,8 @@ const PrinterLedger = lazy(() => import("./pages/PrinterLedger"));
 const PrintJobs = lazy(() => import("./pages/PrintJobs"));
 const DataImport = lazy(() => import("./pages/DataImport"));
 const Settings = lazy(() => import("./pages/Settings"));
+const SystemHealth = lazy(() => import("./pages/SystemHealth"));
+
 const ProfitLoss = lazy(() => import("./pages/reports/ProfitLoss"));
 const BalanceSheet = lazy(() => import("./pages/reports/BalanceSheet"));
 const CashFlow = lazy(() => import("./pages/reports/CashFlow"));
