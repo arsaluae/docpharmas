@@ -23,6 +23,7 @@ import {
 import { useTheme } from "@/components/ThemeToggle";
 
 import type { Resource } from "@/lib/rbac";
+import { ROLE_LABEL } from "@/lib/rbac";
 import { useRoles } from "@/hooks/useRoles";
 
 type Section = {
