@@ -16,6 +16,7 @@ import { useDocumentTemplates, DocumentTemplate } from "@/hooks/useDocumentTempl
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as XLSX from "xlsx";
 import { FreightProvidersCard } from "@/components/settings/FreightProvidersCard";
+import { CREATABLE_ROLES, ROLE_DESCRIPTION, ROLE_LABEL, type TenantRole } from "@/lib/rbac";
 
 const DOC_TYPE_LABELS: Record<string, string> = {
  sales_invoice: "Sales Invoice / Sales Order",
