@@ -6,6 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Ban } from "lucide-react";
 import { toast } from "sonner";
 import { voidDocument, type VoidableTable } from "@/lib/void-document";
+import { useRoles } from "@/hooks/useRoles";
+import type { Resource } from "@/lib/rbac";
+
+const TABLE_RESOURCE: Record<VoidableTable, Resource> = {
+  sales_invoices: "sales",
+  purchase_invoices: "purchase",
+  goods_received_notes: "purchase",
+  payments: "finance",
+};
 
 interface VoidDocumentButtonProps {
   table: VoidableTable;
