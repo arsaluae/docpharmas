@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/audit";
+import { useRoles } from "@/hooks/useRoles";
 
 interface Props {
   /** "sales_invoices" or "purchase_invoices" */
@@ -44,6 +45,10 @@ export function GraceDeleteButton({ table, invoiceId, invoiceNumber, approvedAt,
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const { can, loading: rolesLoading } = useRoles();
+  const resource = table === "sales_invoices" ? "sales" : "purchase";
+  const allowed = can(resource as any, "void");
+  if (rolesLoading || !allowed) return null;
 
   useEffect(() => {
     const t = setInterval(() => {

@@ -6,6 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Ban } from "lucide-react";
 import { toast } from "sonner";
 import { voidDocument, type VoidableTable } from "@/lib/void-document";
+import { useRoles } from "@/hooks/useRoles";
+import type { Resource } from "@/lib/rbac";
+
+const TABLE_RESOURCE: Record<VoidableTable, Resource> = {
+  sales_invoices: "sales",
+  purchase_invoices: "purchase",
+  goods_received_notes: "purchase",
+  payments: "finance",
+};
 
 interface VoidDocumentButtonProps {
   table: VoidableTable;
@@ -25,6 +34,9 @@ export function VoidDocumentButton({ table, id, label = "Void", size = "sm", var
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const { can, loading: rolesLoading } = useRoles();
+  const allowed = can(TABLE_RESOURCE[table], "void");
+  if (rolesLoading || !allowed) return null;
 
   const handleConfirm = async () => {
     setBusy(true);

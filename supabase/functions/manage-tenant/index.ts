@@ -130,7 +130,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      const resolvedRole = role === "owner" ? "owner" : "staff";
+      const ALLOWED_ROLES = ["owner","accountant","sales_mgr","sales_agent","staff","inventory","purchase_mgr","viewer"] as const;
+      const resolvedRole = (ALLOWED_ROLES as readonly string[]).includes(role) ? role : "sales_agent";
 
       // Verify caller is owner of the specified tenant (or admin)
       const { data: isAdmin } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "admin" });

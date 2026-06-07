@@ -16,6 +16,7 @@ import { useDocumentTemplates, DocumentTemplate } from "@/hooks/useDocumentTempl
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as XLSX from "xlsx";
 import { FreightProvidersCard } from "@/components/settings/FreightProvidersCard";
+import { CREATABLE_ROLES, ROLE_DESCRIPTION, ROLE_LABEL, type TenantRole } from "@/lib/rbac";
 
 const DOC_TYPE_LABELS: Record<string, string> = {
  sales_invoice: "Sales Invoice / Sales Order",
@@ -675,7 +676,7 @@ function TemplateCard({ template, onUpdate }: { template: DocumentTemplate; onUp
 
 interface TenantMember {
  user_id: string;
- role: "owner" | "staff";
+ role: TenantRole;
  is_active: boolean;
  created_at: string;
  email?: string;
@@ -690,7 +691,7 @@ function TeamAccessCard() {
  const [showForm, setShowForm] = useState(false);
  const [newEmail, setNewEmail] = useState("");
  const [newPassword, setNewPassword] = useState("");
- const [newRole, setNewRole] = useState<"owner" | "staff">("staff");
+ const [newRole, setNewRole] = useState<TenantRole>("sales_agent");
  const [resetFor, setResetFor] = useState<string | null>(null);
  const [resetPwd, setResetPwd] = useState("");
  const [resetting, setResetting] = useState(false);
@@ -784,9 +785,9 @@ function TeamAccessCard() {
         throw new Error(serverMsg);
       }
       if (data?.error) throw new Error(data.error);
-      toast.success(newRole === "owner" ? "Admin user created" : "Sales user created");
-      setNewEmail(""); setNewPassword(""); setNewRole("staff"); setShowForm(false);
-      await load();
+       toast.success(`${ROLE_LABEL[newRole]} user created`);
+       setNewEmail(""); setNewPassword(""); setNewRole("sales_agent"); setShowForm(false);
+       await load();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -859,7 +860,7 @@ function TeamAccessCard() {
  : "border-border text-muted-foreground"
  }`}
  >
- {m.role === "owner" ? "Admin" : "Sales"}
+ {ROLE_LABEL[m.role] ?? m.role}
  </span>
  {!m.is_active && (
  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-destructive/40 text-destructive">
@@ -917,23 +918,18 @@ function TeamAccessCard() {
  </div>
  <div>
  <Label className="text-xs">Role</Label>
- <div className="grid grid-cols-2 gap-2 mt-1">
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 max-h-72 overflow-auto">
+ {CREATABLE_ROLES.map((r) => (
  <button
+ key={r}
  type="button"
- onClick={() => setNewRole("owner")}
- className={`text-left rounded-md border px-3 py-2 transition-colors ${newRole === "owner" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
+ onClick={() => setNewRole(r)}
+ className={`text-left rounded-md border px-3 py-2 transition-colors ${newRole === r ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
  >
- <div className="text-sm font-medium">Admin</div>
- <div className="text-[11px] text-muted-foreground mt-0.5">Full access to every module, settings & reports.</div>
+ <div className="text-sm font-medium">{ROLE_LABEL[r]}</div>
+ <div className="text-[11px] text-muted-foreground mt-0.5">{ROLE_DESCRIPTION[r]}</div>
  </button>
- <button
- type="button"
- onClick={() => setNewRole("staff")}
- className={`text-left rounded-md border px-3 py-2 transition-colors ${newRole === "staff" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
- >
- <div className="text-sm font-medium">Sales</div>
- <div className="text-[11px] text-muted-foreground mt-0.5">Sales modules + read-only Products & Stock.</div>
- </button>
+ ))}
  </div>
  </div>
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -943,7 +939,7 @@ function TeamAccessCard() {
  type="email"
  value={newEmail}
  onChange={(e) => setNewEmail(e.target.value)}
- placeholder={newRole === "owner" ? "admin@company.com" : "sales@company.com"}
+ placeholder={`${newRole}@company.com`}
  />
  </div>
  <div>
@@ -957,16 +953,13 @@ function TeamAccessCard() {
  </div>
  </div>
  <p className="text-xs text-muted-foreground">
- {newRole === "owner"
- ? "Admins can access every module, manage settings, users and accounting periods."
- : "Sales users see Customers, Sales Orders, Warranty Invoices, Returns and read-only Products & Stock. They cannot access Purchase, Finance, Reports or Settings."}
- {" "}Workspace cap is enforced per plan.
+ {ROLE_DESCRIPTION[newRole]} Workspace cap is enforced per plan.
  </p>
  <div className="flex gap-2">
  <Button size="sm" onClick={handleAdd} disabled={adding}>
- {adding ? "Creating…" : `Create ${newRole === "owner" ? "admin" : "sales"} user`}
+ {adding ? "Creating…" : `Create ${ROLE_LABEL[newRole]}`}
  </Button>
- <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setNewEmail(""); setNewPassword(""); setNewRole("staff"); }}>
+ <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setNewEmail(""); setNewPassword(""); setNewRole("sales_agent"); }}>
  Cancel
  </Button>
  </div>

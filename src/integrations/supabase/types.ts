@@ -2816,6 +2816,33 @@ export type Database = {
           },
         ]
       }
+      role_capabilities: {
+        Row: {
+          can_approve: boolean
+          can_read: boolean
+          can_void: boolean
+          can_write: boolean
+          resource: string
+          role: Database["public"]["Enums"]["tenant_role"]
+        }
+        Insert: {
+          can_approve?: boolean
+          can_read?: boolean
+          can_void?: boolean
+          can_write?: boolean
+          resource: string
+          role: Database["public"]["Enums"]["tenant_role"]
+        }
+        Update: {
+          can_approve?: boolean
+          can_read?: boolean
+          can_void?: boolean
+          can_write?: boolean
+          resource?: string
+          role?: Database["public"]["Enums"]["tenant_role"]
+        }
+        Relationships: []
+      }
       salary_payments: {
         Row: {
           amount: number
@@ -3799,6 +3826,14 @@ export type Database = {
       }
     }
     Functions: {
+      current_tenant_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["tenant_role"]
+      }
+      current_user_can: {
+        Args: { p_action: string; p_resource: string }
+        Returns: boolean
+      }
       dashboard_charts: {
         Args: {
           p_month_start: string
@@ -3880,6 +3915,7 @@ export type Database = {
           stored: number
         }[]
       }
+      table_resource: { Args: { p_table: string }; Returns: string }
       void_document: {
         Args: { p_id: string; p_reason: string; p_table: string }
         Returns: undefined
@@ -3887,7 +3923,15 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
-      tenant_role: "owner" | "staff"
+      tenant_role:
+        | "owner"
+        | "staff"
+        | "accountant"
+        | "sales_mgr"
+        | "sales_agent"
+        | "inventory"
+        | "purchase_mgr"
+        | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4016,7 +4060,16 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
-      tenant_role: ["owner", "staff"],
+      tenant_role: [
+        "owner",
+        "staff",
+        "accountant",
+        "sales_mgr",
+        "sales_agent",
+        "inventory",
+        "purchase_mgr",
+        "viewer",
+      ],
     },
   },
 } as const

@@ -22,31 +22,42 @@ import {
 
 import { useTheme } from "@/components/ThemeToggle";
 
-const allSections = [
-  { label: "Sales", icon: FileText, staffVisible: true, items: [
-    { title: "Customers", url: "/customers", icon: Users, staffVisible: true },
-    { title: "Sales Orders", url: "/proforma", icon: FileText, staffVisible: true },
-    { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList, staffVisible: true },
-    { title: "Returns", url: "/sales-returns", icon: RotateCcw, staffVisible: true },
+import type { Resource } from "@/lib/rbac";
+import { ROLE_LABEL } from "@/lib/rbac";
+import { useRoles } from "@/hooks/useRoles";
+
+type Section = {
+  label: string;
+  icon: any;
+  resource: Resource;
+  items: { title: string; url: string; icon: any; resource?: Resource }[];
+};
+
+const allSections: Section[] = [
+  { label: "Sales", icon: FileText, resource: "sales", items: [
+    { title: "Customers", url: "/customers", icon: Users, resource: "master" },
+    { title: "Sales Orders", url: "/proforma", icon: FileText, resource: "sales" },
+    { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList, resource: "sales" },
+    { title: "Returns", url: "/sales-returns", icon: RotateCcw, resource: "sales" },
   ]},
-  { label: "Purchase", icon: Truck, staffVisible: false, items: [
-    { title: "Suppliers", url: "/suppliers", icon: Truck },
-    { title: "Purchase Orders", url: "/purchase-proforma", icon: FileText },
-    { title: "Returns", url: "/purchase-returns", icon: RotateCcw },
+  { label: "Purchase", icon: Truck, resource: "purchase", items: [
+    { title: "Suppliers", url: "/suppliers", icon: Truck, resource: "master" },
+    { title: "Purchase Orders", url: "/purchase-proforma", icon: FileText, resource: "purchase" },
+    { title: "Returns", url: "/purchase-returns", icon: RotateCcw, resource: "purchase" },
   ]},
-  { label: "Inventory", icon: Package, staffVisible: true, items: [
-    { title: "Products & Stock", url: "/products", icon: Package, staffVisible: true },
-    { title: "Stock Movements", url: "/stock", icon: RotateCcw, staffVisible: true },
-    { title: "Landed Costs", url: "/landed-costs", icon: DollarSign },
-    { title: "Printers", url: "/printers", icon: Printer },
-    { title: "Print Jobs", url: "/print-jobs", icon: ClipboardList },
+  { label: "Inventory", icon: Package, resource: "inventory", items: [
+    { title: "Products & Stock", url: "/products", icon: Package, resource: "master" },
+    { title: "Stock Movements", url: "/stock", icon: RotateCcw, resource: "inventory" },
+    { title: "Landed Costs", url: "/landed-costs", icon: DollarSign, resource: "purchase" },
+    { title: "Printers", url: "/printers", icon: Printer, resource: "master" },
+    { title: "Print Jobs", url: "/print-jobs", icon: ClipboardList, resource: "purchase" },
   ]},
-  { label: "Finance", icon: Wallet, staffVisible: false, items: [
-    { title: "Payments", url: "/payments", icon: Wallet },
-    { title: "Credit Notes", url: "/credit-notes", icon: FileText },
-    { title: "Expenses", url: "/expenses", icon: CreditCard },
-    { title: "Staff & Salaries", url: "/salaries", icon: Users },
-    { title: "Bank Accounts", url: "/bank", icon: Landmark },
+  { label: "Finance", icon: Wallet, resource: "finance", items: [
+    { title: "Payments", url: "/payments", icon: Wallet, resource: "finance" },
+    { title: "Credit Notes", url: "/credit-notes", icon: FileText, resource: "finance" },
+    { title: "Expenses", url: "/expenses", icon: CreditCard, resource: "finance" },
+    { title: "Staff & Salaries", url: "/salaries", icon: Users, resource: "finance" },
+    { title: "Bank Accounts", url: "/bank", icon: Landmark, resource: "finance" },
   ]},
 ];
 
@@ -74,12 +85,10 @@ export function AppSidebar() {
     return location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
   };
 
-  const isStaff = tenantRole === "staff" && !isAdmin;
-  const sections = isStaff
-    ? allSections
-        .filter(s => s.staffVisible)
-        .map(s => ({ ...s, items: s.items.filter((i: any) => i.staffVisible) }))
-    : allSections;
+  const { can } = useRoles();
+  const sections = allSections
+    .map(s => ({ ...s, items: s.items.filter(i => can((i.resource ?? s.resource) as Resource, "read")) }))
+    .filter(s => can(s.resource, "read") && s.items.length > 0);
 
   const activeSectionIdx = sections.findIndex(s =>
     s.items.some(i => matchUrl(i.url))
@@ -248,7 +257,7 @@ export function AppSidebar() {
               <div className="mouj-avatar">{getInitials()}</div>
               <div className="flex-1 min-w-0">
                 <span className="mouj-tenant-name">{tenantName || "My Company"}</span>
-                <span className="mouj-tenant-role">{tenantRole === "owner" ? "Admin" : "Staff"}</span>
+                <span className="mouj-tenant-role">{(ROLE_LABEL as any)[tenantRole as any] ?? (tenantRole === "owner" ? "Admin" : "Staff")}</span>
               </div>
             </div>
 
