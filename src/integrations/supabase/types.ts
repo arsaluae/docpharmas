@@ -554,6 +554,9 @@ export type Database = {
           reference: string | null
           status: string
           tenant_id: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           amount?: number
@@ -569,6 +572,9 @@ export type Database = {
           reference?: string | null
           status?: string
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           amount?: number
@@ -584,6 +590,9 @@ export type Database = {
           reference?: string | null
           status?: string
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -887,6 +896,9 @@ export type Database = {
           reference: string | null
           status: string
           tenant_id: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           amount?: number
@@ -902,6 +914,9 @@ export type Database = {
           reference?: string | null
           status?: string
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           amount?: number
@@ -917,6 +932,9 @@ export type Database = {
           reference?: string | null
           status?: string
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: []
       }
@@ -936,6 +954,9 @@ export type Database = {
           status: string
           supplier_id: string | null
           tenant_id: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           created_at?: string
@@ -952,6 +973,9 @@ export type Database = {
           status?: string
           supplier_id?: string | null
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           created_at?: string
@@ -968,6 +992,9 @@ export type Database = {
           status?: string
           supplier_id?: string | null
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -1175,7 +1202,11 @@ export type Database = {
           ledger_id: string | null
           notes: string | null
           payment_method: string
+          status: string
           tenant_id: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           account_id?: string | null
@@ -1192,7 +1223,11 @@ export type Database = {
           ledger_id?: string | null
           notes?: string | null
           payment_method?: string
+          status?: string
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           account_id?: string | null
@@ -1209,7 +1244,11 @@ export type Database = {
           ledger_id?: string | null
           notes?: string | null
           payment_method?: string
+          status?: string
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -1286,6 +1325,7 @@ export type Database = {
           tenant_id: string | null
           void_reason: string | null
           voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           created_at?: string
@@ -1300,6 +1340,7 @@ export type Database = {
           tenant_id?: string | null
           void_reason?: string | null
           voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           created_at?: string
@@ -1314,6 +1355,7 @@ export type Database = {
           tenant_id?: string | null
           void_reason?: string | null
           voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -1414,6 +1456,9 @@ export type Database = {
           reference: string | null
           status: string
           tenant_id: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           created_at?: string
@@ -1425,6 +1470,9 @@ export type Database = {
           reference?: string | null
           status?: string
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           created_at?: string
@@ -1436,6 +1484,9 @@ export type Database = {
           reference?: string | null
           status?: string
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -1567,6 +1618,7 @@ export type Database = {
           type: string
           void_reason: string | null
           voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           amount?: number
@@ -1588,6 +1640,7 @@ export type Database = {
           type: string
           void_reason?: string | null
           voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           amount?: number
@@ -1609,6 +1662,7 @@ export type Database = {
           type?: string
           void_reason?: string | null
           voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -2052,6 +2106,9 @@ export type Database = {
           tenant_id: string | null
           total: number
           validity_days: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           accepted_at?: string | null
@@ -2070,6 +2127,9 @@ export type Database = {
           tenant_id?: string | null
           total?: number
           validity_days?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           accepted_at?: string | null
@@ -2088,6 +2148,9 @@ export type Database = {
           tenant_id?: string | null
           total?: number
           validity_days?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -2137,6 +2200,7 @@ export type Database = {
           total: number
           void_reason: string | null
           voided_at: string | null
+          voided_by: string | null
           wht_amount: number
         }
         Insert: {
@@ -2155,6 +2219,7 @@ export type Database = {
           total?: number
           void_reason?: string | null
           voided_at?: string | null
+          voided_by?: string | null
           wht_amount?: number
         }
         Update: {
@@ -2173,6 +2238,7 @@ export type Database = {
           total?: number
           void_reason?: string | null
           voided_at?: string | null
+          voided_by?: string | null
           wht_amount?: number
         }
         Relationships: [
@@ -2272,6 +2338,9 @@ export type Database = {
           supplier_id: string | null
           tenant_id: string | null
           total: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           created_at?: string
@@ -2287,6 +2356,9 @@ export type Database = {
           supplier_id?: string | null
           tenant_id?: string | null
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           created_at?: string
@@ -2302,6 +2374,9 @@ export type Database = {
           supplier_id?: string | null
           tenant_id?: string | null
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -2453,6 +2528,9 @@ export type Database = {
           tenant_id: string | null
           total: number
           validity_days: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           converted_po_id?: string | null
@@ -2468,6 +2546,9 @@ export type Database = {
           tenant_id?: string | null
           total?: number
           validity_days?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           converted_po_id?: string | null
@@ -2483,6 +2564,9 @@ export type Database = {
           tenant_id?: string | null
           total?: number
           validity_days?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -2576,6 +2660,9 @@ export type Database = {
           supplier_id: string | null
           tenant_id: string | null
           total: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           created_at?: string
@@ -2589,6 +2676,9 @@ export type Database = {
           supplier_id?: string | null
           tenant_id?: string | null
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           created_at?: string
@@ -2602,6 +2692,9 @@ export type Database = {
           supplier_id?: string | null
           tenant_id?: string | null
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -2626,6 +2719,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reconciliation_log: {
+        Row: {
+          computed_value: number | null
+          drift: number | null
+          entity_id: string | null
+          entity_label: string | null
+          id: string
+          notes: string | null
+          run_at: string
+          scope: string
+          status: string
+          stored_value: number | null
+          tenant_id: string
+        }
+        Insert: {
+          computed_value?: number | null
+          drift?: number | null
+          entity_id?: string | null
+          entity_label?: string | null
+          id?: string
+          notes?: string | null
+          run_at?: string
+          scope: string
+          status?: string
+          stored_value?: number | null
+          tenant_id: string
+        }
+        Update: {
+          computed_value?: number | null
+          drift?: number | null
+          entity_id?: string | null
+          entity_label?: string | null
+          id?: string
+          notes?: string | null
+          run_at?: string
+          scope?: string
+          status?: string
+          stored_value?: number | null
+          tenant_id?: string
+        }
+        Relationships: []
       }
       reorder_alerts: {
         Row: {
@@ -2881,6 +3016,7 @@ export type Database = {
           total: number
           void_reason: string | null
           voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           agent_id?: string | null
@@ -2903,6 +3039,7 @@ export type Database = {
           total?: number
           void_reason?: string | null
           voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           agent_id?: string | null
@@ -2925,6 +3062,7 @@ export type Database = {
           total?: number
           void_reason?: string | null
           voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -3018,6 +3156,9 @@ export type Database = {
           status: string
           tenant_id: string | null
           total: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           created_at?: string
@@ -3031,6 +3172,9 @@ export type Database = {
           status?: string
           tenant_id?: string | null
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           created_at?: string
@@ -3044,6 +3188,9 @@ export type Database = {
           status?: string
           tenant_id?: string | null
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -3161,7 +3308,11 @@ export type Database = {
           quantity: number
           reference_id: string | null
           reference_type: string | null
+          status: string
           tenant_id: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           batch_number?: string | null
@@ -3174,7 +3325,11 @@ export type Database = {
           quantity: number
           reference_id?: string | null
           reference_type?: string | null
+          status?: string
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           batch_number?: string | null
@@ -3187,7 +3342,11 @@ export type Database = {
           quantity?: number
           reference_id?: string | null
           reference_type?: string | null
+          status?: string
           tenant_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -3494,6 +3653,9 @@ export type Database = {
           subtotal: number
           tenant_id: string | null
           total: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
           warranty_number: string
         }
         Insert: {
@@ -3515,6 +3677,9 @@ export type Database = {
           subtotal?: number
           tenant_id?: string | null
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
           warranty_number: string
         }
         Update: {
@@ -3536,6 +3701,9 @@ export type Database = {
           subtotal?: number
           tenant_id?: string | null
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
           warranty_number?: string
         }
         Relationships: [
@@ -3571,7 +3739,64 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      mv_trial_balance: {
+        Row: {
+          account_id: string | null
+          account_type: string | null
+          code: string | null
+          credit: number | null
+          debit: number | null
+          name: string | null
+          net: number | null
+          period: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_trial_balance: {
+        Row: {
+          account_id: string | null
+          account_type: string | null
+          code: string | null
+          credit: number | null
+          debit: number | null
+          name: string | null
+          net: number | null
+          period: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       dashboard_charts: {
@@ -3627,6 +3852,33 @@ export type Database = {
       recalc_supplier_invoice_status: {
         Args: { p_supplier_id: string }
         Returns: undefined
+      }
+      recompute_account_balance: {
+        Args: { p_account_id: string }
+        Returns: number
+      }
+      recompute_bank_balance: { Args: { p_bank_id: string }; Returns: number }
+      recompute_party_balance: {
+        Args: { p_party_id: string; p_party_type: string }
+        Returns: number
+      }
+      recompute_product_stock: {
+        Args: { p_product_id: string }
+        Returns: number
+      }
+      recompute_tenant_all: { Args: { p_tenant: string }; Returns: undefined }
+      refresh_trial_balance: { Args: never; Returns: undefined }
+      run_reconciliation: {
+        Args: { p_auto_fix?: boolean; p_tenant: string }
+        Returns: {
+          computed: number
+          drift: number
+          entity_id: string
+          entity_label: string
+          scope: string
+          status: string
+          stored: number
+        }[]
       }
       void_document: {
         Args: { p_id: string; p_reason: string; p_table: string }

@@ -1,117 +1,122 @@
-## Scope locked
+# Phase 2 — DB & Accounting Hardening
 
-- **Target**: 10–50 Pakistani pharma tenants. Not 10k. So: shared Postgres, RLS isolation, no sharding.
-- **Accounting**: keep subledger model (customers/suppliers/printers/banks + CoA + manual journals). No auto-journal posting on every txn. Fix bugs and tighten reports only.
-- **Breaking changes**: allowed, including data reset. Migrations don't need to preserve prod rows.
-- **Out of scope** (explicitly): generic ERP de-pharma-fication, IFRS engine, multi-currency, branches/warehouses, sharding, ERPNext/Odoo parity.
+Goal: pristine schema baseline, immutable financial history (soft-void only), fast trial balance, deterministic balance recomputation, and automated reconciliation against drift.
 
-## Phase 1 — Audit & critical-fix sprint (Week 1)
+## 1. Wipe-All Reset (one migration, gated)
 
-Deliverable: written findings doc + immediate fixes for anything Critical/High.
+A single migration `phase2_wipe_and_harden.sql` runs in this order:
 
-Areas I'll audit with file:line citations:
+1. **Truncate transactional + master tables** (CASCADE) in dependency order:
+   - txn: payments, credit_note_applications, debit_note_applications, credit_notes, debit_notes, journal_lines, journal_entries, stock_movements, grn_items, goods_received_notes, delivery_notes, sales_invoice_items, sales_invoices, purchase_invoice_items, purchase_invoices, purchase_orders, sales_orders, proformas, quotations, expenses, agent_commissions, print_jobs, print_deliveries, print_rejections, additional_costs, audit_log, payment_submissions, accounting_periods
+   - master: customers, suppliers, products, customer_distributors, customer_licenses, customer_products, city_products, agent_customers, drap_registrations, areas, freight_providers, bank_accounts, chart_of_accounts, expense_ledgers, document_templates, document_counters, company_settings
+   - Preserve: tenants, profiles, user_roles, subscription/plan tables
+2. Reset document_counters to 0 implicit via truncate.
+3. Re-seed default chart_of_accounts + document_templates per tenant via existing seed functions.
 
-1. **RLS correctness** — every public table has tenant policy + GRANTs; no policy uses `auth.uid()` directly; `set_tenant_id` trigger on every insert path. Confirm no table is missing RLS.
-2. **Accounting integrity bugs** — 3 known smells to verify:
-   - Subledger balance triggers double-count when an invoice is voided then re-confirmed
-   - `recalc_customer_invoice_status` allocates direct + general payments but doesn't cap at outstanding when both exist on same invoice
-   - `void_document` hard-deletes payments — loses audit trail
-   - Period-lock trigger not attached to every txn table
-3. **Stock integrity** — `prevent_negative_stock` only fires on stock_movements insert; manual UPDATEs to `products.stock_quantity` bypass it. Lock direct updates.
-4. **Performance hot paths** — reports doing N+1 (SupplierWise/ItemWise pull 4 full tables), `fetchAllRows` with no tenant filter relies on RLS only (correct but slow at 100k rows), `dashboard_kpis` not indexed on `(tenant_id, date)`.
-5. **Security** — public storage buckets (`shared-documents`, `company-assets`) — confirm intentional; `payment_submissions` admin policy uses `has_role` (good); audit-log immutability triggers present.
-6. **Bundle/perf** — measure current LCP, identify unlazy-loaded heavy deps.
+Safety: migration begins with `DO $$ BEGIN IF (SELECT count(*) FROM sales_invoices) > 0 AND current_setting('app.allow_wipe', true) <> 'yes' THEN RAISE EXCEPTION 'wipe blocked'; END IF; END $$;` — user must set `app.allow_wipe='yes'` when running. (We confirmed full reset is acceptable.)
 
-## Phase 2 — Database & accounting hardening (Week 2)
+## 2. Soft-Void Everywhere
 
-Migration set (single reset, no backfill):
+Phase 1 added soft-void for payments. Phase 2 extends:
 
-- Add **indexes**: `(tenant_id, date)` on sales_invoices, purchase_invoices, payments, expenses, stock_movements, journal_entries; `(tenant_id, customer_id)`, `(tenant_id, supplier_id)`; partial indexes for `status != 'voided'`.
-- **FK constraints** — every `tenant_id`, `customer_id`, `supplier_id`, `product_id`, `invoice_id` gets a real FK with appropriate ON DELETE behavior. Currently zero FKs in DB.
-- **Period-lock trigger** attached to: sales_invoices, purchase_invoices, payments, expenses, journal_entries, stock_movements, credit_notes, debit_notes, salary_payments.
-- **Void hardening**: `void_document` switches payments to soft-void (status='voided' + reversal stock_movement) instead of hard delete. Adds journal-reversal entry when source had one.
-- **Balance recompute RPC**: `recompute_party_balance(party_type, party_id)` that nukes and rebuilds from txns — admin-only, for fixing drift.
-- **Trial balance view**: materialized view `mv_trial_balance` refreshed nightly.
-- **Concurrency**: `document_counters.UPDATE … RETURNING` is already atomic; add advisory lock on tenant + doc_type to prevent gap-skip under burst.
+- Add `status text NOT NULL DEFAULT 'active'`, `voided_at timestamptz`, `void_reason text`, `voided_by uuid` to: sales_invoices, purchase_invoices, sales_orders, purchase_orders, proformas, quotations, goods_received_notes (already has), delivery_notes, credit_notes, debit_notes, expenses, journal_entries, stock_movements.
+- Rewrite `void_document(entity_type, entity_id, reason)` RPC to:
+  - Set `status='voided'` (never DELETE).
+  - Insert compensating `stock_movements` (reverse qty) instead of deleting movements.
+  - Insert reversing `journal_entries` (swap debit/credit) referencing original.
+  - Call `recompute_party_balance(party_type, party_id)` and `recompute_bank_balance(bank_account_id)` at the end.
+- Block hard DELETE: triggers on the above tables that `RAISE EXCEPTION` on DELETE unless `current_setting('app.allow_purge', true) = 'yes'` (reserved for admin data-retention jobs only).
+- All read queries / reports filter `status <> 'voided'` by default; ledgers show voided rows greyed with reversal link.
 
-## Phase 3 — RBAC expansion (Week 3)
+## 3. Trial Balance Materialized View
 
-Current: `owner` / `staff` only. Expand to:
+```sql
+CREATE MATERIALIZED VIEW mv_trial_balance AS
+SELECT
+  jl.tenant_id,
+  jl.account_id,
+  coa.code, coa.name, coa.account_type,
+  date_trunc('month', je.date)::date AS period,
+  SUM(jl.debit)  AS debit,
+  SUM(jl.credit) AS credit,
+  SUM(jl.debit - jl.credit) AS net
+FROM journal_lines jl
+JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.status = 'posted'
+JOIN chart_of_accounts coa ON coa.id = jl.account_id
+GROUP BY jl.tenant_id, jl.account_id, coa.code, coa.name, coa.account_type, period;
 
-```text
-super_admin  → cross-tenant, your account only
-owner        → full tenant access
-accountant   → finance hubs + reports, no master data delete
-sales_mgr    → sales hub + customers + reports
-sales_agent  → own customers only (filtered by agent_customers)
-inventory    → products, stock, GRN, expiry
-purchase_mgr → purchase hub + suppliers + printers
-viewer       → read-only everything
+CREATE UNIQUE INDEX ON mv_trial_balance (tenant_id, account_id, period);
+CREATE INDEX ON mv_trial_balance (tenant_id, period);
 ```
 
-- New `app_role` enum values + `permissions` table (`role`, `resource`, `action`) seeded with matrix.
-- `has_permission(uid, resource, action)` SECURITY DEFINER fn.
-- Route-level + button-level guards via `usePermission()` hook.
-- Sales-agent data filter: `customers` policy adds `OR EXISTS (agent_customers WHERE agent_id = current_agent())`.
-- Settings → Team Members UI to assign roles.
+- `refresh_trial_balance(tenant uuid)` RPC: `REFRESH MATERIALIZED VIEW CONCURRENTLY mv_trial_balance`.
+- pg_cron job every 15 min; also refreshed on-demand from the Reports page button.
+- RLS on the MV via wrapper view `v_trial_balance` that filters `tenant_id = get_user_tenant_id()`.
 
-## Phase 4 — UI/UX rebuild (Weeks 4–5)
+## 4. Balance Recompute RPCs
 
-Keep precision-industrial design system. Rework:
+Pure, idempotent functions rebuild derived balances from source-of-truth ledgers:
 
-- **Global shell**: collapsible sidebar with role-filtered nav, breadcrumbs, global search (Ctrl+K already exists — extend to invoices/payments/products), tenant switcher placeholder for future.
-- **Dashboard**: role-aware widgets. Replace single dashboard with templates per role.
-- **Data tables**: replace ad-hoc tables with one `<DataTable>` primitive — server pagination, column visibility, saved views, CSV export, row-virtualization (>200 rows), sticky header, bulk actions.
-- **Forms**: shared `<DocumentForm>` for the 6 invoice/PO/GRN/payment patterns — keyboard nav (Tab/Enter advance, Esc cancel, Ctrl+S save), inline party-create, auto-calc with debounce.
-- **Mobile**: stacked-card views already exist for <640px — extend to remaining 8 list pages.
-- **Empty states + skeletons** standardized.
-- **A11y pass**: aria-labels on icon buttons, focus rings, `h-dvh` over `h-screen`.
+- `recompute_party_balance(p_party_type text, p_party_id uuid)` →
+  opening_balance + Σ(active invoices) − Σ(active payments) − Σ(active credit_note_applications) + Σ(active debit_note_applications). Writes to customers.balance / suppliers.balance.
+- `recompute_bank_balance(p_bank_id uuid)` → opening_balance + Σ(active inflow payments + bank deposits) − Σ(active outflow payments + expenses paid by bank).
+- `recompute_account_balance(p_account_id uuid)` → Σ(debit − credit) from posted journal_lines, honouring account_type sign.
+- `recompute_product_stock(p_product_id uuid)` → Σ stock_movements (excluding void compensations already netted).
+- `recompute_tenant_all(p_tenant uuid)` → wraps the above for every entity (parallel-safe via advisory locks per tenant).
 
-## Phase 5 — Performance pass (Week 6)
+All are SECURITY DEFINER, `SET search_path = public`, called by triggers AND exposed for manual reruns.
 
-- Convert all reports to SQL RPCs returning pre-aggregated JSONB (kill client-side `fetchAllRows` → `reduce`).
-- Add `react-window` to tables >100 rows (Customers, Products, Stock).
-- Code-split heavy deps (xlsx, recharts already chunked; add pdf-generator dynamic import).
-- Tanstack Query: tune `staleTime` per resource class (master data 5min, txns 30s).
-- Targets: dashboard <1s, list pages <2s, reports <3s on Pakistan mobile 4G.
+## 5. Automated Reconciliation
 
-## Phase 6 — SaaS billing & ops (Weeks 7–8)
+New table `reconciliation_log`:
 
-- **Subscription plans**: Starter (1 user, 1k invoices/mo), Growth (5 users, 10k/mo), Pro (15 users, unlimited). PKR pricing.
-- Keep current bank-transfer payment_submissions flow — add admin review UI improvements + auto-email on approval.
-- **Usage metering**: monthly txn count via cron, soft-block at 110%.
-- **Trial**: 14-day full-access, then read-only until plan picked.
-- **Tenant lifecycle**: suspend, reactivate, hard-delete with backup export.
-- **Email**: setup email infra (transactional + auth) with custom domain.
-- **Backups**: weekly pg_cron already exists — add per-tenant manual export to CSV/zip.
-- **Onboarding wizard**: 4 steps (company info, CoA template, opening balances, first user) — gates dashboard until done.
+```
+id, tenant_id, run_at, scope text,        -- 'party'|'bank'|'account'|'stock'
+entity_id uuid, entity_label text,
+stored_value numeric, computed_value numeric, drift numeric,
+status text ('ok'|'drift'|'fixed'), notes text
+```
 
-## Technical details
+- RPC `run_reconciliation(p_tenant uuid, p_auto_fix boolean default false)`:
+  - For each entity scope, compares stored vs `recompute_*` result.
+  - If drift > 0.01, inserts row; if `p_auto_fix`, writes corrected value and marks `fixed`.
+- pg_cron nightly job per tenant with `p_auto_fix = false` (alert-only); admin UI button to run with `true`.
+- New Settings → System Health page lists last 50 reconciliation rows with drift; one-click "fix all" runs auto-fix.
 
-- All migrations idempotent + reversible where possible.
-- Each phase ends with: linter clean, security scan clean, manual smoke test of 10 core flows.
-- Memory files updated per phase so the rules persist.
-- No new third-party services; stay on Lovable Cloud + Gemini.
+## 6. Period Lock Hardening
 
-## How we execute
+- Already triggers on journal_entries, stock_movements (Phase 1). Extend to: payments, sales_invoices, purchase_invoices, grn_items, expenses, credit_notes, debit_notes.
+- Add `period_lock_override` role check via `has_role(auth.uid(),'admin')` so owners can unlock when needed.
 
-Each phase = one approval gate. After you approve a phase, I implement, deploy, you test on real data, then we move on. If a phase finds something that changes a later phase's assumptions, we re-plan that phase only — not the whole roadmap.
+## 7. Concurrency
 
-## Estimated effort
+- Wrap `void_document`, `recompute_*`, `generate_document_number` in `pg_advisory_xact_lock(hashtext(tenant_id::text || ':' || scope))` to prevent racing double-posts.
 
-| Phase | Days | Risk |
-|---|---|---|
-| 1 Audit + critical fixes | 3–4 | Low |
-| 2 DB + accounting | 4–5 | **High** — triggers touch every flow |
-| 3 RBAC | 3 | Medium |
-| 4 UI rebuild | 8–10 | Medium |
-| 5 Perf | 3 | Low |
-| 6 SaaS billing | 5–6 | Medium |
+## 8. Linter Backlog (73 warnings)
 
-Total: ~6–8 weeks of focused work.
+Triaged in migration:
+- Add missing indexes flagged by linter (mostly FKs added Phase 1).
+- Fix `function_search_path_mutable` on remaining 18 SECURITY DEFINER functions (set `search_path = public`).
+- Re-enable `leaked_password_protection` in auth config.
+- Move 3 mutable-now() CHECKs to triggers.
 
-## What I need from you before Phase 1 starts
+## 9. Verification
 
-1. Confirm: when you say "full reset", you mean I can wipe your current data when running Phase 2 migrations? Or just that schema can change but I should write a backfill script?
-2. The 9 roles above — keep all or drop any?
-3. Pricing tiers — your numbers or my placeholders?
+After migration:
+1. Run `run_reconciliation(<tenant>, false)` — expect zero rows (empty data).
+2. Seed 1 invoice + 1 payment + 1 GRN via UI; rerun reconciliation — still zero drift.
+3. Void that invoice via new RPC; confirm reversing journal + compensating stock movement created, party balance returns to opening, audit_log entries present.
+4. `REFRESH MATERIALIZED VIEW CONCURRENTLY mv_trial_balance` — debits == credits per tenant.
+5. `supabase--linter` — zero ERROR-level findings.
+
+## Deliverables
+
+- `supabase/migrations/<ts>_phase2_wipe_and_harden.sql` (single migration, all of the above).
+- `src/pages/SystemHealth.tsx` (reconciliation viewer + manual triggers).
+- `src/lib/recompute.ts` (typed RPC wrappers).
+- Update `src/lib/void.ts` to call new `void_document` signature and refresh affected react-query keys.
+- Docs: `phase2-notes.md` with rollback steps.
+
+## Approval Gate
+
+After Phase 2 verification passes, I'll surface a short report and wait for go-ahead on Phase 3 (RBAC). Reply "go" to begin, or call out anything to change first.
