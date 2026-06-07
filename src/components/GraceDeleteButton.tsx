@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/audit";
+import { useRoles } from "@/hooks/useRoles";
 
 interface Props {
   /** "sales_invoices" or "purchase_invoices" */
