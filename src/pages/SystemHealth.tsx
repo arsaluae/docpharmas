@@ -39,9 +39,9 @@ export default function SystemHealth() {
   async function run(autoFix: boolean) {
     setRunning(true);
     try {
-      const { data: tenantData } = await supabase.rpc("get_user_tenant_id" as never);
+      const { data: tenantData } = await (supabase.rpc as any)("get_user_tenant_id");
       const tenant = tenantData as string | null;
-      const { error } = await supabase.rpc("run_reconciliation" as never, {
+      const { error } = await (supabase.rpc as any)("run_reconciliation", {
         p_tenant: tenant,
         p_auto_fix: autoFix,
       });
@@ -56,10 +56,11 @@ export default function SystemHealth() {
   }
 
   async function refreshTB() {
-    const { error } = await supabase.rpc("refresh_trial_balance" as never);
+    const { error } = await (supabase.rpc as any)("refresh_trial_balance");
     if (error) toast.error(error.message);
     else toast.success("Trial balance refreshed");
   }
+
 
   const drifted = rows.filter(r => r.status === "drift").length;
 
