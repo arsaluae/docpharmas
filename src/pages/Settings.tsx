@@ -675,7 +675,7 @@ function TemplateCard({ template, onUpdate }: { template: DocumentTemplate; onUp
 
 interface TenantMember {
  user_id: string;
- role: "owner" | "staff";
+ role: TenantRole;
  is_active: boolean;
  created_at: string;
  email?: string;
@@ -690,7 +690,7 @@ function TeamAccessCard() {
  const [showForm, setShowForm] = useState(false);
  const [newEmail, setNewEmail] = useState("");
  const [newPassword, setNewPassword] = useState("");
- const [newRole, setNewRole] = useState<"owner" | "staff">("staff");
+ const [newRole, setNewRole] = useState<TenantRole>("sales_agent");
  const [resetFor, setResetFor] = useState<string | null>(null);
  const [resetPwd, setResetPwd] = useState("");
  const [resetting, setResetting] = useState(false);
