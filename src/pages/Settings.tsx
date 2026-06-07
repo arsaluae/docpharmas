@@ -785,9 +785,9 @@ function TeamAccessCard() {
         throw new Error(serverMsg);
       }
       if (data?.error) throw new Error(data.error);
-      toast.success(newRole === "owner" ? "Admin user created" : "Sales user created");
-      setNewEmail(""); setNewPassword(""); setNewRole("staff"); setShowForm(false);
-      await load();
+       toast.success(`${ROLE_LABEL[newRole]} user created`);
+       setNewEmail(""); setNewPassword(""); setNewRole("sales_agent"); setShowForm(false);
+       await load();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
