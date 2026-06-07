@@ -1,83 +1,117 @@
-## Goal
+## Scope locked
 
-Today the Print Availability Panel is informational — user reads numbers, clicks "Create Print Job". Make the whole flow automatic: when a purchase invoice/PO is confirmed and received, the system itself decides which printed packaging to use, deducts it from print-job balances, and attaches the printing cost per unit to the stock so reports show material + printing cost separately.
+- **Target**: 10–50 Pakistani pharma tenants. Not 10k. So: shared Postgres, RLS isolation, no sharding.
+- **Accounting**: keep subledger model (customers/suppliers/printers/banks + CoA + manual journals). No auto-journal posting on every txn. Fix bugs and tighten reports only.
+- **Breaking changes**: allowed, including data reset. Migrations don't need to preserve prod rows.
+- **Out of scope** (explicitly): generic ERP de-pharma-fication, IFRS engine, multi-currency, branches/warehouses, sharding, ERPNext/Odoo parity.
 
-## How the automation works
+## Phase 1 — Audit & critical-fix sprint (Week 1)
+
+Deliverable: written findings doc + immediate fixes for anything Critical/High.
+
+Areas I'll audit with file:line citations:
+
+1. **RLS correctness** — every public table has tenant policy + GRANTs; no policy uses `auth.uid()` directly; `set_tenant_id` trigger on every insert path. Confirm no table is missing RLS.
+2. **Accounting integrity bugs** — 3 known smells to verify:
+   - Subledger balance triggers double-count when an invoice is voided then re-confirmed
+   - `recalc_customer_invoice_status` allocates direct + general payments but doesn't cap at outstanding when both exist on same invoice
+   - `void_document` hard-deletes payments — loses audit trail
+   - Period-lock trigger not attached to every txn table
+3. **Stock integrity** — `prevent_negative_stock` only fires on stock_movements insert; manual UPDATEs to `products.stock_quantity` bypass it. Lock direct updates.
+4. **Performance hot paths** — reports doing N+1 (SupplierWise/ItemWise pull 4 full tables), `fetchAllRows` with no tenant filter relies on RLS only (correct but slow at 100k rows), `dashboard_kpis` not indexed on `(tenant_id, date)`.
+5. **Security** — public storage buckets (`shared-documents`, `company-assets`) — confirm intentional; `payment_submissions` admin policy uses `has_role` (good); audit-log immutability triggers present.
+6. **Bundle/perf** — measure current LCP, identify unlazy-loaded heavy deps.
+
+## Phase 2 — Database & accounting hardening (Week 2)
+
+Migration set (single reset, no backfill):
+
+- Add **indexes**: `(tenant_id, date)` on sales_invoices, purchase_invoices, payments, expenses, stock_movements, journal_entries; `(tenant_id, customer_id)`, `(tenant_id, supplier_id)`; partial indexes for `status != 'voided'`.
+- **FK constraints** — every `tenant_id`, `customer_id`, `supplier_id`, `product_id`, `invoice_id` gets a real FK with appropriate ON DELETE behavior. Currently zero FKs in DB.
+- **Period-lock trigger** attached to: sales_invoices, purchase_invoices, payments, expenses, journal_entries, stock_movements, credit_notes, debit_notes, salary_payments.
+- **Void hardening**: `void_document` switches payments to soft-void (status='voided' + reversal stock_movement) instead of hard delete. Adds journal-reversal entry when source had one.
+- **Balance recompute RPC**: `recompute_party_balance(party_type, party_id)` that nukes and rebuilds from txns — admin-only, for fixing drift.
+- **Trial balance view**: materialized view `mv_trial_balance` refreshed nightly.
+- **Concurrency**: `document_counters.UPDATE … RETURNING` is already atomic; add advisory lock on tenant + doc_type to prevent gap-skip under burst.
+
+## Phase 3 — RBAC expansion (Week 3)
+
+Current: `owner` / `staff` only. Expand to:
 
 ```text
-Purchase Invoice (Coliza 10,000 pcs @ 50)
-        │
-        ▼
-On CONFIRM  → auto-RESERVE packaging from print jobs
-   priority order, per supplier on the PO:
-     1. At supplier (allotted_supplier_id = this supplier) — use first
-     2. At our factory (undispatched) — auto-dispatch on GRN
-     3. In-progress print jobs — reserve future delivery
-     4. Shortfall → flag, optional auto-create draft print job
-        │
-        ▼
-On GRN RECEIVE → auto-CONSUME reserved packaging
-   • Deduct from print_jobs (dispatched/at-factory balances)
-   • Insert purchase_print_allocations rows (audit trail)
-   • Attach printing_cost_per_unit to received stock layer
-        │
-        ▼
-Reports & Ledgers
-   • Supplier ledger: material only (10,000 × 50 = 500,000)
-   • Printer/vendor ledger: untouched (already booked at print-job creation)
-   • Stock cost layer: 50 (material) + 5 (printing) = 55 landed
-   • Item-wise / P&L: shows split → Material 50, Printing 5, GP per unit
+super_admin  → cross-tenant, your account only
+owner        → full tenant access
+accountant   → finance hubs + reports, no master data delete
+sales_mgr    → sales hub + customers + reports
+sales_agent  → own customers only (filtered by agent_customers)
+inventory    → products, stock, GRN, expiry
+purchase_mgr → purchase hub + suppliers + printers
+viewer       → read-only everything
 ```
 
-## Database changes
+- New `app_role` enum values + `permissions` table (`role`, `resource`, `action`) seeded with matrix.
+- `has_permission(uid, resource, action)` SECURITY DEFINER fn.
+- Route-level + button-level guards via `usePermission()` hook.
+- Sales-agent data filter: `customers` policy adds `OR EXISTS (agent_customers WHERE agent_id = current_agent())`.
+- Settings → Team Members UI to assign roles.
 
-New table `purchase_print_allocations` (tenant-scoped, RLS like siblings):
+## Phase 4 — UI/UX rebuild (Weeks 4–5)
 
-- `purchase_invoice_id` (PO/proforma id), `grn_id`, `product_id`, `supplier_id`
-- `print_job_id`, `source` enum: `at_supplier` | `at_factory` | `in_progress`
-- `quantity_reserved`, `quantity_consumed`
-- `printing_cost_per_unit` (snapshot from print job at allocation time)
-- `status`: `reserved` | `consumed` | `released`
+Keep precision-industrial design system. Rework:
 
-Trigger `trg_consume_print_allocations_on_grn`:
-- On `grn_items` insert with `product_id` having reserved allocations, for each matching allocation FIFO:
-  - decrement `print_jobs.quantity_dispatched_to_supplier` (at_supplier) or auto-bump `quantity_dispatched_to_supplier` then decrement (at_factory)
-  - mark allocation `consumed`, set `grn_id`
-- Insert a `stock_movements` adjustment row tagged `printing_cost` so cost layer reflects landed cost.
+- **Global shell**: collapsible sidebar with role-filtered nav, breadcrumbs, global search (Ctrl+K already exists — extend to invoices/payments/products), tenant switcher placeholder for future.
+- **Dashboard**: role-aware widgets. Replace single dashboard with templates per role.
+- **Data tables**: replace ad-hoc tables with one `<DataTable>` primitive — server pagination, column visibility, saved views, CSV export, row-virtualization (>200 rows), sticky header, bulk actions.
+- **Forms**: shared `<DocumentForm>` for the 6 invoice/PO/GRN/payment patterns — keyboard nav (Tab/Enter advance, Esc cancel, Ctrl+S save), inline party-create, auto-calc with debounce.
+- **Mobile**: stacked-card views already exist for <640px — extend to remaining 8 list pages.
+- **Empty states + skeletons** standardized.
+- **A11y pass**: aria-labels on icon buttons, focus rings, `h-dvh` over `h-screen`.
 
-Trigger `trg_release_print_allocations_on_void`:
-- When PO/GRN voided, set allocations back to `released` and restore print-job balances.
+## Phase 5 — Performance pass (Week 6)
 
-## Code changes
+- Convert all reports to SQL RPCs returning pre-aggregated JSONB (kill client-side `fetchAllRows` → `reduce`).
+- Add `react-window` to tables >100 rows (Customers, Products, Stock).
+- Code-split heavy deps (xlsx, recharts already chunked; add pdf-generator dynamic import).
+- Tanstack Query: tune `staleTime` per resource class (master data 5min, txns 30s).
+- Targets: dashboard <1s, list pages <2s, reports <3s on Pakistan mobile 4G.
 
-1. **`src/lib/auto-print-allocator.ts`** (new) — pure function `allocatePrinting(productId, supplierId, qty)` returning the FIFO plan (at_supplier → at_factory → in_progress → shortfall). Writes `purchase_print_allocations` rows in `reserved` state.
+## Phase 6 — SaaS billing & ops (Weeks 7–8)
 
-2. **`src/pages/PurchaseProforma.tsx`**
-   - On **Confirm PO**: for each line with `product_id`, call `allocatePrinting`. Show a compact summary toast ("Auto-reserved 8,000 pcs printed packaging from 2 jobs; 2,000 pcs shortfall — print job draft created").
-   - Replace `PrintAvailabilityPanel`'s "Create Print Job" with a read-only summary that shows what was auto-reserved (live from `purchase_print_allocations`), plus an "Adjust" link for power users.
-   - On **Receive GRN** (`handleReceive`): no new code needed beyond firing the existing insert — trigger handles consumption.
-   - On **Void**: rely on `void_document` cascade + new release trigger.
+- **Subscription plans**: Starter (1 user, 1k invoices/mo), Growth (5 users, 10k/mo), Pro (15 users, unlimited). PKR pricing.
+- Keep current bank-transfer payment_submissions flow — add admin review UI improvements + auto-email on approval.
+- **Usage metering**: monthly txn count via cron, soft-block at 110%.
+- **Trial**: 14-day full-access, then read-only until plan picked.
+- **Tenant lifecycle**: suspend, reactivate, hard-delete with backup export.
+- **Email**: setup email infra (transactional + auth) with custom domain.
+- **Backups**: weekly pg_cron already exists — add per-tenant manual export to CSV/zip.
+- **Onboarding wizard**: 4 steps (company info, CoA template, opening balances, first user) — gates dashboard until done.
 
-3. **`src/components/PrintAvailabilityPanel.tsx`** — switch to "Allocation Summary" mode when a confirmed PO exists: lists reserved jobs, source, qty, cost/unit; falls back to current advisory view for drafts.
+## Technical details
 
-4. **`src/pages/PrintJobs.tsx`** — show "Reserved for PO #" badge on jobs whose at-factory/at-supplier balance has open allocations; block deletion if reserved.
+- All migrations idempotent + reversible where possible.
+- Each phase ends with: linter clean, security scan clean, manual smoke test of 10 core flows.
+- Memory files updated per phase so the rules persist.
+- No new third-party services; stay on Lovable Cloud + Gemini.
 
-5. **Reports** (`ItemWiseReport.tsx`, product costing, P&L) — read `purchase_print_allocations` joined with GRN to split Material vs Printing cost columns. Sales-side already shows revenue; gross profit becomes `sale - (material + printing)`.
+## How we execute
 
-## Ledger correctness (unchanged, re-verified)
+Each phase = one approval gate. After you approve a phase, I implement, deploy, you test on real data, then we move on. If a phase finds something that changes a later phase's assumptions, we re-plan that phase only — not the whole roadmap.
 
-- Purchase Invoice posts **material only** to supplier ledger.
-- Print Job posts **printing cost** to printer/vendor ledger at job creation/settlement (existing behaviour).
-- Auto-allocation is a stock + costing event, **no new journal entries** — prevents double-booking.
+## Estimated effort
 
-## Out of scope for this step
+| Phase | Days | Risk |
+|---|---|---|
+| 1 Audit + critical fixes | 3–4 | Low |
+| 2 DB + accounting | 4–5 | **High** — triggers touch every flow |
+| 3 RBAC | 3 | Medium |
+| 4 UI rebuild | 8–10 | Medium |
+| 5 Perf | 3 | Low |
+| 6 SaaS billing | 5–6 | Medium |
 
-- City-product smart suggestions on Sales Orders (separate task).
-- UI for manually overriding an auto-allocation (will add only if requested after this lands).
+Total: ~6–8 weeks of focused work.
 
-## Files touched
+## What I need from you before Phase 1 starts
 
-- new: `supabase/migrations/<timestamp>_purchase_print_allocations.sql`
-- new: `src/lib/auto-print-allocator.ts`
-- edit: `src/pages/PurchaseProforma.tsx`, `src/components/PrintAvailabilityPanel.tsx`, `src/pages/PrintJobs.tsx`
-- edit: `src/pages/reports/ItemWiseReport.tsx` and product-costing/P&L report files for the split column
+1. Confirm: when you say "full reset", you mean I can wipe your current data when running Phase 2 migrations? Or just that schema can change but I should write a backfill script?
+2. The 9 roles above — keep all or drop any?
+3. Pricing tiers — your numbers or my placeholders?
