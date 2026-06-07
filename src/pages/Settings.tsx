@@ -860,7 +860,7 @@ function TeamAccessCard() {
  : "border-border text-muted-foreground"
  }`}
  >
- {m.role === "owner" ? "Admin" : "Sales"}
+ {ROLE_LABEL[m.role] ?? m.role}
  </span>
  {!m.is_active && (
  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-destructive/40 text-destructive">
