@@ -2920,6 +2920,7 @@ export type Database = {
           phone: string | null
           status: string
           tenant_id: string | null
+          user_id: string | null
         }
         Insert: {
           address?: string | null
@@ -2933,6 +2934,7 @@ export type Database = {
           phone?: string | null
           status?: string
           tenant_id?: string | null
+          user_id?: string | null
         }
         Update: {
           address?: string | null
@@ -2946,6 +2948,7 @@ export type Database = {
           phone?: string | null
           status?: string
           tenant_id?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -3875,6 +3878,7 @@ export type Database = {
         Args: { p_id: string; p_table: string }
         Returns: string
       }
+      is_agent_customer: { Args: { p_customer_id: string }; Returns: boolean }
       is_authenticated: { Args: never; Returns: boolean }
       recalc_customer_invoice_status: {
         Args: { p_customer_id: string }
