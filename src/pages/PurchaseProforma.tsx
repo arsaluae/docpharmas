@@ -859,9 +859,8 @@ export default function PurchaseProforma() {
  })),
  settings, template: getTemplate("grn"),
  });
- setPdfHtml(grnHtml); setPdfTitle(`GRN — ${grnNumber}`); setPdfOpen(true);
- setReceiveOpen(false); setReceivedBy(""); setReceiveNotes(""); setReceiving(false); load();
- } else { setReceiving(false); }
+   setPdfHtml(grnHtml); setPdfTitle(`GRN — ${grnNumber}`); setPdfOpen(true);
+   setReceiveOpen(false); setReceivedBy(""); setReceiveNotes(""); setReceiving(false); load();
  };
 
  // ── EDIT ──
