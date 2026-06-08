@@ -302,10 +302,17 @@ function buildPdfHtml(opts: PdfOptions): string {
 
   @media print {
     body { padding:0; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    *, *::before, *::after { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
     .toolbar { display:none !important; }
     .page-frame { border:none; padding:20px 25px; max-width:100%; margin:0; box-shadow:none; }
     .page-frame::before { display:none; }
     .corner { display:none; }
+    table { page-break-inside:auto; }
+    thead { display:table-header-group; }
+    tfoot { display:table-footer-group; }
+    tr { page-break-inside:avoid; }
+    thead tr { background:${C.headerBg} !important; }
+    .items-th { color:#ffffff !important; background:${C.headerBg} !important; }
     @page { margin:10mm 8mm; size:A4; }
   }
 </style>
