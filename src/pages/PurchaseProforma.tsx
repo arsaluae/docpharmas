@@ -1373,54 +1373,60 @@ export default function PurchaseProforma() {
  {/* RECEIVE DIALOG (GRN) */}
  <Dialog open={receiveOpen} onOpenChange={setReceiveOpen}>
  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
- <DialogHeader><DialogTitle className="font-heading">Receive Goods — Create GRN + Bill</DialogTitle></DialogHeader>
- <p className="text-sm text-muted-foreground mb-3">Enter batch numbers & expiry dates for each item.</p>
- <div className="grid grid-cols-2 gap-3 mb-4">
- <div><Label className="text-xs font-medium text-muted-foreground">Received By</Label><Input value={receivedBy} onChange={e => setReceivedBy(e.target.value)} placeholder="Name" /></div>
- <div><Label className="text-xs font-medium text-muted-foreground">Notes</Label><Input value={receiveNotes} onChange={e => setReceiveNotes(e.target.value)} placeholder="Optional" /></div>
- </div>
- <Separator />
- {receiveItems.map((item, idx) => (
- <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3 mt-3">
- <div className="flex items-center justify-between">
- <span className="text-sm font-semibold text-foreground">{item.item_name}</span>
- <span className="text-xs font-mono text-muted-foreground">Ordered: {item.quantity}</span>
- </div>
- <div className="grid grid-cols-3 gap-3">
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Batch # *</Label>
- <Input className="text-xs" value={item.batch_number} onChange={e => {
- const u = [...receiveItems]; u[idx].batch_number = e.target.value; setReceiveItems(u);
- }} placeholder="Batch number" />
- </div>
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Expiry *</Label>
- <Input type="date" className="text-xs" value={item.expiry_date} onChange={e => {
- const u = [...receiveItems]; u[idx].expiry_date = e.target.value; setReceiveItems(u);
- }} />
- </div>
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Qty Received</Label>
- <Input type="number" className="text-xs" value={item.quantity_received} onChange={e => {
- const u = [...receiveItems]; u[idx].quantity_received = e.target.value; setReceiveItems(u);
- }} />
- </div>
+  <DialogHeader><DialogTitle className="font-heading">Receive Goods — Create GRN</DialogTitle></DialogHeader>
+  <p className="text-sm text-muted-foreground mb-3">Confirm received quantities. Batch &amp; expiry were captured at approval. Any shortage auto-issues a Debit Note; overage is added to the Purchase Invoice.</p>
+  <div className="grid grid-cols-2 gap-3 mb-4">
+    <div><Label className="text-xs font-medium text-muted-foreground">Received By</Label><Input value={receivedBy} onChange={e => setReceivedBy(e.target.value)} placeholder="Name" /></div>
+    <div><Label className="text-xs font-medium text-muted-foreground">Notes</Label><Input value={receiveNotes} onChange={e => setReceiveNotes(e.target.value)} placeholder="Optional" /></div>
   </div>
-  {item.product_id && receivePO && (
-    <PrintAvailabilityPanel
-      productId={item.product_id}
-      productName={item.item_name}
-      requiredQty={Number(item.quantity_received) || Number(item.quantity) || 0}
-      supplierId={receivePO.supplier_id || undefined}
-      purchaseInvoiceId={receivePO.converted_po_id || receivePO.id}
-    />
-  )}
-  </div>
-  ))}
- <Button onClick={handleReceive} disabled={receiving} className="w-full h-11 gap-2 text-sm font-semibold mt-4">
- {receiving ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
- Confirm Receipt — Create GRN + Bill
- </Button>
+  <Separator />
+  {receiveItems.map((item, idx) => {
+    const ordered = Number(item.quantity_confirmed) || Number(item.quantity);
+    const received = Number(item.quantity_received) || 0;
+    const diff = received - ordered;
+    return (
+      <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3 mt-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-foreground">{item.item_name}</span>
+          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
+            <span>Batch: {item.batch_number || "—"}</span>
+            <span>·</span>
+            <span>Exp: {item.expiry_date || "—"}</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3 items-end">
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground">Qty Ordered</Label>
+            <Input type="number" className="text-xs" value={ordered} disabled />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground">Qty Received</Label>
+            <Input type="number" className="text-xs" value={item.quantity_received} onChange={e => {
+              const u = [...receiveItems]; u[idx].quantity_received = e.target.value; setReceiveItems(u);
+            }} />
+          </div>
+          <div className="text-xs pt-5">
+            {diff === 0 && <span className="text-success font-semibold">✓ Matches</span>}
+            {diff < 0 && <span className="text-destructive font-semibold">Shortage: {diff}</span>}
+            {diff > 0 && <span className="text-warning font-semibold">Overage: +{diff}</span>}
+          </div>
+        </div>
+        {item.product_id && receivePO && (
+          <PrintAvailabilityPanel
+            productId={item.product_id}
+            productName={item.item_name}
+            requiredQty={Number(item.quantity_received) || Number(item.quantity) || 0}
+            supplierId={receivePO.supplier_id || undefined}
+            purchaseInvoiceId={receivePO.converted_po_id || receivePO.id}
+          />
+        )}
+      </div>
+    );
+  })}
+  <Button onClick={handleReceive} disabled={receiving} className="w-full h-11 gap-2 text-sm font-semibold mt-4">
+    {receiving ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
+    Confirm Receipt
+  </Button>
  </DialogContent>
  </Dialog>
 
