@@ -1208,7 +1208,7 @@ export default function PurchaseProforma() {
  <div className="flex items-center gap-1">
  {order.status === "draft" && (
  <Button variant="default" size="sm" onClick={() => handleConfirmOrder(order)} className="h-7 text-xs gap-1 shadow-sm">
- <CheckCircle className="h-3 w-3" /> <span className="hidden sm:inline">Confirm</span>
+ <CheckCircle className="h-3 w-3" /> <span className="hidden sm:inline">Approve</span>
  </Button>
  )}
  {(order.status === "ordered" || order.status === "confirmed") && (
