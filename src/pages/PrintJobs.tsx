@@ -128,6 +128,8 @@ export default function PrintJobs() {
  const load = async () => {
  let jobQuery = supabase.from("print_jobs").select("*", { count: "exact" }).order("created_at", { ascending: false });
  if (tab !== "all") jobQuery = jobQuery.eq("status", tab);
+ if (filterPrinter !== "all") jobQuery = jobQuery.eq("printer_id", filterPrinter);
+ if (filterProduct !== "all") jobQuery = jobQuery.eq("product_id", filterProduct);
  jobQuery = jobQuery.range(pagination.from, pagination.to);
  const [j, pr, prod, sup] = await Promise.all([
  jobQuery,
@@ -140,6 +142,14 @@ export default function PrintJobs() {
  if (pr.data) { setPrinters(pr.data); const n: Record<string, string> = {}; pr.data.forEach(p => n[p.id] = p.name); setPrinterNames(n); }
  if (prod.data) { setProducts(prod.data); const n: Record<string, string> = {}; prod.data.forEach(p => n[p.id] = p.name); setProductNames(n); }
  if (sup.data) { setSuppliers(sup.data); const n: Record<string, string> = {}; sup.data.forEach(s => n[s.id] = s.name); setSupplierNames(n); }
+ // Load dispatches for visible jobs
+ const ids = (j.data || []).map((x: any) => x.id);
+ if (ids.length) {
+   const { data: disp } = await supabase.from("print_dispatches" as any).select("*").in("print_job_id", ids);
+   const grouped: Record<string, DispatchRow[]> = {};
+   (disp as any[] || []).forEach(d => { (grouped[d.print_job_id] = grouped[d.print_job_id] || []).push(d); });
+   setDispatchesByJob(grouped);
+ } else { setDispatchesByJob({}); }
  };
 
 
