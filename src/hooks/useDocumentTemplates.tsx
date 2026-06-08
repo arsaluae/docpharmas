@@ -25,6 +25,8 @@ const DEFAULT_TEMPLATES: Omit<DocumentTemplate, "id" | "created_at">[] = [
     columns_config: [
       { header: "Sr#", key: "srno", align: "center" },
       { header: "Product Name", key: "product_name", align: "left" },
+      { header: "Batch No", key: "batch_number", align: "center" },
+      { header: "Expiry", key: "expiry_date", align: "center" },
       { header: "Quantity", key: "quantity", align: "center" },
       { header: "Rate", key: "rate", align: "right" },
       { header: "Amount", key: "amount", align: "right" },
