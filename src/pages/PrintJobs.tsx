@@ -490,7 +490,7 @@ export default function PrintJobs() {
   {filtered.length === 0 ? (
   <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground"><ClipboardCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No print jobs yet.</TableCell></TableRow>
   ) : grouped.map(g => (
-    <>
+    <React.Fragment key={`grp-${g.key}`}>
       {groupBy !== "none" && (
         <TableRow key={`grp-${g.key}`} className="bg-muted/30">
           <TableCell colSpan={11} className="font-semibold text-sm">
