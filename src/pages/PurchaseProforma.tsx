@@ -71,6 +71,9 @@ export default function PurchaseProforma() {
  const [costAmount, setCostAmount] = useState("");
  const [costVendorId, setCostVendorId] = useState("");
  const [allocatedProductIds, setAllocatedProductIds] = useState<string[] | null>(null);
+ // Quick Add Product (inline from PO dialogs)
+ const [quickProductOpen, setQuickProductOpen] = useState(false);
+ const [quickProductTarget, setQuickProductTarget] = useState<{ scope: "create" | "edit"; idx: number | null }>({ scope: "create", idx: null });
 
  // Preview items (for PDF generation)
  const [previewItems, setPreviewItems] = useState<any[]>([]);
