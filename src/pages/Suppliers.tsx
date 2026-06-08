@@ -76,13 +76,13 @@ export default function Suppliers() {
  area: form.area || null,
  payment_terms_days: Number(form.payment_terms_days), wht_rate: Number(form.wht_rate),
  opening_balance: Number(form.opening_balance), license_number: form.license_number || null,
+ license_expiry_date: form.license_expiry_date || null,
  };
  if (editId) {
  const { error } = await supabase.from("suppliers").update(basePayload).eq("id", editId);
  if (error) { toast.error("Failed to update: " + error.message); return; }
  toast.success("Supplier updated");
  } else {
- // Generate auto-code for new suppliers
  const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "supplier" });
  const { error } = await supabase.from("suppliers").insert({ ...basePayload, balance: Number(form.opening_balance), supplier_code: code || null } as any);
  if (error) { toast.error("Failed to create: " + error.message); return; }
@@ -97,7 +97,7 @@ export default function Suppliers() {
  name: s.name, company: s.company || "", ntn: s.ntn || "", strn: s.strn || "",
  phone: s.phone || "", email: s.email || "", address: s.address || "", city: s.city || "", area: s.area || "",
  payment_terms_days: String(s.payment_terms_days), wht_rate: String(s.wht_rate), opening_balance: String(s.opening_balance),
- license_number: s.license_number || "",
+ license_number: s.license_number || "", license_expiry_date: s.license_expiry_date || "",
  });
  setOpen(true);
  };
