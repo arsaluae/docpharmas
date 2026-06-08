@@ -90,6 +90,12 @@ export default function PurchaseProforma() {
  const [editNotes, setEditNotes] = useState("");
  const [editItems, setEditItems] = useState<PPItem[]>([]);
 
+ // Approve (batch + expiry capture before PI creation)
+ const [approveOpen, setApproveOpen] = useState(false);
+ const [approveOrder, setApproveOrder] = useState<PurchaseOrder | null>(null);
+ const [approveItems, setApproveItems] = useState<any[]>([]);
+ const [approving, setApproving] = useState(false);
+
  // Receive
  const [receiveOpen, setReceiveOpen] = useState(false);
  const [receivePO, setReceivePO] = useState<PurchaseOrder | null>(null);
