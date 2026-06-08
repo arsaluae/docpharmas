@@ -1276,7 +1276,18 @@ export default function PurchaseProforma() {
  <Separator />
  <div className="flex items-center justify-between">
  <Label className="text-sm font-semibold">Items</Label>
- <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
+ <div className="flex items-center gap-2">
+   <Button variant="ghost" size="sm" onClick={() => openQuickAddProduct("edit", null)} className="gap-1 text-xs text-primary hover:text-primary"><Plus className="h-3 w-3" /> New Product</Button>
+   <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
+ </div>
+ </div>
+ {/* Column headers */}
+ <div className="grid grid-cols-12 gap-2 pb-1 border-b border-border/60 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+   <div className="col-span-5">Product</div>
+   <div className="col-span-2">Qty</div>
+   <div className="col-span-2">Rate</div>
+   <div className="col-span-2 text-right">Amount</div>
+   <div className="col-span-1"></div>
  </div>
  {editItems.map((item, idx) => (
  <div key={idx} className="grid grid-cols-12 gap-2 items-end">
