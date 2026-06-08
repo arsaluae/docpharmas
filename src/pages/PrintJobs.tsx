@@ -365,8 +365,8 @@ export default function PrintJobs() {
 
  const statusBadge = (status: string) => {
  if (status === "draft") return <Badge variant="secondary" className="bg-muted text-muted-foreground">Draft</Badge>;
- if (status === "delivered") return <Badge className="bg-warning/15 text-warning border-warning/30">Delivered</Badge>;
- return <Badge className="bg-primary/15 text-primary border-primary/30">Settled</Badge>;
+ if (status === "settled") return <Badge className="bg-primary/15 text-primary border-primary/30">Settled</Badge>;
+ return <Badge className="bg-success/15 text-success border-success/30">Dispatched</Badge>;
  };
 
  const headerActions = (
