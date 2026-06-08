@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import {
- Brain, AlertTriangle, TrendingDown, TrendingUp, Users, DollarSign,
+ Brain, AlertTriangle, TrendingDown, TrendingUp, Users, Banknote,
  Sparkles, PackageX, ArrowDown, ArrowUp, Minus, RefreshCw,
 } from "lucide-react";
 import { BarChart, Bar, ResponsiveContainer, Cell } from "recharts";
@@ -294,7 +294,7 @@ export default function AIInsights() {
  <Card>
  <CardHeader className="pb-2 pt-4 px-5">
  <CardTitle className="text-sm font-heading flex items-center gap-2">
- <DollarSign className="h-4 w-4 text-warning" /> Margin Warnings
+ <Banknote className="h-4 w-4 text-warning" /> Margin Warnings
  </CardTitle>
  </CardHeader>
  <CardContent className="px-5 pb-4">

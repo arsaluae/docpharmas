@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Package, DollarSign, Truck, Printer } from "lucide-react";
+import { Package, Banknote, Truck, Printer } from "lucide-react";
 import { getActiveBatches, type ActiveBatch } from "@/lib/batches";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -84,7 +84,7 @@ export function ProductBatchProfileDialog({ open, onOpenChange, productId, produ
         {/* Landed cost engine */}
         <div className="rounded-[4px] border border-border bg-secondary/30 p-4 space-y-3">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <DollarSign className="h-4 w-4 text-primary" /> Landed Cost Engine
+            <Banknote className="h-4 w-4 text-primary" /> Landed Cost Engine
           </div>
           <div className="grid grid-cols-4 gap-3">
             <div>

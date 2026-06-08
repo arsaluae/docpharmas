@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, MessageCircle, FileText, Loader2, X, Share2, Eye, FileEdit, Send, Truck, RotateCcw, DollarSign, MoreHorizontal, BadgeDollarSign, ChevronLeft, ChevronRight, ShieldCheck } from "lucide-react";
+import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, MessageCircle, FileText, Loader2, X, Share2, Eye, FileEdit, Send, Truck, RotateCcw, Banknote, MoreHorizontal, ChevronLeft, ChevronRight, ShieldCheck } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -72,6 +72,8 @@ export default function ProformaInvoices() {
  const [pdfHtml, setPdfHtml] = useState("");
  const [pdfOpen, setPdfOpen] = useState(false);
  const [pdfTitle, setPdfTitle] = useState("");
+ const [pdfViews, setPdfViews] = useState<{ key: string; label: string; color: string; html: string; disabled?: boolean }[] | undefined>(undefined);
+ const [pdfDefaultView, setPdfDefaultView] = useState<string | undefined>(undefined);
 
 
 
@@ -395,13 +397,26 @@ export default function ProformaInvoices() {
  }
  };
 
- // ── PREVIEW (opens PDF popup directly) ──
- const openPreview = (order: SalesOrder) => {
- if (order.converted_invoice_id) {
- printInvoice(order);
- } else {
- printOrder(order);
- }
+ // ── PREVIEW with 3-view template switcher (Sales Order / Invoice / Delivery Note) ──
+ const openPreview = async (order: SalesOrder, preferredView?: "sales_order" | "sales_invoice" | "delivery_note") => {
+   const orderHtml = buildSalesOrderHtml(order);
+   const invoiceHtml = order.converted_invoice_id ? await buildSalesInvoiceHtml(order) : "";
+   const dnHtml = order.converted_invoice_id ? await buildDeliveryNoteHtml(order) : "";
+   const hasInvoice = !!invoiceHtml;
+   const hasDn = !!dnHtml;
+   const views = [
+     { key: "sales_order",  label: "Sales Order",    color: "bg-amber-500 text-white border-amber-500",   html: orderHtml },
+     { key: "sales_invoice",label: "Sales Invoice",  color: "bg-blue-600 text-white border-blue-600",     html: invoiceHtml, disabled: !hasInvoice },
+     { key: "delivery_note",label: "Delivery Note",  color: "bg-violet-600 text-white border-violet-600", html: dnHtml,      disabled: !hasDn },
+   ];
+   const def = preferredView && views.find(v => v.key === preferredView && !v.disabled)
+     ? preferredView
+     : (hasInvoice ? "sales_invoice" : "sales_order");
+   setPdfViews(views);
+   setPdfDefaultView(def);
+   setPdfTitle(`${order.invoice_number || order.proforma_number} — ${(order.customers as any)?.name || ""}`);
+   setPdfHtml("");
+   setPdfOpen(true);
  };
 
  const openEditSheet = async (order: SalesOrder) => {
@@ -516,35 +531,35 @@ export default function ProformaInvoices() {
  openWhatsApp(custPhone, message);
  };
 
- // ── PDF ──
- const printOrder = (order: SalesOrder) => {
- const pfItems = getPfItems(order);
- const custName = (order.customers as any)?.name || "—";
- const custAddress = (order.customers as any)?.address || undefined;
- const custPhone = (order.customers as any)?.phone || undefined;
- const custArea = (order.customers as any)?.area || undefined;
- const html = generatePdfHtml({
- title: "SALES INVOICE", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
- partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
- meta: [{ label: "Validity", value: `${order.validity_days} days` }],
- columns: [
- { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
- { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
- { header: "Disc%", key: "discount_pct", align: "right" },
- ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
- { header: "Amount", key: "amount", align: "right" },
- ],
- rows: pfItems.map((i: any, idx: number) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(), discount_pct: Number(i.discount_pct || 0) })),
- totals: [
- { label: "Subtotal", value: `PKR ${Number(order.subtotal).toLocaleString()}` },
- ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(order.gst).toLocaleString()}` }] : []),
- { label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` },
- ],
- notes: order.payment_instructions || undefined, settings,
- template: getTemplate("sales_invoice"),
- });
- setPdfHtml(html); setPdfTitle(`Sales Invoice — ${order.proforma_number}`); setPdfOpen(true);
+ // ── HTML BUILDERS (return string; preview wires them through PdfPreviewDialog views) ──
+ const buildSalesOrderHtml = (order: SalesOrder): string => {
+   const pfItems = getPfItems(order);
+   const custName = (order.customers as any)?.name || "—";
+   const custAddress = (order.customers as any)?.address || undefined;
+   const custPhone = (order.customers as any)?.phone || undefined;
+   const custArea = (order.customers as any)?.area || undefined;
+   return generatePdfHtml({
+     title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
+     partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
+     meta: [{ label: "Validity", value: `${order.validity_days} days` }],
+     columns: [
+       { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+       { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+       { header: "Disc%", key: "discount_pct", align: "right" },
+       ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
+       { header: "Amount", key: "amount", align: "right" },
+     ],
+     rows: pfItems.map((i: any, idx: number) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(), discount_pct: Number(i.discount_pct || 0) })),
+     totals: [
+       { label: "Subtotal", value: `PKR ${Number(order.subtotal).toLocaleString()}` },
+       ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(order.gst).toLocaleString()}` }] : []),
+       { label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` },
+     ],
+     notes: order.payment_instructions || undefined, settings,
+     template: { ...(getTemplate("sales_invoice") as any), title: "Sales Order" } as any,
+   });
  };
+ const printOrder = (order: SalesOrder) => { openPreview(order, "sales_order"); };
  
  // ── RECEIVE PAYMENT ──
  const openPaymentDialog = async (order: SalesOrder) => {
@@ -587,67 +602,76 @@ export default function ProformaInvoices() {
  setPaymentOpen(false); setPaymentSaving(false); load();
  };
 
- const printInvoice = async (order: SalesOrder) => {
- if (!order.converted_invoice_id) return;
- const { data: inv } = await supabase.from("sales_invoices").select("*, customers(name)").eq("id", order.converted_invoice_id).single();
- const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", order.converted_invoice_id);
- if (inv) {
- const html = generatePdfHtml({
- title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
- partyLabel: "Customer", partyName: (inv.customers as any)?.name || "—",
- columns: [
- { header: "#", key: "idx" }, { header: "Product", key: "name" }, { header: "Batch", key: "batch_number" },
- { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
- { header: "Amount", key: "amount", align: "right" },
- ],
- rows: (invItems || []).map((i: any, idx: number) => ({
- idx: idx + 1, name: i.products?.name || "Item", batch_number: i.batch_number || "—",
- quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
- })),
- totals: [
- { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
- { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
- { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
- ],
- settings, template: getTemplate("sales_invoice"),
- });
- setPdfHtml(html); setPdfTitle(`Sales Invoice — ${inv.invoice_number}`); setPdfOpen(true);
- }
+ const buildSalesInvoiceHtml = async (order: SalesOrder): Promise<string> => {
+   if (!order.converted_invoice_id) return "";
+   const { data: inv } = await supabase.from("sales_invoices").select("*, customers(name, address, phone, area)").eq("id", order.converted_invoice_id).single();
+   const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", order.converted_invoice_id);
+   if (!inv) return "";
+   return generatePdfHtml({
+     title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
+     partyLabel: "Customer",
+     partyName: (inv.customers as any)?.name || "—",
+     partyAddress: (inv.customers as any)?.address || undefined,
+     partyPhone: (inv.customers as any)?.phone || undefined,
+     partyArea: (inv.customers as any)?.area || undefined,
+     columns: [
+       { header: "#", key: "idx" },
+       { header: "Product", key: "name" },
+       { header: "Batch #", key: "batch_number" },
+       { header: "Expiry", key: "expiry_date" },
+       { header: "Qty", key: "quantity", align: "right" },
+       { header: "Rate", key: "rate", align: "right" },
+       { header: "Amount", key: "amount", align: "right" },
+     ],
+     rows: (invItems || []).map((i: any, idx: number) => ({
+       idx: idx + 1, name: i.products?.name || "Item",
+       batch_number: i.batch_number || "—",
+       expiry_date: i.expiry_date || "—",
+       quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+     })),
+     totals: [
+       { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
+       { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
+       { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
+     ],
+     settings, template: getTemplate("sales_invoice"),
+   });
  };
+ const printInvoice = async (order: SalesOrder) => { await openPreview(order, "sales_invoice"); };
 
  // ── DELIVERY NOTE PDF ──
- const printDeliveryNote = async (order: SalesOrder) => {
- const invoiceId = order.converted_invoice_id;
- if (!invoiceId) return;
- const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", invoiceId).single();
- if (!dn) { toast.error("Delivery note not found"); return; }
- const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
- const custName = (order.customers as any)?.name || "—";
- const custAddress = (order.customers as any)?.address || undefined;
- const custPhone = (order.customers as any)?.phone || undefined;
- const custArea = (order.customers as any)?.area || undefined;
- const html = generatePdfHtml({
- title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
- partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
- columns: [
- { header: "#", key: "idx" },
- { header: "Product", key: "product_name" },
- { header: "Batch #", key: "batch_number" },
- { header: "Expiry", key: "expiry_date" },
- { header: "Qty", key: "quantity", align: "right" },
- ],
- rows: dnItems.map((i: any, idx: number) => ({
- idx: idx + 1,
- product_name: i.product_name || "Item",
- batch_number: i.batch_number || "—",
- expiry_date: i.expiry_date || "—",
- quantity: i.quantity,
- })),
- totals: [],
- settings, template: getTemplate("delivery_note"),
- });
- setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
+ const buildDeliveryNoteHtml = async (order: SalesOrder): Promise<string> => {
+   const invoiceId = order.converted_invoice_id;
+   if (!invoiceId) return "";
+   const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", invoiceId).maybeSingle();
+   if (!dn) return "";
+   const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
+   const custName = (order.customers as any)?.name || "—";
+   const custAddress = (order.customers as any)?.address || undefined;
+   const custPhone = (order.customers as any)?.phone || undefined;
+   const custArea = (order.customers as any)?.area || undefined;
+   return generatePdfHtml({
+     title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
+     partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
+     columns: [
+       { header: "#", key: "idx" },
+       { header: "Product", key: "product_name" },
+       { header: "Batch #", key: "batch_number" },
+       { header: "Expiry", key: "expiry_date" },
+       { header: "Qty", key: "quantity", align: "right" },
+     ],
+     rows: dnItems.map((i: any, idx: number) => ({
+       idx: idx + 1,
+       product_name: i.product_name || "Item",
+       batch_number: i.batch_number || "—",
+       expiry_date: i.expiry_date || "—",
+       quantity: i.quantity,
+     })),
+     totals: [],
+     settings, template: getTemplate("delivery_note"),
+   });
  };
+ const printDeliveryNote = async (order: SalesOrder) => { await openPreview(order, "delivery_note"); };
 
  // ── SUBMIT (Convert to Invoice) ──
  const openSubmitDialog = async (order: SalesOrder) => {
@@ -1156,7 +1180,7 @@ export default function ProformaInvoices() {
  )}
  {(order.status === "invoiced" || order.status === "dispatched" || order.status === "partial") && order.customer_id && (
  <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 shadow-sm" title="Receive Payment">
- <DollarSign className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
+ <Banknote className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
  </Button>
  )}
  {/* Quick WhatsApp */}
@@ -1429,7 +1453,7 @@ export default function ProformaInvoices() {
  </AlertDialogContent>
  </AlertDialog>
 
- <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+ <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} views={pdfViews} defaultView={pdfDefaultView} />
 
  {/* ═══ POST-SUBMIT DOCUMENT CHOICE ═══ */}
  <Dialog open={postSubmitOpen} onOpenChange={setPostSubmitOpen}>
@@ -1500,7 +1524,7 @@ export default function ProformaInvoices() {
  )}
  <Button onClick={handleReceivePayment} disabled={paymentSaving || !paymentAmount} className="w-full h-11 gap-2">
  {paymentSaving && <Loader2 className="h-4 w-4 animate-spin" />}
- <DollarSign className="h-4 w-4" /> Receive PKR {Number(paymentAmount || 0).toLocaleString()}
+ <Banknote className="h-4 w-4" /> Receive PKR {Number(paymentAmount || 0).toLocaleString()}
  </Button>
  </div>
  )}

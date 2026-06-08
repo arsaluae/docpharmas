@@ -153,8 +153,8 @@ function buildPdfHtml(opts: PdfOptions): string {
   const footerText = t?.footer_text || "";
 
   const logoHtml = s?.logo_url
-    ? `<img src="${s.logo_url}" style="max-height:68px;max-width:180px;object-fit:contain;" />`
-    : `<div style="font-family:'Inter',sans-serif;font-size:24px;font-weight:800;color:${C.text};letter-spacing:-0.5px;line-height:1.1;">${companyName}</div>`;
+    ? `<img src="${s.logo_url}" style="max-height:120px;max-width:280px;object-fit:contain;" />`
+    : `<div style="font-family:'Inter',sans-serif;font-size:28px;font-weight:800;color:${C.text};letter-spacing:-0.5px;line-height:1.1;">${companyName}</div>`;
 
   const companyDetails = [
     s?.address,
