@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, X, Edit, Users, TrendingUp, DollarSign, Package, ShieldCheck, ExternalLink } from "lucide-react";
+import { Plus, Trash2, X, Edit, Users, TrendingUp, Banknote, Package, ShieldCheck, ExternalLink } from "lucide-react";
 import { AllocatedProducts } from "@/components/AllocatedProducts";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -174,7 +174,7 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
  {/* Stats cards */}
  <div className="grid grid-cols-2 gap-3">
  <div className="p-3 rounded-lg border border-border bg-card">
- <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><DollarSign className="h-3 w-3" /> Total Sales</div>
+ <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Banknote className="h-3 w-3" /> Total Sales</div>
  <p className="text-lg font-bold font-mono">PKR {totalSales.toLocaleString()}</p>
  </div>
  <div className="p-3 rounded-lg border border-border bg-card">

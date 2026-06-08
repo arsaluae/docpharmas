@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Search, Package, Trash2, Upload, ArrowDownUp, DollarSign, AlertTriangle, TrendingUp, Layers, Power } from "lucide-react";
+import { Plus, Search, Package, Trash2, Upload, ArrowDownUp, Banknote, AlertTriangle, TrendingUp, Layers, Power } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { ProductBatchProfileDialog } from "@/components/ProductBatchProfileDialog";
 import { toast } from "sonner";

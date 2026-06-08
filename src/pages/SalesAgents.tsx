@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Search, Trash2, Pencil, Users, UserPlus, BarChart3, DollarSign, CheckCircle } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, Users, UserPlus, BarChart3, Banknote, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -286,7 +286,7 @@ export default function SalesAgents() {
           </div>
           <div className="summary-card p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-destructive" />
+              <Banknote className="h-5 w-5 text-destructive" />
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Commission This Month</p>

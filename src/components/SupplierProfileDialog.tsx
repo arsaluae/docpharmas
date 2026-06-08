@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Truck, DollarSign, TrendingUp } from "lucide-react";
+import { Truck, Banknote, TrendingUp } from "lucide-react";
 import { AllocatedProducts } from "@/components/AllocatedProducts";
 
 interface SupplierProfileDialogProps {
@@ -38,7 +38,7 @@ export function SupplierProfileDialog({ open, onOpenChange, supplierId, supplier
 
  <div className="grid grid-cols-2 gap-3">
  <div className="p-3 rounded-lg border border-border bg-card">
- <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><DollarSign className="h-3 w-3" /> Total Purchases</div>
+ <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Banknote className="h-3 w-3" /> Total Purchases</div>
  <p className="text-lg font-bold font-mono">PKR {totalPurchases.toLocaleString()}</p>
  </div>
  <div className="p-3 rounded-lg border border-border bg-card">

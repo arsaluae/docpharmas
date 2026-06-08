@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, MessageCircle, FileText, Loader2, X, Share2, Eye, FileEdit, Send, Truck, RotateCcw, DollarSign, MoreHorizontal, BadgeDollarSign, ChevronLeft, ChevronRight, ShieldCheck } from "lucide-react";
+import { Plus, Search, FilePlus, Trash2, Download, CheckCircle, Pencil, MessageCircle, FileText, Loader2, X, Share2, Eye, FileEdit, Send, Truck, RotateCcw, Banknote, MoreHorizontal, Banknote, ChevronLeft, ChevronRight, ShieldCheck } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1156,7 +1156,7 @@ export default function ProformaInvoices() {
  )}
  {(order.status === "invoiced" || order.status === "dispatched" || order.status === "partial") && order.customer_id && (
  <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 shadow-sm" title="Receive Payment">
- <DollarSign className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
+ <Banknote className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
  </Button>
  )}
  {/* Quick WhatsApp */}
@@ -1500,7 +1500,7 @@ export default function ProformaInvoices() {
  )}
  <Button onClick={handleReceivePayment} disabled={paymentSaving || !paymentAmount} className="w-full h-11 gap-2">
  {paymentSaving && <Loader2 className="h-4 w-4 animate-spin" />}
- <DollarSign className="h-4 w-4" /> Receive PKR {Number(paymentAmount || 0).toLocaleString()}
+ <Banknote className="h-4 w-4" /> Receive PKR {Number(paymentAmount || 0).toLocaleString()}
  </Button>
  </div>
  )}

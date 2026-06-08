@@ -17,7 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, UserCheck, Wallet, Trash2, Pencil, Users, BadgeDollarSign } from "lucide-react";
+import { Plus, Search, UserCheck, Wallet, Trash2, Pencil, Users, Banknote } from "lucide-react";
 import { toast } from "sonner";
 
 const METHODS = ["cash", "cheque", "bank_transfer", "online"];
@@ -280,7 +280,7 @@ export default function Salaries() {
             <TabsTrigger value="staff">Staff List</TabsTrigger>
             <TabsTrigger value="payments">Payment History</TabsTrigger>
             <TabsTrigger value="commissions" onClick={() => navigate("/sales-agents")}>
-              <BadgeDollarSign className="h-3.5 w-3.5 mr-1" /> Sales Commissions
+              <Banknote className="h-3.5 w-3.5 mr-1" /> Sales Commissions
             </TabsTrigger>
           </TabsList>
         </Tabs>

@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { Plus, Search, Trash2, DollarSign, Package, Truck, Printer, ShieldCheck, Thermometer, FlaskConical, MoreHorizontal } from "lucide-react";
+import { Plus, Search, Trash2, Banknote, Package, Truck, Printer, ShieldCheck, Thermometer, FlaskConical, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -207,7 +207,7 @@ export default function LandedCosts() {
  <TableBody>
  {filtered.length === 0 ? (
  <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
- <DollarSign className="h-8 w-8 mx-auto mb-2 opacity-40" />No landed costs yet.
+ <Banknote className="h-8 w-8 mx-auto mb-2 opacity-40" />No landed costs yet.
  </TableCell></TableRow>
  ) : filtered.map(c => (
  <TableRow key={c.id}>

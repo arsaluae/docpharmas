@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, Scale, BarChart3, Clock, DollarSign, Package, ShieldCheck, Layers, Boxes, UserCheck, Truck, ClipboardList, MapPin, Sparkles, LineChart, Activity, ArchiveX, ShieldAlert, Wallet, Globe2, Lock, History } from "lucide-react";
+import { TrendingUp, Scale, BarChart3, Clock, Banknote, Package, ShieldCheck, Layers, Boxes, UserCheck, Truck, ClipboardList, MapPin, Sparkles, LineChart, Activity, ArchiveX, ShieldAlert, Wallet, Globe2, Lock, History } from "lucide-react";
 
 const reportSections = [
   { label: "Intelligence", items: [
@@ -24,7 +24,7 @@ const reportSections = [
   ]},
   { label: "Receivables & Payables", items: [
     { title: "Receivables Aging", desc: "Outstanding customer balances", url: "/reports/receivables", icon: Clock, color: "text-warning" },
-    { title: "Payables Aging", desc: "Outstanding supplier balances", url: "/reports/payables", icon: DollarSign, color: "text-destructive" },
+    { title: "Payables Aging", desc: "Outstanding supplier balances", url: "/reports/payables", icon: Banknote, color: "text-destructive" },
   ]},
   { label: "Inventory", items: [
     { title: "Product Costing", desc: "Cost analysis & margins", url: "/reports/product-costing", icon: Package, color: "text-warning" },
