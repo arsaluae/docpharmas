@@ -296,6 +296,11 @@ export default function Index() {
   const overdueCount = reorderAlerts.filter(a => a.severity === "critical").length;
   const expiringCount = expiryAlerts.critical;
 
+  // Sales agent / staff: render a stripped-down sales-only dashboard (hooks above stay called for stable order).
+  if (tenantRole === "sales_agent" || tenantRole === "staff") {
+    return <SalesAgentDashboard />;
+  }
+
   return (
     <AppLayout title="" >
       <div className="space-y-8 -mt-6">
