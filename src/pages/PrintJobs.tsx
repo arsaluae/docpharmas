@@ -486,82 +486,90 @@ export default function PrintJobs() {
  <TableHead className="text-right">Total Cost</TableHead><TableHead className="text-center w-40">Actions</TableHead>
  </TableRow>
  </TableHeader>
- <TableBody>
- {filtered.length === 0 ? (
- <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground"><ClipboardCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No print jobs yet.</TableCell></TableRow>
- ) : filtered.map(j => (
- <TableRow key={j.id}>
- <TableCell className="font-medium font-mono">{j.job_number}</TableCell>
- <TableCell>{printerNames[j.printer_id || ""] || "—"}</TableCell>
- <TableCell>{productNames[j.product_id || ""] || "—"}</TableCell>
- <TableCell className="text-xs text-muted-foreground">{supplierNames[j.allotted_supplier_id || ""] || "—"}</TableCell>
- <TableCell className="text-right font-mono">{Number(j.quantity_ordered).toLocaleString()}</TableCell>
- <TableCell className="text-right font-mono">{Number(j.quantity_delivered).toLocaleString()}</TableCell>
- <TableCell className={`text-right font-mono ${Number(j.quantity_at_factory) > 0 ? "text-success font-semibold" : ""}`}>{Number(j.quantity_at_factory || 0).toLocaleString()}</TableCell>
- <TableCell className={`text-right font-mono ${Number(j.quantity_rejected) > 0 ? "text-destructive font-semibold" : ""}`}>{Number(j.quantity_rejected).toLocaleString()}</TableCell>
- <TableCell>{statusBadge(j.status)}</TableCell>
- <TableCell className="text-right font-mono font-medium">PKR {Number(j.total_cost).toLocaleString()}</TableCell>
-
- <TableCell className="text-center">
- <div className="flex items-center justify-center gap-1">
- <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => previewJob(j)} title="Preview PDF">
- <Eye className="h-3.5 w-3.5" />
- </Button>
- {j.status === "draft" && (
- <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
- setDeliverJob(j);
- setQtyDelivered(String(j.quantity_ordered));
- setQtyRejected("0");
- }}>
- <Truck className="h-3 w-3 mr-1" /> Deliver
- </Button>
- )}
- {j.status === "delivered" && Number(j.quantity_rejected) > 0 && (
- <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSettleJob(j)}>
- <CheckCircle2 className="h-3 w-3 mr-1" /> Settle
- </Button>
- )}
- {j.status === "delivered" && Number(j.quantity_rejected) === 0 && (
- <Button variant="outline" size="sm" className="h-7 text-xs" onClick={async () => {
- await supabase.from("print_jobs").update({ status: "settled", printer_share_percent: 0, printer_share_amount: 0, our_share_amount: 0 }).eq("id", j.id);
- // Auto-sync: create landed cost record
- if (j.product_id) {
- await supabase.from("additional_costs").insert({
- reference_type: "print_job", reference_id: j.id,
- cost_type: "printing", description: `Print Job ${j.job_number} — packaging cost`,
- amount: j.total_cost, vendor_id: j.printer_id || null,
- date: new Date().toISOString().split("T")[0],
- });
- }
- toast.success("Job settled (no rejections)"); load();
- }}>
- <CheckCircle2 className="h-3 w-3 mr-1" /> Settle
- </Button>
- )}
-  {Number(j.quantity_at_factory) > 0 && (
-    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
-      setDispatchJob(j);
-      setDispatchQty(String(j.quantity_at_factory));
-      setDispatchSupplierId(j.allotted_supplier_id || "");
-    }} title="Dispatch to Supplier">
-      <Send className="h-3 w-3 mr-1" /> Dispatch
-    </Button>
-  )}
-  {(j.status === "draft" || j.status === "delivered") && (
-    <Button variant="outline" size="sm" className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/5" onClick={() => { setRejectJob(j); setRejQty(""); setRejReason(""); setRejOurPct("50"); setRejEvidence(""); }} title="Record rejection">
-      <AlertTriangle className="h-3 w-3 mr-1" /> Reject
-    </Button>
-  )}
- <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(j.id)}>
- <Trash2 className="h-3.5 w-3.5" />
- </Button>
- </div>
-
- </TableCell>
- </TableRow>
- ))}
- </TableBody>
- </Table>
+  <TableBody>
+  {filtered.length === 0 ? (
+  <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground"><ClipboardCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No print jobs yet.</TableCell></TableRow>
+  ) : grouped.map(g => (
+    <>
+      {groupBy !== "none" && (
+        <TableRow key={`grp-${g.key}`} className="bg-muted/30">
+          <TableCell colSpan={11} className="font-semibold text-sm">
+            {g.label} <span className="ml-2 text-xs text-muted-foreground font-normal">
+              · {g.rows.length} job{g.rows.length === 1 ? "" : "s"}
+              · Ordered {g.rows.reduce((s,r)=>s+Number(r.quantity_ordered),0).toLocaleString()}
+              · Delivered {g.rows.reduce((s,r)=>s+Number(r.quantity_delivered),0).toLocaleString()}
+              · At Factory {g.rows.reduce((s,r)=>s+Number(r.quantity_at_factory||0),0).toLocaleString()}
+              · Rejected {g.rows.reduce((s,r)=>s+Number(r.quantity_rejected),0).toLocaleString()}
+            </span>
+          </TableCell>
+        </TableRow>
+      )}
+      {g.rows.map(j => {
+        const isOverDelivered = Number(j.quantity_delivered) + Number(j.quantity_rejected) > Number(j.quantity_ordered);
+        const dispatched = dispatchesByJob[j.id] || [];
+        return (
+        <TableRow key={j.id}>
+        <TableCell className="font-medium font-mono">
+          {j.job_number}
+          {isOverDelivered && <Badge variant="secondary" className="ml-2 bg-warning/15 text-warning border-warning/30 text-[10px]">Over</Badge>}
+        </TableCell>
+        <TableCell>{printerNames[j.printer_id || ""] || "—"}</TableCell>
+        <TableCell>{productNames[j.product_id || ""] || "—"}</TableCell>
+        <TableCell className="text-xs text-muted-foreground">
+          {dispatched.length > 0 ? (
+            <div className="space-y-0.5">
+              {dispatched.map(d => (
+                <div key={d.id}>{supplierNames[d.supplier_id] || "—"}: <span className="font-mono text-foreground">{Number(d.qty_dispatched).toLocaleString()}</span></div>
+              ))}
+            </div>
+          ) : (supplierNames[j.allotted_supplier_id || ""] || "—")}
+        </TableCell>
+        <TableCell className="text-right font-mono">{Number(j.quantity_ordered).toLocaleString()}</TableCell>
+        <TableCell className="text-right font-mono">{Number(j.quantity_delivered).toLocaleString()}</TableCell>
+        <TableCell className={`text-right font-mono ${Number(j.quantity_at_factory) > 0 ? "text-success font-semibold" : ""}`}>{Number(j.quantity_at_factory || 0).toLocaleString()}</TableCell>
+        <TableCell className={`text-right font-mono ${Number(j.quantity_rejected) > 0 ? "text-destructive font-semibold" : ""}`}>{Number(j.quantity_rejected).toLocaleString()}</TableCell>
+        <TableCell>{statusBadge(j.status)}</TableCell>
+        <TableCell className="text-right font-mono font-medium">PKR {Number(j.total_cost).toLocaleString()}</TableCell>
+        <TableCell className="text-center">
+        <div className="flex items-center justify-center gap-1 flex-wrap">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => previewJob(j)} title="Preview PDF">
+        <Eye className="h-3.5 w-3.5" />
+        </Button>
+        {j.status !== "settled" && (
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
+        setDeliverJob(j);
+        setQtyDelivered(String(j.quantity_ordered));
+        setQtyRejected("0");
+        }}>
+        <Truck className="h-3 w-3 mr-1" /> Receive
+        </Button>
+        )}
+        {Number(j.quantity_at_factory) > 0 && (
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
+            setDispatchJob(j);
+            setDispatchQty(String(j.quantity_at_factory));
+            setDispatchSupplierId(j.allotted_supplier_id || "");
+          }} title="Dispatch to Supplier">
+            <Send className="h-3 w-3 mr-1" /> Dispatch
+          </Button>
+        )}
+        {Number(j.quantity_delivered) > 0 && (
+          <Button variant="outline" size="sm" className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/5" onClick={() => { setRejectJob(j); setRejQty(""); setRejReason(""); setRejOurPct("50"); setRejEvidence(""); }} title="Record rejection (any status)">
+            <AlertTriangle className="h-3 w-3 mr-1" /> Reject
+          </Button>
+        )}
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(j.id)}>
+        <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+        </div>
+        </TableCell>
+        </TableRow>
+        );
+      })}
+    </>
+  ))}
+  </TableBody>
+  </Table>
  <PaginationControls
  page={pagination.page} totalPages={pagination.totalPages} totalCount={pagination.totalCount}
  hasNext={pagination.hasNext} hasPrev={pagination.hasPrev}
