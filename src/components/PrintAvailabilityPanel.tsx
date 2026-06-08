@@ -79,11 +79,13 @@ export function PrintAvailabilityPanel({ productId, productName, requiredQty, su
 
   if (!productId) return null;
 
-  // Already dispatched to THIS supplier (matches allotted_supplier_id) — assumed still at supplier/factory
-  const atSupplier = supplierId
+  // Already dispatched to THIS supplier — sourced from print_dispatches (multi-supplier splits).
+  // Falls back to legacy allotted_supplier_id for older jobs without dispatch rows.
+  const legacyAtSupplier = supplierId && dispatchedAtSupplier === 0
     ? jobs.filter(j => j.allotted_supplier_id === supplierId)
           .reduce((s, j) => s + Number(j.quantity_dispatched_to_supplier || 0), 0)
     : 0;
+  const atSupplier = dispatchedAtSupplier + legacyAtSupplier;
 
   // Sitting at our floor, undispatched
   const atOurFactory = jobs.reduce((s, j) => s + Number(j.quantity_at_factory || 0), 0);
