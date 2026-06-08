@@ -35,14 +35,21 @@ interface PrintJob {
 }
 
 
+interface DispatchRow { id: string; print_job_id: string; supplier_id: string; qty_dispatched: number; date: string; notes: string | null; }
+
 export default function PrintJobs() {
  const navigate = useNavigate();
  const [jobs, setJobs] = useState<PrintJob[]>([]);
  const [printers, setPrinters] = useState<PrinterEntity[]>([]);
  const [suppliers, setSuppliers] = useState<SupplierEntity[]>([]);
  const [products, setProducts] = useState<Product[]>([]);
+ const [dispatchesByJob, setDispatchesByJob] = useState<Record<string, DispatchRow[]>>({});
  const [search, setSearch] = useState("");
  const [tab, setTab] = useState("all");
+ const [filterSupplier, setFilterSupplier] = useState("all");
+ const [filterProduct, setFilterProduct] = useState("all");
+ const [filterPrinter, setFilterPrinter] = useState("all");
+ const [groupBy, setGroupBy] = useState<"none" | "supplier" | "product" | "printer">("none");
  const pagination = usePagination();
 
  // Create form
