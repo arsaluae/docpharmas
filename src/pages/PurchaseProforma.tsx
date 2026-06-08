@@ -1216,7 +1216,7 @@ export default function PurchaseProforma() {
  )}
  {(order.status === "ordered" || order.status === "confirmed" || order.status === "received") && order.supplier_id && !isPaid && (
  <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 shadow-sm" title="Make Payment">
- <DollarSign className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
+ <Wallet className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
  </Button>
  )}
  {/* Quick WhatsApp */}
@@ -1511,7 +1511,7 @@ export default function PurchaseProforma() {
  )}
  <Button onClick={handleMakePayment} disabled={paymentSaving || !paymentAmount} className="w-full h-11 gap-2">
  {paymentSaving && <Loader2 className="h-4 w-4 animate-spin" />}
- <DollarSign className="h-4 w-4" /> Pay PKR {Number(paymentAmount || 0).toLocaleString()}
+ <Wallet className="h-4 w-4" /> Pay PKR {Number(paymentAmount || 0).toLocaleString()}
  </Button>
  </div>
  )}
