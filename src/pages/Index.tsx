@@ -81,6 +81,14 @@ export default function Index() {
   const navigate = useNavigate();
   const { settings } = useCompanySettings();
   const { user } = useAuth();
+  const { tenantRole } = useTenant();
+
+  // Sales agent / staff: stripped-down, sales-only dashboard — no purchase, cost, margin, or company-wide data.
+  if (tenantRole === "sales_agent" || tenantRole === "staff") {
+    return <SalesAgentDashboard />;
+  }
+
+
 
   const [weekSales, setWeekSales] = useState(0);
   const [monthSales, setMonthSales] = useState(0);
