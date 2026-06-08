@@ -531,35 +531,35 @@ export default function ProformaInvoices() {
  openWhatsApp(custPhone, message);
  };
 
- // ── PDF ──
- const printOrder = (order: SalesOrder) => {
- const pfItems = getPfItems(order);
- const custName = (order.customers as any)?.name || "—";
- const custAddress = (order.customers as any)?.address || undefined;
- const custPhone = (order.customers as any)?.phone || undefined;
- const custArea = (order.customers as any)?.area || undefined;
- const html = generatePdfHtml({
- title: "SALES INVOICE", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
- partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
- meta: [{ label: "Validity", value: `${order.validity_days} days` }],
- columns: [
- { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
- { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
- { header: "Disc%", key: "discount_pct", align: "right" },
- ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
- { header: "Amount", key: "amount", align: "right" },
- ],
- rows: pfItems.map((i: any, idx: number) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(), discount_pct: Number(i.discount_pct || 0) })),
- totals: [
- { label: "Subtotal", value: `PKR ${Number(order.subtotal).toLocaleString()}` },
- ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(order.gst).toLocaleString()}` }] : []),
- { label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` },
- ],
- notes: order.payment_instructions || undefined, settings,
- template: getTemplate("sales_invoice"),
- });
- setPdfHtml(html); setPdfTitle(`Sales Invoice — ${order.proforma_number}`); setPdfOpen(true);
+ // ── HTML BUILDERS (return string; preview wires them through PdfPreviewDialog views) ──
+ const buildSalesOrderHtml = (order: SalesOrder): string => {
+   const pfItems = getPfItems(order);
+   const custName = (order.customers as any)?.name || "—";
+   const custAddress = (order.customers as any)?.address || undefined;
+   const custPhone = (order.customers as any)?.phone || undefined;
+   const custArea = (order.customers as any)?.area || undefined;
+   return generatePdfHtml({
+     title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
+     partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
+     meta: [{ label: "Validity", value: `${order.validity_days} days` }],
+     columns: [
+       { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+       { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+       { header: "Disc%", key: "discount_pct", align: "right" },
+       ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
+       { header: "Amount", key: "amount", align: "right" },
+     ],
+     rows: pfItems.map((i: any, idx: number) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(), discount_pct: Number(i.discount_pct || 0) })),
+     totals: [
+       { label: "Subtotal", value: `PKR ${Number(order.subtotal).toLocaleString()}` },
+       ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(order.gst).toLocaleString()}` }] : []),
+       { label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` },
+     ],
+     notes: order.payment_instructions || undefined, settings,
+     template: { ...(getTemplate("sales_invoice") as any), title: "Sales Order" } as any,
+   });
  };
+ const printOrder = (order: SalesOrder) => { openPreview(order, "sales_order"); };
  
  // ── RECEIVE PAYMENT ──
  const openPaymentDialog = async (order: SalesOrder) => {
