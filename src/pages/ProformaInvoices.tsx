@@ -72,6 +72,8 @@ export default function ProformaInvoices() {
  const [pdfHtml, setPdfHtml] = useState("");
  const [pdfOpen, setPdfOpen] = useState(false);
  const [pdfTitle, setPdfTitle] = useState("");
+ const [pdfViews, setPdfViews] = useState<{ key: string; label: string; color: string; html: string; disabled?: boolean }[] | undefined>(undefined);
+ const [pdfDefaultView, setPdfDefaultView] = useState<string | undefined>(undefined);
 
 
 
