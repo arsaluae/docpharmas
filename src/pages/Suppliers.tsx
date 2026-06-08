@@ -27,12 +27,12 @@ interface Supplier {
  id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
  phone: string | null; email: string | null; address: string | null; city: string | null; area: string | null;
  payment_terms_days: number; wht_rate: number; opening_balance: number; balance: number; created_at: string;
- supplier_code: string | null; license_number: string | null; is_active: boolean;
+ supplier_code: string | null; license_number: string | null; license_expiry_date: string | null; is_active: boolean;
 }
 
 const emptyForm = {
  name: "", company: "", ntn: "", strn: "", phone: "", email: "", address: "", city: "", area: "",
- payment_terms_days: "30", wht_rate: "4.5", opening_balance: "0", license_number: "",
+ payment_terms_days: "30", wht_rate: "4.5", opening_balance: "0", license_number: "", license_expiry_date: "",
 };
 
 export default function Suppliers() {
@@ -76,13 +76,13 @@ export default function Suppliers() {
  area: form.area || null,
  payment_terms_days: Number(form.payment_terms_days), wht_rate: Number(form.wht_rate),
  opening_balance: Number(form.opening_balance), license_number: form.license_number || null,
+ license_expiry_date: form.license_expiry_date || null,
  };
  if (editId) {
  const { error } = await supabase.from("suppliers").update(basePayload).eq("id", editId);
  if (error) { toast.error("Failed to update: " + error.message); return; }
  toast.success("Supplier updated");
  } else {
- // Generate auto-code for new suppliers
  const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "supplier" });
  const { error } = await supabase.from("suppliers").insert({ ...basePayload, balance: Number(form.opening_balance), supplier_code: code || null } as any);
  if (error) { toast.error("Failed to create: " + error.message); return; }
@@ -97,7 +97,7 @@ export default function Suppliers() {
  name: s.name, company: s.company || "", ntn: s.ntn || "", strn: s.strn || "",
  phone: s.phone || "", email: s.email || "", address: s.address || "", city: s.city || "", area: s.area || "",
  payment_terms_days: String(s.payment_terms_days), wht_rate: String(s.wht_rate), opening_balance: String(s.opening_balance),
- license_number: s.license_number || "",
+ license_number: s.license_number || "", license_expiry_date: s.license_expiry_date || "",
  });
  setOpen(true);
  };
@@ -151,6 +151,7 @@ export default function Suppliers() {
  <div className="col-span-2"><Label>Company Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Company / Business name" /></div>
  <div><Label>Contact Person</Label><Input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Contact name (optional)" /></div>
  <div><Label>License Number</Label><Input value={form.license_number} onChange={e => setForm({...form, license_number: e.target.value})} placeholder="Drug license #" /></div>
+ <div><Label>License Expiry</Label><Input type="date" value={form.license_expiry_date} onChange={e => setForm({...form, license_expiry_date: e.target.value})} /></div>
  <div><Label>City</Label><CityInput value={form.city} onChange={(v) => setForm({...form, city: v})} /></div>
  <div><Label>Area</Label><AreaSelect value={form.area} city={form.city} onChange={(v) => setForm({...form, area: v})} /></div>
  <div><Label>NTN</Label><Input value={form.ntn} onChange={e => setForm({...form, ntn: e.target.value})} /></div>
@@ -261,7 +262,15 @@ export default function Suppliers() {
  <TableCell className="font-medium">{s.name}</TableCell>
  <TableCell>{s.company || "—"}</TableCell>
  <TableCell>{s.city || "—"}</TableCell>
- <TableCell className="text-xs">{s.license_number || "—"}</TableCell>
+ <TableCell className="text-xs">
+   {s.license_number || "—"}
+   {s.license_expiry_date && (() => {
+     const daysLeft = Math.floor((new Date(s.license_expiry_date).getTime() - Date.now()) / 86400000);
+     if (daysLeft < 0) return <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-destructive/15 text-destructive">EXPIRED</span>;
+     if (daysLeft <= 30) return <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-warning/15 text-warning">{daysLeft}d</span>;
+     return null;
+   })()}
+ </TableCell>
  {settings?.wht_enabled && <TableCell><span className="status-pill bg-warning/10 text-warning">{s.wht_rate}%</span></TableCell>}
  <TableCell className="text-right font-mono">{Number(s.balance).toLocaleString()}</TableCell>
  <TableCell className="text-muted-foreground">

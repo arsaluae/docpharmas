@@ -1,76 +1,126 @@
-# Plan — Print Jobs Multi-Dispatch, GRN Overage, PI Items & Supplier City
+# Purchase Flow Overhaul
 
-## 1. Purchase Invoice — show full item detail
-**File:** `src/pages/PurchaseProforma.tsx` (PI detail view) and the GRN items list.
+## 1. Supplier — License Expiry
+**File:** `src/pages/Suppliers.tsx`, `SupplierProfileDialog.tsx`, migration.
 
-Currently the PI list shows compressed columns. Render each line as a full row:
-**Item • Batch # • Expiry • Qty Ordered • Qty Received • Rate • Total**
-Pulled from `grn_items` joined to `purchase_invoices`. Same format used in PDF print template (`src/lib/pdf-generator.ts`) — extend the existing PI PDF section to include batch/expiry columns.
+- Add column `suppliers.license_expiry_date date` (nullable).
+- Form: new date field next to "License Number".
+- List badge: red "EXPIRED" if `license_expiry_date < today`, amber "Expires in Nd" if within 30 days.
+- Add to CSV import map.
 
-## 2. Supplier form — free-text city
-**File:** `src/pages/Suppliers.tsx` (and the same form in `Customers.tsx` if it shares the pattern).
+## 2. Purchase Order — Remove "Additional Cost" column
+**File:** `src/pages/PurchaseProforma.tsx` (PO create/edit grid) + PDF template in `src/lib/pdf-generator.ts`.
 
-Replace the constrained `CityInput`/Select with a combobox: shows the existing Pakistan cities list as suggestions but accepts any typed value and saves it directly into `suppliers.city`. No migration needed (column already free text).
+- Remove the additional-cost input column from the PO line grid and totals section entirely.
+- Landed-cost allocation (LandedCosts page) is unaffected — costs still get attached after GRN.
 
-## 3. Print Jobs — simplified lifecycle: **draft → dispatched** only
-**File:** `src/pages/PrintJobs.tsx`, status badges, and the existing `handle_print_job_balance` trigger (no settled accounting change needed if we never call settled).
+## 3. New 3-Step Lifecycle: **PO Draft → Approve → Receive**
 
-- Remove the "settled" status from the create/edit UI. Status values exposed: `draft`, `dispatched`. (Keep `settled` in DB enum/string for backward compatibility but hide it.)
-- Trigger logic stays — it only fires on transition to settled, which no longer happens via UI.
-
-## 4. Print Jobs — multi-supplier dispatch (split a single job across suppliers)
-**New table:** `print_dispatches`
 ```
-id, tenant_id, print_job_id, supplier_id, qty_dispatched, date, notes, created_at
+[ Purchase Order (draft) ]
+        |  click "Approve"
+        v
+[ Batch & Expiry dialog per line ]  --> creates Purchase Invoice (PI)
+        |                                - hits supplier ledger (balance + total)
+        |                                - status = 'unpaid'
+        v
+[ Purchase Invoice screen ]
+        |  click "Receive"
+        v
+[ Receive dialog: Received By, Notes, Qty per line ]
+        |  on save:
+        |    - create GRN + grn_items (with batch/expiry from PI)
+        |    - stock_movements (purchase_in) → hits inventory
+        |    - if qty_received < invoiced → auto Debit Note (shortage)
+        |    - if qty_received > invoiced → auto Debit Note line (overage, NEGATIVE = adds to payable)
+        |        (we use debit_notes with negative amount OR a supplementary PI line — see Technical)
+        v
+[ Done — PI shows "Received" badge ]
 ```
-- GRANTs + RLS by `current_user_can('purchase','write/read')`.
-- Trigger `aggregate_print_dispatches`: recomputes `print_jobs.quantity_dispatched_to_supplier = SUM(qty)` on insert/update/delete.
-- `print_jobs.allotted_supplier_id` becomes optional/legacy (kept for back-compat; new records use dispatches table).
 
-**UI:** On a `draft`/`dispatched` job, a "Dispatch" dialog lets user add multiple rows: supplier + qty. Validates `SUM(dispatches) ≤ quantity_delivered`. Remaining stays "at factory" automatically because `quantity_at_factory` is generated from `delivered − dispatched_total`.
+### Step A: Approve PO
+- New "Approve" button visible only when `status = 'draft'`.
+- Opens **Batch & Expiry dialog**: one row per PO line showing `Item • Qty • Batch # (input) • Expiry (date)`.
+- On confirm:
+  - Create `purchase_invoices` row + `purchase_invoice_items` snapshot copying PO lines incl. batch & expiry.
+  - Mark PO `status = 'approved'` and link `po.purchase_invoice_id`.
+  - Existing `handle_purchase_invoice_balance` trigger fires → supplier balance updated automatically.
 
-Example: ordered 5000, delivered 5000, dispatch 2000→Supplier A, 2000→Supplier B → 1000 stays at factory/printer.
+### Step B: Receive
+- "Receive" button on the PI (visible when no GRN yet OR partial).
+- Dialog fields: **Received By** (text), **Notes** (textarea), **per-line Qty Received** (default = invoiced qty, freely editable up or down).
+- On save:
+  - Insert `goods_received_notes` + `grn_items` (batch/expiry inherited from PI, receiver name stored in `received_by` + notes).
+  - `handle_stock_movement` trigger does inventory.
+  - Variance handling (per line):
+    - shortage `Δ < 0`: create `debit_notes` row, party=supplier, `amount = |Δ| × rate`, reference = PI #, reason "Short receipt against PI ###" → existing `handle_debit_note_balance` reduces supplier payable.
+    - overage `Δ > 0`: create a second PI **adjustment line** on the same PI (`quantity = Δ, rate = original`) so supplier ledger increases correctly, OR a "supplementary bill" PI (decision in Technical section). Stock for the full received qty is recorded.
+- PI status badge becomes "Received" (or "Received w/ Variance").
 
-## 5. Print Jobs — over-delivery (received > ordered)
-**File:** existing `print_deliveries` already has no upper bound — confirm by removing any UI guard in `PrintJobs.tsx` that blocks `qty_delivered > quantity_ordered`. Show a yellow "Over-delivery" pill when totals exceed ordered. `quantity_at_factory` recomputes correctly.
+### Removed concepts
+- The current standalone GRN-from-PO flow without an approved PI is removed; GRN can only be created from an approved PI.
+- "Convert to PI" buttons that bypass the Approve step are removed.
 
-## 6. Print Jobs — rejections allowed AFTER dispatch (post-settled too)
-**File:** `src/pages/PrintJobs.tsx` + `print_rejections` table (no schema change).
+## 4. PDF Templates
+**File:** `src/lib/pdf-generator.ts`.
 
-Today the rejection UI is gated by status. Allow recording rejections in any status (`draft`, `dispatched`, `settled`). Rejection still flows through `recalc_print_rejections` trigger. Add "Rejections" tab to job detail showing all rows with date / qty / reason / cost split.
+- Purchase Order template: drop additional-cost column.
+- Purchase Invoice template: add **Batch #** and **Expiry** columns next to Item/Qty/Rate/Total. (User clarified this is what they meant by "sales invoice template" — same row-detail look as the sales invoice.)
+- GRN template: show Receiver, Notes, Qty Invoiced vs Qty Received with variance pill.
 
-## 7. Print Jobs list — group/filter by Supplier, Product, Printer
-**File:** `src/pages/PrintJobs.tsx`.
+## 5. Payments — Remove "$" Symbol
+**Files:** `src/pages/Payments.tsx`, dashboard cards if any, `pdf-generator.ts` payment receipt.
 
-Add three filter dropdowns at the top (Supplier, Product, Printer) and a "Group by" toggle (None / Supplier / Product / Printer). Server-side `.eq()` filters; grouping is client-side aggregation showing subtotals (ordered, delivered, dispatched, at-factory, rejected) per group.
+- Replace every `$` prefix with `PKR ` (project standard) or nothing where a currency label already appears. Search for `\\$\\{` in formatting and `>\\$<` in JSX.
 
-## 8. Purchase Invoice — "Printing already available" hint per line
-**File:** `src/components/PrintAvailabilityPanel.tsx` (already exists, partially built).
+## 6. Purchase Returns — Full Audit & Fixes
+**File:** `src/pages/PurchaseReturns.tsx`, trigger `handle_purchase_return_balance`.
 
-Re-enable this panel on the **Purchase Invoice line editor** (not on the PO). For each product row it queries `print_jobs` + new `print_dispatches`:
-- "At Supplier X: 2,500 pcs" (sum of dispatches to that supplier, minus consumed)
-- "At Our Factory: N pcs"
-- "In Progress: N pcs"
-- Shortfall warning + "Create Print Job" shortcut.
-
-Wired into the PI item row so when a user enters Mikson Supplier + Product, they immediately see "2,500 already printed and at Mikson — use these first".
+Verify and fix:
+- Return must reference a real PI/GRN; cannot exceed received qty per batch.
+- On save: supplier balance reduces, stock movement `return_out` decrements inventory, GRN remaining-qty updates, status pill works.
+- Void / delete reverses both ledger and stock cleanly via `void_document` RPC path.
+- PDF template renders Batch/Expiry/Qty/Rate/Total.
+- Link from PI screen "Create Return" pre-fills lines from GRN.
 
 ---
 
-## Technical summary
-**DB migrations**
-1. `CREATE TABLE public.print_dispatches` + GRANTs + RLS + trigger to roll up `quantity_dispatched_to_supplier`.
-2. Trigger to **release** a dispatch row when the linked GRN consumes it (extends `consume_print_allocations_on_grn` to also match dispatched rows by supplier).
+## Technical details (for the engineer)
 
-**Frontend**
-- `PrintJobs.tsx`: lifecycle simplification, multi-dispatch dialog, over-delivery handling, rejection-anytime, filters & grouping.
-- `PurchaseProforma.tsx` (PI section): expanded item columns, embed `PrintAvailabilityPanel` on item rows.
-- `Suppliers.tsx`: free-text city combobox.
-- `pdf-generator.ts`: PI template columns (batch/expiry).
+### DB migration
+```sql
+ALTER TABLE public.suppliers ADD COLUMN license_expiry_date date;
 
-**No business-logic regression**: existing triggers (`aggregate_print_deliveries`, `recalc_print_rejections`, `consume_print_allocations_on_grn`, `handle_print_job_balance`) all continue to work; new `print_dispatches` is additive.
+-- purchase_invoice_items already has batch_number / expiry_date? verify; if not:
+ALTER TABLE public.purchase_invoice_items
+  ADD COLUMN IF NOT EXISTS batch_number text,
+  ADD COLUMN IF NOT EXISTS expiry_date date;
 
-## Out of scope (not touching this round)
-- Auto-creating debit notes for rejections (stays manual via existing flow).
-- Changing PO/PI numbering or RBAC rules.
-- Reworking landed-cost allocation.
+-- goods_received_notes: ensure received_by + notes exist
+ALTER TABLE public.goods_received_notes
+  ADD COLUMN IF NOT EXISTS received_by text,
+  ADD COLUMN IF NOT EXISTS notes text;
+
+-- purchase_proformas: status enum already supports draft/approved; just use existing values.
+```
+
+### Overage decision
+Implement as **adjustment line on the same PI** (simpler ledger, no negative debit-note hack):
+- `INSERT INTO purchase_invoice_items (... quantity = Δ, rate = original_rate, batch_number, expiry_date, notes='Auto: overage on GRN')`
+- Recompute PI `total` via existing trigger / recompute helper, then `handle_purchase_invoice_balance` UPDATE fires and supplier balance adjusts by `+Δ × rate`.
+
+Shortage stays as auto debit-note (already correctly reduces supplier balance).
+
+### Files touched
+- `supabase/migrations/<new>.sql`
+- `src/pages/Suppliers.tsx`, `src/components/SupplierProfileDialog.tsx`
+- `src/pages/PurchaseProforma.tsx` (PO grid, Approve button + Batch/Expiry dialog, Receive dialog)
+- `src/pages/PurchaseReturns.tsx` (audit pass)
+- `src/pages/Payments.tsx` and any `$` usages
+- `src/lib/pdf-generator.ts` (PO / PI / GRN / Return templates)
+- `src/lib/auto-print-allocator.ts` — verify still works against new approve flow
+
+### Out of scope
+- Changing Sales Invoice flow.
+- Landed-cost UI rework (only the additional-cost column on PO grid is removed).
+- Multi-supplier print-dispatch (already done in Phase 5).

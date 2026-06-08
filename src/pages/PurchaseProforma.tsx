@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Search, FileText, Trash2, Download, CheckCircle, Pencil, PackageCheck, MessageCircle, DollarSign, Eye, Loader2, FileEdit, ShoppingCart, BadgeCheck, PackageOpen, RotateCcw, Truck, Send, MoreHorizontal, BadgeDollarSign, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, FileText, Trash2, Download, CheckCircle, Pencil, PackageCheck, MessageCircle, Wallet, Eye, Loader2, FileEdit, ShoppingCart, BadgeCheck, PackageOpen, RotateCcw, Truck, Send, MoreHorizontal, BadgeDollarSign, ChevronLeft, ChevronRight } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -89,6 +89,12 @@ export default function PurchaseProforma() {
  const [editValidity, setEditValidity] = useState("30");
  const [editNotes, setEditNotes] = useState("");
  const [editItems, setEditItems] = useState<PPItem[]>([]);
+
+ // Approve (batch + expiry capture before PI creation)
+ const [approveOpen, setApproveOpen] = useState(false);
+ const [approveOrder, setApproveOrder] = useState<PurchaseOrder | null>(null);
+ const [approveItems, setApproveItems] = useState<any[]>([]);
+ const [approving, setApproving] = useState(false);
 
  // Receive
  const [receiveOpen, setReceiveOpen] = useState(false);
@@ -530,94 +536,108 @@ export default function PurchaseProforma() {
  setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
  };
 
- // ── CONFIRM ORDER (Create PO + Purchase Invoice + Delivery Note) ──
- const handleConfirmOrder = async (order: PurchaseOrder) => {
- setSaving(true);
- const { data: poNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_order" });
- if (!poNumber) { toast.error("Failed to generate PO number"); setSaving(false); return; }
- const { data: po, error: poErr } = await supabase.from("purchase_orders").insert({
- po_number: poNumber, supplier_id: order.supplier_id, date: new Date().toISOString().split("T")[0],
- subtotal: order.subtotal, gst: order.gst, total: order.total, status: "confirmed", proforma_id: order.id,
- }).select().single();
- if (poErr || !po) { toast.error("Failed to create PO: " + (poErr?.message || "Unknown error")); setSaving(false); return; }
-
-  const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*").eq("proforma_id", order.id);
-  if (ppItems?.length) {
-  await supabase.from("purchase_order_items").insert(
-  ppItems.map((i: any) => ({
-  po_id: po.id, product_id: i.product_id, quantity: Number(i.quantity_requested),
-  quantity_confirmed: Number(i.quantity_requested), rate: Number(i.rate), amount: Number(i.amount),
-  }))
-  );
-
-  // Auto-reserve printed packaging (FIFO: at_supplier → at_factory → in_progress)
-  try {
-  const { allocatePrinting } = await import("@/lib/auto-print-allocator");
-  let totalAllocated = 0, totalShortfall = 0, lineCount = 0;
-  for (const i of ppItems as any[]) {
-  if (!i.product_id) continue;
-  const res = await allocatePrinting(i.product_id, order.supplier_id, Number(i.quantity_requested), po.id);
-  totalAllocated += res.allocated;
-  totalShortfall += res.shortfall;
-  lineCount += res.lines.length;
-  }
-  if (lineCount > 0 || totalShortfall > 0) {
-  const msg = `Auto-reserved ${totalAllocated.toLocaleString()} pcs printed packaging` +
-  (totalShortfall > 0 ? ` · Shortfall ${totalShortfall.toLocaleString()} pcs` : "");
-  toast.info(msg);
-  }
-  } catch (e) { console.warn("Print auto-allocation failed", e); }
-  }
-
- const { data: ppCosts } = await supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", order.id);
- if (ppCosts?.length) {
- await supabase.from("additional_costs").insert(
- ppCosts.map((c: any) => ({ reference_type: "purchase_order", reference_id: po.id, cost_type: c.cost_type, description: c.description, amount: Number(c.amount), vendor_id: c.vendor_id }))
- );
- }
-
- // Auto-create Purchase Invoice (Bill) linked to PO
- let createdBillId: string | null = null;
- try {
- const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
- if (billNumber) {
- const supplier = suppliers.find(s => s.id === order.supplier_id);
- const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
- const whtAmount = settings?.wht_enabled ? Number(order.subtotal) * whtRate / 100 : 0;
- const netTotal = Number(order.subtotal) + Number(order.gst) - whtAmount;
- const { data: bill } = await supabase.from("purchase_invoices").insert({
- bill_number: billNumber, supplier_id: order.supplier_id,
- date: po.date, subtotal: Number(order.subtotal), gst: Number(order.gst),
- wht_amount: whtAmount, total: netTotal, status: "unpaid",
-  }).select("id").single();
-  if (bill) { createdBillId = bill.id; logAudit({ action: "invoice_generated", entity_type: "purchase_invoice", entity_id: bill.id, entity_number: billNumber, changes: { total: netTotal, supplier_id: order.supplier_id } }); }
- }
- } catch { /* bill generation is best-effort */ }
-
- // Auto-create Delivery Note
- try {
- const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "delivery_note" });
- if (dnNumber && ppItems?.length) {
- const dnItems = ppItems.map((i: any) => ({
- product_name: i.product_name || products.find(p => p.id === i.product_id)?.name || "Item",
- quantity: Number(i.quantity_requested),
- }));
- await supabase.from("delivery_notes").insert({
- dn_number: dnNumber, reference_type: "purchase_order", reference_id: po.id,
- supplier_id: order.supplier_id, items: dnItems,
- });
- }
- } catch { /* DN generation is best-effort */ }
-
- await supabase.from("purchase_proformas").update({ status: "ordered", converted_po_id: po.id }).eq("id", order.id);
- toast.success(`Purchase Invoice ${poNumber} + Delivery Note created`);
-
- // Show post-confirm document choice dialog
- setPostConfirmOrder({ ...order, converted_po_id: po.id, po_number: poNumber });
- setPostConfirmPoId(po.id);
- setSaving(false); load();
- setPostConfirmOpen(true);
+ // ── APPROVE: capture Batch + Expiry per line, then create PO + PI + DN ──
+ const openApproveDialog = async (order: PurchaseOrder) => {
+   const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
+   setApproveItems((ppItems || []).map((i: any) => ({
+     ...i,
+     product_name: i.products?.name || "Item",
+     batch_number: i.batch_number || "",
+     expiry_date: i.expiry_date || "",
+   })));
+   setApproveOrder(order);
+   setApproveOpen(true);
  };
+
+ const submitApprove = async () => {
+   if (!approveOrder) return;
+   if (!approveItems.every(i => i.batch_number)) { toast.error("Batch number required for every item"); return; }
+   if (!approveItems.every(i => i.expiry_date)) { toast.error("Expiry date required for every item"); return; }
+   setApproving(true);
+   const order = approveOrder;
+   const { data: poNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_order" });
+   if (!poNumber) { toast.error("Failed to generate PO number"); setApproving(false); return; }
+   const { data: po, error: poErr } = await supabase.from("purchase_orders").insert({
+     po_number: poNumber, supplier_id: order.supplier_id, date: new Date().toISOString().split("T")[0],
+     subtotal: order.subtotal, gst: order.gst, total: order.total, status: "confirmed", proforma_id: order.id,
+   }).select().single();
+   if (poErr || !po) { toast.error("Failed to create PO: " + (poErr?.message || "Unknown")); setApproving(false); return; }
+
+   // Persist batch/expiry on the proforma items too (audit trail)
+   for (const i of approveItems) {
+     await supabase.from("purchase_proforma_items").update({
+       batch_number: i.batch_number, expiry_date: i.expiry_date,
+     } as any).eq("id", i.id);
+   }
+
+   // Create PO items WITH batch + expiry inherited from approve dialog
+   if (approveItems.length) {
+     await supabase.from("purchase_order_items").insert(
+       approveItems.map((i: any) => ({
+         po_id: po.id, product_id: i.product_id, quantity: Number(i.quantity_requested),
+         quantity_confirmed: Number(i.quantity_requested), rate: Number(i.rate), amount: Number(i.amount),
+         batch_number: i.batch_number, expiry_date: i.expiry_date,
+       } as any))
+     );
+
+     // Auto-reserve printed packaging
+     try {
+       const { allocatePrinting } = await import("@/lib/auto-print-allocator");
+       let totalAllocated = 0, totalShortfall = 0, lineCount = 0;
+       for (const i of approveItems) {
+         if (!i.product_id) continue;
+         const res = await allocatePrinting(i.product_id, order.supplier_id, Number(i.quantity_requested), po.id);
+         totalAllocated += res.allocated; totalShortfall += res.shortfall; lineCount += res.lines.length;
+       }
+       if (lineCount > 0 || totalShortfall > 0) {
+         toast.info(`Auto-reserved ${totalAllocated.toLocaleString()} pcs printed packaging` + (totalShortfall > 0 ? ` · Shortfall ${totalShortfall.toLocaleString()} pcs` : ""));
+       }
+     } catch (e) { console.warn("Print auto-allocation failed", e); }
+   }
+
+   // Auto-create Purchase Invoice (Bill) — hits supplier ledger via trigger
+   try {
+     const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
+     if (billNumber) {
+       const supplier = suppliers.find(s => s.id === order.supplier_id);
+       const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
+       const whtAmount = settings?.wht_enabled ? Number(order.subtotal) * whtRate / 100 : 0;
+       const netTotal = Number(order.subtotal) + Number(order.gst) - whtAmount;
+       const { data: bill } = await supabase.from("purchase_invoices").insert({
+         bill_number: billNumber, supplier_id: order.supplier_id,
+         date: po.date, subtotal: Number(order.subtotal), gst: Number(order.gst),
+         wht_amount: whtAmount, total: netTotal, status: "unpaid",
+       }).select("id").single();
+       if (bill) logAudit({ action: "invoice_generated", entity_type: "purchase_invoice", entity_id: bill.id, entity_number: billNumber, changes: { total: netTotal, supplier_id: order.supplier_id } });
+     }
+   } catch { /* best-effort */ }
+
+   // Auto-create Delivery Note
+   try {
+     const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "delivery_note" });
+     if (dnNumber && approveItems.length) {
+       const dnItems = approveItems.map((i: any) => ({
+         product_name: i.product_name || "Item",
+         quantity: Number(i.quantity_requested),
+       }));
+       await supabase.from("delivery_notes").insert({
+         dn_number: dnNumber, reference_type: "purchase_order", reference_id: po.id,
+         supplier_id: order.supplier_id, items: dnItems,
+       });
+     }
+   } catch { /* best-effort */ }
+
+   await supabase.from("purchase_proformas").update({ status: "ordered", converted_po_id: po.id }).eq("id", order.id);
+   toast.success(`Approved — Purchase Invoice ${poNumber} created`);
+   setApproveOpen(false); setApproving(false);
+   setPostConfirmOrder({ ...order, converted_po_id: po.id, po_number: poNumber });
+   setPostConfirmPoId(po.id);
+   load();
+   setPostConfirmOpen(true);
+ };
+
+ // Legacy alias — Confirm button now triggers Approve dialog
+ const handleConfirmOrder = (order: PurchaseOrder) => { void openApproveDialog(order); };
 
  // ── PURCHASE INVOICE PDF ──
  const printPurchaseInvoice = async (order: PurchaseOrder) => {
@@ -697,116 +717,133 @@ export default function PurchaseProforma() {
  setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
  };
 
- // ── RECEIVE (GRN + Bill) ──
+ // ── RECEIVE (GRN only — batch/expiry inherited from PO; variance auto-adjusts) ──
  const openReceiveDialog = async (order: PurchaseOrder) => {
- const poId = order.converted_po_id || order.id;
- const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", poId);
- if (poItems) {
- setReceiveItems(poItems.map((i: any) => ({
- ...i, item_name: i.products?.name || "Item",
- batch_number: "", expiry_date: "", quantity_received: Number(i.quantity_confirmed) || Number(i.quantity),
- quantity_confirmed: Number(i.quantity_confirmed) || Number(i.quantity),
- })));
- }
- setReceivePO(order);
- setReceiveOpen(true);
+   const poId = order.converted_po_id || order.id;
+   const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", poId);
+   if (poItems) {
+     setReceiveItems(poItems.map((i: any) => ({
+       ...i, item_name: i.products?.name || "Item",
+       batch_number: i.batch_number || "",
+       expiry_date: i.expiry_date || "",
+       quantity_received: Number(i.quantity_confirmed) || Number(i.quantity),
+       quantity_confirmed: Number(i.quantity_confirmed) || Number(i.quantity),
+     })));
+   }
+   setReceivePO(order);
+   setReceiveOpen(true);
  };
 
  const handleReceive = async () => {
- if (!receivePO) return;
- if (!receiveItems.every(i => i.batch_number)) { toast.error("Batch number required for all items"); return; }
- if (!receiveItems.every(i => i.expiry_date)) { toast.error("Expiry date required for all items"); return; }
- setReceiving(true);
+   if (!receivePO) return;
+   setReceiving(true);
 
- const poId = receivePO.converted_po_id || receivePO.id;
- const { data: grnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "grn" });
- if (!grnNumber) { toast.error("Failed to generate GRN number"); setReceiving(false); return; }
+   const poId = receivePO.converted_po_id || receivePO.id;
+   const { data: grnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "grn" });
+   if (!grnNumber) { toast.error("Failed to generate GRN number"); setReceiving(false); return; }
 
- const { data: grn } = await supabase.from("goods_received_notes").insert({
- grn_number: grnNumber, po_id: poId, supplier_id: receivePO.supplier_id,
- date: new Date().toISOString().split("T")[0], received_by: receivedBy || null, notes: receiveNotes || null,
- }).select().single();
+   const { data: grn } = await supabase.from("goods_received_notes").insert({
+     grn_number: grnNumber, po_id: poId, supplier_id: receivePO.supplier_id,
+     date: new Date().toISOString().split("T")[0], received_by: receivedBy || null, notes: receiveNotes || null,
+   }).select().single();
 
- if (grn) {
- await supabase.from("grn_items").insert(
- receiveItems.map(i => ({
- grn_id: grn.id, item_name: i.item_name, product_id: i.product_id || null,
- batch_number: i.batch_number || null,
- quantity_ordered: Number(i.quantity), quantity_received: Number(i.quantity_received),
- expiry_date: i.expiry_date || null, rate: Number(i.rate), amount: Number(i.quantity_received) * Number(i.rate),
- }))
- );
+   if (!grn) { setReceiving(false); return; }
 
- // Stock movements for received quantities (purchase_in = actual received qty, no extra adjustment)
- const varianceItems: { name: string; ordered: number; received: number; diff: number }[] = [];
- for (const item of receiveItems) {
- if (item.product_id) {
- await supabase.from("stock_movements").insert({
- product_id: item.product_id, quantity: Number(item.quantity_received),
- movement_type: "purchase_in", batch_number: item.batch_number || null,
- reference_type: "grn", reference_id: grn.id, date: grn.date, notes: `GRN ${grnNumber}`,
- });
+   // Insert grn_items (batch/expiry inherited from PO)
+   await supabase.from("grn_items").insert(
+     receiveItems.map(i => ({
+       grn_id: grn.id, item_name: i.item_name, product_id: i.product_id || null,
+       batch_number: i.batch_number || null,
+       quantity_ordered: Number(i.quantity), quantity_received: Number(i.quantity_received),
+       expiry_date: i.expiry_date || null, rate: Number(i.rate), amount: Number(i.quantity_received) * Number(i.rate),
+     }))
+   );
 
- // Track variance for reporting only (no extra stock movement — purchase_in already has correct qty)
- const ordered = Number(item.quantity_confirmed) || Number(item.quantity);
- const received = Number(item.quantity_received);
- if (ordered !== received) {
- varianceItems.push({ name: item.item_name, ordered, received, diff: received - ordered });
- }
- }
- }
+   // Stock movements at actual received qty
+   const shortages: { name: string; diff: number; rate: number }[] = [];
+   const overages: { rate: number; diff: number }[] = [];
+   for (const item of receiveItems) {
+     if (item.product_id) {
+       await supabase.from("stock_movements").insert({
+         product_id: item.product_id, quantity: Number(item.quantity_received),
+         movement_type: "purchase_in", batch_number: item.batch_number || null,
+         reference_type: "grn", reference_id: grn.id, date: grn.date, notes: `GRN ${grnNumber}`,
+       });
+     }
+     const ordered = Number(item.quantity_confirmed) || Number(item.quantity);
+     const received = Number(item.quantity_received);
+     const diff = received - ordered;
+     if (diff < 0) shortages.push({ name: item.item_name, diff, rate: Number(item.rate) });
+     else if (diff > 0) overages.push({ rate: Number(item.rate), diff });
+   }
 
- await supabase.from("purchase_orders").update({ status: "received" }).eq("id", poId);
+   await supabase.from("purchase_orders").update({ status: "received" }).eq("id", poId);
 
- // Find the bill linked to this specific PO (created at confirm stage)
- const poId2 = receivePO.converted_po_id || receivePO.id;
- // Look for bills that match this PO's supplier AND were created on the same date as the PO
- const { data: poData2 } = await supabase.from("purchase_orders").select("date, supplier_id").eq("id", poId2).single();
- const { data: existingBill } = await supabase.from("purchase_invoices")
- .select("id")
- .eq("supplier_id", poData2?.supplier_id || receivePO.supplier_id || "")
- .eq("date", poData2?.date || "")
- .is("grn_id", null)
- .limit(1);
- 
- if (existingBill && existingBill.length > 0) {
- // Link the existing bill (from confirm) to this GRN
- await supabase.from("purchase_invoices").update({ grn_id: grn.id }).eq("id", existingBill[0].id);
- toast.success(`GRN ${grnNumber} created & linked to existing bill`, {
- action: { label: "Create Print Job", onClick: () => navigate(`/print-jobs?from_grn=1`) },
- });
- } else {
- // No bill exists yet — create one now
- try {
- const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
- if (billNumber) {
- const { data: poData } = await supabase.from("purchase_orders").select("subtotal, gst, total, supplier_id").eq("id", poId).single();
- if (poData) {
- const supplier = suppliers.find(s => s.id === poData.supplier_id);
- const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
- const whtAmount = settings?.wht_enabled ? Number(poData.subtotal) * whtRate / 100 : 0;
- const netTotal = Number(poData.subtotal) + Number(poData.gst) - whtAmount;
-  await supabase.from("purchase_invoices").insert({
-  bill_number: billNumber, supplier_id: poData.supplier_id, grn_id: grn.id,
-  date: grn.date, subtotal: Number(poData.subtotal), gst: Number(poData.gst),
-  wht_amount: whtAmount, total: netTotal, status: "unpaid",
-  });
-  logAudit({ action: "invoice_generated", entity_type: "purchase_invoice", entity_number: billNumber, changes: { total: netTotal, grn_id: grn.id, supplier_id: poData.supplier_id } });
- toast.success(`GRN ${grnNumber} + Bill ${billNumber} created`, {
- action: { label: "Create Print Job", onClick: () => navigate(`/print-jobs?from_grn=1`) },
- });
- }
- }
- } catch {
- toast.success(`GRN ${grnNumber} created`);
- }
- }
+   // Link GRN to existing PI (created at Approve) and adjust totals for overage
+   const { data: existingBill } = await supabase.from("purchase_invoices")
+     .select("id, subtotal, gst, wht_amount, total, bill_number")
+     .eq("supplier_id", receivePO.supplier_id || "")
+     .is("grn_id", null)
+     .order("created_at", { ascending: false })
+     .limit(1);
 
- // Show variance summary if any
- if (varianceItems.length > 0) {
- const summary = varianceItems.map(v => `${v.name}: ordered ${v.ordered}, received ${v.received} (${v.diff > 0 ? "+" : ""}${v.diff})`).join("; ");
- toast.warning(`Stock variance detected: ${summary}`, { duration: 8000 });
- }
+   let billId: string | null = null;
+   let billNumber: string | null = null;
+
+   if (existingBill && existingBill.length > 0) {
+     billId = existingBill[0].id;
+     billNumber = existingBill[0].bill_number;
+     await supabase.from("purchase_invoices").update({ grn_id: grn.id }).eq("id", billId);
+   } else {
+     // Fallback: create bill now (no Approve step ran)
+     const { data: bn } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
+     if (bn) {
+       const { data: poData } = await supabase.from("purchase_orders").select("subtotal, gst, total, supplier_id").eq("id", poId).single();
+       if (poData) {
+         const supplier = suppliers.find(s => s.id === poData.supplier_id);
+         const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
+         const whtAmount = settings?.wht_enabled ? Number(poData.subtotal) * whtRate / 100 : 0;
+         const netTotal = Number(poData.subtotal) + Number(poData.gst) - whtAmount;
+         const { data: bill } = await supabase.from("purchase_invoices").insert({
+           bill_number: bn, supplier_id: poData.supplier_id, grn_id: grn.id,
+           date: grn.date, subtotal: Number(poData.subtotal), gst: Number(poData.gst),
+           wht_amount: whtAmount, total: netTotal, status: "unpaid",
+         }).select("id, subtotal, gst, wht_amount, total").single();
+         if (bill) { billId = bill.id; billNumber = bn; }
+       }
+     }
+   }
+
+   // OVERAGE: bump PI subtotal+total → supplier balance auto-increases via trigger
+   if (overages.length > 0 && billId) {
+     const overTotal = overages.reduce((s, o) => s + o.rate * o.diff, 0);
+     const { data: cur } = await supabase.from("purchase_invoices").select("subtotal, total").eq("id", billId).single();
+     if (cur) {
+       await supabase.from("purchase_invoices").update({
+         subtotal: Number(cur.subtotal) + overTotal,
+         total: Number(cur.total) + overTotal,
+       }).eq("id", billId);
+       toast.info(`Overage recorded: +PKR ${overTotal.toLocaleString()} added to bill ${billNumber}`);
+     }
+   }
+
+   // SHORTAGE: auto debit note → supplier balance auto-decreases via trigger
+   if (shortages.length > 0) {
+     const shortTotal = shortages.reduce((s, x) => s + x.rate * Math.abs(x.diff), 0);
+     const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "debit_note" });
+     if (dnNumber && receivePO.supplier_id) {
+       await supabase.from("debit_notes").insert({
+         debit_note_number: dnNumber, party_type: "supplier", party_id: receivePO.supplier_id,
+         amount: shortTotal, reason: `Short receipt vs ${billNumber || grnNumber}`,
+         reference: billNumber || grnNumber, date: grn.date,
+       });
+       toast.warning(`Shortage: Debit Note ${dnNumber} for PKR ${shortTotal.toLocaleString()} auto-issued`, { duration: 8000 });
+     }
+   }
+
+   toast.success(`GRN ${grnNumber} created`, {
+     action: { label: "Create Print Job", onClick: () => navigate(`/print-jobs?from_grn=1`) },
+   });
 
  const grnHtml = generatePdfHtml({
  title: "GOODS RECEIVED NOTE", documentNumber: grnNumber, date: grn.date, statusTheme: "received" as const,
@@ -822,9 +859,8 @@ export default function PurchaseProforma() {
  })),
  settings, template: getTemplate("grn"),
  });
- setPdfHtml(grnHtml); setPdfTitle(`GRN — ${grnNumber}`); setPdfOpen(true);
- setReceiveOpen(false); setReceivedBy(""); setReceiveNotes(""); setReceiving(false); load();
- } else { setReceiving(false); }
+   setPdfHtml(grnHtml); setPdfTitle(`GRN — ${grnNumber}`); setPdfOpen(true);
+   setReceiveOpen(false); setReceivedBy(""); setReceiveNotes(""); setReceiving(false); load();
  };
 
  // ── EDIT ──
@@ -1066,40 +1102,6 @@ export default function PurchaseProforma() {
  </p>
 
  <Separator className="my-3" />
- <div>
- <Label className="text-sm font-semibold">Additional Costs</Label>
- {costs.map((c, idx) => (
- <div key={idx} className="flex items-center gap-2 mb-1 text-xs mt-1">
- <Badge variant="outline" className="capitalize text-[10px]">{c.cost_type}</Badge>
- <span className="flex-1 text-muted-foreground">{c.description}</span>
- <span className="font-mono">PKR {Number(c.amount).toLocaleString()}</span>
- <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCosts(costs.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button>
- </div>
- ))}
- <div className="grid grid-cols-12 gap-2 mt-2 items-end">
- <div className="col-span-2">
- <Select value={costType} onValueChange={setCostType}>
- <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
- <SelectContent>
- <SelectItem value="packaging">Packaging</SelectItem>
- <SelectItem value="printing">Printing</SelectItem>
- <SelectItem value="freight">Freight / Transport</SelectItem>
- <SelectItem value="clearing">Clearing / Customs</SelectItem>
- <SelectItem value="insurance">Insurance</SelectItem>
- <SelectItem value="storage">Storage / Cold-chain</SelectItem>
- <SelectItem value="registration">DRAP Registration</SelectItem>
- <SelectItem value="testing">QC / Lab Testing</SelectItem>
- <SelectItem value="other">Other</SelectItem>
- </SelectContent>
- </Select>
- </div>
- <div className="col-span-3"><Input className="text-xs" placeholder="Description" value={costDesc} onChange={e => setCostDesc(e.target.value)} /></div>
- <div className="col-span-2"><Input className="text-xs" type="number" placeholder="Amount" value={costAmount} onChange={e => setCostAmount(e.target.value)} /></div>
- <div className="col-span-3"><SearchableSelect options={supplierOptions} value={costVendorId} onChange={setCostVendorId} placeholder="Vendor" triggerClassName="text-xs h-9" /></div>
- <div className="col-span-2"><Button variant="outline" size="sm" onClick={addCostLine} className="text-xs w-full">+ Add</Button></div>
- </div>
- </div>
- <Separator className="my-3" />
  <div className="space-y-1.5 text-sm">
  <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
  {settings?.gst_enabled && <div className="flex justify-between text-muted-foreground"><span>GST</span><span className="font-mono">{gst.toLocaleString()}</span></div>}
@@ -1206,7 +1208,7 @@ export default function PurchaseProforma() {
  <div className="flex items-center gap-1">
  {order.status === "draft" && (
  <Button variant="default" size="sm" onClick={() => handleConfirmOrder(order)} className="h-7 text-xs gap-1 shadow-sm">
- <CheckCircle className="h-3 w-3" /> <span className="hidden sm:inline">Confirm</span>
+ <CheckCircle className="h-3 w-3" /> <span className="hidden sm:inline">Approve</span>
  </Button>
  )}
  {(order.status === "ordered" || order.status === "confirmed") && (
@@ -1216,7 +1218,7 @@ export default function PurchaseProforma() {
  )}
  {(order.status === "ordered" || order.status === "confirmed" || order.status === "received") && order.supplier_id && !isPaid && (
  <Button size="sm" onClick={() => openPaymentDialog(order)} className="h-7 text-xs gap-1 shadow-sm" title="Make Payment">
- <DollarSign className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
+ <Wallet className="h-3 w-3" /> <span className="hidden sm:inline">Payment</span>
  </Button>
  )}
  {/* Quick WhatsApp */}
@@ -1371,56 +1373,99 @@ export default function PurchaseProforma() {
  {/* RECEIVE DIALOG (GRN) */}
  <Dialog open={receiveOpen} onOpenChange={setReceiveOpen}>
  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
- <DialogHeader><DialogTitle className="font-heading">Receive Goods — Create GRN + Bill</DialogTitle></DialogHeader>
- <p className="text-sm text-muted-foreground mb-3">Enter batch numbers & expiry dates for each item.</p>
- <div className="grid grid-cols-2 gap-3 mb-4">
- <div><Label className="text-xs font-medium text-muted-foreground">Received By</Label><Input value={receivedBy} onChange={e => setReceivedBy(e.target.value)} placeholder="Name" /></div>
- <div><Label className="text-xs font-medium text-muted-foreground">Notes</Label><Input value={receiveNotes} onChange={e => setReceiveNotes(e.target.value)} placeholder="Optional" /></div>
- </div>
- <Separator />
- {receiveItems.map((item, idx) => (
- <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3 mt-3">
- <div className="flex items-center justify-between">
- <span className="text-sm font-semibold text-foreground">{item.item_name}</span>
- <span className="text-xs font-mono text-muted-foreground">Ordered: {item.quantity}</span>
- </div>
- <div className="grid grid-cols-3 gap-3">
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Batch # *</Label>
- <Input className="text-xs" value={item.batch_number} onChange={e => {
- const u = [...receiveItems]; u[idx].batch_number = e.target.value; setReceiveItems(u);
- }} placeholder="Batch number" />
- </div>
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Expiry *</Label>
- <Input type="date" className="text-xs" value={item.expiry_date} onChange={e => {
- const u = [...receiveItems]; u[idx].expiry_date = e.target.value; setReceiveItems(u);
- }} />
- </div>
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Qty Received</Label>
- <Input type="number" className="text-xs" value={item.quantity_received} onChange={e => {
- const u = [...receiveItems]; u[idx].quantity_received = e.target.value; setReceiveItems(u);
- }} />
- </div>
+  <DialogHeader><DialogTitle className="font-heading">Receive Goods — Create GRN</DialogTitle></DialogHeader>
+  <p className="text-sm text-muted-foreground mb-3">Confirm received quantities. Batch &amp; expiry were captured at approval. Any shortage auto-issues a Debit Note; overage is added to the Purchase Invoice.</p>
+  <div className="grid grid-cols-2 gap-3 mb-4">
+    <div><Label className="text-xs font-medium text-muted-foreground">Received By</Label><Input value={receivedBy} onChange={e => setReceivedBy(e.target.value)} placeholder="Name" /></div>
+    <div><Label className="text-xs font-medium text-muted-foreground">Notes</Label><Input value={receiveNotes} onChange={e => setReceiveNotes(e.target.value)} placeholder="Optional" /></div>
   </div>
-  {item.product_id && receivePO && (
-    <PrintAvailabilityPanel
-      productId={item.product_id}
-      productName={item.item_name}
-      requiredQty={Number(item.quantity_received) || Number(item.quantity) || 0}
-      supplierId={receivePO.supplier_id || undefined}
-      purchaseInvoiceId={receivePO.converted_po_id || receivePO.id}
-    />
-  )}
-  </div>
-  ))}
- <Button onClick={handleReceive} disabled={receiving} className="w-full h-11 gap-2 text-sm font-semibold mt-4">
- {receiving ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
- Confirm Receipt — Create GRN + Bill
- </Button>
- </DialogContent>
+  <Separator />
+  {receiveItems.map((item, idx) => {
+    const ordered = Number(item.quantity_confirmed) || Number(item.quantity);
+    const received = Number(item.quantity_received) || 0;
+    const diff = received - ordered;
+    return (
+      <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3 mt-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-foreground">{item.item_name}</span>
+          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
+            <span>Batch: {item.batch_number || "—"}</span>
+            <span>·</span>
+            <span>Exp: {item.expiry_date || "—"}</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3 items-end">
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground">Qty Ordered</Label>
+            <Input type="number" className="text-xs" value={ordered} disabled />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground">Qty Received</Label>
+            <Input type="number" className="text-xs" value={item.quantity_received} onChange={e => {
+              const u = [...receiveItems]; u[idx].quantity_received = e.target.value; setReceiveItems(u);
+            }} />
+          </div>
+          <div className="text-xs pt-5">
+            {diff === 0 && <span className="text-success font-semibold">✓ Matches</span>}
+            {diff < 0 && <span className="text-destructive font-semibold">Shortage: {diff}</span>}
+            {diff > 0 && <span className="text-warning font-semibold">Overage: +{diff}</span>}
+          </div>
+        </div>
+        {item.product_id && receivePO && (
+          <PrintAvailabilityPanel
+            productId={item.product_id}
+            productName={item.item_name}
+            requiredQty={Number(item.quantity_received) || Number(item.quantity) || 0}
+            supplierId={receivePO.supplier_id || undefined}
+            purchaseInvoiceId={receivePO.converted_po_id || receivePO.id}
+          />
+        )}
+      </div>
+    );
+  })}
+  <Button onClick={handleReceive} disabled={receiving} className="w-full h-11 gap-2 text-sm font-semibold mt-4">
+    {receiving ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
+    Confirm Receipt
+  </Button>
+  </DialogContent>
  </Dialog>
+
+ {/* APPROVE DIALOG — capture Batch + Expiry then create PI */}
+ <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
+   <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+     <DialogHeader><DialogTitle className="font-heading">Approve Order — Capture Batch &amp; Expiry</DialogTitle></DialogHeader>
+     <p className="text-sm text-muted-foreground mb-3">
+       Approving will create the Purchase Invoice and post to the supplier ledger. Batch numbers &amp; expiry dates are recorded here so they flow into the GRN automatically.
+     </p>
+     {approveItems.map((item, idx) => (
+       <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3 mt-3">
+         <div className="flex items-center justify-between">
+           <span className="text-sm font-semibold text-foreground">{item.product_name}</span>
+           <span className="text-xs font-mono text-muted-foreground">Qty: {item.quantity_requested} · Rate: PKR {Number(item.rate).toLocaleString()}</span>
+         </div>
+         <div className="grid grid-cols-2 gap-3">
+           <div>
+             <Label className="text-xs font-medium text-muted-foreground">Batch # *</Label>
+             <Input className="text-xs" value={item.batch_number} onChange={e => {
+               const u = [...approveItems]; u[idx].batch_number = e.target.value; setApproveItems(u);
+             }} placeholder="e.g. B240612" />
+           </div>
+           <div>
+             <Label className="text-xs font-medium text-muted-foreground">Expiry *</Label>
+             <Input type="date" className="text-xs" value={item.expiry_date} onChange={e => {
+               const u = [...approveItems]; u[idx].expiry_date = e.target.value; setApproveItems(u);
+             }} />
+           </div>
+         </div>
+       </div>
+     ))}
+     <Button onClick={submitApprove} disabled={approving} className="w-full h-11 gap-2 text-sm font-semibold mt-4">
+       {approving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
+       Approve &amp; Create Purchase Invoice
+     </Button>
+   </DialogContent>
+ </Dialog>
+
 
  {/* VOID CONFIRM */}
  <AlertDialog open={voidConfirmOpen} onOpenChange={setVoidConfirmOpen}>
@@ -1511,7 +1556,7 @@ export default function PurchaseProforma() {
  )}
  <Button onClick={handleMakePayment} disabled={paymentSaving || !paymentAmount} className="w-full h-11 gap-2">
  {paymentSaving && <Loader2 className="h-4 w-4 animate-spin" />}
- <DollarSign className="h-4 w-4" /> Pay PKR {Number(paymentAmount || 0).toLocaleString()}
+ <Wallet className="h-4 w-4" /> Pay PKR {Number(paymentAmount || 0).toLocaleString()}
  </Button>
  </div>
  )}
