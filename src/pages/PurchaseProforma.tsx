@@ -27,6 +27,7 @@ import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PrintAvailabilityPanel } from "@/components/PrintAvailabilityPanel";
+import { QuickCreateProductDialog } from "@/components/QuickCreateProductDialog";
 
 
 interface Supplier { id: string; name: string; wht_rate: number; company?: string | null; phone?: string | null; address?: string | null; }
@@ -70,6 +71,9 @@ export default function PurchaseProforma() {
  const [costAmount, setCostAmount] = useState("");
  const [costVendorId, setCostVendorId] = useState("");
  const [allocatedProductIds, setAllocatedProductIds] = useState<string[] | null>(null);
+ // Quick Add Product (inline from PO dialogs)
+ const [quickProductOpen, setQuickProductOpen] = useState(false);
+ const [quickProductTarget, setQuickProductTarget] = useState<{ scope: "create" | "edit"; idx: number | null }>({ scope: "create", idx: null });
 
  // Preview items (for PDF generation)
  const [previewItems, setPreviewItems] = useState<any[]>([]);
@@ -231,6 +235,37 @@ export default function PurchaseProforma() {
  // ── ITEMS ──
  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }]);
  useEffect(() => { if (createOpen && items.length === 0) addItem(); }, [createOpen]);
+
+ // Open Quick Add Product dialog scoped to a row (or appended as a new row)
+ const openQuickAddProduct = (scope: "create" | "edit", idx: number | null) => {
+   setQuickProductTarget({ scope, idx });
+   setQuickProductOpen(true);
+ };
+
+ // Called by QuickCreateProductDialog once the product is saved
+ const handleQuickProductCreated = async (p: { id: string; name: string; cost_price: number }) => {
+   // Refresh products list so the picker can find it
+   const { data: prod } = await supabase.from("products").select("id, name, cost_price").eq("is_active", true);
+   if (prod) setProducts(prod as any);
+   const { scope, idx } = quickProductTarget;
+   if (scope === "create") {
+     if (idx === null) {
+       setItems(prev => [...prev, { product_id: p.id, product_name: p.name, quantity_requested: 1, rate: Number(p.cost_price), amount: Number(p.cost_price) }]);
+     } else {
+       const u = [...items];
+       u[idx] = { ...u[idx], product_id: p.id, product_name: p.name, rate: Number(p.cost_price), amount: Number(u[idx].quantity_requested) * Number(p.cost_price) };
+       setItems(u);
+     }
+   } else {
+     if (idx === null) {
+       setEditItems(prev => [...prev, { product_id: p.id, product_name: p.name, quantity_requested: 1, rate: Number(p.cost_price), amount: Number(p.cost_price) }]);
+     } else {
+       const u = [...editItems];
+       u[idx] = { ...u[idx], product_id: p.id, product_name: p.name, rate: Number(p.cost_price), amount: Number(u[idx].quantity_requested) * Number(p.cost_price) };
+       setEditItems(u);
+     }
+   }
+ };
 
  const lookupLastSupplierPrice = async (productId: string, supId: string): Promise<number | null> => {
  if (!productId || !supId) return null;
@@ -977,8 +1012,18 @@ export default function PurchaseProforma() {
  {showAllProducts ? "Filter to supplier" : "Show all products"}
  </Button>
  )}
+ <Button variant="ghost" size="sm" onClick={() => openQuickAddProduct("create", null)} className="gap-1 text-xs text-primary hover:text-primary"><Plus className="h-3 w-3" /> New Product</Button>
  <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
  </div>
+ </div>
+ {/* Column headers */}
+ <div className="grid grid-cols-12 gap-2 mb-2 pb-1 border-b border-border/60 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+   <div className="col-span-1">#</div>
+   <div className="col-span-4">Product</div>
+   <div className="col-span-2">Qty</div>
+   <div className="col-span-2">Rate</div>
+   <div className="col-span-2 text-right">Amount</div>
+   <div className="col-span-1"></div>
  </div>
  {items.map((item, idx) => (
  <div key={idx} className="contents">
@@ -995,13 +1040,11 @@ export default function PurchaseProforma() {
  <div className="col-span-2 text-right text-sm font-mono pt-2 text-foreground">{item.amount.toLocaleString()}</div>
  <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
  </div>
- {item.product_id && Number(item.quantity_requested) > 0 && (
- <div className="grid grid-cols-12 gap-2 mb-2">
- <PrintAvailabilityPanel productId={item.product_id} productName={item.product_name} requiredQty={Number(item.quantity_requested)} supplierId={supplierId} />
- </div>
- )}
  </div>
  ))}
+ <p className="text-[10px] text-muted-foreground mt-1">
+   Print job is optional — you can reserve printed packaging or create a print job after the order is confirmed.
+ </p>
 
  <Separator className="my-3" />
  <div>
@@ -1233,7 +1276,18 @@ export default function PurchaseProforma() {
  <Separator />
  <div className="flex items-center justify-between">
  <Label className="text-sm font-semibold">Items</Label>
- <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
+ <div className="flex items-center gap-2">
+   <Button variant="ghost" size="sm" onClick={() => openQuickAddProduct("edit", null)} className="gap-1 text-xs text-primary hover:text-primary"><Plus className="h-3 w-3" /> New Product</Button>
+   <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
+ </div>
+ </div>
+ {/* Column headers */}
+ <div className="grid grid-cols-12 gap-2 pb-1 border-b border-border/60 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+   <div className="col-span-5">Product</div>
+   <div className="col-span-2">Qty</div>
+   <div className="col-span-2">Rate</div>
+   <div className="col-span-2 text-right">Amount</div>
+   <div className="col-span-1"></div>
  </div>
  {editItems.map((item, idx) => (
  <div key={idx} className="grid grid-cols-12 gap-2 items-end">
@@ -1435,6 +1489,12 @@ export default function PurchaseProforma() {
  )}
  </DialogContent>
  </Dialog>
+
+ <QuickCreateProductDialog
+   open={quickProductOpen}
+   onOpenChange={setQuickProductOpen}
+   onCreated={handleQuickProductCreated}
+ />
  </AppLayout>
  );
 }

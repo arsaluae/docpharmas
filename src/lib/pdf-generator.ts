@@ -189,7 +189,7 @@ function buildPdfHtml(opts: PdfOptions): string {
   };
 
   const headerCells = columns.map((c, idx) =>
-    `<th style="padding:10px 10px;text-align:${thAlign(c)};font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:#e2e8f0;border-bottom:2px solid ${C.primary};${colMinWidth(c, idx)}">${c.header}</th>`
+    `<th class="items-th" style="padding:10px 10px;text-align:${thAlign(c)};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#ffffff;background:${C.headerBg};border-bottom:2px solid ${C.primary};-webkit-print-color-adjust:exact;print-color-adjust:exact;${colMinWidth(c, idx)}">${c.header}</th>`
   ).join("");
   const bodyRows = opts.rows.map((row, i) => {
     const bg = i % 2 === 0 ? "#ffffff" : C.rowAlt;
@@ -302,10 +302,17 @@ function buildPdfHtml(opts: PdfOptions): string {
 
   @media print {
     body { padding:0; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    *, *::before, *::after { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
     .toolbar { display:none !important; }
     .page-frame { border:none; padding:20px 25px; max-width:100%; margin:0; box-shadow:none; }
     .page-frame::before { display:none; }
     .corner { display:none; }
+    table { page-break-inside:auto; }
+    thead { display:table-header-group; }
+    tfoot { display:table-footer-group; }
+    tr { page-break-inside:avoid; }
+    thead tr { background:${C.headerBg} !important; }
+    .items-th { color:#ffffff !important; background:${C.headerBg} !important; }
     @page { margin:10mm 8mm; size:A4; }
   }
 </style>
