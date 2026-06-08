@@ -436,8 +436,8 @@ export default function PrintJobs() {
  )}
 
 
- <div className="flex items-center gap-4">
- <div className="relative max-w-sm flex-1">
+ <div className="flex flex-wrap items-center gap-3">
+ <div className="relative max-w-sm flex-1 min-w-[200px]">
  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
  <Input placeholder="Search jobs..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
  </div>
@@ -445,10 +445,32 @@ export default function PrintJobs() {
  <TabsList>
  <TabsTrigger value="all">All</TabsTrigger>
  <TabsTrigger value="draft">Draft</TabsTrigger>
- <TabsTrigger value="delivered">Delivered</TabsTrigger>
+ <TabsTrigger value="dispatched">Dispatched</TabsTrigger>
  <TabsTrigger value="settled">Settled</TabsTrigger>
  </TabsList>
  </Tabs>
+ </div>
+ <div className="flex flex-wrap items-center gap-2 text-xs">
+   <span className="text-muted-foreground">Filter:</span>
+   <select value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)} className="h-8 rounded-md border border-border bg-background px-2">
+     <option value="all">All Suppliers</option>
+     {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+   </select>
+   <select value={filterProduct} onChange={e => setFilterProduct(e.target.value)} className="h-8 rounded-md border border-border bg-background px-2">
+     <option value="all">All Products</option>
+     {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+   </select>
+   <select value={filterPrinter} onChange={e => setFilterPrinter(e.target.value)} className="h-8 rounded-md border border-border bg-background px-2">
+     <option value="all">All Printers</option>
+     {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+   </select>
+   <span className="text-muted-foreground ml-2">Group by:</span>
+   <select value={groupBy} onChange={e => setGroupBy(e.target.value as any)} className="h-8 rounded-md border border-border bg-background px-2">
+     <option value="none">None</option>
+     <option value="supplier">Supplier</option>
+     <option value="product">Product</option>
+     <option value="printer">Printer</option>
+   </select>
  </div>
 
  <Card className="glass-card">
