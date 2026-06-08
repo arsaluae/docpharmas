@@ -397,13 +397,26 @@ export default function ProformaInvoices() {
  }
  };
 
- // ── PREVIEW (opens PDF popup directly) ──
- const openPreview = (order: SalesOrder) => {
- if (order.converted_invoice_id) {
- printInvoice(order);
- } else {
- printOrder(order);
- }
+ // ── PREVIEW with 3-view template switcher (Sales Order / Invoice / Delivery Note) ──
+ const openPreview = async (order: SalesOrder, preferredView?: "sales_order" | "sales_invoice" | "delivery_note") => {
+   const orderHtml = buildSalesOrderHtml(order);
+   const invoiceHtml = order.converted_invoice_id ? await buildSalesInvoiceHtml(order) : "";
+   const dnHtml = order.converted_invoice_id ? await buildDeliveryNoteHtml(order) : "";
+   const hasInvoice = !!invoiceHtml;
+   const hasDn = !!dnHtml;
+   const views = [
+     { key: "sales_order",  label: "Sales Order",    color: "bg-amber-500 text-white border-amber-500",   html: orderHtml },
+     { key: "sales_invoice",label: "Sales Invoice",  color: "bg-blue-600 text-white border-blue-600",     html: invoiceHtml, disabled: !hasInvoice },
+     { key: "delivery_note",label: "Delivery Note",  color: "bg-violet-600 text-white border-violet-600", html: dnHtml,      disabled: !hasDn },
+   ];
+   const def = preferredView && views.find(v => v.key === preferredView && !v.disabled)
+     ? preferredView
+     : (hasInvoice ? "sales_invoice" : "sales_order");
+   setPdfViews(views);
+   setPdfDefaultView(def);
+   setPdfTitle(`${order.invoice_number || order.proforma_number} — ${(order.customers as any)?.name || ""}`);
+   setPdfHtml("");
+   setPdfOpen(true);
  };
 
  const openEditSheet = async (order: SalesOrder) => {
