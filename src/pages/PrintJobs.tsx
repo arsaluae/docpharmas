@@ -659,6 +659,27 @@ export default function PrintJobs() {
  <p className="text-muted-foreground">At Factory: <span className="font-mono font-semibold text-success">{Number(dispatchJob.quantity_at_factory || 0).toLocaleString()} pcs</span></p>
  <p className="text-muted-foreground">Already Dispatched: <span className="font-mono text-foreground">{Number(dispatchJob.quantity_dispatched_to_supplier || 0).toLocaleString()} pcs</span></p>
  </div>
+ {(dispatchesByJob[dispatchJob.id] || []).length > 0 && (
+   <div className="rounded-lg border border-border p-2 text-xs space-y-1">
+     <p className="font-medium text-foreground">Existing dispatches:</p>
+     {(dispatchesByJob[dispatchJob.id] || []).map(d => (
+       <div key={d.id} className="flex items-center justify-between text-muted-foreground">
+         <span>{supplierNames[d.supplier_id] || "—"} <span className="text-[10px]">· {d.date}</span></span>
+         <div className="flex items-center gap-2">
+           <span className="font-mono text-foreground">{Number(d.qty_dispatched).toLocaleString()}</span>
+           <button className="text-destructive hover:underline" onClick={async () => {
+             const { error } = await supabase.from("print_dispatches" as any).delete().eq("id", d.id);
+             if (error) { toast.error(error.message); return; }
+             toast.success("Dispatch reversed");
+             await load();
+             const r = await supabase.from("print_jobs").select("*").eq("id", dispatchJob.id).single();
+             if (r.data) setDispatchJob(r.data as any);
+           }}>remove</button>
+         </div>
+       </div>
+     ))}
+   </div>
+ )}
  <div>
  <Label>Supplier *</Label>
  <SearchableSelect
