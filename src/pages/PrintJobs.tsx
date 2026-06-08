@@ -176,16 +176,20 @@ export default function PrintJobs() {
  const qty = Number(dispatchQty);
  const supId = dispatchSupplierId || dispatchJob.allotted_supplier_id;
  if (!qty || qty <= 0) { toast.error("Quantity required"); return; }
- if (qty > Number(dispatchJob.quantity_at_factory)) { toast.error(`Only ${dispatchJob.quantity_at_factory} at factory`); return; }
  if (!supId) { toast.error("Select a supplier"); return; }
+ if (qty > Number(dispatchJob.quantity_at_factory)) { toast.error(`Only ${dispatchJob.quantity_at_factory} pcs available at factory`); return; }
 
- const newDispatched = Number(dispatchJob.quantity_dispatched_to_supplier) + qty;
- const { error } = await supabase.from("print_jobs").update({
- quantity_dispatched_to_supplier: newDispatched,
- } as any).eq("id", dispatchJob.id);
- if (error) { toast.error("Failed to dispatch"); return; }
+ // Insert dispatch row (trigger updates print_jobs.quantity_dispatched_to_supplier)
+ const { error } = await supabase.from("print_dispatches" as any).insert({
+   print_job_id: dispatchJob.id,
+   supplier_id: supId,
+   qty_dispatched: qty,
+   date: dispatchDate,
+   notes: dispatchNote || null,
+ } as any);
+ if (error) { toast.error("Failed to dispatch: " + error.message); return; }
 
- // Record stock movement out from factory (logical move — printed packaging leaves our floor)
+ // Optional stock movement record (logical move)
  if (dispatchJob.product_id) {
  await supabase.from("stock_movements").insert({
  product_id: dispatchJob.product_id,
@@ -198,8 +202,17 @@ export default function PrintJobs() {
  } as any);
  }
 
- toast.success(`${qty.toLocaleString()} pcs dispatched`);
- setDispatchJob(null); setDispatchQty(""); setDispatchSupplierId(""); setDispatchNote(""); load();
+ // Auto-promote draft → dispatched
+ if (dispatchJob.status === "draft") {
+   await supabase.from("print_jobs").update({ status: "dispatched" } as any).eq("id", dispatchJob.id);
+ }
+
+ toast.success(`${qty.toLocaleString()} pcs dispatched to ${supplierNames[supId] || "supplier"}`);
+ setDispatchQty(""); setDispatchNote("");
+ // Keep dialog open so user can add another supplier split
+ await load();
+ const refreshed = await supabase.from("print_jobs").select("*").eq("id", dispatchJob.id).single();
+ if (refreshed.data) setDispatchJob(refreshed.data as any);
  };
 
 
