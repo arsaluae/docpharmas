@@ -536,94 +536,108 @@ export default function PurchaseProforma() {
  setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
  };
 
- // ── CONFIRM ORDER (Create PO + Purchase Invoice + Delivery Note) ──
- const handleConfirmOrder = async (order: PurchaseOrder) => {
- setSaving(true);
- const { data: poNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_order" });
- if (!poNumber) { toast.error("Failed to generate PO number"); setSaving(false); return; }
- const { data: po, error: poErr } = await supabase.from("purchase_orders").insert({
- po_number: poNumber, supplier_id: order.supplier_id, date: new Date().toISOString().split("T")[0],
- subtotal: order.subtotal, gst: order.gst, total: order.total, status: "confirmed", proforma_id: order.id,
- }).select().single();
- if (poErr || !po) { toast.error("Failed to create PO: " + (poErr?.message || "Unknown error")); setSaving(false); return; }
-
-  const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*").eq("proforma_id", order.id);
-  if (ppItems?.length) {
-  await supabase.from("purchase_order_items").insert(
-  ppItems.map((i: any) => ({
-  po_id: po.id, product_id: i.product_id, quantity: Number(i.quantity_requested),
-  quantity_confirmed: Number(i.quantity_requested), rate: Number(i.rate), amount: Number(i.amount),
-  }))
-  );
-
-  // Auto-reserve printed packaging (FIFO: at_supplier → at_factory → in_progress)
-  try {
-  const { allocatePrinting } = await import("@/lib/auto-print-allocator");
-  let totalAllocated = 0, totalShortfall = 0, lineCount = 0;
-  for (const i of ppItems as any[]) {
-  if (!i.product_id) continue;
-  const res = await allocatePrinting(i.product_id, order.supplier_id, Number(i.quantity_requested), po.id);
-  totalAllocated += res.allocated;
-  totalShortfall += res.shortfall;
-  lineCount += res.lines.length;
-  }
-  if (lineCount > 0 || totalShortfall > 0) {
-  const msg = `Auto-reserved ${totalAllocated.toLocaleString()} pcs printed packaging` +
-  (totalShortfall > 0 ? ` · Shortfall ${totalShortfall.toLocaleString()} pcs` : "");
-  toast.info(msg);
-  }
-  } catch (e) { console.warn("Print auto-allocation failed", e); }
-  }
-
- const { data: ppCosts } = await supabase.from("additional_costs").select("*").eq("reference_type", "purchase_proforma").eq("reference_id", order.id);
- if (ppCosts?.length) {
- await supabase.from("additional_costs").insert(
- ppCosts.map((c: any) => ({ reference_type: "purchase_order", reference_id: po.id, cost_type: c.cost_type, description: c.description, amount: Number(c.amount), vendor_id: c.vendor_id }))
- );
- }
-
- // Auto-create Purchase Invoice (Bill) linked to PO
- let createdBillId: string | null = null;
- try {
- const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
- if (billNumber) {
- const supplier = suppliers.find(s => s.id === order.supplier_id);
- const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
- const whtAmount = settings?.wht_enabled ? Number(order.subtotal) * whtRate / 100 : 0;
- const netTotal = Number(order.subtotal) + Number(order.gst) - whtAmount;
- const { data: bill } = await supabase.from("purchase_invoices").insert({
- bill_number: billNumber, supplier_id: order.supplier_id,
- date: po.date, subtotal: Number(order.subtotal), gst: Number(order.gst),
- wht_amount: whtAmount, total: netTotal, status: "unpaid",
-  }).select("id").single();
-  if (bill) { createdBillId = bill.id; logAudit({ action: "invoice_generated", entity_type: "purchase_invoice", entity_id: bill.id, entity_number: billNumber, changes: { total: netTotal, supplier_id: order.supplier_id } }); }
- }
- } catch { /* bill generation is best-effort */ }
-
- // Auto-create Delivery Note
- try {
- const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "delivery_note" });
- if (dnNumber && ppItems?.length) {
- const dnItems = ppItems.map((i: any) => ({
- product_name: i.product_name || products.find(p => p.id === i.product_id)?.name || "Item",
- quantity: Number(i.quantity_requested),
- }));
- await supabase.from("delivery_notes").insert({
- dn_number: dnNumber, reference_type: "purchase_order", reference_id: po.id,
- supplier_id: order.supplier_id, items: dnItems,
- });
- }
- } catch { /* DN generation is best-effort */ }
-
- await supabase.from("purchase_proformas").update({ status: "ordered", converted_po_id: po.id }).eq("id", order.id);
- toast.success(`Purchase Invoice ${poNumber} + Delivery Note created`);
-
- // Show post-confirm document choice dialog
- setPostConfirmOrder({ ...order, converted_po_id: po.id, po_number: poNumber });
- setPostConfirmPoId(po.id);
- setSaving(false); load();
- setPostConfirmOpen(true);
+ // ── APPROVE: capture Batch + Expiry per line, then create PO + PI + DN ──
+ const openApproveDialog = async (order: PurchaseOrder) => {
+   const { data: ppItems } = await supabase.from("purchase_proforma_items").select("*, products(name)").eq("proforma_id", order.id);
+   setApproveItems((ppItems || []).map((i: any) => ({
+     ...i,
+     product_name: i.products?.name || "Item",
+     batch_number: i.batch_number || "",
+     expiry_date: i.expiry_date || "",
+   })));
+   setApproveOrder(order);
+   setApproveOpen(true);
  };
+
+ const submitApprove = async () => {
+   if (!approveOrder) return;
+   if (!approveItems.every(i => i.batch_number)) { toast.error("Batch number required for every item"); return; }
+   if (!approveItems.every(i => i.expiry_date)) { toast.error("Expiry date required for every item"); return; }
+   setApproving(true);
+   const order = approveOrder;
+   const { data: poNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_order" });
+   if (!poNumber) { toast.error("Failed to generate PO number"); setApproving(false); return; }
+   const { data: po, error: poErr } = await supabase.from("purchase_orders").insert({
+     po_number: poNumber, supplier_id: order.supplier_id, date: new Date().toISOString().split("T")[0],
+     subtotal: order.subtotal, gst: order.gst, total: order.total, status: "confirmed", proforma_id: order.id,
+   }).select().single();
+   if (poErr || !po) { toast.error("Failed to create PO: " + (poErr?.message || "Unknown")); setApproving(false); return; }
+
+   // Persist batch/expiry on the proforma items too (audit trail)
+   for (const i of approveItems) {
+     await supabase.from("purchase_proforma_items").update({
+       batch_number: i.batch_number, expiry_date: i.expiry_date,
+     } as any).eq("id", i.id);
+   }
+
+   // Create PO items WITH batch + expiry inherited from approve dialog
+   if (approveItems.length) {
+     await supabase.from("purchase_order_items").insert(
+       approveItems.map((i: any) => ({
+         po_id: po.id, product_id: i.product_id, quantity: Number(i.quantity_requested),
+         quantity_confirmed: Number(i.quantity_requested), rate: Number(i.rate), amount: Number(i.amount),
+         batch_number: i.batch_number, expiry_date: i.expiry_date,
+       } as any))
+     );
+
+     // Auto-reserve printed packaging
+     try {
+       const { allocatePrinting } = await import("@/lib/auto-print-allocator");
+       let totalAllocated = 0, totalShortfall = 0, lineCount = 0;
+       for (const i of approveItems) {
+         if (!i.product_id) continue;
+         const res = await allocatePrinting(i.product_id, order.supplier_id, Number(i.quantity_requested), po.id);
+         totalAllocated += res.allocated; totalShortfall += res.shortfall; lineCount += res.lines.length;
+       }
+       if (lineCount > 0 || totalShortfall > 0) {
+         toast.info(`Auto-reserved ${totalAllocated.toLocaleString()} pcs printed packaging` + (totalShortfall > 0 ? ` · Shortfall ${totalShortfall.toLocaleString()} pcs` : ""));
+       }
+     } catch (e) { console.warn("Print auto-allocation failed", e); }
+   }
+
+   // Auto-create Purchase Invoice (Bill) — hits supplier ledger via trigger
+   try {
+     const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
+     if (billNumber) {
+       const supplier = suppliers.find(s => s.id === order.supplier_id);
+       const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
+       const whtAmount = settings?.wht_enabled ? Number(order.subtotal) * whtRate / 100 : 0;
+       const netTotal = Number(order.subtotal) + Number(order.gst) - whtAmount;
+       const { data: bill } = await supabase.from("purchase_invoices").insert({
+         bill_number: billNumber, supplier_id: order.supplier_id,
+         date: po.date, subtotal: Number(order.subtotal), gst: Number(order.gst),
+         wht_amount: whtAmount, total: netTotal, status: "unpaid",
+       }).select("id").single();
+       if (bill) logAudit({ action: "invoice_generated", entity_type: "purchase_invoice", entity_id: bill.id, entity_number: billNumber, changes: { total: netTotal, supplier_id: order.supplier_id } });
+     }
+   } catch { /* best-effort */ }
+
+   // Auto-create Delivery Note
+   try {
+     const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "delivery_note" });
+     if (dnNumber && approveItems.length) {
+       const dnItems = approveItems.map((i: any) => ({
+         product_name: i.product_name || "Item",
+         quantity: Number(i.quantity_requested),
+       }));
+       await supabase.from("delivery_notes").insert({
+         dn_number: dnNumber, reference_type: "purchase_order", reference_id: po.id,
+         supplier_id: order.supplier_id, items: dnItems,
+       });
+     }
+   } catch { /* best-effort */ }
+
+   await supabase.from("purchase_proformas").update({ status: "ordered", converted_po_id: po.id }).eq("id", order.id);
+   toast.success(`Approved — Purchase Invoice ${poNumber} created`);
+   setApproveOpen(false); setApproving(false);
+   setPostConfirmOrder({ ...order, converted_po_id: po.id, po_number: poNumber });
+   setPostConfirmPoId(po.id);
+   load();
+   setPostConfirmOpen(true);
+ };
+
+ // Legacy alias — Confirm button now triggers Approve dialog
+ const handleConfirmOrder = (order: PurchaseOrder) => { void openApproveDialog(order); };
 
  // ── PURCHASE INVOICE PDF ──
  const printPurchaseInvoice = async (order: PurchaseOrder) => {
