@@ -602,67 +602,76 @@ export default function ProformaInvoices() {
  setPaymentOpen(false); setPaymentSaving(false); load();
  };
 
- const printInvoice = async (order: SalesOrder) => {
- if (!order.converted_invoice_id) return;
- const { data: inv } = await supabase.from("sales_invoices").select("*, customers(name)").eq("id", order.converted_invoice_id).single();
- const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", order.converted_invoice_id);
- if (inv) {
- const html = generatePdfHtml({
- title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
- partyLabel: "Customer", partyName: (inv.customers as any)?.name || "—",
- columns: [
- { header: "#", key: "idx" }, { header: "Product", key: "name" }, { header: "Batch", key: "batch_number" },
- { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
- { header: "Amount", key: "amount", align: "right" },
- ],
- rows: (invItems || []).map((i: any, idx: number) => ({
- idx: idx + 1, name: i.products?.name || "Item", batch_number: i.batch_number || "—",
- quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
- })),
- totals: [
- { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
- { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
- { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
- ],
- settings, template: getTemplate("sales_invoice"),
- });
- setPdfHtml(html); setPdfTitle(`Sales Invoice — ${inv.invoice_number}`); setPdfOpen(true);
- }
+ const buildSalesInvoiceHtml = async (order: SalesOrder): Promise<string> => {
+   if (!order.converted_invoice_id) return "";
+   const { data: inv } = await supabase.from("sales_invoices").select("*, customers(name, address, phone, area)").eq("id", order.converted_invoice_id).single();
+   const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", order.converted_invoice_id);
+   if (!inv) return "";
+   return generatePdfHtml({
+     title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
+     partyLabel: "Customer",
+     partyName: (inv.customers as any)?.name || "—",
+     partyAddress: (inv.customers as any)?.address || undefined,
+     partyPhone: (inv.customers as any)?.phone || undefined,
+     partyArea: (inv.customers as any)?.area || undefined,
+     columns: [
+       { header: "#", key: "idx" },
+       { header: "Product", key: "name" },
+       { header: "Batch #", key: "batch_number" },
+       { header: "Expiry", key: "expiry_date" },
+       { header: "Qty", key: "quantity", align: "right" },
+       { header: "Rate", key: "rate", align: "right" },
+       { header: "Amount", key: "amount", align: "right" },
+     ],
+     rows: (invItems || []).map((i: any, idx: number) => ({
+       idx: idx + 1, name: i.products?.name || "Item",
+       batch_number: i.batch_number || "—",
+       expiry_date: i.expiry_date || "—",
+       quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+     })),
+     totals: [
+       { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
+       { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
+       { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
+     ],
+     settings, template: getTemplate("sales_invoice"),
+   });
  };
+ const printInvoice = async (order: SalesOrder) => { await openPreview(order, "sales_invoice"); };
 
  // ── DELIVERY NOTE PDF ──
- const printDeliveryNote = async (order: SalesOrder) => {
- const invoiceId = order.converted_invoice_id;
- if (!invoiceId) return;
- const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", invoiceId).single();
- if (!dn) { toast.error("Delivery note not found"); return; }
- const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
- const custName = (order.customers as any)?.name || "—";
- const custAddress = (order.customers as any)?.address || undefined;
- const custPhone = (order.customers as any)?.phone || undefined;
- const custArea = (order.customers as any)?.area || undefined;
- const html = generatePdfHtml({
- title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
- partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
- columns: [
- { header: "#", key: "idx" },
- { header: "Product", key: "product_name" },
- { header: "Batch #", key: "batch_number" },
- { header: "Expiry", key: "expiry_date" },
- { header: "Qty", key: "quantity", align: "right" },
- ],
- rows: dnItems.map((i: any, idx: number) => ({
- idx: idx + 1,
- product_name: i.product_name || "Item",
- batch_number: i.batch_number || "—",
- expiry_date: i.expiry_date || "—",
- quantity: i.quantity,
- })),
- totals: [],
- settings, template: getTemplate("delivery_note"),
- });
- setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
+ const buildDeliveryNoteHtml = async (order: SalesOrder): Promise<string> => {
+   const invoiceId = order.converted_invoice_id;
+   if (!invoiceId) return "";
+   const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", invoiceId).maybeSingle();
+   if (!dn) return "";
+   const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
+   const custName = (order.customers as any)?.name || "—";
+   const custAddress = (order.customers as any)?.address || undefined;
+   const custPhone = (order.customers as any)?.phone || undefined;
+   const custArea = (order.customers as any)?.area || undefined;
+   return generatePdfHtml({
+     title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
+     partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
+     columns: [
+       { header: "#", key: "idx" },
+       { header: "Product", key: "product_name" },
+       { header: "Batch #", key: "batch_number" },
+       { header: "Expiry", key: "expiry_date" },
+       { header: "Qty", key: "quantity", align: "right" },
+     ],
+     rows: dnItems.map((i: any, idx: number) => ({
+       idx: idx + 1,
+       product_name: i.product_name || "Item",
+       batch_number: i.batch_number || "—",
+       expiry_date: i.expiry_date || "—",
+       quantity: i.quantity,
+     })),
+     totals: [],
+     settings, template: getTemplate("delivery_note"),
+   });
  };
+ const printDeliveryNote = async (order: SalesOrder) => { await openPreview(order, "delivery_note"); };
 
  // ── SUBMIT (Convert to Invoice) ──
  const openSubmitDialog = async (order: SalesOrder) => {
