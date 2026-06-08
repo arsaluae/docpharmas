@@ -27,12 +27,12 @@ interface Supplier {
  id: string; name: string; company: string | null; ntn: string | null; strn: string | null;
  phone: string | null; email: string | null; address: string | null; city: string | null; area: string | null;
  payment_terms_days: number; wht_rate: number; opening_balance: number; balance: number; created_at: string;
- supplier_code: string | null; license_number: string | null; is_active: boolean;
+ supplier_code: string | null; license_number: string | null; license_expiry_date: string | null; is_active: boolean;
 }
 
 const emptyForm = {
  name: "", company: "", ntn: "", strn: "", phone: "", email: "", address: "", city: "", area: "",
- payment_terms_days: "30", wht_rate: "4.5", opening_balance: "0", license_number: "",
+ payment_terms_days: "30", wht_rate: "4.5", opening_balance: "0", license_number: "", license_expiry_date: "",
 };
 
 export default function Suppliers() {
