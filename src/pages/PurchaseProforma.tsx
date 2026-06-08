@@ -1066,40 +1066,6 @@ export default function PurchaseProforma() {
  </p>
 
  <Separator className="my-3" />
- <div>
- <Label className="text-sm font-semibold">Additional Costs</Label>
- {costs.map((c, idx) => (
- <div key={idx} className="flex items-center gap-2 mb-1 text-xs mt-1">
- <Badge variant="outline" className="capitalize text-[10px]">{c.cost_type}</Badge>
- <span className="flex-1 text-muted-foreground">{c.description}</span>
- <span className="font-mono">PKR {Number(c.amount).toLocaleString()}</span>
- <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCosts(costs.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button>
- </div>
- ))}
- <div className="grid grid-cols-12 gap-2 mt-2 items-end">
- <div className="col-span-2">
- <Select value={costType} onValueChange={setCostType}>
- <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
- <SelectContent>
- <SelectItem value="packaging">Packaging</SelectItem>
- <SelectItem value="printing">Printing</SelectItem>
- <SelectItem value="freight">Freight / Transport</SelectItem>
- <SelectItem value="clearing">Clearing / Customs</SelectItem>
- <SelectItem value="insurance">Insurance</SelectItem>
- <SelectItem value="storage">Storage / Cold-chain</SelectItem>
- <SelectItem value="registration">DRAP Registration</SelectItem>
- <SelectItem value="testing">QC / Lab Testing</SelectItem>
- <SelectItem value="other">Other</SelectItem>
- </SelectContent>
- </Select>
- </div>
- <div className="col-span-3"><Input className="text-xs" placeholder="Description" value={costDesc} onChange={e => setCostDesc(e.target.value)} /></div>
- <div className="col-span-2"><Input className="text-xs" type="number" placeholder="Amount" value={costAmount} onChange={e => setCostAmount(e.target.value)} /></div>
- <div className="col-span-3"><SearchableSelect options={supplierOptions} value={costVendorId} onChange={setCostVendorId} placeholder="Vendor" triggerClassName="text-xs h-9" /></div>
- <div className="col-span-2"><Button variant="outline" size="sm" onClick={addCostLine} className="text-xs w-full">+ Add</Button></div>
- </div>
- </div>
- <Separator className="my-3" />
  <div className="space-y-1.5 text-sm">
  <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
  {settings?.gst_enabled && <div className="flex justify-between text-muted-foreground"><span>GST</span><span className="font-mono">{gst.toLocaleString()}</span></div>}
