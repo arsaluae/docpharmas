@@ -1453,7 +1453,7 @@ export default function ProformaInvoices() {
  </AlertDialogContent>
  </AlertDialog>
 
- <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+ <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} views={pdfViews} defaultView={pdfDefaultView} />
 
  {/* ═══ POST-SUBMIT DOCUMENT CHOICE ═══ */}
  <Dialog open={postSubmitOpen} onOpenChange={setPostSubmitOpen}>
