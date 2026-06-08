@@ -26,7 +26,7 @@ import { generatePdfHtml } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { PrintAvailabilityPanel } from "@/components/PrintAvailabilityPanel";
+// PrintAvailabilityPanel intentionally not rendered during PO/PI creation — printing is optional and managed later from the PO/PI detail screens.
 import { QuickCreateProductDialog } from "@/components/QuickCreateProductDialog";
 
 
