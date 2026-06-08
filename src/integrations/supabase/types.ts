@@ -2323,7 +2323,9 @@ export type Database = {
       purchase_order_items: {
         Row: {
           amount: number
+          batch_number: string | null
           description: string | null
+          expiry_date: string | null
           id: string
           po_id: string
           product_id: string | null
@@ -2334,7 +2336,9 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          batch_number?: string | null
           description?: string | null
+          expiry_date?: string | null
           id?: string
           po_id: string
           product_id?: string | null
@@ -2345,7 +2349,9 @@ export type Database = {
         }
         Update: {
           amount?: number
+          batch_number?: string | null
           description?: string | null
+          expiry_date?: string | null
           id?: string
           po_id?: string
           product_id?: string | null
@@ -2516,6 +2522,8 @@ export type Database = {
       purchase_proforma_items: {
         Row: {
           amount: number
+          batch_number: string | null
+          expiry_date: string | null
           id: string
           product_id: string | null
           proforma_id: string
@@ -2526,6 +2534,8 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          batch_number?: string | null
+          expiry_date?: string | null
           id?: string
           product_id?: string | null
           proforma_id: string
@@ -2536,6 +2546,8 @@ export type Database = {
         }
         Update: {
           amount?: number
+          batch_number?: string | null
+          expiry_date?: string | null
           id?: string
           product_id?: string | null
           proforma_id?: string
@@ -3510,6 +3522,7 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          license_expiry_date: string | null
           license_number: string | null
           name: string
           ntn: string | null
@@ -3532,6 +3545,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          license_expiry_date?: string | null
           license_number?: string | null
           name: string
           ntn?: string | null
@@ -3554,6 +3568,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          license_expiry_date?: string | null
           license_number?: string | null
           name?: string
           ntn?: string | null
