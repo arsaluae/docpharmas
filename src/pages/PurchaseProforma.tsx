@@ -1489,6 +1489,12 @@ export default function PurchaseProforma() {
  )}
  </DialogContent>
  </Dialog>
+
+ <QuickCreateProductDialog
+   open={quickProductOpen}
+   onOpenChange={setQuickProductOpen}
+   onCreated={handleQuickProductCreated}
+ />
  </AppLayout>
  );
 }
