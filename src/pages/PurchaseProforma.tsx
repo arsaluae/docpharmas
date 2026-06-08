@@ -1012,8 +1012,18 @@ export default function PurchaseProforma() {
  {showAllProducts ? "Filter to supplier" : "Show all products"}
  </Button>
  )}
+ <Button variant="ghost" size="sm" onClick={() => openQuickAddProduct("create", null)} className="gap-1 text-xs text-primary hover:text-primary"><Plus className="h-3 w-3" /> New Product</Button>
  <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
  </div>
+ </div>
+ {/* Column headers */}
+ <div className="grid grid-cols-12 gap-2 mb-2 pb-1 border-b border-border/60 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+   <div className="col-span-1">#</div>
+   <div className="col-span-4">Product</div>
+   <div className="col-span-2">Qty</div>
+   <div className="col-span-2">Rate</div>
+   <div className="col-span-2 text-right">Amount</div>
+   <div className="col-span-1"></div>
  </div>
  {items.map((item, idx) => (
  <div key={idx} className="contents">
@@ -1030,13 +1040,11 @@ export default function PurchaseProforma() {
  <div className="col-span-2 text-right text-sm font-mono pt-2 text-foreground">{item.amount.toLocaleString()}</div>
  <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></div>
  </div>
- {item.product_id && Number(item.quantity_requested) > 0 && (
- <div className="grid grid-cols-12 gap-2 mb-2">
- <PrintAvailabilityPanel productId={item.product_id} productName={item.product_name} requiredQty={Number(item.quantity_requested)} supplierId={supplierId} />
- </div>
- )}
  </div>
  ))}
+ <p className="text-[10px] text-muted-foreground mt-1">
+   Print job is optional — you can reserve printed packaging or create a print job after the order is confirmed.
+ </p>
 
  <Separator className="my-3" />
  <div>
