@@ -1384,9 +1384,18 @@ export default function PurchaseProforma() {
  const u = [...receiveItems]; u[idx].quantity_received = e.target.value; setReceiveItems(u);
  }} />
  </div>
- </div>
- </div>
- ))}
+  </div>
+  {item.product_id && receivePO && (
+    <PrintAvailabilityPanel
+      productId={item.product_id}
+      productName={item.item_name}
+      requiredQty={Number(item.quantity_received) || Number(item.quantity) || 0}
+      supplierId={receivePO.supplier_id || undefined}
+      purchaseInvoiceId={receivePO.converted_po_id || receivePO.id}
+    />
+  )}
+  </div>
+  ))}
  <Button onClick={handleReceive} disabled={receiving} className="w-full h-11 gap-2 text-sm font-semibold mt-4">
  {receiving ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
  Confirm Receipt — Create GRN + Bill
