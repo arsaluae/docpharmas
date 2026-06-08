@@ -26,7 +26,7 @@ import { generatePdfHtml } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-// PrintAvailabilityPanel intentionally not rendered during PO/PI creation — printing is optional and managed later from the PO/PI detail screens.
+import { PrintAvailabilityPanel } from "@/components/PrintAvailabilityPanel";
 import { QuickCreateProductDialog } from "@/components/QuickCreateProductDialog";
 
 
@@ -626,6 +626,13 @@ export default function PurchaseProforma() {
  const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", poId);
  const { data: poData } = await supabase.from("purchase_orders").select("*").eq("id", poId).single();
  if (!poData) return;
+ // Pull GRN items so we can show batch + expiry + actually-received quantities (if a GRN exists)
+ const { data: grns } = await supabase.from("goods_received_notes").select("id").eq("po_id", poId);
+ let grnItems: any[] = [];
+ if (grns && grns.length) {
+   const { data: gi } = await supabase.from("grn_items").select("*").in("grn_id", grns.map(g => g.id));
+   grnItems = gi || [];
+ }
  const html = generatePdfHtml({
  title: "PURCHASE INVOICE", documentNumber: order.po_number || poData.po_number, date: poData.date, statusTheme: "invoiced" as const,
  partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
@@ -633,13 +640,25 @@ export default function PurchaseProforma() {
  partyPhone: (order.suppliers as any)?.phone || undefined,
  columns: [
  { header: "#", key: "idx" }, { header: "Product", key: "name" },
- { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+ { header: "Batch #", key: "batch" }, { header: "Expiry", key: "expiry" },
+ { header: "Qty Ordered", key: "quantity", align: "right" },
+ { header: "Qty Received", key: "received", align: "right" },
+ { header: "Rate", key: "rate", align: "right" },
  { header: "Amount", key: "amount", align: "right" },
  ],
- rows: (poItems || []).map((i: any, idx: number) => ({
- idx: idx + 1, name: i.products?.name || "Item",
- quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
- })),
+ rows: (poItems || []).map((i: any, idx: number) => {
+   const matchingGrn = grnItems.filter(g => g.product_id === i.product_id);
+   const received = matchingGrn.reduce((s, g) => s + Number(g.quantity_received || 0), 0);
+   const batches = matchingGrn.map(g => g.batch_number).filter(Boolean).join(", ") || "—";
+   const expiries = matchingGrn.map(g => g.expiry_date).filter(Boolean).join(", ") || "—";
+   return {
+     idx: idx + 1, name: i.products?.name || "Item",
+     batch: batches, expiry: expiries,
+     quantity: Number(i.quantity).toLocaleString(),
+     received: received ? received.toLocaleString() : "—",
+     rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+   };
+ }),
  totals: [
  { label: "Subtotal", value: `PKR ${Number(poData.subtotal).toLocaleString()}` },
  ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(poData.gst).toLocaleString()}` }] : []),
@@ -1384,9 +1403,18 @@ export default function PurchaseProforma() {
  const u = [...receiveItems]; u[idx].quantity_received = e.target.value; setReceiveItems(u);
  }} />
  </div>
- </div>
- </div>
- ))}
+  </div>
+  {item.product_id && receivePO && (
+    <PrintAvailabilityPanel
+      productId={item.product_id}
+      productName={item.item_name}
+      requiredQty={Number(item.quantity_received) || Number(item.quantity) || 0}
+      supplierId={receivePO.supplier_id || undefined}
+      purchaseInvoiceId={receivePO.converted_po_id || receivePO.id}
+    />
+  )}
+  </div>
+  ))}
  <Button onClick={handleReceive} disabled={receiving} className="w-full h-11 gap-2 text-sm font-semibold mt-4">
  {receiving ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
  Confirm Receipt — Create GRN + Bill

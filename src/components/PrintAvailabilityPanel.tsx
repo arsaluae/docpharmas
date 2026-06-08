@@ -32,6 +32,7 @@ interface PrintJobRow {
 export function PrintAvailabilityPanel({ productId, productName, requiredQty, supplierId, purchaseInvoiceId }: Props) {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<PrintJobRow[]>([]);
+  const [dispatchedAtSupplier, setDispatchedAtSupplier] = useState(0);
   const [allocations, setAllocations] = useState<Array<{ source: string; quantity_reserved: number; quantity_consumed: number; status: string; print_job_id: string; printing_cost_per_unit: number }>>([]);
   const [loading, setLoading] = useState(false);
 
@@ -56,19 +57,35 @@ export function PrintAvailabilityPanel({ productId, productName, requiredQty, su
               .neq("status", "released")
           : Promise.resolve({ data: [] as any[] }),
       ]);
-      setJobs((jobsRes.data as any) || []);
+      const jobList = (jobsRes.data as any) || [];
+      setJobs(jobList);
       setAllocations((allocRes.data as any) || []);
+
+      // Compute dispatched-to-this-supplier from print_dispatches (multi-supplier splits)
+      if (supplierId && jobList.length) {
+        const jobIds = jobList.map((j: any) => j.id);
+        const { data: disp } = await supabase
+          .from("print_dispatches" as any)
+          .select("qty_dispatched, supplier_id")
+          .in("print_job_id", jobIds)
+          .eq("supplier_id", supplierId);
+        setDispatchedAtSupplier((disp as any[] || []).reduce((s, d) => s + Number(d.qty_dispatched), 0));
+      } else {
+        setDispatchedAtSupplier(0);
+      }
       setLoading(false);
     })();
-  }, [productId, purchaseInvoiceId]);
+  }, [productId, purchaseInvoiceId, supplierId]);
 
   if (!productId) return null;
 
-  // Already dispatched to THIS supplier (matches allotted_supplier_id) — assumed still at supplier/factory
-  const atSupplier = supplierId
+  // Already dispatched to THIS supplier — sourced from print_dispatches (multi-supplier splits).
+  // Falls back to legacy allotted_supplier_id for older jobs without dispatch rows.
+  const legacyAtSupplier = supplierId && dispatchedAtSupplier === 0
     ? jobs.filter(j => j.allotted_supplier_id === supplierId)
           .reduce((s, j) => s + Number(j.quantity_dispatched_to_supplier || 0), 0)
     : 0;
+  const atSupplier = dispatchedAtSupplier + legacyAtSupplier;
 
   // Sitting at our floor, undispatched
   const atOurFactory = jobs.reduce((s, j) => s + Number(j.quantity_at_factory || 0), 0);

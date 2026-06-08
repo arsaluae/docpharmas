@@ -1768,6 +1768,61 @@ export type Database = {
           },
         ]
       }
+      print_dispatches: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+          print_job_id: string
+          qty_dispatched: number
+          supplier_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          print_job_id: string
+          qty_dispatched: number
+          supplier_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          print_job_id?: string
+          qty_dispatched?: number
+          supplier_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_dispatches_print_job_id_fkey"
+            columns: ["print_job_id"]
+            isOneToOne: false
+            referencedRelation: "print_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_dispatches_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_dispatches_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       print_jobs: {
         Row: {
           allotted_supplier_id: string | null

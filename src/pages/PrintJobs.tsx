@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { usePagination } from "@/hooks/usePagination";
@@ -35,14 +35,21 @@ interface PrintJob {
 }
 
 
+interface DispatchRow { id: string; print_job_id: string; supplier_id: string; qty_dispatched: number; date: string; notes: string | null; }
+
 export default function PrintJobs() {
  const navigate = useNavigate();
  const [jobs, setJobs] = useState<PrintJob[]>([]);
  const [printers, setPrinters] = useState<PrinterEntity[]>([]);
  const [suppliers, setSuppliers] = useState<SupplierEntity[]>([]);
  const [products, setProducts] = useState<Product[]>([]);
+ const [dispatchesByJob, setDispatchesByJob] = useState<Record<string, DispatchRow[]>>({});
  const [search, setSearch] = useState("");
  const [tab, setTab] = useState("all");
+ const [filterSupplier, setFilterSupplier] = useState("all");
+ const [filterProduct, setFilterProduct] = useState("all");
+ const [filterPrinter, setFilterPrinter] = useState("all");
+ const [groupBy, setGroupBy] = useState<"none" | "supplier" | "product" | "printer">("none");
  const pagination = usePagination();
 
  // Create form
@@ -97,7 +104,7 @@ export default function PrintJobs() {
  const { settings } = useCompanySettings();
 
  const [searchParams, setSearchParams] = useSearchParams();
- useEffect(() => { load(); }, [pagination.page, tab]);
+ useEffect(() => { load(); }, [pagination.page, tab, filterPrinter, filterProduct]);
 
  // Prefill create dialog from URL params (?product_id=…&supplier_id=…&qty=…)
  useEffect(() => {
@@ -121,6 +128,8 @@ export default function PrintJobs() {
  const load = async () => {
  let jobQuery = supabase.from("print_jobs").select("*", { count: "exact" }).order("created_at", { ascending: false });
  if (tab !== "all") jobQuery = jobQuery.eq("status", tab);
+ if (filterPrinter !== "all") jobQuery = jobQuery.eq("printer_id", filterPrinter);
+ if (filterProduct !== "all") jobQuery = jobQuery.eq("product_id", filterProduct);
  jobQuery = jobQuery.range(pagination.from, pagination.to);
  const [j, pr, prod, sup] = await Promise.all([
  jobQuery,
@@ -133,6 +142,14 @@ export default function PrintJobs() {
  if (pr.data) { setPrinters(pr.data); const n: Record<string, string> = {}; pr.data.forEach(p => n[p.id] = p.name); setPrinterNames(n); }
  if (prod.data) { setProducts(prod.data); const n: Record<string, string> = {}; prod.data.forEach(p => n[p.id] = p.name); setProductNames(n); }
  if (sup.data) { setSuppliers(sup.data); const n: Record<string, string> = {}; sup.data.forEach(s => n[s.id] = s.name); setSupplierNames(n); }
+ // Load dispatches for visible jobs
+ const ids = (j.data || []).map((x: any) => x.id);
+ if (ids.length) {
+   const { data: disp } = await supabase.from("print_dispatches" as any).select("*").in("print_job_id", ids);
+   const grouped: Record<string, DispatchRow[]> = {};
+   (disp as any[] || []).forEach(d => { (grouped[d.print_job_id] = grouped[d.print_job_id] || []).push(d); });
+   setDispatchesByJob(grouped);
+ } else { setDispatchesByJob({}); }
  };
 
 
@@ -159,16 +176,20 @@ export default function PrintJobs() {
  const qty = Number(dispatchQty);
  const supId = dispatchSupplierId || dispatchJob.allotted_supplier_id;
  if (!qty || qty <= 0) { toast.error("Quantity required"); return; }
- if (qty > Number(dispatchJob.quantity_at_factory)) { toast.error(`Only ${dispatchJob.quantity_at_factory} at factory`); return; }
  if (!supId) { toast.error("Select a supplier"); return; }
+ if (qty > Number(dispatchJob.quantity_at_factory)) { toast.error(`Only ${dispatchJob.quantity_at_factory} pcs available at factory`); return; }
 
- const newDispatched = Number(dispatchJob.quantity_dispatched_to_supplier) + qty;
- const { error } = await supabase.from("print_jobs").update({
- quantity_dispatched_to_supplier: newDispatched,
- } as any).eq("id", dispatchJob.id);
- if (error) { toast.error("Failed to dispatch"); return; }
+ // Insert dispatch row (trigger updates print_jobs.quantity_dispatched_to_supplier)
+ const { error } = await supabase.from("print_dispatches" as any).insert({
+   print_job_id: dispatchJob.id,
+   supplier_id: supId,
+   qty_dispatched: qty,
+   date: dispatchDate,
+   notes: dispatchNote || null,
+ } as any);
+ if (error) { toast.error("Failed to dispatch: " + error.message); return; }
 
- // Record stock movement out from factory (logical move — printed packaging leaves our floor)
+ // Optional stock movement record (logical move)
  if (dispatchJob.product_id) {
  await supabase.from("stock_movements").insert({
  product_id: dispatchJob.product_id,
@@ -181,8 +202,17 @@ export default function PrintJobs() {
  } as any);
  }
 
- toast.success(`${qty.toLocaleString()} pcs dispatched`);
- setDispatchJob(null); setDispatchQty(""); setDispatchSupplierId(""); setDispatchNote(""); load();
+ // Auto-promote draft → dispatched
+ if (dispatchJob.status === "draft") {
+   await supabase.from("print_jobs").update({ status: "dispatched" } as any).eq("id", dispatchJob.id);
+ }
+
+ toast.success(`${qty.toLocaleString()} pcs dispatched to ${supplierNames[supId] || "supplier"}`);
+ setDispatchQty(""); setDispatchNote("");
+ // Keep dialog open so user can add another supplier split
+ await load();
+ const refreshed = await supabase.from("print_jobs").select("*").eq("id", dispatchJob.id).single();
+ if (refreshed.data) setDispatchJob(refreshed.data as any);
  };
 
 
@@ -190,12 +220,15 @@ export default function PrintJobs() {
  if (!deliverJob) return;
  const delivered = Number(qtyDelivered);
  const rejected = Number(qtyRejected);
- if (delivered <= 0 || delivered + rejected > deliverJob.quantity_ordered) {
- toast.error("Invalid delivery quantities"); return;
+ if (delivered <= 0) { toast.error("Delivered quantity required"); return; }
+ // Note: over-delivery (delivered > ordered) IS allowed — printer may send more
+ const overByPct = ((delivered + rejected) - deliverJob.quantity_ordered) / Math.max(deliverJob.quantity_ordered, 1) * 100;
+ if (overByPct > 20) {
+   if (!confirm(`Delivery (${(delivered + rejected).toLocaleString()}) exceeds order (${deliverJob.quantity_ordered.toLocaleString()}) by ${overByPct.toFixed(1)}%. Record anyway?`)) return;
  }
  const { error } = await supabase.from("print_jobs").update({
  quantity_delivered: delivered, quantity_rejected: rejected,
- rejection_reason: rejectionReason || null, status: "delivered",
+ rejection_reason: rejectionReason || null, status: "dispatched",
  }).eq("id", deliverJob.id);
  if (error) { toast.error("Failed to update job"); return; }
  // Add delivered goods to inventory as stock movement
@@ -289,8 +322,28 @@ export default function PrintJobs() {
  const matchSearch = j.job_number.toLowerCase().includes(search.toLowerCase()) ||
  (printerNames[j.printer_id || ""] || "").toLowerCase().includes(search.toLowerCase()) ||
  (productNames[j.product_id || ""] || "").toLowerCase().includes(search.toLowerCase());
- return matchSearch;
+ if (!matchSearch) return false;
+ if (filterSupplier !== "all") {
+   const disp = dispatchesByJob[j.id] || [];
+   const hasSupplier = j.allotted_supplier_id === filterSupplier || disp.some(d => d.supplier_id === filterSupplier);
+   if (!hasSupplier) return false;
+ }
+ return true;
  });
+
+ // Group rows for display
+ const grouped: { key: string; label: string; rows: PrintJob[] }[] = (() => {
+   if (groupBy === "none") return [{ key: "all", label: "", rows: filtered }];
+   const acc: Record<string, PrintJob[]> = {};
+   filtered.forEach(j => {
+     let k = "—";
+     if (groupBy === "printer") k = printerNames[j.printer_id || ""] || "—";
+     else if (groupBy === "product") k = productNames[j.product_id || ""] || "—";
+     else if (groupBy === "supplier") k = supplierNames[j.allotted_supplier_id || ""] || "Unallotted";
+     (acc[k] = acc[k] || []).push(j);
+   });
+   return Object.entries(acc).sort((a, b) => a[0].localeCompare(b[0])).map(([label, rows]) => ({ key: label, label, rows }));
+ })();
 
  const totalJobsValue = jobs.reduce((s, j) => s + Number(j.total_cost), 0);
  const pendingSettlement = jobs.filter(j => j.status === "delivered").length;
@@ -312,8 +365,8 @@ export default function PrintJobs() {
 
  const statusBadge = (status: string) => {
  if (status === "draft") return <Badge variant="secondary" className="bg-muted text-muted-foreground">Draft</Badge>;
- if (status === "delivered") return <Badge className="bg-warning/15 text-warning border-warning/30">Delivered</Badge>;
- return <Badge className="bg-primary/15 text-primary border-primary/30">Settled</Badge>;
+ if (status === "settled") return <Badge className="bg-primary/15 text-primary border-primary/30">Settled</Badge>;
+ return <Badge className="bg-success/15 text-success border-success/30">Dispatched</Badge>;
  };
 
  const headerActions = (
@@ -383,8 +436,8 @@ export default function PrintJobs() {
  )}
 
 
- <div className="flex items-center gap-4">
- <div className="relative max-w-sm flex-1">
+ <div className="flex flex-wrap items-center gap-3">
+ <div className="relative max-w-sm flex-1 min-w-[200px]">
  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
  <Input placeholder="Search jobs..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
  </div>
@@ -392,10 +445,32 @@ export default function PrintJobs() {
  <TabsList>
  <TabsTrigger value="all">All</TabsTrigger>
  <TabsTrigger value="draft">Draft</TabsTrigger>
- <TabsTrigger value="delivered">Delivered</TabsTrigger>
+ <TabsTrigger value="dispatched">Dispatched</TabsTrigger>
  <TabsTrigger value="settled">Settled</TabsTrigger>
  </TabsList>
  </Tabs>
+ </div>
+ <div className="flex flex-wrap items-center gap-2 text-xs">
+   <span className="text-muted-foreground">Filter:</span>
+   <select value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)} className="h-8 rounded-md border border-border bg-background px-2">
+     <option value="all">All Suppliers</option>
+     {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+   </select>
+   <select value={filterProduct} onChange={e => setFilterProduct(e.target.value)} className="h-8 rounded-md border border-border bg-background px-2">
+     <option value="all">All Products</option>
+     {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+   </select>
+   <select value={filterPrinter} onChange={e => setFilterPrinter(e.target.value)} className="h-8 rounded-md border border-border bg-background px-2">
+     <option value="all">All Printers</option>
+     {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+   </select>
+   <span className="text-muted-foreground ml-2">Group by:</span>
+   <select value={groupBy} onChange={e => setGroupBy(e.target.value as any)} className="h-8 rounded-md border border-border bg-background px-2">
+     <option value="none">None</option>
+     <option value="supplier">Supplier</option>
+     <option value="product">Product</option>
+     <option value="printer">Printer</option>
+   </select>
  </div>
 
  <Card className="glass-card">
@@ -411,82 +486,90 @@ export default function PrintJobs() {
  <TableHead className="text-right">Total Cost</TableHead><TableHead className="text-center w-40">Actions</TableHead>
  </TableRow>
  </TableHeader>
- <TableBody>
- {filtered.length === 0 ? (
- <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground"><ClipboardCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No print jobs yet.</TableCell></TableRow>
- ) : filtered.map(j => (
- <TableRow key={j.id}>
- <TableCell className="font-medium font-mono">{j.job_number}</TableCell>
- <TableCell>{printerNames[j.printer_id || ""] || "—"}</TableCell>
- <TableCell>{productNames[j.product_id || ""] || "—"}</TableCell>
- <TableCell className="text-xs text-muted-foreground">{supplierNames[j.allotted_supplier_id || ""] || "—"}</TableCell>
- <TableCell className="text-right font-mono">{Number(j.quantity_ordered).toLocaleString()}</TableCell>
- <TableCell className="text-right font-mono">{Number(j.quantity_delivered).toLocaleString()}</TableCell>
- <TableCell className={`text-right font-mono ${Number(j.quantity_at_factory) > 0 ? "text-success font-semibold" : ""}`}>{Number(j.quantity_at_factory || 0).toLocaleString()}</TableCell>
- <TableCell className={`text-right font-mono ${Number(j.quantity_rejected) > 0 ? "text-destructive font-semibold" : ""}`}>{Number(j.quantity_rejected).toLocaleString()}</TableCell>
- <TableCell>{statusBadge(j.status)}</TableCell>
- <TableCell className="text-right font-mono font-medium">PKR {Number(j.total_cost).toLocaleString()}</TableCell>
-
- <TableCell className="text-center">
- <div className="flex items-center justify-center gap-1">
- <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => previewJob(j)} title="Preview PDF">
- <Eye className="h-3.5 w-3.5" />
- </Button>
- {j.status === "draft" && (
- <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
- setDeliverJob(j);
- setQtyDelivered(String(j.quantity_ordered));
- setQtyRejected("0");
- }}>
- <Truck className="h-3 w-3 mr-1" /> Deliver
- </Button>
- )}
- {j.status === "delivered" && Number(j.quantity_rejected) > 0 && (
- <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSettleJob(j)}>
- <CheckCircle2 className="h-3 w-3 mr-1" /> Settle
- </Button>
- )}
- {j.status === "delivered" && Number(j.quantity_rejected) === 0 && (
- <Button variant="outline" size="sm" className="h-7 text-xs" onClick={async () => {
- await supabase.from("print_jobs").update({ status: "settled", printer_share_percent: 0, printer_share_amount: 0, our_share_amount: 0 }).eq("id", j.id);
- // Auto-sync: create landed cost record
- if (j.product_id) {
- await supabase.from("additional_costs").insert({
- reference_type: "print_job", reference_id: j.id,
- cost_type: "printing", description: `Print Job ${j.job_number} — packaging cost`,
- amount: j.total_cost, vendor_id: j.printer_id || null,
- date: new Date().toISOString().split("T")[0],
- });
- }
- toast.success("Job settled (no rejections)"); load();
- }}>
- <CheckCircle2 className="h-3 w-3 mr-1" /> Settle
- </Button>
- )}
-  {Number(j.quantity_at_factory) > 0 && (
-    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
-      setDispatchJob(j);
-      setDispatchQty(String(j.quantity_at_factory));
-      setDispatchSupplierId(j.allotted_supplier_id || "");
-    }} title="Dispatch to Supplier">
-      <Send className="h-3 w-3 mr-1" /> Dispatch
-    </Button>
-  )}
-  {(j.status === "draft" || j.status === "delivered") && (
-    <Button variant="outline" size="sm" className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/5" onClick={() => { setRejectJob(j); setRejQty(""); setRejReason(""); setRejOurPct("50"); setRejEvidence(""); }} title="Record rejection">
-      <AlertTriangle className="h-3 w-3 mr-1" /> Reject
-    </Button>
-  )}
- <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(j.id)}>
- <Trash2 className="h-3.5 w-3.5" />
- </Button>
- </div>
-
- </TableCell>
- </TableRow>
- ))}
- </TableBody>
- </Table>
+  <TableBody>
+  {filtered.length === 0 ? (
+  <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground"><ClipboardCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No print jobs yet.</TableCell></TableRow>
+  ) : grouped.map(g => (
+    <React.Fragment key={`grp-${g.key}`}>
+      {groupBy !== "none" && (
+        <TableRow key={`grp-${g.key}`} className="bg-muted/30">
+          <TableCell colSpan={11} className="font-semibold text-sm">
+            {g.label} <span className="ml-2 text-xs text-muted-foreground font-normal">
+              · {g.rows.length} job{g.rows.length === 1 ? "" : "s"}
+              · Ordered {g.rows.reduce((s,r)=>s+Number(r.quantity_ordered),0).toLocaleString()}
+              · Delivered {g.rows.reduce((s,r)=>s+Number(r.quantity_delivered),0).toLocaleString()}
+              · At Factory {g.rows.reduce((s,r)=>s+Number(r.quantity_at_factory||0),0).toLocaleString()}
+              · Rejected {g.rows.reduce((s,r)=>s+Number(r.quantity_rejected),0).toLocaleString()}
+            </span>
+          </TableCell>
+        </TableRow>
+      )}
+      {g.rows.map(j => {
+        const isOverDelivered = Number(j.quantity_delivered) + Number(j.quantity_rejected) > Number(j.quantity_ordered);
+        const dispatched = dispatchesByJob[j.id] || [];
+        return (
+        <TableRow key={j.id}>
+        <TableCell className="font-medium font-mono">
+          {j.job_number}
+          {isOverDelivered && <Badge variant="secondary" className="ml-2 bg-warning/15 text-warning border-warning/30 text-[10px]">Over</Badge>}
+        </TableCell>
+        <TableCell>{printerNames[j.printer_id || ""] || "—"}</TableCell>
+        <TableCell>{productNames[j.product_id || ""] || "—"}</TableCell>
+        <TableCell className="text-xs text-muted-foreground">
+          {dispatched.length > 0 ? (
+            <div className="space-y-0.5">
+              {dispatched.map(d => (
+                <div key={d.id}>{supplierNames[d.supplier_id] || "—"}: <span className="font-mono text-foreground">{Number(d.qty_dispatched).toLocaleString()}</span></div>
+              ))}
+            </div>
+          ) : (supplierNames[j.allotted_supplier_id || ""] || "—")}
+        </TableCell>
+        <TableCell className="text-right font-mono">{Number(j.quantity_ordered).toLocaleString()}</TableCell>
+        <TableCell className="text-right font-mono">{Number(j.quantity_delivered).toLocaleString()}</TableCell>
+        <TableCell className={`text-right font-mono ${Number(j.quantity_at_factory) > 0 ? "text-success font-semibold" : ""}`}>{Number(j.quantity_at_factory || 0).toLocaleString()}</TableCell>
+        <TableCell className={`text-right font-mono ${Number(j.quantity_rejected) > 0 ? "text-destructive font-semibold" : ""}`}>{Number(j.quantity_rejected).toLocaleString()}</TableCell>
+        <TableCell>{statusBadge(j.status)}</TableCell>
+        <TableCell className="text-right font-mono font-medium">PKR {Number(j.total_cost).toLocaleString()}</TableCell>
+        <TableCell className="text-center">
+        <div className="flex items-center justify-center gap-1 flex-wrap">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => previewJob(j)} title="Preview PDF">
+        <Eye className="h-3.5 w-3.5" />
+        </Button>
+        {j.status !== "settled" && (
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
+        setDeliverJob(j);
+        setQtyDelivered(String(j.quantity_ordered));
+        setQtyRejected("0");
+        }}>
+        <Truck className="h-3 w-3 mr-1" /> Receive
+        </Button>
+        )}
+        {Number(j.quantity_at_factory) > 0 && (
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
+            setDispatchJob(j);
+            setDispatchQty(String(j.quantity_at_factory));
+            setDispatchSupplierId(j.allotted_supplier_id || "");
+          }} title="Dispatch to Supplier">
+            <Send className="h-3 w-3 mr-1" /> Dispatch
+          </Button>
+        )}
+        {Number(j.quantity_delivered) > 0 && (
+          <Button variant="outline" size="sm" className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/5" onClick={() => { setRejectJob(j); setRejQty(""); setRejReason(""); setRejOurPct("50"); setRejEvidence(""); }} title="Record rejection (any status)">
+            <AlertTriangle className="h-3 w-3 mr-1" /> Reject
+          </Button>
+        )}
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(j.id)}>
+        <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+        </div>
+        </TableCell>
+        </TableRow>
+        );
+      })}
+    </React.Fragment>
+  ))}
+  </TableBody>
+  </Table>
  <PaginationControls
  page={pagination.page} totalPages={pagination.totalPages} totalCount={pagination.totalCount}
  hasNext={pagination.hasNext} hasPrev={pagination.hasPrev}
@@ -576,6 +659,27 @@ export default function PrintJobs() {
  <p className="text-muted-foreground">At Factory: <span className="font-mono font-semibold text-success">{Number(dispatchJob.quantity_at_factory || 0).toLocaleString()} pcs</span></p>
  <p className="text-muted-foreground">Already Dispatched: <span className="font-mono text-foreground">{Number(dispatchJob.quantity_dispatched_to_supplier || 0).toLocaleString()} pcs</span></p>
  </div>
+ {(dispatchesByJob[dispatchJob.id] || []).length > 0 && (
+   <div className="rounded-lg border border-border p-2 text-xs space-y-1">
+     <p className="font-medium text-foreground">Existing dispatches:</p>
+     {(dispatchesByJob[dispatchJob.id] || []).map(d => (
+       <div key={d.id} className="flex items-center justify-between text-muted-foreground">
+         <span>{supplierNames[d.supplier_id] || "—"} <span className="text-[10px]">· {d.date}</span></span>
+         <div className="flex items-center gap-2">
+           <span className="font-mono text-foreground">{Number(d.qty_dispatched).toLocaleString()}</span>
+           <button className="text-destructive hover:underline" onClick={async () => {
+             const { error } = await supabase.from("print_dispatches" as any).delete().eq("id", d.id);
+             if (error) { toast.error(error.message); return; }
+             toast.success("Dispatch reversed");
+             await load();
+             const r = await supabase.from("print_jobs").select("*").eq("id", dispatchJob.id).single();
+             if (r.data) setDispatchJob(r.data as any);
+           }}>remove</button>
+         </div>
+       </div>
+     ))}
+   </div>
+ )}
  <div>
  <Label>Supplier *</Label>
  <SearchableSelect

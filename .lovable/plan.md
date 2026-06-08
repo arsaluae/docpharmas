@@ -1,51 +1,76 @@
-# Fix: White screen after saving Purchase Invoice
+# Plan — Print Jobs Multi-Dispatch, GRN Overage, PI Items & Supplier City
 
-## Root cause
+## 1. Purchase Invoice — show full item detail
+**File:** `src/pages/PurchaseProforma.tsx` (PI detail view) and the GRN items list.
 
-`src/components/GraceDeleteButton.tsx` has an **early `return null` (line 51) placed BEFORE `useEffect` (line 53)**:
+Currently the PI list shows compressed columns. Render each line as a full row:
+**Item • Batch # • Expiry • Qty Ordered • Qty Received • Rate • Total**
+Pulled from `grn_items` joined to `purchase_invoices`. Same format used in PDF print template (`src/lib/pdf-generator.ts`) — extend the existing PI PDF section to include batch/expiry columns.
 
-```ts
-const { can, loading: rolesLoading } = useRoles();
-...
-if (rolesLoading || !allowed) return null;   // ← early return
+## 2. Supplier form — free-text city
+**File:** `src/pages/Suppliers.tsx` (and the same form in `Customers.tsx` if it shares the pattern).
 
-useEffect(() => { ... }, [approvedAt, graceHours]);  // ← hook AFTER conditional return
+Replace the constrained `CityInput`/Select with a combobox: shows the existing Pakistan cities list as suggestions but accepts any typed value and saves it directly into `suppliers.city`. No migration needed (column already free text).
+
+## 3. Print Jobs — simplified lifecycle: **draft → dispatched** only
+**File:** `src/pages/PrintJobs.tsx`, status badges, and the existing `handle_print_job_balance` trigger (no settled accounting change needed if we never call settled).
+
+- Remove the "settled" status from the create/edit UI. Status values exposed: `draft`, `dispatched`. (Keep `settled` in DB enum/string for backward compatibility but hide it.)
+- Trigger logic stays — it only fires on transition to settled, which no longer happens via UI.
+
+## 4. Print Jobs — multi-supplier dispatch (split a single job across suppliers)
+**New table:** `print_dispatches`
 ```
+id, tenant_id, print_job_id, supplier_id, qty_dispatched, date, notes, created_at
+```
+- GRANTs + RLS by `current_user_can('purchase','write/read')`.
+- Trigger `aggregate_print_dispatches`: recomputes `print_jobs.quantity_dispatched_to_supplier = SUM(qty)` on insert/update/delete.
+- `print_jobs.allotted_supplier_id` becomes optional/legacy (kept for back-compat; new records use dispatches table).
 
-When `rolesLoading` flips from `true → false`, React renders a different number of hooks than the previous render. This throws:
+**UI:** On a `draft`/`dispatched` job, a "Dispatch" dialog lets user add multiple rows: supplier + qty. Validates `SUM(dispatches) ≤ quantity_delivered`. Remaining stays "at factory" automatically because `quantity_at_factory` is generated from `delivered − dispatched_total`.
 
-> Rendered more hooks than during the previous render.
+Example: ordered 5000, delivered 5000, dispatch 2000→Supplier A, 2000→Supplier B → 1000 stays at factory/printer.
 
-The error happens inside the invoice list (e.g. after saving a Purchase Invoice the list re-renders, roles finish loading, and the whole tree crashes to a blank screen — matching the white window the user reported and the runtime error already captured in the console).
+## 5. Print Jobs — over-delivery (received > ordered)
+**File:** existing `print_deliveries` already has no upper bound — confirm by removing any UI guard in `PrintJobs.tsx` that blocks `qty_delivered > quantity_ordered`. Show a yellow "Over-delivery" pill when totals exceed ordered. `quantity_at_factory` recomputes correctly.
 
-## Fix
+## 6. Print Jobs — rejections allowed AFTER dispatch (post-settled too)
+**File:** `src/pages/PrintJobs.tsx` + `print_rejections` table (no schema change).
 
-Move all hooks above any conditional return. Reorder `GraceDeleteButton`:
+Today the rejection UI is gated by status. Allow recording rejections in any status (`draft`, `dispatched`, `settled`). Rejection still flows through `recalc_print_rejections` trigger. Add "Rejections" tab to job detail showing all rows with date / qty / reason / cost split.
 
-1. Keep `useState` calls at top.
-2. Move the `useEffect` (countdown timer) up so it runs unconditionally.
-3. Only after all hooks: compute `allowed = can(...)` and do the `if (rolesLoading || !allowed) return null` guard.
+## 7. Print Jobs list — group/filter by Supplier, Product, Printer
+**File:** `src/pages/PrintJobs.tsx`.
 
-No logic change — just reordering. Timer is harmless even when the button won't render (it still cleans up via the effect return).
+Add three filter dropdowns at the top (Supplier, Product, Printer) and a "Group by" toggle (None / Supplier / Product / Printer). Server-side `.eq()` filters; grouping is client-side aggregation showing subtotals (ordered, delivered, dispatched, at-factory, rejected) per group.
 
-## Audit pass (same bug class)
+## 8. Purchase Invoice — "Printing already available" hint per line
+**File:** `src/components/PrintAvailabilityPanel.tsx` (already exists, partially built).
 
-Scan other components for the pattern "hook → early return → hook" introduced by the recent RBAC integration:
+Re-enable this panel on the **Purchase Invoice line editor** (not on the PO). For each product row it queries `print_jobs` + new `print_dispatches`:
+- "At Supplier X: 2,500 pcs" (sum of dispatches to that supplier, minus consumed)
+- "At Our Factory: N pcs"
+- "In Progress: N pcs"
+- Shortfall warning + "Create Print Job" shortcut.
 
-- `src/components/VoidDocumentButton.tsx` — verify `useRoles()` guard sits above all `useState/useEffect`. If not, apply the same reorder.
-- `src/components/RequireCap.tsx` — confirm hooks are unconditional (route-level guard, likely already fine).
-- Any other component that started calling `useRoles()` in the recent RBAC rollout.
+Wired into the PI item row so when a user enters Mikson Supplier + Product, they immediately see "2,500 already printed and at Mikson — use these first".
 
-Only files with the hook-order issue will be edited.
+---
 
-## Files to change
+## Technical summary
+**DB migrations**
+1. `CREATE TABLE public.print_dispatches` + GRANTs + RLS + trigger to roll up `quantity_dispatched_to_supplier`.
+2. Trigger to **release** a dispatch row when the linked GRN consumes it (extends `consume_print_allocations_on_grn` to also match dispatched rows by supplier).
 
-- `src/components/GraceDeleteButton.tsx` — reorder hooks above the early return.
-- `src/components/VoidDocumentButton.tsx` — same reorder if needed (verify on read).
+**Frontend**
+- `PrintJobs.tsx`: lifecycle simplification, multi-dispatch dialog, over-delivery handling, rejection-anytime, filters & grouping.
+- `PurchaseProforma.tsx` (PI section): expanded item columns, embed `PrintAvailabilityPanel` on item rows.
+- `Suppliers.tsx`: free-text city combobox.
+- `pdf-generator.ts`: PI template columns (batch/expiry).
 
-No DB, RLS, or business-logic changes.
+**No business-logic regression**: existing triggers (`aggregate_print_deliveries`, `recalc_print_rejections`, `consume_print_allocations_on_grn`, `handle_print_job_balance`) all continue to work; new `print_dispatches` is additive.
 
-## Verification
-
-- Re-open the Purchase Invoices page after saving an invoice; list should render normally with no blank screen.
-- Console should no longer show "Rendered more hooks than during the previous render".
+## Out of scope (not touching this round)
+- Auto-creating debit notes for rejections (stays manual via existing flow).
+- Changing PO/PI numbering or RBAC rules.
+- Reworking landed-cost allocation.
