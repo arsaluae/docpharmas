@@ -236,6 +236,37 @@ export default function PurchaseProforma() {
  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity_requested: 1, rate: 0, amount: 0 }]);
  useEffect(() => { if (createOpen && items.length === 0) addItem(); }, [createOpen]);
 
+ // Open Quick Add Product dialog scoped to a row (or appended as a new row)
+ const openQuickAddProduct = (scope: "create" | "edit", idx: number | null) => {
+   setQuickProductTarget({ scope, idx });
+   setQuickProductOpen(true);
+ };
+
+ // Called by QuickCreateProductDialog once the product is saved
+ const handleQuickProductCreated = async (p: { id: string; name: string; cost_price: number }) => {
+   // Refresh products list so the picker can find it
+   const { data: prod } = await supabase.from("products").select("id, name, cost_price").eq("is_active", true);
+   if (prod) setProducts(prod as any);
+   const { scope, idx } = quickProductTarget;
+   if (scope === "create") {
+     if (idx === null) {
+       setItems(prev => [...prev, { product_id: p.id, product_name: p.name, quantity_requested: 1, rate: Number(p.cost_price), amount: Number(p.cost_price) }]);
+     } else {
+       const u = [...items];
+       u[idx] = { ...u[idx], product_id: p.id, product_name: p.name, rate: Number(p.cost_price), amount: Number(u[idx].quantity_requested) * Number(p.cost_price) };
+       setItems(u);
+     }
+   } else {
+     if (idx === null) {
+       setEditItems(prev => [...prev, { product_id: p.id, product_name: p.name, quantity_requested: 1, rate: Number(p.cost_price), amount: Number(p.cost_price) }]);
+     } else {
+       const u = [...editItems];
+       u[idx] = { ...u[idx], product_id: p.id, product_name: p.name, rate: Number(p.cost_price), amount: Number(u[idx].quantity_requested) * Number(p.cost_price) };
+       setEditItems(u);
+     }
+   }
+ };
+
  const lookupLastSupplierPrice = async (productId: string, supId: string): Promise<number | null> => {
  if (!productId || !supId) return null;
  const { data } = await supabase.from("purchase_proforma_items")
