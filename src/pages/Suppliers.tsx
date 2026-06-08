@@ -262,7 +262,15 @@ export default function Suppliers() {
  <TableCell className="font-medium">{s.name}</TableCell>
  <TableCell>{s.company || "—"}</TableCell>
  <TableCell>{s.city || "—"}</TableCell>
- <TableCell className="text-xs">{s.license_number || "—"}</TableCell>
+ <TableCell className="text-xs">
+   {s.license_number || "—"}
+   {s.license_expiry_date && (() => {
+     const daysLeft = Math.floor((new Date(s.license_expiry_date).getTime() - Date.now()) / 86400000);
+     if (daysLeft < 0) return <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-destructive/15 text-destructive">EXPIRED</span>;
+     if (daysLeft <= 30) return <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-warning/15 text-warning">{daysLeft}d</span>;
+     return null;
+   })()}
+ </TableCell>
  {settings?.wht_enabled && <TableCell><span className="status-pill bg-warning/10 text-warning">{s.wht_rate}%</span></TableCell>}
  <TableCell className="text-right font-mono">{Number(s.balance).toLocaleString()}</TableCell>
  <TableCell className="text-muted-foreground">
