@@ -322,8 +322,28 @@ export default function PrintJobs() {
  const matchSearch = j.job_number.toLowerCase().includes(search.toLowerCase()) ||
  (printerNames[j.printer_id || ""] || "").toLowerCase().includes(search.toLowerCase()) ||
  (productNames[j.product_id || ""] || "").toLowerCase().includes(search.toLowerCase());
- return matchSearch;
+ if (!matchSearch) return false;
+ if (filterSupplier !== "all") {
+   const disp = dispatchesByJob[j.id] || [];
+   const hasSupplier = j.allotted_supplier_id === filterSupplier || disp.some(d => d.supplier_id === filterSupplier);
+   if (!hasSupplier) return false;
+ }
+ return true;
  });
+
+ // Group rows for display
+ const grouped: { key: string; label: string; rows: PrintJob[] }[] = (() => {
+   if (groupBy === "none") return [{ key: "all", label: "", rows: filtered }];
+   const acc: Record<string, PrintJob[]> = {};
+   filtered.forEach(j => {
+     let k = "—";
+     if (groupBy === "printer") k = printerNames[j.printer_id || ""] || "—";
+     else if (groupBy === "product") k = productNames[j.product_id || ""] || "—";
+     else if (groupBy === "supplier") k = supplierNames[j.allotted_supplier_id || ""] || "Unallotted";
+     (acc[k] = acc[k] || []).push(j);
+   });
+   return Object.entries(acc).sort((a, b) => a[0].localeCompare(b[0])).map(([label, rows]) => ({ key: label, label, rows }));
+ })();
 
  const totalJobsValue = jobs.reduce((s, j) => s + Number(j.total_cost), 0);
  const pendingSettlement = jobs.filter(j => j.status === "delivered").length;
