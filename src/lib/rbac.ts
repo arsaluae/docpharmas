@@ -49,16 +49,14 @@ const MATRIX: Record<TenantRole, Caps> = {
     reports: { read: true },
   },
   sales_agent: {
+    // Pure sales scope: own customers + sales documents only.
+    // No purchase, no inventory, no finance, no reports, no settings.
     sales: { read: true, write: true },
     master: { read: true },
-    inventory: { read: true },
-    reports: { read: true },
   },
   staff: {
     sales: { read: true, write: true },
     master: { read: true },
-    inventory: { read: true },
-    reports: { read: true },
   },
   inventory: {
     inventory: { read: true, write: true, void: true },

@@ -133,15 +133,23 @@ const App = () => (
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<Index />} />
 
-              {/* Master data — readable by most roles */}
+              {/* Master data — customers always readable; supplier/product/printer scoped tighter */}
               <Route element={<RequireCap resource="master" />}>
                 <Route path="/customers" element={<Customers />} />
                 <Route path="/customers/:id/ledger" element={<CustomerLedger />} />
+              </Route>
+              {/* Suppliers + their ledger live in the purchase scope (sales agents can't see) */}
+              <Route element={<RequireCap resource="purchase" />}>
                 <Route path="/suppliers" element={<Suppliers />} />
                 <Route path="/suppliers/:id/ledger" element={<SupplierLedger />} />
+              </Route>
+              {/* Products + printers + sales-agents admin live in inventory/finance scope */}
+              <Route element={<RequireCap resource="inventory" />}>
                 <Route path="/products" element={<Products />} />
                 <Route path="/printers" element={<Printers />} />
                 <Route path="/printers/:id/ledger" element={<PrinterLedger />} />
+              </Route>
+              <Route element={<RequireCap resource="finance" />}>
                 <Route path="/sales-agents" element={<SalesAgents />} />
               </Route>
 

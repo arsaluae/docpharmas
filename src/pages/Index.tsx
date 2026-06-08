@@ -13,8 +13,10 @@ import {
 import { WeekSalesDialog, MonthSalesDialog, GrossMarginDialog, UpcomingOrdersDialog } from "@/components/dashboard/KpiDialogs";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/hooks/useAuth";
+import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { formatDateDDMMMYYYY } from "@/lib/utils";
+import SalesAgentDashboard from "@/components/dashboard/SalesAgentDashboard";
 
 // Lazy: Recharts is ~220 KB and only needed once trend section paints.
 const PerformanceTrendChart = lazy(() => import("@/components/dashboard/PerformanceTrendChart"));
@@ -79,6 +81,11 @@ export default function Index() {
   const navigate = useNavigate();
   const { settings } = useCompanySettings();
   const { user } = useAuth();
+  const { tenantRole } = useTenant();
+
+
+
+
 
   const [weekSales, setWeekSales] = useState(0);
   const [monthSales, setMonthSales] = useState(0);
@@ -288,6 +295,11 @@ export default function Index() {
   const todayInvoices = todaySales > 0 ? 1 : 0; // placeholder; we only have totals
   const overdueCount = reorderAlerts.filter(a => a.severity === "critical").length;
   const expiringCount = expiryAlerts.critical;
+
+  // Sales agent / staff: render a stripped-down sales-only dashboard (hooks above stay called for stable order).
+  if (tenantRole === "sales_agent" || tenantRole === "staff") {
+    return <SalesAgentDashboard />;
+  }
 
   return (
     <AppLayout title="" >

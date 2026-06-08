@@ -165,16 +165,18 @@ export function AppSidebar() {
                 })}
               </SidebarMenu>
             ))}
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink to="/reports"
-                    className={`mouj-nav-row justify-center ${reportsActive ? "is-active" : ""}`}>
-                    <BarChart3 className="h-4 w-4" />
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            {can("reports", "read") && (
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/reports"
+                      className={`mouj-nav-row justify-center ${reportsActive ? "is-active" : ""}`}>
+                      <BarChart3 className="h-4 w-4" />
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            )}
           </>
         ) : (
           <>
@@ -208,20 +210,22 @@ export function AppSidebar() {
               );
             })}
 
-            <div className="mouj-divider mx-3" />
-
-            {/* Reports — single link */}
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink to="/reports"
-                    className={`mouj-nav-row ${reportsActive ? "is-active" : ""}`}>
-                    <BarChart3 className="h-4 w-4 shrink-0" />
-                    <span>Reports</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            {can("reports", "read") && (
+              <>
+                <div className="mouj-divider mx-3" />
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <NavLink to="/reports"
+                        className={`mouj-nav-row ${reportsActive ? "is-active" : ""}`}>
+                        <BarChart3 className="h-4 w-4 shrink-0" />
+                        <span>Reports</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </>
+            )}
           </>
         )}
       </SidebarContent>

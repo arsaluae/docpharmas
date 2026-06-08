@@ -1,80 +1,86 @@
-# Fix Sales Invoice template + Ledger / Reports audit
+# Ledger redesign + Sales Agent scope lockdown
 
-## 1. Root cause: why batch & expiry don't show on Sales Invoice
+## Part A — Ledger redesign (Hero Outstanding direction)
 
-The Sales Invoice template stored in `document_templates.columns_config` does **not** include the Batch / Expiry columns:
+Apply the picked direction to all three ledgers: **CustomerLedger**, **SupplierLedger**, **PrinterLedger** (same structure, party-appropriate copy).
 
+### Structural moves (copy verbatim from selected prototype)
+1. **Hero header band** — two-column row inside a single rounded container:
+   - Left: small indigo-dot "Receivables Account" eyebrow + party name "/ Ledger" headline + meta line (city · phone · last activity).
+   - Right: "Total Outstanding" eyebrow, then `PKR` in indigo + giant tabular-nums balance (text-5xl), followed by Export CSV + WhatsApp buttons.
+2. **KPI + Aging band** (single bordered row, `grid-cols-3`):
+   - cols 1-2: 4 KPI tiles (Total Sales, Received, Returns, Credit Notes) separated by hairline `border-r`, each with a 1px progress bar showing share of total.
+   - col 3: rich Aging Distribution panel — segmented horizontal bar (0-30 / 31-60 / 61-90 / 90+) with widths proportional to bucket value, indigo for current, white/5 for empty buckets; numeric labels under each segment.
+3. **Filter strip** — pill date range (All / 30d / 90d / Year) on the left, separator, type tabs as underlined indigo on active (All, Invoices, Payments, Returns, Credit Notes, Warranty); search input on the right with `⌘F` chip.
+4. **Statement table** — sticky right "Running Balance" column with indigo tint and `border-l`; rows: date in mono, type as colored pill (indigo for invoices, emerald for payments, amber for returns, slate for opening), reference in mono. Whole row keyboard-focusable + click-to-open existing source entry (no behavior change, only styling).
+5. **Footer**: "End of statement" lockup in uppercase widest tracking.
+
+### Tokens
+Use existing semantic tokens; no inline near-black or `bg-white/5` hexes — wrap with `bg-card`, `border-border`, `text-muted-foreground`, `text-primary`, `bg-primary/10`, etc., so light + dark themes both render correctly. Geist Mono already loaded; just `font-mono tabular-nums` for numbers.
+
+### Click-through (already wired, keep and verify)
+- Sales Invoice → `/proforma?invoice=<id>` opening PDF preview directly (currently sends to `/?invoice=` — fix to land on the invoice's hub with preview auto-open).
+- Payment Received/Made → `/payments?tab=<received|made>&highlight=<id>` (already correct; add subtle row highlight on landing).
+- Sales/Purchase Return, Credit Note, Warranty Invoice → already routed; same query-param highlight pattern.
+
+Update `Payments.tsx`, `ProformaInvoices.tsx`, `SalesReturns.tsx`, `PurchaseReturns.tsx`, `WarrantyInvoices.tsx`, `CreditNotes.tsx`, `DebitNotes.tsx` to read `?highlight=<id>` and auto-open the entry's preview/dialog (most already do; complete the missing ones).
+
+## Part B — Sales Agent: pure sales-only access
+
+User's intent: **only their assigned customers' sales activity. No cost, no financial reports, no inventory, no purchase, no finance, no admin.**
+
+### RBAC matrix changes (`src/lib/rbac.ts`)
 ```
-sales_invoice → [Sr#, Product Name, Quantity, Rate, Amount, MRP Inc. Tax]
-delivery_note → [Sr#, Product Name, Batch No, Expiry, Quantity]   ← already correct
+sales_agent: {
+  sales:  { read: true, write: true },     // own customers only (RLS already enforces)
+  master: { read: true },                  // for customer pages (filtered to assigned)
+  // REMOVED: inventory, reports, purchase, finance, accounting, settings
+}
 ```
+Mirror the same trim into `staff` (the legacy alias).
 
-In `pdf-generator.ts`:
-```
-baseColumns = t?.columns_config?.length ? t.columns_config : opts.columns;
-```
-…so the saved template **overrides** the columns we pass from `buildSalesInvoiceHtml`. That's why batch/expiry never appear in the rendered Sales Invoice PDF even though we added them in code.
+### Sidebar (`AppSidebar.tsx`)
+For `sales_agent` role, render only:
+- **Dashboard** → swap to a sales-agent-specific view: their today/week/month sales, top customers, outstanding (no P&L, no purchases, no costs).
+- **Customers** (auto-filtered by `agent_customers` mapping)
+- **Sales Orders** (already filtered server-side via `is_agent_customer`)
+- **Warranty Invoices**, **Sales Returns**, **Credit Notes** (for their customers only)
+- **My Sales** report — single read-only page: invoices issued, payments received, outstanding by customer. NO costing, NO margin, NO purchase, NO P&L.
 
-### Fix
-- **Migration**: update the existing `document_templates` row for `sales_invoice` to insert `Batch No` and `Expiry` columns between Product Name and Quantity.
-  ```
-  [Sr#, Product Name, Batch No, Expiry, Quantity, Rate, Amount, MRP Inc. Tax]
-  ```
-- **Seed/default** in `useDocumentTemplates` (if it seeds new tenants) — add the same two columns so newly-created tenants get them out of the box.
-- Same review for `purchase_invoice` template — add Batch / Expiry there too so PI prints carry the captured batch.
+Hide entirely: Purchase, Inventory, Finance, Reports menu, Settings, Bank, Expenses, Salaries, Printers, Print Jobs, Landed Costs, AI Insights, Audit Log, Accounting Periods, Stock Movements.
 
-No code change needed in pdf-generator (it already resolves the `batch_number` / `expiry_date` keys via `KEY_ALIASES`).
+### Page-level guards
+Add `RequireCap` (or a new `RequireRole` excluding `sales_agent`) to:
+- `/products` — block sales_agent
+- `/stock`, `/landed-costs`, `/printers`, `/print-jobs`
+- All `/reports/*` except a new `/reports/my-sales`
+- `/payments`, `/bank`, `/expenses`, `/salaries`, `/credit-notes` (read only OK; write blocked)
+- `/purchase-*`, `/suppliers`, `/purchase-returns`
+- `/ai-insights`, `/audit-log`, `/accounting-periods`, `/system-health`
 
-## 2. Ledger audit (accounting correctness)
+### Routes already protected
+`Sales Orders`, `Warranty`, `Sales Returns`, `Customers`, `Customer Ledger` — keep, but ensure they continue to use the existing `is_agent_customer` RLS filter so agents only ever see their assigned customers.
 
-I traced every trigger that touches party / bank / stock balances. Findings:
+### Dashboard fork
+`Index.tsx` already exists for owners. Add a thin branch: if `tenantRole === 'sales_agent'`, render `<SalesAgentDashboard />` instead — KPIs: My Sales (today/week/month), My Customers count, My Outstanding receivables, recent invoices list. **Zero** purchase, cost, margin, expense, or company-wide data.
 
-### Confirmed correct
-| Flow | Trigger | Effect |
-|---|---|---|
-| Sales Invoice approve | `handle_sales_invoice_balance` | `customers.balance += total` ✓ |
-| Payment received | `handle_payment_balance` | `customers.balance -= amount`, `bank += amount` ✓ |
-| Sales Return | `handle_sales_return_balance` | `customers.balance -= total` ✓ |
-| Purchase Invoice | `handle_purchase_invoice_balance` | `suppliers.balance += total`; **handles total-change on UPDATE** so PI overage auto-recalcs supplier balance ✓ |
-| Debit Note (PI shortage) | `handle_debit_note_balance` | `suppliers.balance -= amount` ✓ |
-| Stock movement | `handle_stock_movement` + `prevent_negative_stock` | products.stock_quantity adjusted; OUT blocked if would go negative ✓ |
-| Void any doc | `void_document` | reverses balance + recomputes party / bank / stock ✓ |
+### My Sales report
+New page `src/pages/reports/MySales.tsx`:
+- Filter: month picker
+- Table: invoice #, customer, date, total, paid, outstanding, status
+- Totals row: total sales, total received, total outstanding
+- That's it. No COGS column, no margin, no profitability.
 
-### Issues to fix
-1. **Double-allocation risk on customer payments** — `handle_payment_balance` already decrements `customers.balance`, AND `handle_payment_invoice_status` calls `recalc_customer_invoice_status` which only changes invoice `status` / `amount_paid` (not balance). That's correct, but `recalc_customer_invoice_status` re-sums **all** payments for the customer; if an old payment row has `status='voided'` but the trigger doesn't filter on status when reading direct payments… it does (`COALESCE(status,'active') <> 'voided'`). ✓ Already safe.
-2. **GRN variance journal** — when we auto-create a Debit Note for shortage, we currently only update the supplier balance via trigger; we do **not** insert a `journal_entries` / `journal_lines` pair. If the user relies on COA / Trial Balance, the DN will show in supplier ledger but not in the journal. Add a `journal_entries` row (Dr Supplier, Cr Purchases) inside the DN insert path.
-3. **Purchase Invoice overage** — we bump `purchase_invoices.total`; that fires the UPDATE branch and supplier balance moves correctly, but the original journal entry for the PI (if any) is **not** patched. Add a balancing JE for the overage amount (Dr Inventory, Cr Supplier) or recreate the JE on PI update.
-4. **Stock cost snapshot** — `snapshot_sales_item_cost` only fills `unit_cost` if 0/null. If `products.cost_price` changes between PO approval and sale, COGS in reports uses the latest cost. Acceptable, but worth noting in the P&L report.
-5. **Sales Return does not return stock** — `handle_sales_return_balance` reverses balance only; stock movement must be inserted by the application (`SalesReturnDialog`). Verify the dialog still inserts a `return_in` movement; if not, add it.
-
-## 3. Reports audit
-
-I'll spot-check each report against the source of truth and fix discrepancies:
-
-| Report | Source | Check |
-|---|---|---|
-| Receivables Aging | `customers.balance` vs `sales_invoices` outstanding | Use invoice-level outstanding (`total - amount_paid`) for aging buckets, not stored balance |
-| Payables Aging | same for suppliers | same fix |
-| P&L | `sales_invoice_items.amount` & `unit_cost * qty` | Exclude voided invoices (`status <> 'voided'`) |
-| Daily Cash Position | `payments`, `expenses`, `salary_payments` | Ensure voided rows excluded |
-| Balance Sheet | `chart_of_accounts.balance` | Run `recompute_account_balance` before render |
-| Customer / Supplier Wise | invoice tables | Exclude voided |
-| Batch-wise / Expiry | `grn_items` + `stock_movements` | Verify expiry from GRN, not products |
-| Tax Compliance | `sales_invoices.gst_amount` + WHT | Exclude voided |
-
-For each report file under `src/pages/reports/`, add a `.neq("status","voided")` filter where missing and switch aging to invoice-level outstanding.
-
-## 4. Deliverables in build phase
-
-1. Migration: update `document_templates.columns_config` for `sales_invoice` and `purchase_invoice` to include Batch / Expiry.
-2. Update `useDocumentTemplates` seed defaults to match.
-3. Add JE generation when DN/CN auto-created from PI/SI variance (`supabase/migrations` — new trigger on `debit_notes` / `credit_notes` that posts to `journal_entries`).
-4. Update `ReceivablesAging.tsx` and `PayablesAging.tsx` to compute outstanding per invoice.
-5. Add `.neq("status","voided")` (or equivalent) filters across all reports under `src/pages/reports/`.
-6. Verify `SalesReturnDialog` and `PurchaseReturns` insert their stock movements; add if missing.
-7. After migration runs, call `run_reconciliation(tenant, true)` once from the app (Settings → Tools button already exists) to auto-fix any historical drift.
+## Deliverables
+1. Rewrite `CustomerLedger.tsx`, `SupplierLedger.tsx`, `PrinterLedger.tsx` to the picked prototype layout using semantic tokens.
+2. `rbac.ts` — trim `sales_agent` + `staff` matrices.
+3. `AppSidebar.tsx` — role-aware section list for sales_agent.
+4. `App.tsx` — route guards on every restricted page.
+5. New `src/components/dashboard/SalesAgentDashboard.tsx` + branch in `Index.tsx`.
+6. New `src/pages/reports/MySales.tsx` + route.
+7. Highlight handler: ensure all linked hubs auto-open the right entry when `?highlight=<id>` is present.
 
 ## Out of scope
-- Re-designing the COA itself.
-- New report screens (only fixing existing ones).
-- Changing tax rates / GST logic.
+- Changing RLS policies (existing `is_agent_customer` already correctly scopes).
+- New permissions UI in Settings → Team Members.
+- Mobile-specific ledger restyling (desktop-first; existing responsive stack still applies).
