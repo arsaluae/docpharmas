@@ -220,12 +220,15 @@ export default function PrintJobs() {
  if (!deliverJob) return;
  const delivered = Number(qtyDelivered);
  const rejected = Number(qtyRejected);
- if (delivered <= 0 || delivered + rejected > deliverJob.quantity_ordered) {
- toast.error("Invalid delivery quantities"); return;
+ if (delivered <= 0) { toast.error("Delivered quantity required"); return; }
+ // Note: over-delivery (delivered > ordered) IS allowed — printer may send more
+ const overByPct = ((delivered + rejected) - deliverJob.quantity_ordered) / Math.max(deliverJob.quantity_ordered, 1) * 100;
+ if (overByPct > 20) {
+   if (!confirm(`Delivery (${(delivered + rejected).toLocaleString()}) exceeds order (${deliverJob.quantity_ordered.toLocaleString()}) by ${overByPct.toFixed(1)}%. Record anyway?`)) return;
  }
  const { error } = await supabase.from("print_jobs").update({
  quantity_delivered: delivered, quantity_rejected: rejected,
- rejection_reason: rejectionReason || null, status: "delivered",
+ rejection_reason: rejectionReason || null, status: "dispatched",
  }).eq("id", deliverJob.id);
  if (error) { toast.error("Failed to update job"); return; }
  // Add delivered goods to inventory as stock movement
