@@ -1,65 +1,80 @@
-# Sales Flow Overhaul + Template Polish
+# Fix Sales Invoice template + Ledger / Reports audit
 
-## 1. Three-Stage Sales Templates (Draft → Invoice → Delivery Note)
+## 1. Root cause: why batch & expiry don't show on Sales Invoice
 
-**Affects:** `src/pages/ProformaInvoices.tsx`, `src/components/PdfPreviewDialog.tsx`, `src/lib/pdf-generator.ts`.
+The Sales Invoice template stored in `document_templates.columns_config` does **not** include the Batch / Expiry columns:
 
-- Add **3 colored radio pills** at the top of the PDF preview dialog when viewing any sales-order record:
-  - 🟦 **Sales Order** (draft) — header reads `SALES ORDER`, no batch/expiry, no tax column.
-  - 🟩 **Sales Invoice** (after Approve) — header reads `SALES INVOICE`, columns include **Batch #** + **Expiry** + Rate + Amount, taxes shown, hits supplier-style ledger note "Invoice generated".
-  - 🟧 **Delivery Note** — header reads `DELIVERY NOTE`, columns: Item • Batch # • Expiry • Qty (no rates), receiver signature line.
-- Clicking a pill instantly re-renders the same record with that template. Disabled pills (e.g., Invoice before Approve, DN before invoice) are greyed.
-- The currently-viewed stage syncs with the record's lifecycle state so users always see what's actually generated.
+```
+sales_invoice → [Sr#, Product Name, Quantity, Rate, Amount, MRP Inc. Tax]
+delivery_note → [Sr#, Product Name, Batch No, Expiry, Quantity]   ← already correct
+```
 
-## 2. Approve → Invoice → Delivery Note Workflow
+In `pdf-generator.ts`:
+```
+baseColumns = t?.columns_config?.length ? t.columns_config : opts.columns;
+```
+…so the saved template **overrides** the columns we pass from `buildSalesInvoiceHtml`. That's why batch/expiry never appear in the rendered Sales Invoice PDF even though we added them in code.
 
-**Affects:** `src/pages/ProformaInvoices.tsx` (Approve dialog), new mini Delivery Note dialog.
+### Fix
+- **Migration**: update the existing `document_templates` row for `sales_invoice` to insert `Batch No` and `Expiry` columns between Product Name and Quantity.
+  ```
+  [Sr#, Product Name, Batch No, Expiry, Quantity, Rate, Amount, MRP Inc. Tax]
+  ```
+- **Seed/default** in `useDocumentTemplates` (if it seeds new tenants) — add the same two columns so newly-created tenants get them out of the box.
+- Same review for `purchase_invoice` template — add Batch / Expiry there too so PI prints carry the captured batch.
 
-- When user clicks **Approve** on a draft Sales Order:
-  - Existing flow creates `sales_invoices` row + `sales_invoice_items` (triggers fire → customer balance + stock).
-  - **New: success toast offers TWO actions side by side**: `Record Payment` (current) **and `Create Delivery Note`** — clicking the latter opens the DN dialog pre-filled with all invoice lines (batch/expiry inherited).
-- Batch # and Expiry on each line are required at Approve (already collected on PI flow; mirror for SI). They are stored on `sales_invoice_items` (existing `batch_number`, `expiry_date` columns) and inherited into DN.
-- DN dialog → `delivery_notes` + `delivery_note_items` insert → `dispatched` status on invoice (existing trigger handles stock-out).
+No code change needed in pdf-generator (it already resolves the `batch_number` / `expiry_date` keys via `KEY_ALIASES`).
 
-## 3. Ledger Correctness Audit
+## 2. Ledger audit (accounting correctness)
 
-- **Sales Invoice approve** → `handle_sales_invoice_balance` trigger increases customer receivable. Verify it does NOT double-fire when DN is created.
-- **Delivery Note** must NOT touch customer balance — only stock movement (`sale_out`). Verify and fix if wrong.
-- **Payment received** → reduces customer balance via `handle_payment_balance`. Verify the new "Create DN from Approve" path doesn't skip payment-allocation logic.
-- **Sales Return** → reverses stock + reduces receivable. Confirm chain still works.
-- Add a quick read-only verification: after Approve, re-fetch `customers.balance` delta and surface a warning toast if the delta ≠ invoice total.
+I traced every trigger that touches party / bank / stock balances. Findings:
 
-## 4. Larger Logo in PDF Templates
+### Confirmed correct
+| Flow | Trigger | Effect |
+|---|---|---|
+| Sales Invoice approve | `handle_sales_invoice_balance` | `customers.balance += total` ✓ |
+| Payment received | `handle_payment_balance` | `customers.balance -= amount`, `bank += amount` ✓ |
+| Sales Return | `handle_sales_return_balance` | `customers.balance -= total` ✓ |
+| Purchase Invoice | `handle_purchase_invoice_balance` | `suppliers.balance += total`; **handles total-change on UPDATE** so PI overage auto-recalcs supplier balance ✓ |
+| Debit Note (PI shortage) | `handle_debit_note_balance` | `suppliers.balance -= amount` ✓ |
+| Stock movement | `handle_stock_movement` + `prevent_negative_stock` | products.stock_quantity adjusted; OUT blocked if would go negative ✓ |
+| Void any doc | `void_document` | reverses balance + recomputes party / bank / stock ✓ |
 
-**Affects:** `src/lib/pdf-generator.ts` line 156.
+### Issues to fix
+1. **Double-allocation risk on customer payments** — `handle_payment_balance` already decrements `customers.balance`, AND `handle_payment_invoice_status` calls `recalc_customer_invoice_status` which only changes invoice `status` / `amount_paid` (not balance). That's correct, but `recalc_customer_invoice_status` re-sums **all** payments for the customer; if an old payment row has `status='voided'` but the trigger doesn't filter on status when reading direct payments… it does (`COALESCE(status,'active') <> 'voided'`). ✓ Already safe.
+2. **GRN variance journal** — when we auto-create a Debit Note for shortage, we currently only update the supplier balance via trigger; we do **not** insert a `journal_entries` / `journal_lines` pair. If the user relies on COA / Trial Balance, the DN will show in supplier ledger but not in the journal. Add a `journal_entries` row (Dr Supplier, Cr Purchases) inside the DN insert path.
+3. **Purchase Invoice overage** — we bump `purchase_invoices.total`; that fires the UPDATE branch and supplier balance moves correctly, but the original journal entry for the PI (if any) is **not** patched. Add a balancing JE for the overage amount (Dr Inventory, Cr Supplier) or recreate the JE on PI update.
+4. **Stock cost snapshot** — `snapshot_sales_item_cost` only fills `unit_cost` if 0/null. If `products.cost_price` changes between PO approval and sale, COGS in reports uses the latest cost. Acceptable, but worth noting in the P&L report.
+5. **Sales Return does not return stock** — `handle_sales_return_balance` reverses balance only; stock movement must be inserted by the application (`SalesReturnDialog`). Verify the dialog still inserts a `return_in` movement; if not, add it.
 
-- Increase logo from `max-height:68px;max-width:180px` to `max-height:110px;max-width:260px`.
-- Adjust header row so company name + meta still sit beside the logo without wrapping. Same change applies to all doc templates (sales invoice, PI, PO, GRN, DN, payment receipt, warranty, return).
+## 3. Reports audit
 
-## 5. Remove `$` Symbol Project-wide
+I'll spot-check each report against the source of truth and fix discrepancies:
 
-**Files:** `src/pages/Index.tsx` (dashboard KPIs), `src/components/dashboard/KpiDialogs.tsx`, `src/components/dashboard/PerformanceTrendChart.tsx`, `src/pages/Payments.tsx`, `src/lib/pdf-generator.ts` (payment receipt), and any `lucide-react`'s `DollarSign` import → replace with `Wallet` or `Banknote`. Replace `$NNN` formatted strings with `PKR NNN`.
+| Report | Source | Check |
+|---|---|---|
+| Receivables Aging | `customers.balance` vs `sales_invoices` outstanding | Use invoice-level outstanding (`total - amount_paid`) for aging buckets, not stored balance |
+| Payables Aging | same for suppliers | same fix |
+| P&L | `sales_invoice_items.amount` & `unit_cost * qty` | Exclude voided invoices (`status <> 'voided'`) |
+| Daily Cash Position | `payments`, `expenses`, `salary_payments` | Ensure voided rows excluded |
+| Balance Sheet | `chart_of_accounts.balance` | Run `recompute_account_balance` before render |
+| Customer / Supplier Wise | invoice tables | Exclude voided |
+| Batch-wise / Expiry | `grn_items` + `stock_movements` | Verify expiry from GRN, not products |
+| Tax Compliance | `sales_invoices.gst_amount` + WHT | Exclude voided |
 
----
+For each report file under `src/pages/reports/`, add a `.neq("status","voided")` filter where missing and switch aging to invoice-level outstanding.
 
-## Technical Notes
+## 4. Deliverables in build phase
 
-### Template switcher implementation
-`PdfPreviewDialog` accepts `documentType` today. Extend with optional `availableViews: ('sales_order'|'sales_invoice'|'delivery_note')[]` plus `currentView` + `onViewChange`. When `documentType` is one of these three, render the pill bar; otherwise render nothing (no behavioral change for other docs).
+1. Migration: update `document_templates.columns_config` for `sales_invoice` and `purchase_invoice` to include Batch / Expiry.
+2. Update `useDocumentTemplates` seed defaults to match.
+3. Add JE generation when DN/CN auto-created from PI/SI variance (`supabase/migrations` — new trigger on `debit_notes` / `credit_notes` that posts to `journal_entries`).
+4. Update `ReceivablesAging.tsx` and `PayablesAging.tsx` to compute outstanding per invoice.
+5. Add `.neq("status","voided")` (or equivalent) filters across all reports under `src/pages/reports/`.
+6. Verify `SalesReturnDialog` and `PurchaseReturns` insert their stock movements; add if missing.
+7. After migration runs, call `run_reconciliation(tenant, true)` once from the app (Settings → Tools button already exists) to auto-fix any historical drift.
 
-The actual PDF HTML is regenerated by `generatePdfHtml(documentType=<pill>)` using the same record id. For "delivery note" view, it reads `delivery_notes` if one exists, otherwise renders a **proforma DN preview** from the invoice items.
-
-### DB
-No schema change required. `sales_invoice_items.batch_number/expiry_date` already exist; `delivery_note_items` already inherits batch/expiry.
-
-### Out of scope
-- Purchase-side flow (already done in last turn).
-- Multi-DN per invoice (single DN per invoice for now).
-- Editing template column order (use existing `document_templates` settings).
-
-### Files touched
-- `src/pages/ProformaInvoices.tsx` — Approve dialog: enforce batch/expiry; success toast: add "Create Delivery Note" action.
-- `src/components/PdfPreviewDialog.tsx` — 3-pill switcher.
-- `src/lib/pdf-generator.ts` — larger logo, `$` → `PKR`, SO/SI/DN header text + columns.
-- `src/pages/Index.tsx`, `src/pages/Payments.tsx`, `src/components/dashboard/*` — remove `$` and `DollarSign` icon.
-- Quick verification helper (inline) for ledger delta after Approve.
+## Out of scope
+- Re-designing the COA itself.
+- New report screens (only fixing existing ones).
+- Changing tax rates / GST logic.
