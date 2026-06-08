@@ -189,7 +189,7 @@ function buildPdfHtml(opts: PdfOptions): string {
   };
 
   const headerCells = columns.map((c, idx) =>
-    `<th style="padding:10px 10px;text-align:${thAlign(c)};font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:#e2e8f0;border-bottom:2px solid ${C.primary};${colMinWidth(c, idx)}">${c.header}</th>`
+    `<th class="items-th" style="padding:10px 10px;text-align:${thAlign(c)};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#ffffff;background:${C.headerBg};border-bottom:2px solid ${C.primary};-webkit-print-color-adjust:exact;print-color-adjust:exact;${colMinWidth(c, idx)}">${c.header}</th>`
   ).join("");
   const bodyRows = opts.rows.map((row, i) => {
     const bg = i % 2 === 0 ? "#ffffff" : C.rowAlt;
