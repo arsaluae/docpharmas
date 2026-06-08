@@ -1427,8 +1427,45 @@ export default function PurchaseProforma() {
     {receiving ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
     Confirm Receipt
   </Button>
- </DialogContent>
+  </DialogContent>
  </Dialog>
+
+ {/* APPROVE DIALOG — capture Batch + Expiry then create PI */}
+ <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
+   <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+     <DialogHeader><DialogTitle className="font-heading">Approve Order — Capture Batch &amp; Expiry</DialogTitle></DialogHeader>
+     <p className="text-sm text-muted-foreground mb-3">
+       Approving will create the Purchase Invoice and post to the supplier ledger. Batch numbers &amp; expiry dates are recorded here so they flow into the GRN automatically.
+     </p>
+     {approveItems.map((item, idx) => (
+       <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3 mt-3">
+         <div className="flex items-center justify-between">
+           <span className="text-sm font-semibold text-foreground">{item.product_name}</span>
+           <span className="text-xs font-mono text-muted-foreground">Qty: {item.quantity_requested} · Rate: PKR {Number(item.rate).toLocaleString()}</span>
+         </div>
+         <div className="grid grid-cols-2 gap-3">
+           <div>
+             <Label className="text-xs font-medium text-muted-foreground">Batch # *</Label>
+             <Input className="text-xs" value={item.batch_number} onChange={e => {
+               const u = [...approveItems]; u[idx].batch_number = e.target.value; setApproveItems(u);
+             }} placeholder="e.g. B240612" />
+           </div>
+           <div>
+             <Label className="text-xs font-medium text-muted-foreground">Expiry *</Label>
+             <Input type="date" className="text-xs" value={item.expiry_date} onChange={e => {
+               const u = [...approveItems]; u[idx].expiry_date = e.target.value; setApproveItems(u);
+             }} />
+           </div>
+         </div>
+       </div>
+     ))}
+     <Button onClick={submitApprove} disabled={approving} className="w-full h-11 gap-2 text-sm font-semibold mt-4">
+       {approving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
+       Approve &amp; Create Purchase Invoice
+     </Button>
+   </DialogContent>
+ </Dialog>
+
 
  {/* VOID CONFIRM */}
  <AlertDialog open={voidConfirmOpen} onOpenChange={setVoidConfirmOpen}>
