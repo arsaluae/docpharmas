@@ -717,116 +717,133 @@ export default function PurchaseProforma() {
  setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
  };
 
- // ── RECEIVE (GRN + Bill) ──
+ // ── RECEIVE (GRN only — batch/expiry inherited from PO; variance auto-adjusts) ──
  const openReceiveDialog = async (order: PurchaseOrder) => {
- const poId = order.converted_po_id || order.id;
- const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", poId);
- if (poItems) {
- setReceiveItems(poItems.map((i: any) => ({
- ...i, item_name: i.products?.name || "Item",
- batch_number: "", expiry_date: "", quantity_received: Number(i.quantity_confirmed) || Number(i.quantity),
- quantity_confirmed: Number(i.quantity_confirmed) || Number(i.quantity),
- })));
- }
- setReceivePO(order);
- setReceiveOpen(true);
+   const poId = order.converted_po_id || order.id;
+   const { data: poItems } = await supabase.from("purchase_order_items").select("*, products(name)").eq("po_id", poId);
+   if (poItems) {
+     setReceiveItems(poItems.map((i: any) => ({
+       ...i, item_name: i.products?.name || "Item",
+       batch_number: i.batch_number || "",
+       expiry_date: i.expiry_date || "",
+       quantity_received: Number(i.quantity_confirmed) || Number(i.quantity),
+       quantity_confirmed: Number(i.quantity_confirmed) || Number(i.quantity),
+     })));
+   }
+   setReceivePO(order);
+   setReceiveOpen(true);
  };
 
  const handleReceive = async () => {
- if (!receivePO) return;
- if (!receiveItems.every(i => i.batch_number)) { toast.error("Batch number required for all items"); return; }
- if (!receiveItems.every(i => i.expiry_date)) { toast.error("Expiry date required for all items"); return; }
- setReceiving(true);
+   if (!receivePO) return;
+   setReceiving(true);
 
- const poId = receivePO.converted_po_id || receivePO.id;
- const { data: grnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "grn" });
- if (!grnNumber) { toast.error("Failed to generate GRN number"); setReceiving(false); return; }
+   const poId = receivePO.converted_po_id || receivePO.id;
+   const { data: grnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "grn" });
+   if (!grnNumber) { toast.error("Failed to generate GRN number"); setReceiving(false); return; }
 
- const { data: grn } = await supabase.from("goods_received_notes").insert({
- grn_number: grnNumber, po_id: poId, supplier_id: receivePO.supplier_id,
- date: new Date().toISOString().split("T")[0], received_by: receivedBy || null, notes: receiveNotes || null,
- }).select().single();
+   const { data: grn } = await supabase.from("goods_received_notes").insert({
+     grn_number: grnNumber, po_id: poId, supplier_id: receivePO.supplier_id,
+     date: new Date().toISOString().split("T")[0], received_by: receivedBy || null, notes: receiveNotes || null,
+   }).select().single();
 
- if (grn) {
- await supabase.from("grn_items").insert(
- receiveItems.map(i => ({
- grn_id: grn.id, item_name: i.item_name, product_id: i.product_id || null,
- batch_number: i.batch_number || null,
- quantity_ordered: Number(i.quantity), quantity_received: Number(i.quantity_received),
- expiry_date: i.expiry_date || null, rate: Number(i.rate), amount: Number(i.quantity_received) * Number(i.rate),
- }))
- );
+   if (!grn) { setReceiving(false); return; }
 
- // Stock movements for received quantities (purchase_in = actual received qty, no extra adjustment)
- const varianceItems: { name: string; ordered: number; received: number; diff: number }[] = [];
- for (const item of receiveItems) {
- if (item.product_id) {
- await supabase.from("stock_movements").insert({
- product_id: item.product_id, quantity: Number(item.quantity_received),
- movement_type: "purchase_in", batch_number: item.batch_number || null,
- reference_type: "grn", reference_id: grn.id, date: grn.date, notes: `GRN ${grnNumber}`,
- });
+   // Insert grn_items (batch/expiry inherited from PO)
+   await supabase.from("grn_items").insert(
+     receiveItems.map(i => ({
+       grn_id: grn.id, item_name: i.item_name, product_id: i.product_id || null,
+       batch_number: i.batch_number || null,
+       quantity_ordered: Number(i.quantity), quantity_received: Number(i.quantity_received),
+       expiry_date: i.expiry_date || null, rate: Number(i.rate), amount: Number(i.quantity_received) * Number(i.rate),
+     }))
+   );
 
- // Track variance for reporting only (no extra stock movement — purchase_in already has correct qty)
- const ordered = Number(item.quantity_confirmed) || Number(item.quantity);
- const received = Number(item.quantity_received);
- if (ordered !== received) {
- varianceItems.push({ name: item.item_name, ordered, received, diff: received - ordered });
- }
- }
- }
+   // Stock movements at actual received qty
+   const shortages: { name: string; diff: number; rate: number }[] = [];
+   const overages: { rate: number; diff: number }[] = [];
+   for (const item of receiveItems) {
+     if (item.product_id) {
+       await supabase.from("stock_movements").insert({
+         product_id: item.product_id, quantity: Number(item.quantity_received),
+         movement_type: "purchase_in", batch_number: item.batch_number || null,
+         reference_type: "grn", reference_id: grn.id, date: grn.date, notes: `GRN ${grnNumber}`,
+       });
+     }
+     const ordered = Number(item.quantity_confirmed) || Number(item.quantity);
+     const received = Number(item.quantity_received);
+     const diff = received - ordered;
+     if (diff < 0) shortages.push({ name: item.item_name, diff, rate: Number(item.rate) });
+     else if (diff > 0) overages.push({ rate: Number(item.rate), diff });
+   }
 
- await supabase.from("purchase_orders").update({ status: "received" }).eq("id", poId);
+   await supabase.from("purchase_orders").update({ status: "received" }).eq("id", poId);
 
- // Find the bill linked to this specific PO (created at confirm stage)
- const poId2 = receivePO.converted_po_id || receivePO.id;
- // Look for bills that match this PO's supplier AND were created on the same date as the PO
- const { data: poData2 } = await supabase.from("purchase_orders").select("date, supplier_id").eq("id", poId2).single();
- const { data: existingBill } = await supabase.from("purchase_invoices")
- .select("id")
- .eq("supplier_id", poData2?.supplier_id || receivePO.supplier_id || "")
- .eq("date", poData2?.date || "")
- .is("grn_id", null)
- .limit(1);
- 
- if (existingBill && existingBill.length > 0) {
- // Link the existing bill (from confirm) to this GRN
- await supabase.from("purchase_invoices").update({ grn_id: grn.id }).eq("id", existingBill[0].id);
- toast.success(`GRN ${grnNumber} created & linked to existing bill`, {
- action: { label: "Create Print Job", onClick: () => navigate(`/print-jobs?from_grn=1`) },
- });
- } else {
- // No bill exists yet — create one now
- try {
- const { data: billNumber } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
- if (billNumber) {
- const { data: poData } = await supabase.from("purchase_orders").select("subtotal, gst, total, supplier_id").eq("id", poId).single();
- if (poData) {
- const supplier = suppliers.find(s => s.id === poData.supplier_id);
- const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
- const whtAmount = settings?.wht_enabled ? Number(poData.subtotal) * whtRate / 100 : 0;
- const netTotal = Number(poData.subtotal) + Number(poData.gst) - whtAmount;
-  await supabase.from("purchase_invoices").insert({
-  bill_number: billNumber, supplier_id: poData.supplier_id, grn_id: grn.id,
-  date: grn.date, subtotal: Number(poData.subtotal), gst: Number(poData.gst),
-  wht_amount: whtAmount, total: netTotal, status: "unpaid",
-  });
-  logAudit({ action: "invoice_generated", entity_type: "purchase_invoice", entity_number: billNumber, changes: { total: netTotal, grn_id: grn.id, supplier_id: poData.supplier_id } });
- toast.success(`GRN ${grnNumber} + Bill ${billNumber} created`, {
- action: { label: "Create Print Job", onClick: () => navigate(`/print-jobs?from_grn=1`) },
- });
- }
- }
- } catch {
- toast.success(`GRN ${grnNumber} created`);
- }
- }
+   // Link GRN to existing PI (created at Approve) and adjust totals for overage
+   const { data: existingBill } = await supabase.from("purchase_invoices")
+     .select("id, subtotal, gst, wht_amount, total, bill_number")
+     .eq("supplier_id", receivePO.supplier_id || "")
+     .is("grn_id", null)
+     .order("created_at", { ascending: false })
+     .limit(1);
 
- // Show variance summary if any
- if (varianceItems.length > 0) {
- const summary = varianceItems.map(v => `${v.name}: ordered ${v.ordered}, received ${v.received} (${v.diff > 0 ? "+" : ""}${v.diff})`).join("; ");
- toast.warning(`Stock variance detected: ${summary}`, { duration: 8000 });
- }
+   let billId: string | null = null;
+   let billNumber: string | null = null;
+
+   if (existingBill && existingBill.length > 0) {
+     billId = existingBill[0].id;
+     billNumber = existingBill[0].bill_number;
+     await supabase.from("purchase_invoices").update({ grn_id: grn.id }).eq("id", billId);
+   } else {
+     // Fallback: create bill now (no Approve step ran)
+     const { data: bn } = await supabase.rpc("generate_document_number", { p_document_type: "purchase_invoice" });
+     if (bn) {
+       const { data: poData } = await supabase.from("purchase_orders").select("subtotal, gst, total, supplier_id").eq("id", poId).single();
+       if (poData) {
+         const supplier = suppliers.find(s => s.id === poData.supplier_id);
+         const whtRate = settings?.wht_enabled && supplier ? Number(supplier.wht_rate) : 0;
+         const whtAmount = settings?.wht_enabled ? Number(poData.subtotal) * whtRate / 100 : 0;
+         const netTotal = Number(poData.subtotal) + Number(poData.gst) - whtAmount;
+         const { data: bill } = await supabase.from("purchase_invoices").insert({
+           bill_number: bn, supplier_id: poData.supplier_id, grn_id: grn.id,
+           date: grn.date, subtotal: Number(poData.subtotal), gst: Number(poData.gst),
+           wht_amount: whtAmount, total: netTotal, status: "unpaid",
+         }).select("id, subtotal, gst, wht_amount, total").single();
+         if (bill) { billId = bill.id; billNumber = bn; }
+       }
+     }
+   }
+
+   // OVERAGE: bump PI subtotal+total → supplier balance auto-increases via trigger
+   if (overages.length > 0 && billId) {
+     const overTotal = overages.reduce((s, o) => s + o.rate * o.diff, 0);
+     const { data: cur } = await supabase.from("purchase_invoices").select("subtotal, total").eq("id", billId).single();
+     if (cur) {
+       await supabase.from("purchase_invoices").update({
+         subtotal: Number(cur.subtotal) + overTotal,
+         total: Number(cur.total) + overTotal,
+       }).eq("id", billId);
+       toast.info(`Overage recorded: +PKR ${overTotal.toLocaleString()} added to bill ${billNumber}`);
+     }
+   }
+
+   // SHORTAGE: auto debit note → supplier balance auto-decreases via trigger
+   if (shortages.length > 0) {
+     const shortTotal = shortages.reduce((s, x) => s + x.rate * Math.abs(x.diff), 0);
+     const { data: dnNumber } = await supabase.rpc("generate_document_number", { p_document_type: "debit_note" });
+     if (dnNumber && receivePO.supplier_id) {
+       await supabase.from("debit_notes").insert({
+         debit_note_number: dnNumber, party_type: "supplier", party_id: receivePO.supplier_id,
+         amount: shortTotal, reason: `Short receipt vs ${billNumber || grnNumber}`,
+         reference: billNumber || grnNumber, date: grn.date,
+       });
+       toast.warning(`Shortage: Debit Note ${dnNumber} for PKR ${shortTotal.toLocaleString()} auto-issued`, { duration: 8000 });
+     }
+   }
+
+   toast.success(`GRN ${grnNumber} created`, {
+     action: { label: "Create Print Job", onClick: () => navigate(`/print-jobs?from_grn=1`) },
+   });
 
  const grnHtml = generatePdfHtml({
  title: "GOODS RECEIVED NOTE", documentNumber: grnNumber, date: grn.date, statusTheme: "received" as const,
