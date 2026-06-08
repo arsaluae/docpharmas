@@ -1,126 +1,65 @@
-# Purchase Flow Overhaul
+# Sales Flow Overhaul + Template Polish
 
-## 1. Supplier — License Expiry
-**File:** `src/pages/Suppliers.tsx`, `SupplierProfileDialog.tsx`, migration.
+## 1. Three-Stage Sales Templates (Draft → Invoice → Delivery Note)
 
-- Add column `suppliers.license_expiry_date date` (nullable).
-- Form: new date field next to "License Number".
-- List badge: red "EXPIRED" if `license_expiry_date < today`, amber "Expires in Nd" if within 30 days.
-- Add to CSV import map.
+**Affects:** `src/pages/ProformaInvoices.tsx`, `src/components/PdfPreviewDialog.tsx`, `src/lib/pdf-generator.ts`.
 
-## 2. Purchase Order — Remove "Additional Cost" column
-**File:** `src/pages/PurchaseProforma.tsx` (PO create/edit grid) + PDF template in `src/lib/pdf-generator.ts`.
+- Add **3 colored radio pills** at the top of the PDF preview dialog when viewing any sales-order record:
+  - 🟦 **Sales Order** (draft) — header reads `SALES ORDER`, no batch/expiry, no tax column.
+  - 🟩 **Sales Invoice** (after Approve) — header reads `SALES INVOICE`, columns include **Batch #** + **Expiry** + Rate + Amount, taxes shown, hits supplier-style ledger note "Invoice generated".
+  - 🟧 **Delivery Note** — header reads `DELIVERY NOTE`, columns: Item • Batch # • Expiry • Qty (no rates), receiver signature line.
+- Clicking a pill instantly re-renders the same record with that template. Disabled pills (e.g., Invoice before Approve, DN before invoice) are greyed.
+- The currently-viewed stage syncs with the record's lifecycle state so users always see what's actually generated.
 
-- Remove the additional-cost input column from the PO line grid and totals section entirely.
-- Landed-cost allocation (LandedCosts page) is unaffected — costs still get attached after GRN.
+## 2. Approve → Invoice → Delivery Note Workflow
 
-## 3. New 3-Step Lifecycle: **PO Draft → Approve → Receive**
+**Affects:** `src/pages/ProformaInvoices.tsx` (Approve dialog), new mini Delivery Note dialog.
 
-```
-[ Purchase Order (draft) ]
-        |  click "Approve"
-        v
-[ Batch & Expiry dialog per line ]  --> creates Purchase Invoice (PI)
-        |                                - hits supplier ledger (balance + total)
-        |                                - status = 'unpaid'
-        v
-[ Purchase Invoice screen ]
-        |  click "Receive"
-        v
-[ Receive dialog: Received By, Notes, Qty per line ]
-        |  on save:
-        |    - create GRN + grn_items (with batch/expiry from PI)
-        |    - stock_movements (purchase_in) → hits inventory
-        |    - if qty_received < invoiced → auto Debit Note (shortage)
-        |    - if qty_received > invoiced → auto Debit Note line (overage, NEGATIVE = adds to payable)
-        |        (we use debit_notes with negative amount OR a supplementary PI line — see Technical)
-        v
-[ Done — PI shows "Received" badge ]
-```
+- When user clicks **Approve** on a draft Sales Order:
+  - Existing flow creates `sales_invoices` row + `sales_invoice_items` (triggers fire → customer balance + stock).
+  - **New: success toast offers TWO actions side by side**: `Record Payment` (current) **and `Create Delivery Note`** — clicking the latter opens the DN dialog pre-filled with all invoice lines (batch/expiry inherited).
+- Batch # and Expiry on each line are required at Approve (already collected on PI flow; mirror for SI). They are stored on `sales_invoice_items` (existing `batch_number`, `expiry_date` columns) and inherited into DN.
+- DN dialog → `delivery_notes` + `delivery_note_items` insert → `dispatched` status on invoice (existing trigger handles stock-out).
 
-### Step A: Approve PO
-- New "Approve" button visible only when `status = 'draft'`.
-- Opens **Batch & Expiry dialog**: one row per PO line showing `Item • Qty • Batch # (input) • Expiry (date)`.
-- On confirm:
-  - Create `purchase_invoices` row + `purchase_invoice_items` snapshot copying PO lines incl. batch & expiry.
-  - Mark PO `status = 'approved'` and link `po.purchase_invoice_id`.
-  - Existing `handle_purchase_invoice_balance` trigger fires → supplier balance updated automatically.
+## 3. Ledger Correctness Audit
 
-### Step B: Receive
-- "Receive" button on the PI (visible when no GRN yet OR partial).
-- Dialog fields: **Received By** (text), **Notes** (textarea), **per-line Qty Received** (default = invoiced qty, freely editable up or down).
-- On save:
-  - Insert `goods_received_notes` + `grn_items` (batch/expiry inherited from PI, receiver name stored in `received_by` + notes).
-  - `handle_stock_movement` trigger does inventory.
-  - Variance handling (per line):
-    - shortage `Δ < 0`: create `debit_notes` row, party=supplier, `amount = |Δ| × rate`, reference = PI #, reason "Short receipt against PI ###" → existing `handle_debit_note_balance` reduces supplier payable.
-    - overage `Δ > 0`: create a second PI **adjustment line** on the same PI (`quantity = Δ, rate = original`) so supplier ledger increases correctly, OR a "supplementary bill" PI (decision in Technical section). Stock for the full received qty is recorded.
-- PI status badge becomes "Received" (or "Received w/ Variance").
+- **Sales Invoice approve** → `handle_sales_invoice_balance` trigger increases customer receivable. Verify it does NOT double-fire when DN is created.
+- **Delivery Note** must NOT touch customer balance — only stock movement (`sale_out`). Verify and fix if wrong.
+- **Payment received** → reduces customer balance via `handle_payment_balance`. Verify the new "Create DN from Approve" path doesn't skip payment-allocation logic.
+- **Sales Return** → reverses stock + reduces receivable. Confirm chain still works.
+- Add a quick read-only verification: after Approve, re-fetch `customers.balance` delta and surface a warning toast if the delta ≠ invoice total.
 
-### Removed concepts
-- The current standalone GRN-from-PO flow without an approved PI is removed; GRN can only be created from an approved PI.
-- "Convert to PI" buttons that bypass the Approve step are removed.
+## 4. Larger Logo in PDF Templates
 
-## 4. PDF Templates
-**File:** `src/lib/pdf-generator.ts`.
+**Affects:** `src/lib/pdf-generator.ts` line 156.
 
-- Purchase Order template: drop additional-cost column.
-- Purchase Invoice template: add **Batch #** and **Expiry** columns next to Item/Qty/Rate/Total. (User clarified this is what they meant by "sales invoice template" — same row-detail look as the sales invoice.)
-- GRN template: show Receiver, Notes, Qty Invoiced vs Qty Received with variance pill.
+- Increase logo from `max-height:68px;max-width:180px` to `max-height:110px;max-width:260px`.
+- Adjust header row so company name + meta still sit beside the logo without wrapping. Same change applies to all doc templates (sales invoice, PI, PO, GRN, DN, payment receipt, warranty, return).
 
-## 5. Payments — Remove "$" Symbol
-**Files:** `src/pages/Payments.tsx`, dashboard cards if any, `pdf-generator.ts` payment receipt.
+## 5. Remove `$` Symbol Project-wide
 
-- Replace every `$` prefix with `PKR ` (project standard) or nothing where a currency label already appears. Search for `\\$\\{` in formatting and `>\\$<` in JSX.
-
-## 6. Purchase Returns — Full Audit & Fixes
-**File:** `src/pages/PurchaseReturns.tsx`, trigger `handle_purchase_return_balance`.
-
-Verify and fix:
-- Return must reference a real PI/GRN; cannot exceed received qty per batch.
-- On save: supplier balance reduces, stock movement `return_out` decrements inventory, GRN remaining-qty updates, status pill works.
-- Void / delete reverses both ledger and stock cleanly via `void_document` RPC path.
-- PDF template renders Batch/Expiry/Qty/Rate/Total.
-- Link from PI screen "Create Return" pre-fills lines from GRN.
+**Files:** `src/pages/Index.tsx` (dashboard KPIs), `src/components/dashboard/KpiDialogs.tsx`, `src/components/dashboard/PerformanceTrendChart.tsx`, `src/pages/Payments.tsx`, `src/lib/pdf-generator.ts` (payment receipt), and any `lucide-react`'s `DollarSign` import → replace with `Wallet` or `Banknote`. Replace `$NNN` formatted strings with `PKR NNN`.
 
 ---
 
-## Technical details (for the engineer)
+## Technical Notes
 
-### DB migration
-```sql
-ALTER TABLE public.suppliers ADD COLUMN license_expiry_date date;
+### Template switcher implementation
+`PdfPreviewDialog` accepts `documentType` today. Extend with optional `availableViews: ('sales_order'|'sales_invoice'|'delivery_note')[]` plus `currentView` + `onViewChange`. When `documentType` is one of these three, render the pill bar; otherwise render nothing (no behavioral change for other docs).
 
--- purchase_invoice_items already has batch_number / expiry_date? verify; if not:
-ALTER TABLE public.purchase_invoice_items
-  ADD COLUMN IF NOT EXISTS batch_number text,
-  ADD COLUMN IF NOT EXISTS expiry_date date;
+The actual PDF HTML is regenerated by `generatePdfHtml(documentType=<pill>)` using the same record id. For "delivery note" view, it reads `delivery_notes` if one exists, otherwise renders a **proforma DN preview** from the invoice items.
 
--- goods_received_notes: ensure received_by + notes exist
-ALTER TABLE public.goods_received_notes
-  ADD COLUMN IF NOT EXISTS received_by text,
-  ADD COLUMN IF NOT EXISTS notes text;
-
--- purchase_proformas: status enum already supports draft/approved; just use existing values.
-```
-
-### Overage decision
-Implement as **adjustment line on the same PI** (simpler ledger, no negative debit-note hack):
-- `INSERT INTO purchase_invoice_items (... quantity = Δ, rate = original_rate, batch_number, expiry_date, notes='Auto: overage on GRN')`
-- Recompute PI `total` via existing trigger / recompute helper, then `handle_purchase_invoice_balance` UPDATE fires and supplier balance adjusts by `+Δ × rate`.
-
-Shortage stays as auto debit-note (already correctly reduces supplier balance).
-
-### Files touched
-- `supabase/migrations/<new>.sql`
-- `src/pages/Suppliers.tsx`, `src/components/SupplierProfileDialog.tsx`
-- `src/pages/PurchaseProforma.tsx` (PO grid, Approve button + Batch/Expiry dialog, Receive dialog)
-- `src/pages/PurchaseReturns.tsx` (audit pass)
-- `src/pages/Payments.tsx` and any `$` usages
-- `src/lib/pdf-generator.ts` (PO / PI / GRN / Return templates)
-- `src/lib/auto-print-allocator.ts` — verify still works against new approve flow
+### DB
+No schema change required. `sales_invoice_items.batch_number/expiry_date` already exist; `delivery_note_items` already inherits batch/expiry.
 
 ### Out of scope
-- Changing Sales Invoice flow.
-- Landed-cost UI rework (only the additional-cost column on PO grid is removed).
-- Multi-supplier print-dispatch (already done in Phase 5).
+- Purchase-side flow (already done in last turn).
+- Multi-DN per invoice (single DN per invoice for now).
+- Editing template column order (use existing `document_templates` settings).
+
+### Files touched
+- `src/pages/ProformaInvoices.tsx` — Approve dialog: enforce batch/expiry; success toast: add "Create Delivery Note" action.
+- `src/components/PdfPreviewDialog.tsx` — 3-pill switcher.
+- `src/lib/pdf-generator.ts` — larger logo, `$` → `PKR`, SO/SI/DN header text + columns.
+- `src/pages/Index.tsx`, `src/pages/Payments.tsx`, `src/components/dashboard/*` — remove `$` and `DollarSign` icon.
+- Quick verification helper (inline) for ledger delta after Approve.
