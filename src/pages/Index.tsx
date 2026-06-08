@@ -13,8 +13,10 @@ import {
 import { WeekSalesDialog, MonthSalesDialog, GrossMarginDialog, UpcomingOrdersDialog } from "@/components/dashboard/KpiDialogs";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/hooks/useAuth";
+import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { formatDateDDMMMYYYY } from "@/lib/utils";
+import SalesAgentDashboard from "@/components/dashboard/SalesAgentDashboard";
 
 // Lazy: Recharts is ~220 KB and only needed once trend section paints.
 const PerformanceTrendChart = lazy(() => import("@/components/dashboard/PerformanceTrendChart"));
