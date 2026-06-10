@@ -434,10 +434,73 @@ export default function Settings() {
    <Button variant="outline" onClick={() => navigate("/settings/backups")}>Open Backups page</Button>
   </CardContent>
  </Card>
+
+ <DangerZoneCard />
  </TabsContent>
  </Tabs>
  </div>
  </AppLayout>
+ );
+}
+
+function DangerZoneCard() {
+ const { tenant } = useTenant();
+ const [open, setOpen] = useState(false);
+ const [confirm, setConfirm] = useState("");
+ const [busy, setBusy] = useState(false);
+ const expected = `WIPE ${tenant?.name ?? ""}`;
+
+ const handleWipe = async () => {
+  if (confirm !== expected) {
+   toast.error(`Type exactly: ${expected}`);
+   return;
+  }
+  setBusy(true);
+  try {
+   // @ts-expect-error new RPC, types regenerate after migration
+   const { data, error } = await supabase.rpc("wipe_my_tenant", { confirm_text: confirm });
+   if (error) throw error;
+   toast.success("Tenant data wiped. Reloading…");
+   // eslint-disable-next-line no-console
+   console.table((data as any)?.deleted ?? {});
+   setTimeout(() => window.location.reload(), 1500);
+  } catch (e: any) {
+   toast.error(e.message ?? "Wipe failed");
+  } finally {
+   setBusy(false);
+  }
+ };
+
+ return (
+  <Card className="border-destructive/50">
+   <CardHeader>
+    <CardTitle className="text-destructive flex items-center gap-2">
+     <Trash2 className="h-4 w-4" /> Danger Zone — Wipe Tenant Data
+    </CardTitle>
+   </CardHeader>
+   <CardContent className="space-y-3">
+    <p className="text-sm text-muted-foreground">
+     Permanently deletes all invoices, payments, stock, customers, suppliers, products, banks,
+     chart of accounts, document templates, and import history for <b>{tenant?.name}</b>.
+     Keeps your login, workspace, team members, and existing backups.
+     <br /><b>Take a manual backup first</b> from the Backups page.
+    </p>
+    {!open ? (
+     <Button variant="destructive" onClick={() => setOpen(true)}>I understand — start wipe</Button>
+    ) : (
+     <div className="space-y-3 rounded-md border border-destructive/40 p-3 bg-destructive/5">
+      <Label className="text-sm">Type <code className="px-1 bg-background rounded">{expected}</code> to confirm</Label>
+      <Input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={expected} autoFocus />
+      <div className="flex gap-2">
+       <Button variant="destructive" disabled={busy || confirm !== expected} onClick={handleWipe}>
+        {busy ? "Wiping…" : "Wipe everything now"}
+       </Button>
+       <Button variant="outline" disabled={busy} onClick={() => { setOpen(false); setConfirm(""); }}>Cancel</Button>
+      </div>
+     </div>
+    )}
+   </CardContent>
+  </Card>
  );
 }
 
