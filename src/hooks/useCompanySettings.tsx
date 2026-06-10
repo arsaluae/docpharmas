@@ -18,6 +18,7 @@ export interface CompanySettings {
   default_wht_rate: number;
   whatsapp_number: string | null;
   invoice_delete_grace_hours: number;
+  auto_create_missing_suppliers: boolean;
 }
 
 export function useCompanySettings() {
