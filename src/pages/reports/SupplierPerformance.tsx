@@ -11,11 +11,16 @@ export default function SupplierPerformance() {
   const [returns, setReturns] = useState<any[]>([]);
 
   useEffect(() => { (async () => {
+    const NOT_POSTED = "(draft,voided,cancelled)";
     const [s, p, g, r] = await Promise.all([
       fetchAllRows("suppliers", "id, name, balance"),
-      fetchAllRows("purchase_invoices", "supplier_id, total"),
+      fetchAllRows("purchase_invoices", "supplier_id, total", [
+        { column: "status", op: "not", value: "in", value2: NOT_POSTED },
+      ]),
       fetchAllRows("goods_received_notes", "supplier_id, date, po_id"),
-      fetchAllRows("purchase_returns", "supplier_id, total"),
+      fetchAllRows("purchase_returns", "supplier_id, total", [
+        { column: "status", op: "not", value: "in", value2: NOT_POSTED },
+      ]),
     ]);
     setSuppliers(s); setPis(p); setGrns(g); setReturns(r);
   })(); }, []);

@@ -11,11 +11,19 @@ export default function BatchWiseReport() {
   useEffect(() => { loadReport(); }, []);
 
   const loadReport = async () => {
-    const [grnItems, salesItems, products] = await Promise.all([
+    const NOT_POSTED = "(draft,voided,cancelled)";
+    const [grnItems, products, postedInv] = await Promise.all([
       fetchAllRows("grn_items", "product_id, batch_number, expiry_date, quantity_received"),
-      fetchAllRows("sales_invoice_items", "product_id, batch_number, quantity"),
       fetchAllRows("products", "id, name"),
+      fetchAllRows("sales_invoices", "id", [{ column: "status", op: "not", value: "in", value2: NOT_POSTED }]),
     ]);
+    const invIds = postedInv.map((i: any) => i.id);
+    let salesItems: any[] = [];
+    for (let i = 0; i < invIds.length; i += 500) {
+      salesItems = salesItems.concat(await fetchAllRows("sales_invoice_items", "product_id, batch_number, quantity", [
+        { column: "invoice_id", op: "in", value: invIds.slice(i, i + 500) },
+      ]));
+    }
     if (!grnItems.length || !products.length) return;
     const pMap = new Map(products.map((p: any) => [p.id, p.name]));
     const batchMap = new Map<string, any>();

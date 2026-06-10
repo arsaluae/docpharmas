@@ -20,10 +20,17 @@ export default function DailyCashPosition() {
  setLoading(true);
  const since = new Date(); since.setDate(since.getDate() - 30);
  const sinceStr = since.toISOString().slice(0, 10);
+ const NOT_POSTED = "(draft,voided,cancelled)";
  const [b, p, e] = await Promise.all([
  fetchAllRows("bank_accounts", "id, name, balance, account_type"),
- fetchAllRows("payments", "id, bank_account_id, amount, type, date", [{ column: "date", op: "gte", value: sinceStr }]),
- fetchAllRows("expenses", "id, bank_account_id, amount, date", [{ column: "date", op: "gte", value: sinceStr }]),
+ fetchAllRows("payments", "id, bank_account_id, amount, type, date", [
+   { column: "date", op: "gte", value: sinceStr },
+   { column: "status", op: "not", value: "in", value2: NOT_POSTED },
+ ]),
+ fetchAllRows("expenses", "id, bank_account_id, amount, date", [
+   { column: "date", op: "gte", value: sinceStr },
+   { column: "status", op: "not", value: "in", value2: NOT_POSTED },
+ ]),
  ]);
  setBanks(b); setPayments(p); setExpenses(e);
  setLoading(false);

@@ -11,11 +11,21 @@ export default function ProductPerformance() {
   const [invoices, setInvoices] = useState<any[]>([]);
 
   useEffect(() => { (async () => {
-    const [p, ii, inv] = await Promise.all([
+    const NOT_POSTED = "(draft,voided,cancelled)";
+    const [p, inv] = await Promise.all([
       fetchAllRows("products", "id, name, cost_price, selling_price, stock_quantity"),
-      fetchAllRows("sales_invoice_items", "product_id, quantity, amount, invoice_id"),
-      fetchAllRows("sales_invoices", "id, date"),
+      fetchAllRows("sales_invoices", "id, date", [
+        { column: "status", op: "not", value: "in", value2: NOT_POSTED },
+      ]),
     ]);
+    // Only load items for posted invoices
+    const invIds = inv.map((i: any) => i.id);
+    let ii: any[] = [];
+    for (let i = 0; i < invIds.length; i += 500) {
+      ii = ii.concat(await fetchAllRows("sales_invoice_items", "product_id, quantity, amount, invoice_id", [
+        { column: "invoice_id", op: "in", value: invIds.slice(i, i + 500) },
+      ]));
+    }
     setProducts(p); setItems(ii); setInvoices(inv);
   })(); }, []);
 

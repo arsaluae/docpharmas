@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 export async function fetchAllRows(
   table: string,
   select: string,
-  filters?: { column: string; op: "eq" | "in" | "gte" | "lte"; value: any }[],
+  filters?: { column: string; op: "eq" | "in" | "gte" | "lte" | "not"; value: any; value2?: any }[],
   batchSize = 1000
 ): Promise<any[]> {
   const allRows: any[] = [];
@@ -16,7 +16,8 @@ export async function fetchAllRows(
     let query = (supabase as any).from(table).select(select).range(from, from + batchSize - 1);
     if (filters) {
       for (const f of filters) {
-        query = query[f.op](f.column, f.value);
+        if (f.op === "not") query = query.not(f.column, f.value, f.value2);
+        else query = query[f.op](f.column, f.value);
       }
     }
     const { data, error } = await query;

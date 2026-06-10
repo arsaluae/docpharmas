@@ -20,6 +20,7 @@ export default function ProductCosting() {
  useEffect(() => { load(); }, []);
 
  const load = async () => {
+ // ProductCosting reads master data + settled print jobs only; no posted-only invoice filter needed.
  const [prodRes, costsRes, poItemsRes, printJobsRes] = await Promise.all([
  supabase.from("products").select("id, name, category, cost_price, selling_price"),
  supabase.from("additional_costs").select("reference_id, reference_type, cost_type, amount"),

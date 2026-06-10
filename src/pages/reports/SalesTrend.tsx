@@ -7,7 +7,9 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 export default function SalesTrend() {
   const [rows, setRows] = useState<any[]>([]);
   useEffect(() => { (async () => {
-    const inv = await fetchAllRows("sales_invoices", "date, subtotal, total");
+    const inv = await fetchAllRows("sales_invoices", "date, subtotal, total", [
+      { column: "status", op: "not", value: "in", value2: "(draft,voided,cancelled)" },
+    ]);
     setRows(inv);
   })(); }, []);
 

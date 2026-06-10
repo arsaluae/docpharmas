@@ -11,11 +11,18 @@ export default function SlowDeadStock() {
   const [invoices, setInvoices] = useState<any[]>([]);
 
   useEffect(() => { (async () => {
-    const [p, ii, inv] = await Promise.all([
+    const NOT_POSTED = "(draft,voided,cancelled)";
+    const [p, inv] = await Promise.all([
       fetchAllRows("products", "id, name, stock_quantity, cost_price"),
-      fetchAllRows("sales_invoice_items", "product_id, invoice_id, quantity"),
-      fetchAllRows("sales_invoices", "id, date"),
+      fetchAllRows("sales_invoices", "id, date", [{ column: "status", op: "not", value: "in", value2: NOT_POSTED }]),
     ]);
+    const invIds = inv.map((i: any) => i.id);
+    let ii: any[] = [];
+    for (let i = 0; i < invIds.length; i += 500) {
+      ii = ii.concat(await fetchAllRows("sales_invoice_items", "product_id, invoice_id, quantity", [
+        { column: "invoice_id", op: "in", value: invIds.slice(i, i + 500) },
+      ]));
+    }
     setProducts(p); setItems(ii); setInvoices(inv);
   })(); }, []);
 
