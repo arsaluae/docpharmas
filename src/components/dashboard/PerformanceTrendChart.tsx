@@ -19,25 +19,26 @@ export default function PerformanceTrendChart({ data }: Props) {
         <YAxis hide />
         <Tooltip
           contentStyle={{
-            fontSize: 11, borderRadius: 4, padding: "8px 12px",
+            fontSize: 11, borderRadius: 6, padding: "8px 12px",
             border: "1px solid hsl(var(--border-strong))",
-            background: "#FFFFFF",
+            background: "hsl(var(--popover))",
+            color: "hsl(var(--popover-foreground))",
             boxShadow: "none",
             fontFamily: "JetBrains Mono",
           }}
           labelStyle={{ color: "hsl(var(--subtle))", marginBottom: 4, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em" }}
           formatter={(v: number) => [`PKR ${fmtPkr(v)}`, "Sales"]}
-          cursor={{ fill: "hsl(var(--brand-blue) / 0.06)" }}
+          cursor={{ fill: "hsl(var(--brand-blue) / 0.1)" }}
         />
-        <Bar dataKey="amount" radius={0} isAnimationActive={false}>
+        <Bar dataKey="amount" radius={[2, 2, 0, 0]} isAnimationActive={false}>
           {data.map((d, i) => {
             const isToday = i === data.length - 1;
             const isPeak = !isToday && d.amount === max && max > 0;
             const fill = isToday
               ? "hsl(var(--brand-blue))"
               : isPeak
-                ? "hsl(var(--success) / 0.55)"
-                : "hsl(var(--brand-navy) / 0.12)";
+                ? "hsl(var(--success))"
+                : "hsl(var(--brand-blue) / 0.18)";
             return <Cell key={i} fill={fill} />;
           })}
         </Bar>
