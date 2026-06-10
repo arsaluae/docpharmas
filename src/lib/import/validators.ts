@@ -153,13 +153,22 @@ export function validateAll(
           normalized.category = "other";
         }
         if (!normalized.unit) normalized.unit = "pcs";
+        // Prices are non-blocking: default to 0 and warn so the row still posts.
+        if (normalized.cost_price == null || normalized.cost_price === "") {
+          normalized.cost_price = 0;
+          warnings.push("cost price missing — defaulted to 0");
+        }
+        if (normalized.selling_price == null || normalized.selling_price === "") {
+          normalized.selling_price = 0;
+          warnings.push("sale price missing — defaulted to 0");
+        }
         const sku = String(normalized.sku ?? "").trim().toLowerCase();
         if (sku) {
           if (seenKey.has(sku)) errors.push({ field: "sku", message: `duplicate SKU in file (row ${seenKey.get(sku)})` });
           else seenKey.set(sku, idx + 2);
         }
-        if (!normalized.phone && !normalized.email) {
-          warnings.push("no phone/email on supplier link");
+        if (!normalized.supplier_name) {
+          warnings.push("no supplier name — product will be unlinked");
         }
         break;
       }
@@ -169,7 +178,14 @@ export function validateAll(
           if (seenKey.has(code)) errors.push({ field: "customer_code", message: `duplicate customer code in file (row ${seenKey.get(code)})` });
           else seenKey.set(code, idx + 2);
         }
+        if (!normalized.city) warnings.push("city missing");
+        if (!normalized.address) warnings.push("address missing");
         if (!normalized.phone && !normalized.email) warnings.push("missing phone & email");
+        // Invalid phone: cleaner returned null but the raw cell had text → park it in notes
+        if (!normalized.phone && raw["phone"] != null && String(raw["phone"]).trim() !== "") {
+          normalized.notes = mergeNotes(normalized.notes as string, `mobile-field: ${String(raw["phone"]).trim()}`);
+          warnings.push("phone unparseable — kept raw in notes");
+        }
         break;
       }
       case "suppliers": {
@@ -178,7 +194,13 @@ export function validateAll(
           if (seenKey.has(code)) errors.push({ field: "supplier_code", message: `duplicate supplier code in file (row ${seenKey.get(code)})` });
           else seenKey.set(code, idx + 2);
         }
+        if (!normalized.city) warnings.push("city missing");
+        if (!normalized.address) warnings.push("address missing");
         if (!normalized.phone && !normalized.email) warnings.push("missing phone & email");
+        if (!normalized.phone && raw["phone"] != null && String(raw["phone"]).trim() !== "") {
+          normalized.notes = mergeNotes(normalized.notes as string, `mobile-field: ${String(raw["phone"]).trim()}`);
+          warnings.push("phone unparseable — kept raw in notes");
+        }
         break;
       }
       case "chart_of_accounts": {
