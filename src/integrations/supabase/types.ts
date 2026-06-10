@@ -2952,6 +2952,7 @@ export type Database = {
           stock_account: string | null
           stock_quantity: number
           sub_category: string | null
+          supplier_id: string | null
           tax_percent: number | null
           tenant_id: string | null
           trade_price: number | null
@@ -2990,6 +2991,7 @@ export type Database = {
           stock_account?: string | null
           stock_quantity?: number
           sub_category?: string | null
+          supplier_id?: string | null
           tax_percent?: number | null
           tenant_id?: string | null
           trade_price?: number | null
@@ -3028,12 +3030,20 @@ export type Database = {
           stock_account?: string | null
           stock_quantity?: number
           sub_category?: string | null
+          supplier_id?: string | null
           tax_percent?: number | null
           tenant_id?: string | null
           trade_price?: number | null
           unit?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_tenant_id_fkey"
             columns: ["tenant_id"]
