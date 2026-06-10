@@ -1,75 +1,159 @@
+# Wave 1 — Reporting Accuracy Hardening
 
-## Goal
+Goal: make every existing report mathematically correct against your "posted-only" rule, before we touch missing reports or AI. No new report screens, no AI changes in this wave.
 
-Import the uploaded `Batch and Quantity.xlsx` (and any future file in the same legacy shape) through the existing **Batches** importer so that every product can carry multiple batches, each with its own quantity and expiry.
+## The core bug
 
-## What the file looks like
+Most reports under `src/pages/reports/*` query `sales_invoices` / `purchase_invoices` / `sales_returns` / `purchase_returns` / `payments` **without a status filter**, so drafts and voided rows leak into:
 
-Columns:
+- Profit & Loss (`ProfitLoss.tsx`) — counts draft + voided invoices as revenue, COGS, returns.
+- Balance Sheet (`BalanceSheet.tsx`) — same issue for AR, AP, bank.
+- Sales Trend, Product Performance, Customer/Supplier Wise, City/Area, Tax Compliance, Cash Flow, Daily Cash Position, Receivables/Payables Aging (Receivables already filters by status, but ignores `voided`), Vacant Areas.
 
-```text
-Code | Product | To Location | Base Unit | Base Quantity | Batch No. | Batch Expiry
-```
-
-- Multiple rows per product (one per batch) — already supported by the current batches validator.
-- Sub-section header rows where only `Product` has a value (e.g. `Cap's`, `Cosmetics`, `Drops`, `Total`) with no Code / Batch / Qty.
-- Quantity values like `13.`, `1,132.`, `-64.` (legacy stock adjustments).
-- Expiry values like `0000-00-00` for unknown / blocked batches.
-- `Code` is the legacy product code (e.g. `1015`) — the same code already imported as the product SKU.
-
-## Why the current importer fails on this file
-
-1. Header aliases already map (`Code → sku`, `Base Quantity → quantity`, `Batch No. → batch_number`, `Batch Expiry → expiry_date`, `Base Unit → unit`, `To Location → to_location`) — no change needed there.
-2. Section-header rows (`Cap's`, `Total`) flow into the validator and produce noisy "missing SKU / batch / qty" errors.
-3. Generic number validator (`validators.ts` lines 113-114) rejects negatives on `quantity` before the batches case runs, so the row appears as a hard error instead of a clean "skipped: negative qty".
-4. Past-expiry rows are blocked unless the wizard's `allowPastExpiry` is on — for a legacy migration we need to surface that toggle clearly.
-5. `postBatches` already groups by supplier and tolerates missing supplier, but unmatched SKUs need to be logged to `migration_errors` with `severity = "warning"` so the verification report shows them.
+Rule we are enforcing everywhere (per your answer): `status NOT IN ('draft','voided','cancelled')` on every invoice/return/payment query that feeds a report. Sales orders / purchase orders / proformas are already separate tables and stay excluded by construction.
 
 ## Changes
 
-### 1. `src/lib/import/validators.ts`
-- Add a pre-filter inside `validateAll` for `entity === "batches"`: drop rows where **all** of `sku`, `batch_number`, `quantity`, `expiry_date` are empty (section headers / `Total` rows). Tag them as `merged: true` so they don't count as errors, with `warnings: ["section header — ignored"]`.
-- In the generic number branch, special-case `entity === "batches" && f.key === "quantity"`: accept negatives (store the value), do not push the `must be ≥ 0` error. The batches cross-field block will still skip `qty <= 0` rows with a clearer message.
-- Replace the existing `quantity` / `expiry` error messages in the batches case with `severity: "skipped"` tags (extend `ValidationError` with optional `severity`) so the wizard buckets them as "skipped" rather than "failed":
-  - negative or zero qty → `severity: "skipped"`, message `"non-positive quantity (legacy adjustment) — skipped"`.
-  - missing/invalid expiry (`0000-00-00`) → `severity: "skipped"`, message `"missing or sentinel expiry — skipped"`.
-  - missing SKU / batch → `severity: "error"` (genuine data problem).
+### 1. Shared posted-only filter helper
 
-### 2. `src/lib/import/types.ts`
-- Extend `ValidationError` with `severity?: "error" | "skipped" | "warning"` (default `"error"`).
+New file `src/lib/reports/posted.ts`:
 
-### 3. `src/lib/import/posters.ts` — `postBatches`
-- After loading the product lookup, push every row whose `sku` is not matched into `migration_errors` with `severity = "warning"`, `field = "sku"`, `message = "product code <code> not found — batch skipped"`, and skip the row instead of failing the whole batch.
-- For matched rows with no `batch_supplier`, fall back to the product's `supplier_id` (already implemented — confirm path still runs after the new skip logic).
-- Continue to merge `(product_id, batch_number, expiry_date)` duplicates so the same batch appearing twice for one product is summed.
+```ts
+export const POSTED_STATUSES = {
+  sales_invoices:     ["dispatched","unpaid","partial","paid"],
+  purchase_invoices:  ["unpaid","partial","paid"],
+  sales_returns:      ["active","posted"],
+  purchase_returns:   ["active","posted"],
+  payments:           ["active","cleared"],
+  credit_notes:       ["active"],
+  debit_notes:        ["active"],
+} as const;
+export const NOT_POSTED = ["draft","voided","cancelled"];
+```
 
-### 4. `src/pages/MigrationWizard.tsx`
-- Surface an "Allow past-expiry batches" switch on the Batches step (binds to `validateAll`'s `allowPastExpiry`) so legacy expired stock can still be brought in for traceability.
-- Extend the Batches coverage card with sub-counts:
-  - rows imported,
-  - rows skipped (section headers),
-  - rows skipped (non-positive qty),
-  - rows skipped (invalid expiry),
-  - rows skipped (SKU not found in products) — link to download CSV from `migration_errors`.
+Plus two tiny helpers `applyPosted(query, table)` (adds `.not("status","in",...)`) and `EXPORT_META` (company, user, generated_at, filters, date range) used by all exports.
 
-### Out of scope
+### 2. Apply the filter to every report query
 
-- No DB schema changes; `grn_items`, `batches` import infra, and `migration_errors` are already in place.
-- No changes to the Products / Customers / Suppliers importers.
-- No new RPC or RLS work.
+Edit the following files to chain `applyPosted(...)` on each Supabase query, and also add the missing `voided` exclusion where status is already filtered:
+
+- `src/pages/reports/ProfitLoss.tsx`
+- `src/pages/reports/BalanceSheet.tsx`
+- `src/pages/reports/CashFlow.tsx`
+- `src/pages/reports/DailyCashPosition.tsx`
+- `src/pages/reports/SalesTrend.tsx`
+- `src/pages/reports/ProductPerformance.tsx`
+- `src/pages/reports/ProductCosting.tsx`
+- `src/pages/reports/CustomerWiseReport.tsx`
+- `src/pages/reports/SupplierWiseReport.tsx`
+- `src/pages/reports/SupplierPerformance.tsx`
+- `src/pages/reports/CitywiseSales.tsx`
+- `src/pages/reports/AreaWiseSales.tsx`
+- `src/pages/reports/ItemWiseReport.tsx`
+- `src/pages/reports/BatchWiseReport.tsx`
+- `src/pages/reports/SlowDeadStock.tsx`
+- `src/pages/reports/TaxCompliance.tsx`
+- `src/pages/reports/ReceivablesAging.tsx` (add `voided` exclusion)
+- `src/pages/reports/PayablesAging.tsx` (add `voided` exclusion)
+- `src/pages/reports/VacantAreas.tsx`
+- `src/pages/reports/ProductAllocationReport.tsx`
+
+No UI changes, no schema changes — only query filters.
+
+### 3. SQL RPCs as source of truth for the highest-risk reports
+
+To stop client/server math drift, add `SECURITY DEFINER` RPCs scoped via `get_user_tenant_id()`. Wave 1 covers the four reports most prone to drift:
+
+```text
+public.report_profit_loss(p_from date, p_to date)         returns jsonb
+public.report_sales_summary(p_from, p_to, p_customer uuid, p_product uuid, p_city text)  returns jsonb
+public.report_receivables_aging(p_as_of date)             returns table(...)
+public.report_payables_aging(p_as_of date)                returns table(...)
+```
+
+Each RPC uses the same posted-only rule, joins `sales_invoice_items` for COGS using `COALESCE(NULLIF(sii.unit_cost,0), p.cost_price, 0)` (same formula `dashboard_kpis` already uses, so dashboard and P&L stop disagreeing), and returns totals + breakdown. UI pages render the RPC payload directly. Other reports stay client-side this wave; they will be migrated in Wave 1.5 once these four are validated against your live data.
+
+Migration also adds supporting indexes (only the ones missing today):
+
+```text
+sales_invoices(tenant_id, date, status)
+purchase_invoices(tenant_id, date, status)
+sales_returns(tenant_id, date)
+purchase_returns(tenant_id, date)
+payments(tenant_id, date, status)
+sales_invoice_items(invoice_id, product_id)
+```
+
+### 4. Export to Excel + standard report header
+
+Add `xlsx` (SheetJS) dependency and a single shared exporter `src/lib/reports/excel.ts`:
+
+```text
+exportReportToExcel({
+  title, sheetName, columns, rows, totalsRow,
+  filters,                // {label,value}[]
+  meta: { company, user, generatedAt, dateRange }
+})
+```
+
+Output sheet structure (matches your spec):
+
+```text
+Row 1   <Company name>                          (bold, merged A:end)
+Row 2   <Report title>                          (bold, merged)
+Row 3   Date range: <from> – <to>
+Row 4   Filters: <key=value, ...>
+Row 5   Generated by: <user>   at <ISO ts>
+Row 6   (blank)
+Row 7   Header row                              (bold, frozen)
+Row 8+  Data rows
+Last    Totals row                              (bold)
+```
+
+- Currency columns get `#,##0.00` format, dates `yyyy-mm-dd`, freeze pane on the header row, auto width based on longest cell.
+- Same `columns/rows/totalsRow` shape powers a `exportReportToCsv()` helper so CSV totals match Excel totals exactly.
+- A small `<ReportToolbar/>` component (Export Excel / Export CSV / Print / Copy table) replaces the ad-hoc buttons each report currently has. PDF reuses the existing `PdfPreviewDialog` flow (already in the project) — no new PDF stack.
+
+Wave 1 wires the toolbar into the four RPC-backed reports (P&L, Sales Summary, Receivables Aging, Payables Aging) and leaves the others on their current export buttons; remaining reports get the toolbar in Wave 1.5 alongside their RPC migration.
+
+### 5. Validation tests
+
+Add `src/test/reports.test.ts` (Vitest, runs against a mocked Supabase client) covering:
+
+- Draft sales invoice excluded from P&L revenue.
+- Voided sales invoice excluded from Receivables Aging and Customer Wise.
+- Voided payment does not move bank balance in Cash Flow / Daily Cash.
+- Sales return reduces P&L net revenue by exactly its `total`.
+- Aging buckets sum to `customers.balance` for posted invoices only.
+- Excel/CSV totals row equals on-screen totals (snapshot of the exporter input).
+
+## Out of scope (queued for next waves)
+
+- New reports: Sales Summary screen UI (RPC exists but no new page yet — Wave 2), Sales Detail, Daily Business Summary, Tax Detail, Low Stock screen, Stock Movement filters, Customer/Supplier Aging cities/contacts columns.
+- AI Insights panel per report, Ask Your ERP, AI Alerts — Wave 3.
+- Migrating remaining reports to RPCs and to the new `<ReportToolbar/>` — Wave 1.5.
 
 ## Files touched
 
 ```text
-src/lib/import/types.ts          (add ValidationError.severity)
-src/lib/import/validators.ts     (pre-filter, allow negative qty, severity tags)
-src/lib/import/posters.ts        (log unmatched SKUs to migration_errors)
-src/pages/MigrationWizard.tsx    (allow-past-expiry toggle + sub-counts)
+src/lib/reports/posted.ts                  (new)
+src/lib/reports/excel.ts                   (new, uses xlsx)
+src/lib/reports/csv.ts                     (new)
+src/components/reports/ReportToolbar.tsx   (new)
+src/pages/reports/*.tsx                    (status filter on every query, 20 files)
+src/pages/reports/ProfitLoss.tsx           (consume report_profit_loss RPC)
+src/pages/reports/ReceivablesAging.tsx     (consume RPC)
+src/pages/reports/PayablesAging.tsx        (consume RPC)
+src/pages/reports/SalesTrend.tsx           (consume report_sales_summary RPC where applicable)
+supabase/migrations/<ts>_report_rpcs.sql   (4 RPCs + indexes)
+src/test/reports.test.ts                   (new)
+package.json                               (+ xlsx)
 ```
 
-## Verification after build
+## Acceptance for this wave
 
-1. Upload `Batch and Quantity.xlsx` on the Batches step.
-2. Confirm header auto-detect maps all 7 columns.
-3. Validate — expect: section-header rows ignored silently, negative/zero qty rows shown as "skipped", `0000-00-00` rows shown as "skipped".
-4. Post — confirm products with multiple batches receive one GRN line per (batch, expiry) and unmatched legacy codes appear in the report's "SKU not found" bucket.
+- Every report page has `status NOT IN ('draft','voided','cancelled')` (or equivalent allow-list) on every transactional query.
+- P&L, Receivables Aging, Payables Aging, and Sales Summary numbers match the new RPC output and match `dashboard_kpis`.
+- Excel export from those four reports opens in Excel with header block, frozen header row, bold totals, currency formatting, and the on-screen totals match the totals row in the file.
+- Vitest suite green.
+- No change to orders/proformas/drafts behaviour; no schema break.
