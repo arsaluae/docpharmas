@@ -66,18 +66,40 @@ export default function StockMovements() {
 
   const handleSave = async () => {
     if (!productId || !quantity || Number(quantity) <= 0) { toast.error("Product and quantity required"); return; }
-    const { error } = await supabase.from("stock_movements").insert({
+    const isAdjustment = ADJUSTMENT_TYPES.has(moveType);
+    if (isAdjustment && (!notes || notes.trim().length < 3)) {
+      toast.error("A reason (min 3 characters) is required for stock adjustments.");
+      return;
+    }
+    const { data: inserted, error } = await supabase.from("stock_movements").insert({
       product_id: productId, movement_type: moveType, quantity: Number(quantity),
       batch_number: batchNumber || null, date, notes: notes || null,
-    });
+    }).select("id").single();
     if (error) {
       if (error.message?.includes("Insufficient stock")) {
         const name = productNames[productId] || "product";
         toast.error(`Insufficient stock for ${name} (requested ${quantity}).`);
+      } else if (error.message?.includes("requires a reason")) {
+        toast.error("A reason (min 3 characters) is required for stock adjustments.");
       } else {
         toast.error("Failed to record movement: " + error.message);
       }
       return;
+    }
+    if (isAdjustment && inserted?.id) {
+      void logAudit({
+        action: "stock_adjusted",
+        entity_type: "stock_movement",
+        entity_id: inserted.id,
+        changes: {
+          product: productNames[productId] || productId,
+          movement_type: moveType,
+          quantity: Number(quantity),
+          batch_number: batchNumber || null,
+          reason: notes,
+          date,
+        },
+      });
     }
     toast.success("Stock movement recorded");
     setOpen(false); setProductId(""); setMoveType("adjustment"); setQuantity(""); setBatchNumber(""); setNotes("");
