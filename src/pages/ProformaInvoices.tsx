@@ -602,41 +602,61 @@ export default function ProformaInvoices() {
  setPaymentOpen(false); setPaymentSaving(false); load();
  };
 
- const buildSalesInvoiceHtml = async (order: SalesOrder): Promise<string> => {
-   if (!order.converted_invoice_id) return "";
-   const { data: inv } = await supabase.from("sales_invoices").select("*, customers(name, address, phone, area)").eq("id", order.converted_invoice_id).single();
-   const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", order.converted_invoice_id);
-   if (!inv) return "";
-   return generatePdfHtml({
-     title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
-     partyLabel: "Customer",
-     partyName: (inv.customers as any)?.name || "—",
-     partyAddress: (inv.customers as any)?.address || undefined,
-     partyPhone: (inv.customers as any)?.phone || undefined,
-     partyArea: (inv.customers as any)?.area || undefined,
-     columns: [
-       { header: "#", key: "idx" },
-       { header: "Product", key: "name" },
-       { header: "Batch #", key: "batch_number" },
-       { header: "Expiry", key: "expiry_date" },
-       { header: "Qty", key: "quantity", align: "right" },
-       { header: "Rate", key: "rate", align: "right" },
-       { header: "Amount", key: "amount", align: "right" },
-     ],
-     rows: (invItems || []).map((i: any, idx: number) => ({
-       idx: idx + 1, name: i.products?.name || "Item",
-       batch_number: i.batch_number || "—",
-       expiry_date: i.expiry_date || "—",
-       quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
-     })),
-     totals: [
-       { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
-       { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
-       { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
-     ],
-     settings, template: getTemplate("sales_invoice"),
-   });
- };
+  const buildSalesInvoiceHtml = async (order: SalesOrder): Promise<string> => {
+    if (!order.converted_invoice_id) return "";
+    const { data: inv } = await supabase.from("sales_invoices").select("*, customers(name, address, phone, area)").eq("id", order.converted_invoice_id).single();
+    const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name, selling_price)").eq("invoice_id", order.converted_invoice_id);
+    if (!inv) return "";
+    // Fallback: backfill missing expiry_date from GRN in one batched query (older rows).
+    const items = invItems || [];
+    const missing = items.filter((i: any) => !i.expiry_date && i.product_id && i.batch_number);
+    const expiryMap: Record<string, string> = {};
+    if (missing.length > 0) {
+      const { data: grnRows } = await supabase
+        .from("grn_items")
+        .select("product_id, batch_number, expiry_date")
+        .in("product_id", Array.from(new Set(missing.map((m: any) => m.product_id))))
+        .in("batch_number", Array.from(new Set(missing.map((m: any) => m.batch_number))));
+      (grnRows || []).forEach((g: any) => {
+        if (g.expiry_date) expiryMap[`${g.product_id}__${g.batch_number}`] = g.expiry_date;
+      });
+    }
+    return generatePdfHtml({
+      title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
+      partyLabel: "Customer",
+      partyName: (inv.customers as any)?.name || "—",
+      partyAddress: (inv.customers as any)?.address || undefined,
+      partyPhone: (inv.customers as any)?.phone || undefined,
+      partyArea: (inv.customers as any)?.area || undefined,
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "name" },
+        { header: "Batch #", key: "batch_number" },
+        { header: "Expiry", key: "expiry_date" },
+        { header: "MRP", key: "mrp", align: "right" },
+        { header: "Qty", key: "quantity", align: "right" },
+        { header: "Rate", key: "rate", align: "right" },
+        { header: "Amount", key: "amount", align: "right" },
+      ],
+      rows: items.map((i: any, idx: number) => {
+        const exp = i.expiry_date || expiryMap[`${i.product_id}__${i.batch_number}`] || null;
+        const mrp = Number(i.products?.selling_price || 0);
+        return {
+          idx: idx + 1, name: i.products?.name || "Item",
+          batch_number: i.batch_number || "—",
+          expiry_date: fmtExpiry(exp),
+          mrp: mrp > 0 ? mrp.toLocaleString() : "—",
+          quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+        };
+      }),
+      totals: [
+        { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
+        { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
+        { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
+      ],
+      settings, template: getTemplate("sales_invoice"),
+    });
+  };
  const printInvoice = async (order: SalesOrder) => { await openPreview(order, "sales_invoice"); };
 
  // ── DELIVERY NOTE PDF ──
