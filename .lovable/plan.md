@@ -1,75 +1,114 @@
-# ERP Hardening & Audit — Phased Plan
 
-This request spans 10 phases and would take many sessions to do safely. I'll do it in **5 implementation waves**, each ending with a verified, working state. Wave 0 (this turn, if you approve) is a **read-only audit** so we have a real defect list before changing anything.
+## Goal
 
-## Wave 0 — Read-only Audit (no code changes)
+You already have a solid per-entity importer (`DataImport`, `ImportHistory`, `import_batches`, `import_staging_rows`, `rollback_import_batch`). What's missing for a true legacy-ERP migration is:
 
-Deliverable: a single audit report at `.lovable/audit/findings-2026-06-10.md` containing:
+1. A **fixed, guided sequence** (Suppliers → Customers → Products → Batches → Opening Balances → Verification).
+2. **Field aliases** matching your legacy column names (Product Code, A/C No., Business Name, To Location, Base Quantity, Batch Expiry, etc.).
+3. **Pharma-grade row rules** (drop qty=0, drop unknown SKUs, reject `0000-00-00`, Excel-serial dates, merge duplicate product+batch).
+4. **Data cleaners** (mobile normalization, email validation, license-text-in-email → notes).
+5. **Final verification report** screen rolled up from `import_batches` + `import_staging_rows`.
 
-1. **RLS coverage matrix** — for every public table: RLS on? policies count? tenant filter present? `service_role` GRANT? `anon` GRANT? Flagged rows = needs fix.
-2. **Cross-tenant leak probes** — run `supabase--read_query` as the DB owner on each business table to list tables where a policy is missing `tenant_id = get_user_tenant_id()` or `is_agent_customer(...)`.
-3. **Edge function auth audit** — each of the 6 edge functions: `verify_jwt`, JWT validation in code, service-role usage, secret leakage.
-4. **Secret / repo hygiene** — confirm `.env` only holds publishable keys, `.gitignore` covers `.env*.local`, no service-role key in client bundle (`rg` over `src/`).
-5. **RBAC matrix vs UI** — diff `src/lib/rbac.ts` against routes in `App.tsx` and sidebar items; list routes missing `<RequireCap>`.
-6. **ERP rule probes** — SQL checks for: duplicate invoice numbers per tenant, sales lines missing batch/expiry, posted invoices with `void_reason` null but edited money fields, closed-period writes, negative on-hand, expired-batch sales.
-7. **Backup posture** — `weekly-backup` function review + check whether `pg_cron` schedule exists, retention, encryption, restore path.
-8. **Audit-log coverage** — list every `logAudit(...)` call site vs the required action list; produce the gap list.
-9. **Console / network errors** on `/dashboard` and 5 high-traffic pages.
+Rollback, staging tables, audit, failed-rows CSV, and column auto-mapping already work — we extend, not rebuild.
 
-Output is a checklist with severity (P0/P1/P2) and a proposed fix per item. **Nothing in the DB or repo changes in Wave 0.**
+---
 
-## Wave 1 — Security & Tenant Isolation (P0)
+## Plan
 
-Driven by Wave 0 findings. Typical fixes:
+### 1. New file `src/lib/import/cleaners.ts`
+Pure helpers reused by validators:
+- `cleanMobile(v)` — strip non-digits, normalize `+92`/`0092`/`0` prefixes to canonical `03XXXXXXXXX`.
+- `cleanEmail(v)` → `{ email: string|null, overflowNote: string|null }`. Regex test; if fails but value looks like license/address text (length > 10 or contains spaces/`,`/`Lic`), push to `overflowNote`.
+- `parseExcelDate(v)` — already in `validators.ts`; extract here. Treat `"0000-00-00"`, `"0"`, blank as null.
+- `mergeBatchKey(sku, batch)` — lowercased key for duplicate-merging.
 
-- Add missing `tenant_id = get_user_tenant_id()` to any policy that lacks it.
-- Add `restrictive` `rbac_*` policies on tables that only have permissive ones.
-- Remove `anon` grants on tables that should be auth-only.
-- Add `verify_jwt`/`getClaims()` to edge functions that mutate data.
-- Tighten storage bucket policies (especially `tenant-backups`).
-- Patch any client-side admin checks (`isAdmin` from localStorage etc., if found).
+### 2. Expand `src/lib/import/aliases.ts`
+Add legacy headers → canonical keys, per entity:
+- Products: `product code`→`sku`, `product name`→`name`, `sale price`→`selling_price`, `cost`→`cost_price`, `low stock`→`reorder_level`, `large pack size`→`pack_size`, `supplier`→`supplier_name`, `type`→`category`, `weight`/`unit`/`base unit`→`unit`, plus carry-only fields (`expense_account`, `income_account`, `stock_account`, `sale_information`) stored in `notes`.
+- Customers: `business name`/`title`/`first name`/`last name`→ composed `name`, `mobile`/`sms mobile`/`phone`→`phone`, `a/c no.`→`old_erp_account_code`, `cnic`→`cnic`, `country`/`county`/`website`→`notes` overflow.
+- Suppliers: `business name`+`first name`+`last name`→`name`, `a/c no.`→`old_erp_account_code`, `payment terms`→`payment_terms_days`.
+- Batches: `code`→`sku`, `product`→`name` (informational), `to location`→`location` (notes), `base unit`→`unit`, `base quantity`→`quantity`, `batch no.`→`batch_number`, `batch expiry`→`expiry_date`.
 
-Verification: re-run the cross-tenant probes; `supabase--linter` must come back clean for P0 items.
+### 3. Extend `src/lib/import/types.ts`
+- Add optional fields where needed: `products.notes`, `products.supplier_name`; `customers.old_erp_account_code`, `customers.cnic`, `customers.notes`; `suppliers.old_erp_account_code`, `suppliers.notes`; `batches.notes`.
+- Add new `EntityType: "opening_balances"` (umbrella for customer + supplier opening, single sheet with `party_type` column) — kept alongside existing `customer_opening`/`supplier_opening`.
 
-## Wave 2 — Backups & Recovery
+### 4. Extend `src/lib/import/validators.ts`
+Apply legacy-ERP rules per entity:
+- **All entities**: run cleaners; email overflow appended to `notes`.
+- **Batches**:
+  - drop (mark `errors`) qty `0` / missing → error "zero quantity";
+  - missing SKU/batch → error;
+  - expiry parses `0000-00-00` & Excel serials via `parseExcelDate`;
+  - cross-row merge: if same (`sku`,`batch_number`) appears twice → sum `quantity`, keep first row, others marked `merged` (new status, treated as valid with no insert, counted in report).
+  - existence check against products table happens during posting (already does); validators flag missing SKU only if products were already imported in this wizard (best-effort — actual block at post time).
+- **Products**: dedup by SKU (already done). Coerce category aliases (Type column) to known enum via lookup table; unknown → fall back to `other`.
 
-- Confirm `pg_cron` daily + weekly + monthly schedules calling `weekly-backup` (currently weekly only). Add daily/monthly variants with retention 14d / 8w / 12m.
-- Extend `tenant-backups` bucket: private, signed-URL only, owner-only download via `manage-tenant`-style edge function.
-- New table `backup_runs` (id, tenant_id, kind, status, size_bytes, file_path, started_at, finished_at, error, created_by) + RLS owner-only.
-- New page `/settings/backups` (owner only): backup-now button, history table, last/next backup, retention settings, restore-from-file dry-run (validates JSON shape, does **not** execute restore — restore stays a manual `service_role` operation documented in `docs/disaster-recovery.md`).
-- `logAudit` entries: `backup_created`, `backup_failed`, `restore_started`, `restore_completed`.
+### 5. Extend `src/lib/import/posters.ts`
+- `postProducts`: write `notes`, `supplier_name` (resolve `supplier_id` from suppliers table when found).
+- `postCustomers`/`postSuppliers`: write `old_erp_account_code`, `cnic`, `notes`.
+- `postBatches`: skip rows already marked `merged`. Final list goes through existing GRN flow.
+- Add `import_batch_id` to all inserts (already there).
 
-## Wave 3 — Audit Log Completeness + Sensitive-action Confirmations
+### 6. DB migration (single file)
+- Add nullable cols if not present:
+  - `customers.old_erp_account_code text`, `customers.cnic text`, `customers.notes text`
+  - `suppliers.old_erp_account_code text`, `suppliers.notes text`
+  - `products.notes text`, `products.legacy_codes jsonb`
+- Tenant-scoped partial unique index on `old_erp_account_code` (where not null) for both customers & suppliers — prevents re-importing same legacy code twice.
+- No new tables (staging already exists).
 
-- Extend `AuditAction` enum + `logAudit` call sites to cover every action in your list (login, failed_login, user_invited, settings_changed, import_*, backup_*, report_exported, stock_adjusted with reason, etc.).
-- `login` / `failed_login` captured via `onAuthStateChange` + a small edge function `record-auth-event` (so failed logins are recorded server-side).
-- Wrap these client actions in a confirm-with-reason dialog (`<ConfirmReasonDialog>`): delete invoice, edit posted invoice, stock adjustment, restore backup, change user role, delete product/customer/supplier, rollback import.
-- Reason stored in `audit_log.changes.reason`.
+### 7. New page `src/pages/MigrationWizard.tsx` (route `/import/wizard`)
+A linear 6-step shell that reuses existing `DataImport` flow inside each step:
+```text
+[ Suppliers ] → [ Customers ] → [ Products ] → [ Batches ] → [ Opening Balances ] → [ Verification ]
+```
+- Each step shows: short instructions, "Download template", embedded `DataImport` sub-flow locked to that entity (props `lockedEntity`), and a "Skip step" option.
+- Wizard tracks `wizard_run_id` (uuid in localStorage) so verification report can filter `import_batches.created_at >= wizard_started_at`.
+- Step is marked complete when at least one batch for that entity has status `completed`.
 
-## Wave 4 — ERP Rule Hardening + UX polish
+### 8. Refactor `DataImport.tsx` minimally
+Accept optional `lockedEntity?: EntityType` prop and `onComplete?: () => void`. When `lockedEntity` is set: skip Step 1 (entity picker), header changes, and on success call `onComplete`. No behavior change for existing `/import` route.
 
-- DB triggers (only where missing — most already exist per memory):
-  - duplicate invoice number guard (already covered by unique idx — verify).
-  - sales order does NOT touch ledger/stock (verify no trigger does).
-  - stock_adjustment requires `reason` (NOT NULL check + trigger).
-  - closed-period writes blocked (already exists — verify on every txn table).
-- UI: professional empty states, error boundary page, `/settings/system-health` extended with backup health, DB health (`supabase--db_health`), storage health.
-- Onboarding wizard polish (Company → Users → Roles → Import) — only if Wave 0 shows real gaps; otherwise skipped.
+### 9. Verification report (Step 6)
+A new card-driven view inside `MigrationWizard.tsx` that queries:
+- counts from `import_batches` for this wizard run, grouped by `entity_type` (posted vs invalid).
+- counts from `import_staging_rows` joined to wizard batches, broken down by error reason (zero qty / invalid expiry / unknown SKU / missing batch / merged duplicates / missing phone+email).
+- "Download full report" → CSV with one row per entity.
+- "Rollback entire migration" button → loops the wizard's batch ids through existing `rollback_import_batch` RPC after confirmation + reason.
 
-## Wave 5 — Final Report + Launch Checklist
+### 10. Navigation
+- Add a prominent "ERP Migration Wizard" button on `DataImport` and a sidebar entry under Settings (admin-only via existing `RequireCap`).
+- `App.tsx` route: `/import/wizard` → `MigrationWizard`.
 
-Single markdown delivered as `/mnt/documents/erp-audit-final.md` with: issues found per phase, files/tables/policies changed, tests performed, residual risks, **launch readiness score /100**, and a go-live checklist.
+---
 
-## Technical notes
+## Out of scope (intentionally)
+- No new staging tables — existing `import_staging_rows` already does what `product_import_staging`/`customer_import_staging` would do; per-entity staging is implicit via `batch_id + entity_type`.
+- No edge function — all logic runs client-side using authenticated supabase calls under RLS, same as current importer.
+- No change to rollback RPC — already cascades across products/customers/suppliers/grn/stock/payments.
 
-- All DB changes go through `supabase--migration` (one migration per wave, reviewed by you).
-- No hard deletes added anywhere — voids/reversals only.
-- No client-only role checks: every UI gate is mirrored by a restrictive RLS policy or RPC guard.
-- Restore is intentionally **not** a one-click button — it's a documented procedure to avoid a single compromised admin wiping a tenant.
-- Out of scope for now: SOC2 paperwork, pen-test, third-party WAF, email-domain DMARC (separate engagement).
+---
 
-## What I need from you
+## Files touched
 
-1. **Approve Wave 0** so I can produce the real defect list. After you review the report we'll scope Waves 1–5 precisely (some items in your wishlist may already be done — memory says RLS, tenant isolation, void_document, period locks, negative-stock trigger, batch+expiry guard, posted-immutability trigger, RBAC matrix, weekly backups, and audit log are already in place; Wave 0 will verify that).
-2. Confirm: **owner = "super admin"** in your terminology, or do you want a new `super_admin` role above `owner` (cross-tenant)? Today everything is single-tenant-scoped.
-3. Confirm restore stays manual (recommended) vs. a one-click owner button (riskier).
+**New**
+- `src/lib/import/cleaners.ts`
+- `src/pages/MigrationWizard.tsx`
+- one migration in `supabase/migrations/`
+
+**Edited**
+- `src/lib/import/aliases.ts` (add legacy headers)
+- `src/lib/import/types.ts` (extra fields, opening_balances type)
+- `src/lib/import/validators.ts` (cleaners + merge + qty/expiry rules)
+- `src/lib/import/posters.ts` (write new cols, skip `merged` rows, resolve supplier_id)
+- `src/pages/DataImport.tsx` (accept `lockedEntity`/`onComplete`)
+- `src/App.tsx` (new route)
+- `src/components/AppSidebar.tsx` or Settings nav (link)
+
+## Risks
+- Adding columns to `customers`/`suppliers`/`products` is additive and nullable → safe with RLS unchanged.
+- Wizard's "rollback entire migration" uses the same RPC for each batch sequentially; if user has *other* batches mixed in, they remain untouched (filter is by batch_id list, not entity).
+- Excel files >50k rows can be slow in browser — same constraint as today; we keep 500-row chunks.
+
+Reply **go** to build, or tell me what to adjust (e.g. drop the umbrella `opening_balances` entity, change wizard order, add a separate `product_import_staging` table for auditors, etc.).

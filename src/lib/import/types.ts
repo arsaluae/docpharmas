@@ -53,16 +53,23 @@ export const ENTITIES: Record<EntityType, EntitySpec> = {
     description: "Product master with SKU, category, pack size, costs and tax rates.",
     fields: [
       { key: "name", label: "Product Name", type: "text", required: true },
-      { key: "sku", label: "SKU / Item Code", type: "text", required: true },
-      { key: "category", label: "Category", type: "enum", enumValues: PRODUCT_CATEGORIES, required: true },
-      { key: "unit", label: "Unit (pcs, box, etc.)", type: "text", required: true, example: "pcs" },
+      { key: "sku", label: "SKU / Product Code", type: "text", required: true },
+      { key: "category", label: "Category / Type", type: "text", help: "tablet, capsule, syrup, injection, cream, ointment, drops, sachet, other" },
+      { key: "unit", label: "Unit / Base Unit", type: "text", required: true, example: "pcs" },
       { key: "cost_price", label: "Cost Price (PKR)", type: "number", required: true },
-      { key: "selling_price", label: "MRP / Selling Price (PKR)", type: "number", required: true },
-      { key: "pack_size", label: "Pack Size", type: "text" },
+      { key: "selling_price", label: "Sale Price / MRP (PKR)", type: "number", required: true },
+      { key: "pack_size", label: "Pack Size / Large Pack Size", type: "text" },
       { key: "drap_reg_number", label: "DRAP Reg #", type: "text" },
       { key: "gst_rate", label: "GST Rate (%)", type: "number", help: "0–100" },
       { key: "stock_quantity", label: "Opening Stock Qty", type: "number" },
-      { key: "reorder_level", label: "Reorder Level", type: "number" },
+      { key: "reorder_level", label: "Low Stock / Reorder Level", type: "number" },
+      { key: "weight", label: "Weight", type: "text" },
+      { key: "supplier_name", label: "Preferred Supplier", type: "text" },
+      { key: "expense_account", label: "Expense Account (legacy)", type: "text" },
+      { key: "income_account", label: "Income Account (legacy)", type: "text" },
+      { key: "stock_account", label: "Stock Account (legacy)", type: "text" },
+      { key: "sale_information", label: "Sale Information (legacy)", type: "text" },
+      { key: "notes", label: "Notes", type: "text" },
     ],
     example: [
       { name: "Paracetamol 500mg", sku: "PAR-500", category: "tablet", unit: "pcs", cost_price: 1.5, selling_price: 2.5, pack_size: "10x10", gst_rate: 0, stock_quantity: 0, reorder_level: 500 },
@@ -74,19 +81,28 @@ export const ENTITIES: Record<EntityType, EntitySpec> = {
     type: "customers",
     label: "Customers",
     group: "master",
-    description: "Customer master. Customer code is auto-generated if not provided.",
+    description: "Customer master. Title/First/Last are merged into Name when a Business Name is missing.",
     fields: [
-      { key: "name", label: "Customer Name", type: "text", required: true },
+      { key: "name", label: "Customer / Business Name", type: "text", required: true },
+      { key: "title", label: "Title", type: "text" },
+      { key: "first_name", label: "First Name", type: "text" },
+      { key: "last_name", label: "Last Name", type: "text" },
       { key: "customer_code", label: "Customer Code", type: "text" },
+      { key: "old_erp_account_code", label: "A/C No. (Legacy)", type: "text" },
       { key: "company", label: "Company / Pharmacy", type: "text" },
-      { key: "phone", label: "Phone", type: "text" },
+      { key: "phone", label: "Mobile / Phone", type: "text" },
       { key: "email", label: "Email", type: "text" },
       { key: "address", label: "Address", type: "text" },
       { key: "city", label: "City", type: "text" },
       { key: "area", label: "Area", type: "text" },
+      { key: "country", label: "Country", type: "text" },
+      { key: "county", label: "County", type: "text" },
+      { key: "website", label: "Website", type: "text" },
+      { key: "cnic", label: "CNIC", type: "text" },
       { key: "ntn", label: "NTN", type: "text" },
       { key: "strn", label: "STRN", type: "text" },
       { key: "credit_limit", label: "Credit Limit (PKR)", type: "number" },
+      { key: "notes", label: "Notes", type: "text" },
     ],
     example: [
       { name: "Rehman Medicos", company: "Rehman Pharmacy", phone: "03001234567", city: "Lahore", area: "DHA", credit_limit: 50000 },
@@ -97,19 +113,25 @@ export const ENTITIES: Record<EntityType, EntitySpec> = {
     type: "suppliers",
     label: "Suppliers",
     group: "master",
-    description: "Supplier master. Supplier code is auto-generated if not provided.",
+    description: "Supplier master. First+Last names roll up into Name if Business Name is missing.",
     fields: [
-      { key: "name", label: "Supplier Name", type: "text", required: true },
+      { key: "name", label: "Supplier / Business Name", type: "text", required: true },
+      { key: "first_name", label: "First Name", type: "text" },
+      { key: "last_name", label: "Last Name", type: "text" },
       { key: "supplier_code", label: "Supplier Code", type: "text" },
+      { key: "old_erp_account_code", label: "A/C No. (Legacy)", type: "text" },
       { key: "company", label: "Company", type: "text" },
-      { key: "phone", label: "Phone", type: "text" },
+      { key: "phone", label: "Mobile / Phone", type: "text" },
       { key: "email", label: "Email", type: "text" },
       { key: "address", label: "Address", type: "text" },
       { key: "city", label: "City", type: "text" },
+      { key: "country", label: "Country", type: "text" },
+      { key: "county", label: "County", type: "text" },
       { key: "ntn", label: "NTN", type: "text" },
       { key: "strn", label: "STRN", type: "text" },
       { key: "payment_terms_days", label: "Payment Terms (days)", type: "integer" },
       { key: "wht_rate", label: "WHT Rate (%)", type: "number", help: "0–100, typically 4.5" },
+      { key: "notes", label: "Notes", type: "text" },
     ],
     example: [
       { name: "GSK Pakistan", company: "GlaxoSmithKline", phone: "0211234567", city: "Karachi", payment_terms_days: 30, wht_rate: 4.5 },
@@ -168,18 +190,22 @@ export const ENTITIES: Record<EntityType, EntitySpec> = {
 
   batches: {
     type: "batches",
-    label: "Product Batches & Expiry",
+    label: "Batch & Opening Stock",
     group: "opening",
-    description: "Per-batch opening stock with expiry. Posts as a GRN-style receipt.",
+    description: "Per-batch opening stock with expiry. Duplicate (SKU + batch) rows are auto-merged; rows with qty=0, missing batch, or invalid expiry are skipped.",
     fields: [
-      { key: "sku", label: "Product SKU", type: "text", required: true },
-      { key: "batch_number", label: "Batch Number", type: "text", required: true },
-      { key: "expiry_date", label: "Expiry Date (YYYY-MM-DD)", type: "date", required: true },
-      { key: "quantity", label: "Quantity", type: "number", required: true },
+      { key: "sku", label: "Product Code / SKU", type: "text", required: true },
+      { key: "product_name", label: "Product Name (informational)", type: "text" },
+      { key: "batch_number", label: "Batch No.", type: "text", required: true },
+      { key: "expiry_date", label: "Batch Expiry (YYYY-MM-DD)", type: "date", required: true },
+      { key: "quantity", label: "Base Quantity", type: "number", required: true },
+      { key: "unit", label: "Base Unit", type: "text" },
+      { key: "to_location", label: "To Location / Warehouse", type: "text" },
       { key: "rate", label: "Cost Rate (PKR)", type: "number" },
+      { key: "notes", label: "Notes", type: "text" },
     ],
     example: [
-      { sku: "PAR-500", batch_number: "B2401", expiry_date: "2027-06-30", quantity: 500, rate: 1.5 },
+      { sku: "PAR-500", batch_number: "B2401", expiry_date: "2027-06-30", quantity: 500, unit: "pcs", rate: 1.5 },
     ],
   },
 
@@ -222,7 +248,7 @@ export const ENTITIES: Record<EntityType, EntitySpec> = {
     label: "Historical Sales Invoices",
     group: "transaction",
     description:
-      "One row per invoice line. Lines sharing the same invoice_number are grouped into a single invoice. Totals are recomputed and the supplied total is matched within 0.01.",
+      "One row per invoice line. Lines sharing the same invoice_number are grouped into a single invoice.",
     groupBy: "invoice_number",
     fields: [
       { key: "invoice_number", label: "Invoice Number", type: "text", required: true },
@@ -235,7 +261,7 @@ export const ENTITIES: Record<EntityType, EntitySpec> = {
       { key: "expiry_date", label: "Expiry Date", type: "date" },
       { key: "discount_percent", label: "Line Discount (%)", type: "number" },
       { key: "gst_rate", label: "Line GST (%)", type: "number" },
-      { key: "invoice_total", label: "Invoice Total (PKR)", type: "number", help: "Repeated on every line; reconciled to computed total" },
+      { key: "invoice_total", label: "Invoice Total (PKR)", type: "number" },
     ],
     example: [
       { invoice_number: "INV-9001", date: "2026-05-01", customer_name: "Rehman Medicos", sku: "PAR-500", quantity: 100, rate: 2.5, discount_percent: 0, gst_rate: 0, invoice_total: 250 },
@@ -246,8 +272,7 @@ export const ENTITIES: Record<EntityType, EntitySpec> = {
     type: "purchase_invoices",
     label: "Historical Purchase Invoices",
     group: "transaction",
-    description:
-      "One row per purchase invoice. Header-level only (subtotal, GST, WHT, total). For full GRN line detail use the Batches importer.",
+    description: "One row per purchase invoice. Header-level only.",
     fields: [
       { key: "bill_number", label: "Bill Number", type: "text", required: true },
       { key: "date", label: "Bill Date (YYYY-MM-DD)", type: "date", required: true },
@@ -265,12 +290,19 @@ export const ENTITIES: Record<EntityType, EntitySpec> = {
 };
 
 export const ENTITY_LIST: EntityType[] = [
-  "products","customers","suppliers","chart_of_accounts",
-  "opening_stock","batches","customer_opening","supplier_opening","bank_opening",
+  "suppliers","customers","products","batches","chart_of_accounts",
+  "opening_stock","customer_opening","supplier_opening","bank_opening",
   "sales_invoices","purchase_invoices",
 ];
 
 export type BatchStatus = "uploaded"|"validated"|"failed"|"posting"|"completed"|"rolled_back";
 
 export interface ValidationError { field: string; message: string }
-export interface NormalizedRow { rowNumber: number; raw: Record<string, unknown>; normalized: Record<string, unknown>; errors: ValidationError[] }
+export interface NormalizedRow {
+  rowNumber: number;
+  raw: Record<string, unknown>;
+  normalized: Record<string, unknown>;
+  errors: ValidationError[];
+  warnings?: string[]; // soft notes shown to user but don't block posting
+  merged?: boolean;    // batch row whose qty was merged into an earlier row
+}

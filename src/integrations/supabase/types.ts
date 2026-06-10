@@ -821,6 +821,7 @@ export type Database = {
           area: string | null
           balance: number
           city: string | null
+          cnic: string | null
           company: string | null
           created_at: string
           credit_limit: number
@@ -830,7 +831,9 @@ export type Database = {
           import_batch_id: string | null
           is_active: boolean
           name: string
+          notes: string | null
           ntn: string | null
+          old_erp_account_code: string | null
           opening_balance: number
           phone: string | null
           phones: Json
@@ -842,6 +845,7 @@ export type Database = {
           area?: string | null
           balance?: number
           city?: string | null
+          cnic?: string | null
           company?: string | null
           created_at?: string
           credit_limit?: number
@@ -851,7 +855,9 @@ export type Database = {
           import_batch_id?: string | null
           is_active?: boolean
           name: string
+          notes?: string | null
           ntn?: string | null
+          old_erp_account_code?: string | null
           opening_balance?: number
           phone?: string | null
           phones?: Json
@@ -863,6 +869,7 @@ export type Database = {
           area?: string | null
           balance?: number
           city?: string | null
+          cnic?: string | null
           company?: string | null
           created_at?: string
           credit_limit?: number
@@ -872,7 +879,9 @@ export type Database = {
           import_batch_id?: string | null
           is_active?: boolean
           name?: string
+          notes?: string | null
           ntn?: string | null
+          old_erp_account_code?: string | null
           opening_balance?: number
           phone?: string | null
           phones?: Json
@@ -2267,8 +2276,10 @@ export type Database = {
           id: string
           import_batch_id: string | null
           is_active: boolean
+          legacy_codes: Json | null
           mrp: number
           name: string
+          notes: string | null
           pack_size: string | null
           product_code: string | null
           reorder_level: number
@@ -2287,8 +2298,10 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           is_active?: boolean
+          legacy_codes?: Json | null
           mrp?: number
           name: string
+          notes?: string | null
           pack_size?: string | null
           product_code?: string | null
           reorder_level?: number
@@ -2307,8 +2320,10 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           is_active?: boolean
+          legacy_codes?: Json | null
           mrp?: number
           name?: string
+          notes?: string | null
           pack_size?: string | null
           product_code?: string | null
           reorder_level?: number
@@ -3729,7 +3744,9 @@ export type Database = {
           license_expiry_date: string | null
           license_number: string | null
           name: string
+          notes: string | null
           ntn: string | null
+          old_erp_account_code: string | null
           opening_balance: number
           payment_terms_days: number
           phone: string | null
@@ -3753,7 +3770,9 @@ export type Database = {
           license_expiry_date?: string | null
           license_number?: string | null
           name: string
+          notes?: string | null
           ntn?: string | null
+          old_erp_account_code?: string | null
           opening_balance?: number
           payment_terms_days?: number
           phone?: string | null
@@ -3777,7 +3796,9 @@ export type Database = {
           license_expiry_date?: string | null
           license_number?: string | null
           name?: string
+          notes?: string | null
           ntn?: string | null
+          old_erp_account_code?: string | null
           opening_balance?: number
           payment_terms_days?: number
           phone?: string | null
