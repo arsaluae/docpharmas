@@ -46,8 +46,23 @@ export default function PayablesAging() {
     setBucketTotals(totals);
   };
 
+  const exportData = useMemo(() => ({
+    columns: [
+      { key: "bill_number", header: "Bill #", type: "text" as const },
+      { key: "supplier", header: "Supplier", type: "text" as const },
+      { key: "due_date", header: "Due Date", type: "date" as const },
+      { key: "days", header: "Days", type: "number" as const },
+      { key: "bucket", header: "Bucket", type: "text" as const },
+      { key: "outstanding", header: "Outstanding (PKR)", type: "currency" as const },
+    ],
+    rows: rows.map(r => ({ ...r })),
+    totalsRow: { bill_number: "TOTAL", outstanding: rows.reduce((s, r) => s + r.outstanding, 0) },
+  }), [rows]);
+
+  const headerActions = <ReportToolbar title="Payables Aging" {...exportData} />;
+
   return (
-    <AppLayout title="Payables Aging">
+    <AppLayout title="Payables Aging" headerActions={headerActions}>
       <div className="space-y-4">
         <div className="grid grid-cols-5 gap-3">
           {["Current", "1-30", "31-60", "61-90", "90+"].map(b => (
@@ -73,6 +88,12 @@ export default function PayablesAging() {
                   <TableCell className="text-right font-mono font-medium">PKR {r.outstanding.toLocaleString()}</TableCell>
                 </TableRow>
               ))}
+              {rows.length > 0 && (
+                <TableRow className="font-semibold border-t-2">
+                  <TableCell colSpan={5}>TOTAL</TableCell>
+                  <TableCell className="text-right font-mono">PKR {rows.reduce((s, r) => s + r.outstanding, 0).toLocaleString()}</TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent></Card>

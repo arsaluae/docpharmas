@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { ReportToolbar } from "@/components/reports/ReportToolbar";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
 } from "recharts";
@@ -79,10 +80,34 @@ export default function ProfitLoss() {
     { name: "Net Profit", value: netProfit, fill: netProfit >= 0 ? "hsl(160, 84%, 39%)" : "hsl(0, 72%, 51%)" },
   ];
 
+  const exportRows = [
+    { label: "Gross Sales", amount: revenue },
+    { label: "Less: Sales Returns", amount: -salesReturns },
+    { label: "Net Revenue", amount: netRevenue },
+    { label: "Cost of Items Sold", amount: -cogs },
+    { label: "Less: Purchase Returns", amount: purchaseReturns },
+    { label: "Net COGS", amount: -netCogs },
+    { label: "Gross Profit", amount: grossProfit },
+    ...Object.entries(expensesByCategory).map(([cat, amt]) => ({ label: `Expense: ${cat}`, amount: -Number(amt) })),
+    { label: "Total Operating Expenses", amount: -totalExpenses },
+    { label: "Staff Salaries", amount: -salaries },
+    { label: "Net Profit", amount: netProfit },
+  ];
+
   const headerActions = (
     <div className="flex items-center gap-2">
       <Label className="text-xs">From</Label><Input type="date" className="w-36" value={from} onChange={e => setFrom(e.target.value)} />
       <Label className="text-xs">To</Label><Input type="date" className="w-36" value={to} onChange={e => setTo(e.target.value)} />
+      <ReportToolbar
+        title="Profit & Loss"
+        dateRange={{ from, to }}
+        columns={[
+          { key: "label", header: "Line", type: "text" },
+          { key: "amount", header: "Amount (PKR)", type: "currency" },
+        ]}
+        rows={exportRows}
+        totalsRow={{ label: "NET PROFIT", amount: netProfit }}
+      />
     </div>
   );
 
