@@ -29,7 +29,7 @@ export default function ProfitLoss() {
       supabase.from("expenses").select("amount, category, expense_type").gte("date", from).lte("date", to).not("status", "in", NOT_POSTED),
       supabase.from("sales_returns").select("total").gte("date", from).lte("date", to).not("status", "in", NOT_POSTED),
       supabase.from("purchase_returns").select("total").gte("date", from).lte("date", to).not("status", "in", NOT_POSTED),
-      supabase.from("salary_payments").select("amount").gte("date", from).lte("date", to).not("status", "in", NOT_POSTED),
+      supabase.from("salary_payments").select("amount").gte("date", from).lte("date", to),
     ]);
 
     const salesIds = (sales.data || []).map(s => s.id);

@@ -32,7 +32,7 @@ export default function BalanceSheet() {
       supabase.from("payments").select("type, amount, party_type, party_id, bank_account_id").lte("date", asOfDate).not("status", "in", NOT_POSTED),
       supabase.from("sales_returns").select("total, customer_id").lte("date", asOfDate).not("status", "in", NOT_POSTED),
       supabase.from("purchase_returns").select("total, supplier_id").lte("date", asOfDate).not("status", "in", NOT_POSTED),
-      supabase.from("salary_payments").select("amount, bank_account_id").lte("date", asOfDate).not("status", "in", NOT_POSTED),
+      supabase.from("salary_payments").select("amount, bank_account_id").lte("date", asOfDate),
     ]);
 
     // Calculate bank balances from transactions

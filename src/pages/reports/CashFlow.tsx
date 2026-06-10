@@ -18,7 +18,7 @@ export default function CashFlow() {
     const [payments, expenses, salaries] = await Promise.all([
       supabase.from("payments").select("type, amount, date").gte("date", from).lte("date", to).not("status", "in", NOT_POSTED),
       supabase.from("expenses").select("amount, date").eq("expense_type", "business").gte("date", from).lte("date", to).not("status", "in", NOT_POSTED),
-      supabase.from("salary_payments").select("amount, date").gte("date", from).lte("date", to).not("status", "in", NOT_POSTED),
+      supabase.from("salary_payments").select("amount, date").gte("date", from).lte("date", to),
     ]);
 
     const months: Record<string, { inflows: number; outflows: number }> = {};
