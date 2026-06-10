@@ -127,7 +127,7 @@ export function validateAll(
         case "number": {
           const n = coerceNumber(v);
           if (n === null) errors.push({ field: f.key, message: "not a valid number" });
-          else if (n < 0 && !["balance", "amount"].includes(f.key)) {
+          else if (n < 0 && !["balance", "amount"].includes(f.key) && !(entity === "batches" && f.key === "quantity")) {
             errors.push({ field: f.key, message: "must be ≥ 0" });
           } else normalized[f.key] = n;
           break;
@@ -234,14 +234,14 @@ export function validateAll(
       case "batches": {
         // pharma-grade row rules
         const qty = Number(normalized.quantity ?? 0);
-        if (!(qty > 0)) errors.push({ field: "quantity", message: "zero or missing quantity — row skipped" });
+        if (!(qty > 0)) errors.push({ field: "quantity", message: "non-positive quantity (legacy adjustment) — skipped", severity: "skipped" });
         if (!normalized.sku) errors.push({ field: "sku", message: "missing product code" });
         if (!normalized.batch_number) errors.push({ field: "batch_number", message: "missing batch number" });
-        if (!normalized.expiry_date) errors.push({ field: "expiry_date", message: "invalid or sentinel expiry (0000-00-00)" });
+        if (!normalized.expiry_date) errors.push({ field: "expiry_date", message: "missing or sentinel expiry (0000-00-00) — skipped", severity: "skipped" });
         if (normalized.expiry_date && !opts.allowPastExpiry) {
           const today = new Date().toISOString().slice(0, 10);
           if (String(normalized.expiry_date) < today) {
-            errors.push({ field: "expiry_date", message: "expiry is in the past (enable override to allow)" });
+            errors.push({ field: "expiry_date", message: "expiry is in the past (enable override to allow)", severity: "skipped" });
           }
         }
         // duplicate (sku + batch) merging — only when row is otherwise valid
