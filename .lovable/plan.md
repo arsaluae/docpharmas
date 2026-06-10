@@ -1,86 +1,82 @@
-# Ledger redesign + Sales Agent scope lockdown
+# Full ERP Audit + Refresh — Single Sweep
 
-## Part A — Ledger redesign (Hero Outstanding direction)
+You picked the most aggressive option. To keep it from breaking your live tenant, the sweep runs as **one continuous job** but in a fixed safe order: **data integrity first, logic second, validation third, RLS/security fourth, seed data fifth, UI refresh last**. UI work never blocks data correctness.
 
-Apply the picked direction to all three ledgers: **CustomerLedger**, **SupplierLedger**, **PrinterLedger** (same structure, party-appropriate copy).
+⚠️ **Risk acknowledgement.** A heavy refresh + full sweep on a live, multi-tenant ERP with 60+ tables and 11+ triggers will produce regressions. I will run targeted reads + the linter after every batch and roll forward with fixes, but you should expect 1–2 follow-up turns to settle.
 
-### Structural moves (copy verbatim from selected prototype)
-1. **Hero header band** — two-column row inside a single rounded container:
-   - Left: small indigo-dot "Receivables Account" eyebrow + party name "/ Ledger" headline + meta line (city · phone · last activity).
-   - Right: "Total Outstanding" eyebrow, then `PKR` in indigo + giant tabular-nums balance (text-5xl), followed by Export CSV + WhatsApp buttons.
-2. **KPI + Aging band** (single bordered row, `grid-cols-3`):
-   - cols 1-2: 4 KPI tiles (Total Sales, Received, Returns, Credit Notes) separated by hairline `border-r`, each with a 1px progress bar showing share of total.
-   - col 3: rich Aging Distribution panel — segmented horizontal bar (0-30 / 31-60 / 61-90 / 90+) with widths proportional to bucket value, indigo for current, white/5 for empty buckets; numeric labels under each segment.
-3. **Filter strip** — pill date range (All / 30d / 90d / Year) on the left, separator, type tabs as underlined indigo on active (All, Invoices, Payments, Returns, Credit Notes, Warranty); search input on the right with `⌘F` chip.
-4. **Statement table** — sticky right "Running Balance" column with indigo tint and `border-l`; rows: date in mono, type as colored pill (indigo for invoices, emerald for payments, amber for returns, slate for opening), reference in mono. Whole row keyboard-focusable + click-to-open existing source entry (no behavior change, only styling).
-5. **Footer**: "End of statement" lockup in uppercase widest tracking.
+---
 
-### Tokens
-Use existing semantic tokens; no inline near-black or `bg-white/5` hexes — wrap with `bg-card`, `border-border`, `text-muted-foreground`, `text-primary`, `bg-primary/10`, etc., so light + dark themes both render correctly. Geist Mono already loaded; just `font-mono tabular-nums` for numbers.
+## A. Technical audit (Phase 1) — output as a findings doc
 
-### Click-through (already wired, keep and verify)
-- Sales Invoice → `/proforma?invoice=<id>` opening PDF preview directly (currently sends to `/?invoice=` — fix to land on the invoice's hub with preview auto-open).
-- Payment Received/Made → `/payments?tab=<received|made>&highlight=<id>` (already correct; add subtle row highlight on landing).
-- Sales/Purchase Return, Credit Note, Warranty Invoice → already routed; same query-param highlight pattern.
+Single read-only pass producing `.lovable/audit/findings.md` with severity + file:line refs. Covers: TS errors, broken imports/routes, missing loading/empty/error states, N+1 queries, missing indexes, missing tenant-scoped uniques, RLS gaps, exposed config, public edge functions, missing validation, slow queries (via `supabase--slow_queries`), bundle-size offenders.
 
-Update `Payments.tsx`, `ProformaInvoices.tsx`, `SalesReturns.tsx`, `PurchaseReturns.tsx`, `WarrantyInvoices.tsx`, `CreditNotes.tsx`, `DebitNotes.tsx` to read `?highlight=<id>` and auto-open the entry's preview/dialog (most already do; complete the missing ones).
+## B. Data integrity & logic (Phases 3 + 4) — migrations
 
-## Part B — Sales Agent: pure sales-only access
+One migration bundle that:
 
-User's intent: **only their assigned customers' sales activity. No cost, no financial reports, no inventory, no purchase, no finance, no admin.**
+1. **Batch + expiry hard-required on sales lines.** Add `batch_no NOT NULL`, `expiry_date NOT NULL` on `sales_invoice_items` (after backfill from `grn_items` FIFO). Trigger `validate_sales_line_batch` rejects inserts referencing a batch with `quantity_on_hand < line.qty` or `expiry_date < invoice.date` unless `company_settings.allow_expired_sale = true`.
+2. **Proforma / SO / PO never touch ledger or stock.** Audit triggers on `proforma_invoices`, `sales_orders`, `purchase_orders`, `purchase_proformas` — strip any balance/stock side-effect (your schema looks clean here; confirm + lock with a comment + test rows).
+3. **Negative-stock guard universal.** Re-attach `prevent_negative_stock` to every `stock_movements` out-path. Add `allow_negative_stock` to `company_settings` for explicit override.
+4. **Duplicate invoice number guard.** Tenant-scoped unique index on `(tenant_id, invoice_number)` for `sales_invoices` and `purchase_invoices` (already partial — verify, add where missing).
+5. **Closed-period guard.** Trigger blocks insert/update on `sales_invoices`, `purchase_invoices`, `payments`, `journal_entries`, `expenses`, `salary_payments` when `accounting_periods.status = 'closed'` for the doc date.
+6. **Posted-document edit guard.** Once `status IN ('approved','dispatched','paid','partial')`, only `void_document` may change it; direct UPDATE on financial columns raises.
+7. **Double-submit guard (DB).** Idempotency key column on `sales_invoices` / `payments` with unique index — client sends a UUID per save.
+8. **Reconciliation sweep.** Run `run_reconciliation(tenant, auto_fix:=true)` for your current tenant after the bundle.
 
-### RBAC matrix changes (`src/lib/rbac.ts`)
+## C. Reporting correctness (Phase 6)
+
+For each report (P&L, Balance Sheet, Cash Flow, Receivables/Payables Aging, Stock Movement, Batch-wise, Item-wise, Sales Trend, Product Performance, Tax, Daily Cash, Customer/Supplier Ledger):
+- Cross-check the page's aggregation against a Postgres-side `SELECT` over the same range.
+- Fix any drift (ignore voided rows, ignore proforma/SO/PO in financial reports, use posted `date` not `created_at`, include credit/debit note applications in aging).
+
+## D. RBAC + RLS (Phase 7)
+
+- Re-check `role_capabilities` matrix vs each table's policies. Fix every table where a `sales_agent` could read another agent's customer's data through a JOIN (suspected: `sales_invoices` via customer_id, `payments`, `delivery_notes`).
+- Audit edge functions for missing `getClaims` validation.
+- Run `supabase--linter` and fix every Error-level finding from this sweep.
+
+## E. Seed demo data (Phase 2) — into your current tenant
+
+Inserts under the current tenant with names prefixed `DEMO-` so you can `DELETE WHERE name LIKE 'DEMO-%'` later: 5 customers, 5 suppliers, 20 products, 3 GRNs with batches + expiries, opening stock, 2 sales invoices (one paid one partial), 1 sales return, 1 delivery note, 1 purchase invoice, 1 purchase return, 1 customer payment, 1 supplier payment, 1 expense, 1 bank transfer, 1 credit note, 1 debit note. Then walks every report page and screenshots to confirm visibility.
+
+## F. UI heavy refresh (Phase 5)
+
+Because this is a heavy refresh, I will run the **design-direction ritual** (palette → typography → layout → 3 rendered directions → you pick one) for the core shell only: **dashboard, sidebar grouping, list-table pattern, invoice form, invoice PDF**. The chosen direction's tokens replace `index.css` + `tailwind.config.ts`. Every other page inherits.
+
+Out of scope for the refresh: changing your existing precision-industrial brand identity unless your chosen direction overrides it.
+
+## G. SaaS readiness
+
+- `.env.example`, production README, `TEST_CHECKLIST.md`, `SEED.md` documenting the demo-data cleanup query.
+- Confirm no secrets in repo (`rg` sweep).
+- Add `Export tenant data` action (CSV bundle) to Settings — augments your weekly backup.
+
+---
+
+## Execution order in the sweep
+
+```text
+1. Read-only audit          → .lovable/audit/findings.md
+2. Migration bundle B + D   → linter pass → reconciliation
+3. Reporting fixes C        → cross-checked vs SQL
+4. Seed demo data E         → screenshot walk
+5. Design ritual F          → you pick 1 of 3 directions
+6. Refresh tokens + shell   → cascade to pages
+7. Docs G + final summary
 ```
-sales_agent: {
-  sales:  { read: true, write: true },     // own customers only (RLS already enforces)
-  master: { read: true },                  // for customer pages (filtered to assigned)
-  // REMOVED: inventory, reports, purchase, finance, accounting, settings
-}
-```
-Mirror the same trim into `staff` (the legacy alias).
 
-### Sidebar (`AppSidebar.tsx`)
-For `sales_agent` role, render only:
-- **Dashboard** → swap to a sales-agent-specific view: their today/week/month sales, top customers, outstanding (no P&L, no purchases, no costs).
-- **Customers** (auto-filtered by `agent_customers` mapping)
-- **Sales Orders** (already filtered server-side via `is_agent_customer`)
-- **Warranty Invoices**, **Sales Returns**, **Credit Notes** (for their customers only)
-- **My Sales** report — single read-only page: invoices issued, payments received, outstanding by customer. NO costing, NO margin, NO purchase, NO P&L.
+## Final deliverable (Phase 8)
 
-Hide entirely: Purchase, Inventory, Finance, Reports menu, Settings, Bank, Expenses, Salaries, Printers, Print Jobs, Landed Costs, AI Insights, Audit Log, Accounting Periods, Stock Movements.
+One `.lovable/audit/SUMMARY.md` covering: bugs found, files changed, logic fixed, demo entries created (+ cleanup query), screens tested, remaining risks, launch checklist.
 
-### Page-level guards
-Add `RequireCap` (or a new `RequireRole` excluding `sales_agent`) to:
-- `/products` — block sales_agent
-- `/stock`, `/landed-costs`, `/printers`, `/print-jobs`
-- All `/reports/*` except a new `/reports/my-sales`
-- `/payments`, `/bank`, `/expenses`, `/salaries`, `/credit-notes` (read only OK; write blocked)
-- `/purchase-*`, `/suppliers`, `/purchase-returns`
-- `/ai-insights`, `/audit-log`, `/accounting-periods`, `/system-health`
+---
 
-### Routes already protected
-`Sales Orders`, `Warranty`, `Sales Returns`, `Customers`, `Customer Ledger` — keep, but ensure they continue to use the existing `is_agent_customer` RLS filter so agents only ever see their assigned customers.
+## Things explicitly NOT changed
 
-### Dashboard fork
-`Index.tsx` already exists for owners. Add a thin branch: if `tenantRole === 'sales_agent'`, render `<SalesAgentDashboard />` instead — KPIs: My Sales (today/week/month), My Customers count, My Outstanding receivables, recent invoices list. **Zero** purchase, cost, margin, expense, or company-wide data.
+- Hub-based sequential generation of Sales/Purchase Invoices (you confirmed keep).
+- Existing `void_document` + grace-window workflow.
+- Existing audit_log structure and `logAudit()` API.
+- Existing tenant model (`get_user_tenant_id` + `set_tenant_id` triggers).
+- Pakistani CoA / GST / WHT rules.
 
-### My Sales report
-New page `src/pages/reports/MySales.tsx`:
-- Filter: month picker
-- Table: invoice #, customer, date, total, paid, outstanding, status
-- Totals row: total sales, total received, total outstanding
-- That's it. No COGS column, no margin, no profitability.
-
-## Deliverables
-1. Rewrite `CustomerLedger.tsx`, `SupplierLedger.tsx`, `PrinterLedger.tsx` to the picked prototype layout using semantic tokens.
-2. `rbac.ts` — trim `sales_agent` + `staff` matrices.
-3. `AppSidebar.tsx` — role-aware section list for sales_agent.
-4. `App.tsx` — route guards on every restricted page.
-5. New `src/components/dashboard/SalesAgentDashboard.tsx` + branch in `Index.tsx`.
-6. New `src/pages/reports/MySales.tsx` + route.
-7. Highlight handler: ensure all linked hubs auto-open the right entry when `?highlight=<id>` is present.
-
-## Out of scope
-- Changing RLS policies (existing `is_agent_customer` already correctly scopes).
-- New permissions UI in Settings → Team Members.
-- Mobile-specific ledger restyling (desktop-first; existing responsive stack still applies).
+Approve and I'll start with the read-only audit, then immediately roll into the migration bundle.
