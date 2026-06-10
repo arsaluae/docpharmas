@@ -201,7 +201,7 @@
   }
   .kpi:hover {
     border-color: hsl(var(--border-strong));
-    background: hsl(240 11% 99%);
+    background: hsl(var(--surface-2));
   }
   .kpi[data-active="true"] {
     border-left: 2px solid hsl(var(--primary));
