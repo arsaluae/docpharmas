@@ -409,6 +409,90 @@ function VerificationReport({ state }: { state: WizardState }) {
           </table>
         </div>
       )}
+
+      {coverage && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 pt-2">
+          <CoverageCard
+            icon={<Users className="h-4 w-4" />}
+            title="Customers imported"
+            total={coverage.customers.total}
+            rows={[
+              { label: "with city", value: coverage.customers.withCity },
+              { label: "with address", value: coverage.customers.withAddress },
+              { label: "with phone / email", value: coverage.customers.withContact },
+            ]}
+          />
+          <CoverageCard
+            icon={<Truck className="h-4 w-4" />}
+            title="Suppliers imported"
+            total={coverage.suppliers.total}
+            rows={[
+              { label: "with city", value: coverage.suppliers.withCity },
+              { label: "with address", value: coverage.suppliers.withAddress },
+              { label: "with phone / email", value: coverage.suppliers.withContact },
+              { label: "with payment terms", value: coverage.suppliers.withTerms },
+            ]}
+          />
+          <CoverageCard
+            icon={<Package className="h-4 w-4" />}
+            title="Products imported"
+            total={coverage.products.total}
+            rows={[
+              { label: "with sale price", value: coverage.products.withSalePrice },
+              { label: "with cost price", value: coverage.products.withCostPrice },
+              { label: "with supplier linked", value: coverage.products.withSupplier },
+              { label: "without supplier", value: coverage.products.withoutSupplier, warn: coverage.products.withoutSupplier > 0 },
+            ]}
+          />
+          <CoverageCard
+            icon={<Layers className="h-4 w-4" />}
+            title="Batches imported"
+            total={coverage.batches.total}
+            rows={[
+              { label: "with batch #", value: coverage.batches.withBatch },
+              { label: "with expiry", value: coverage.batches.withExpiry },
+              { label: "with quantity", value: coverage.batches.withQty },
+            ]}
+          />
+        </div>
+      )}
+
+      <div className="pt-4 border-t border-border">
+        <div className="flex items-center gap-2 mb-3">
+          <AlertCircle className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold">Supplier mapping fixes</h3>
+        </div>
+        <UnmatchedSuppliers batchIds={batchIds} />
+      </div>
+    </Card>
+  );
+}
+
+function CoverageCard({
+  icon, title, total, rows,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  total: number;
+  rows: { label: string; value: number; warn?: boolean }[];
+}) {
+  return (
+    <Card className="p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+          {icon}
+          {title}
+        </div>
+        <span className="text-lg font-semibold tabular-nums">{total}</span>
+      </div>
+      <div className="space-y-1">
+        {rows.map(r => (
+          <div key={r.label} className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">{r.label}</span>
+            <span className={`tabular-nums font-medium ${r.warn ? "text-amber-600" : "text-foreground"}`}>{r.value}</span>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }
