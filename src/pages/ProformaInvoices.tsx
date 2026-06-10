@@ -1425,82 +1425,102 @@ export default function ProformaInvoices() {
  {/* ═══ SUBMIT DIALOG (Batch + Dispatch) ═══ */}
  <Dialog open={submitOpen} onOpenChange={setSubmitOpen}>
  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
- <DialogHeader>
- <DialogTitle className="font-heading">Dispatch Order — Assign Batches & Courier</DialogTitle>
- </DialogHeader>
- <p className="text-sm text-muted-foreground">
- Pick the batch (FEFO – earliest expiry first) for each item, then choose the courier. This creates the Sales Invoice, Delivery Note and updates stock.
- </p>
- <Separator />
+  <DialogHeader>
+  <DialogTitle className="font-heading">Dispatch Order — Assign Batches & Courier</DialogTitle>
+  {submitOrder && (
+    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+      <span className="font-mono text-foreground">{submitOrder.proforma_number}</span>
+      <span>·</span>
+      <span>{(submitOrder.customers as any)?.name || "—"}</span>
+    </div>
+  )}
+  </DialogHeader>
+  <p className="text-sm text-muted-foreground">
+  Pick the batch (FEFO – earliest expiry first) for each item, then choose the courier. This creates the Sales Invoice, Delivery Note and updates stock.
+  </p>
+  <Separator />
 
- {/* Courier */}
- <div className="rounded-xl border border-border bg-primary/5 p-3">
- <Label className="text-xs font-semibold text-primary dark:text-primary flex items-center gap-1.5">
- <Truck className="h-3.5 w-3.5" /> Dispatched through? *
- </Label>
- <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
- {freightProviders.map(p => (
- <button
- key={p.id}
- type="button"
- onClick={() => setFreightProviderId(p.id)}
- className={`px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${
- freightProviderId === p.id
- ? "border-border bg-primary/15 text-primary dark:text-primary shadow-sm"
- : "border-border bg-card hover:bg-muted/50 text-foreground"
- }`}
- >
- <div className="font-mono text-[10px] text-muted-foreground">{p.code}</div>
- {p.name}
- </button>
- ))}
- {freightProviders.length === 0 && (
- <p className="col-span-full text-xs text-muted-foreground">
- No couriers configured. Add them under Settings → Couriers.
- </p>
- )}
- </div>
- </div>
+  {/* Courier */}
+  <div className="rounded-xl border border-border bg-primary/5 p-3">
+  <Label className="text-xs font-semibold text-primary dark:text-primary flex items-center gap-1.5">
+  <Truck className="h-3.5 w-3.5" /> Dispatched through? {!freightProviderId && freightProviders.length > 0 && <span className="text-[10px] font-normal text-destructive ml-1">— required</span>}
+  </Label>
+  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+  {freightProviders.map(p => (
+  <button
+  key={p.id}
+  type="button"
+  onClick={() => setFreightProviderId(p.id)}
+  className={`px-3 py-2 rounded-lg border text-xs font-semibold transition-all duration-150 ${
+  freightProviderId === p.id
+  ? "border-primary bg-primary/15 text-primary dark:text-primary ring-1 ring-primary/40"
+  : "border-border bg-card hover:bg-muted/50 text-foreground"
+  }`}
+  >
+  <div className="font-mono text-[10px] text-muted-foreground">{p.code}</div>
+  {p.name}
+  </button>
+  ))}
+  {freightProviders.length === 0 && (
+  <p className="col-span-full text-xs text-muted-foreground">
+  No couriers configured. Add them under Settings → Couriers.
+  </p>
+  )}
+  </div>
+  </div>
 
- {submitItems.map((item, idx) => {
- const selectedBatch = batchOptions[item.product_id]?.find(b => b.batch_number === item.batch_number);
- return (
- <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
- <div className="flex items-center justify-between">
- <span className="text-sm font-semibold text-foreground">{item.product_name || "Item"}</span>
- <span className="text-xs font-mono text-muted-foreground">Ordered: {item.quantity}</span>
- </div>
- <div className="grid grid-cols-2 gap-3">
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Batch * (FEFO)</Label>
- {batchOptions[item.product_id]?.length > 0 ? (
- <>
- <SearchableSelect
- options={batchOptions[item.product_id].map(b => ({
- value: b.batch_number,
- label: `${b.batch_number} · ${b.available} avail${b.expiry_date ? ` · exp ${b.expiry_date}` : ""}`,
- }))}
- value={item.batch_number}
- onChange={v => { const u = [...submitItems]; u[idx].batch_number = v; setSubmitItems(u); }}
- placeholder="Select batch..."
- triggerClassName="text-xs h-9"
- />
- {selectedBatch?.expiry_date && (
- <p className="text-[10px] text-muted-foreground mt-1">Expires: <span className="font-mono text-foreground">{selectedBatch.expiry_date}</span></p>
- )}
- </>
- ) : (
- <p className="text-xs text-destructive mt-1">No batches available</p>
- )}
- </div>
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Dispatch Quantity</Label>
- <Input type="number" className="text-xs h-9" value={item.convert_quantity}
- onChange={e => { const u = [...submitItems]; u[idx].convert_quantity = e.target.value; setSubmitItems(u); }} />
- </div>
- </div>
- </div>
- );})}
+  {submitItems.map((item, idx) => {
+  const selectedBatch = batchOptions[item.product_id]?.find(b => b.batch_number === item.batch_number);
+  const mrp = products.find(p => p.id === item.product_id)?.selling_price;
+  const exp = selectedBatch?.expiry_date;
+  const days = daysUntil(exp);
+  const expTone = days != null && days < 60 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30";
+  return (
+  <div key={idx} className="relative p-4 pl-5 rounded-xl border border-border bg-muted/20 space-y-3 overflow-hidden">
+  <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary/70" aria-hidden />
+  <div className="flex items-start justify-between gap-3">
+    <div className="min-w-0">
+      <div className="text-sm font-semibold text-foreground truncate">{item.product_name || "Item"}</div>
+      {mrp ? <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">MRP <span className="text-foreground font-mono">PKR {Number(mrp).toLocaleString()}</span></div> : null}
+    </div>
+    <span className="text-[11px] font-mono text-muted-foreground whitespace-nowrap shrink-0">Ordered: <span className="text-foreground">{item.quantity}</span></span>
+  </div>
+  <div className="grid grid-cols-2 gap-3">
+  <div>
+  <Label className="text-xs font-medium text-muted-foreground">Batch * (FEFO)</Label>
+  {batchOptions[item.product_id]?.length > 0 ? (
+  <>
+  <SearchableSelect
+  options={batchOptions[item.product_id].map(b => ({
+  value: b.batch_number,
+  label: `${b.batch_number} · ${b.available} avail${b.expiry_date ? ` · exp ${fmtExpiry(b.expiry_date)}` : ""}`,
+  }))}
+  value={item.batch_number}
+  onChange={v => { const u = [...submitItems]; u[idx].batch_number = v; setSubmitItems(u); }}
+  placeholder="Select batch..."
+  triggerClassName="text-xs h-9"
+  />
+  {exp && (
+    <span className={`inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium tabular-nums ${expTone}`}>
+      Expires {fmtExpiry(exp)}{days != null && days < 60 ? ` · ${days}d` : ""}
+    </span>
+  )}
+  </>
+  ) : (
+  <p className="text-xs text-destructive mt-1">No batches available</p>
+  )}
+  </div>
+  <div>
+  <Label className="text-xs font-medium text-muted-foreground">Dispatch Quantity</Label>
+  <div className="relative">
+    <Input type="number" className="text-xs h-9 tabular-nums pr-16" value={item.convert_quantity}
+    onChange={e => { const u = [...submitItems]; u[idx].convert_quantity = e.target.value; setSubmitItems(u); }} />
+    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground tabular-nums">/ {item.quantity}</span>
+  </div>
+  </div>
+  </div>
+  </div>
+  );})}
 
  <Button
  onClick={handleSubmit}
