@@ -184,6 +184,12 @@ interface ReportRow {
 
 function VerificationReport({ state }: { state: WizardState }) {
   const [rows, setRows] = useState<ReportRow[] | null>(null);
+  const [coverage, setCoverage] = useState<{
+    customers: { total: number; withCity: number; withAddress: number; withContact: number };
+    suppliers: { total: number; withCity: number; withAddress: number; withContact: number; withTerms: number };
+    products: { total: number; withSalePrice: number; withCostPrice: number; withSupplier: number; withoutSupplier: number };
+    batches: { total: number; withBatch: number; withExpiry: number; withQty: number };
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [rolling, setRolling] = useState(false);
   const [reason, setReason] = useState("");
@@ -197,7 +203,7 @@ function VerificationReport({ state }: { state: WizardState }) {
 
   async function loadReport() {
     setLoading(true);
-    if (batchIds.length === 0) { setRows([]); setLoading(false); return; }
+    if (batchIds.length === 0) { setRows([]); setCoverage(null); setLoading(false); return; }
 
     const { data: batches } = await supabase
       .from("import_batches")
@@ -239,11 +245,52 @@ function VerificationReport({ state }: { state: WizardState }) {
       if (errStr.includes("missing batch")) rep.missingBatch++;
       const n = (r.normalized ?? {}) as any;
       if ((entityType === "customers" || entityType === "suppliers") && !n.phone && !n.email) rep.missingContact++;
-      // merged rows are stored in raw with warnings inside normalized? validators mark merged via NormalizedRow.merged
-      // but staging stores status. Count "skipped" with merged-only error count zero & merged set in raw
     }
 
     setRows([...byEntity.values()]);
+
+    // Per-entity field coverage from the actual posted records
+    const [cust, sup, prod, grn] = await Promise.all([
+      supabase.from("customers").select("city, address, phone, email").in("import_batch_id", batchIds).limit(20000),
+      supabase.from("suppliers").select("city, address, phone, email, payment_terms_days").in("import_batch_id", batchIds).limit(20000),
+      supabase.from("products").select("selling_price, cost_price, supplier_id").in("import_batch_id", batchIds).limit(20000),
+      supabase.from("grn_items").select("batch_number, expiry_date, quantity_received").in("import_batch_id", batchIds).limit(50000),
+    ]);
+
+    const c = (cust.data ?? []) as any[];
+    const s = (sup.data ?? []) as any[];
+    const p = (prod.data ?? []) as any[];
+    const b = (grn.data ?? []) as any[];
+
+    setCoverage({
+      customers: {
+        total: c.length,
+        withCity: c.filter(x => x.city && String(x.city).trim()).length,
+        withAddress: c.filter(x => x.address && String(x.address).trim()).length,
+        withContact: c.filter(x => (x.phone && String(x.phone).trim()) || (x.email && String(x.email).trim())).length,
+      },
+      suppliers: {
+        total: s.length,
+        withCity: s.filter(x => x.city && String(x.city).trim()).length,
+        withAddress: s.filter(x => x.address && String(x.address).trim()).length,
+        withContact: s.filter(x => (x.phone && String(x.phone).trim()) || (x.email && String(x.email).trim())).length,
+        withTerms: s.filter(x => x.payment_terms_days != null && Number(x.payment_terms_days) > 0).length,
+      },
+      products: {
+        total: p.length,
+        withSalePrice: p.filter(x => Number(x.selling_price ?? 0) > 0).length,
+        withCostPrice: p.filter(x => Number(x.cost_price ?? 0) > 0).length,
+        withSupplier: p.filter(x => x.supplier_id).length,
+        withoutSupplier: p.filter(x => !x.supplier_id).length,
+      },
+      batches: {
+        total: b.length,
+        withBatch: b.filter(x => x.batch_number && String(x.batch_number).trim()).length,
+        withExpiry: b.filter(x => x.expiry_date).length,
+        withQty: b.filter(x => Number(x.quantity_received ?? 0) > 0).length,
+      },
+    });
+
     setLoading(false);
   }
 
