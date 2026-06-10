@@ -65,7 +65,7 @@ export default function ImportHistory() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout title="Import History">
       <div className="max-w-6xl mx-auto p-6 space-y-5">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => nav("/import")}><ArrowLeft className="h-4 w-4 mr-2" /> Back</Button>
