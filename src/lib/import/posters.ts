@@ -316,6 +316,7 @@ async function postBatches(rows: Row[], batchId: string): Promise<PostResult> {
       item_name: String(r.normalized.sku),
       batch_number: r.normalized.batch_number,
       expiry_date: r.normalized.expiry_date,
+      manufacturing_date: r.normalized.manufacturing_date ?? null,
       quantity_ordered: qty,
       quantity_received: qty,
       rate,
