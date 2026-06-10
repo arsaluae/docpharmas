@@ -1,1066 +1,483 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Upload, Trash2, CheckCircle, XCircle, AlertTriangle, FileSpreadsheet, ChevronDown, Sparkles, ArrowRight, CloudUpload, X, FileCheck, RefreshCw, GitMerge, Download } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { ENTITIES, ENTITY_LIST, EntityType, NormalizedRow } from "@/lib/import/types";
+import { detectMapping } from "@/lib/import/aliases";
+import { downloadTemplate, downloadFailedRowsCsv } from "@/lib/import/templates";
+import { validateAll } from "@/lib/import/validators";
+import { postBatch } from "@/lib/import/posters";
+import { logAudit } from "@/lib/audit";
+import { CloudUpload, Download, FileSpreadsheet, X, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, History, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
-type TabType = "customers" | "suppliers" | "products" | "inventory";
+type Step = 1 | 2 | 3 | 4 | 5;
 
-const TAB_COLUMNS: Record<TabType, string[]> = {
- customers: ["name", "company", "ntn", "strn", "phone", "email", "address", "city", "area", "credit_limit", "opening_balance"],
- suppliers: ["name", "company", "ntn", "strn", "phone", "email", "address", "city", "payment_terms_days", "wht_rate", "opening_balance"],
- products: ["name", "sku", "category", "drap_reg_number", "pack_size", "unit", "cost_price", "selling_price", "gst_rate", "stock_quantity", "reorder_level"],
- inventory: ["product_name", "quantity", "batch_number", "notes"],
-};
-
-const VALID_CATEGORIES = new Set(["tablet", "capsule", "syrup", "injection", "cream", "ointment", "drops", "sachet", "other"]);
-const SUPPLIER_ALIASES = new Set(["supplier", "supplier name", "vendor", "vendor name", "manufacturer", "mfg", "mfr"]);
-
-// Massively expanded aliases to handle 20+ different software formats
-const COLUMN_ALIASES: Record<string, string> = {
- // Name aliases
- "customer name": "name", "party name": "name", "account name": "name",
- "supplier name": "name", "vendor name": "name", "item name": "name",
- "product name": "name", "product": "name", "customer": "name",
- "supplier": "name", "vendor": "name", "item": "name", "party": "name",
- "business name": "name", "first name": "name", "full name": "name",
- "contact name": "name", "account": "name", "client": "name",
- "client name": "name", "debtor": "name", "creditor": "name",
- "item description": "name", "material": "name", "article": "name",
- "description": "name", "particulars": "name", "ledger name": "name",
- "contact person": "name", "poc": "name", "display name": "name",
- "medicine name": "name", "drug name": "name", "generic name": "name",
- "brand name": "name", "trade name": "name",
-
- // Phone aliases
- "contact": "phone", "contact number": "phone", "mobile": "phone",
- "phone number": "phone", "telephone": "phone", "cell": "phone",
- "mobile no": "phone", "cell no": "phone", "whatsapp": "phone",
- "phone no": "phone", "tel": "phone", "contact no": "phone",
- "mobile number": "phone", "cell number": "phone", "mob": "phone",
- "landline": "phone", "fax": "phone",
-
- // City aliases
- "town": "city", "location": "city", "place": "city", "district": "city",
- "state": "city", "province": "city", "region": "city",
-
- // Company aliases
- "company name": "company", "firm": "company", "firm name": "company",
- "organization": "company", "org": "company", "business": "company",
- "entity": "company", "establishment": "company",
-
- // Email aliases
- "e-mail": "email", "email address": "email", "mail": "email",
- "email id": "email", "e mail": "email",
-
- // SKU aliases
- "sku code": "sku", "item code": "sku", "product code": "sku", "code": "sku",
- "barcode": "sku", "bar code": "sku", "upc": "sku", "ean": "sku",
- "part number": "sku", "part no": "sku", "article no": "sku",
- "article number": "sku", "material code": "sku", "item no": "sku",
- "item number": "sku", "catalog no": "sku", "catalogue no": "sku",
-
- // Cost price aliases
- "cost": "cost_price", "purchase price": "cost_price", "buy price": "cost_price", "cp": "cost_price",
- "purchase rate": "cost_price", "buying price": "cost_price", "cost rate": "cost_price",
- "landed cost": "cost_price", "acquisition cost": "cost_price", "pp": "cost_price",
- "dealer price": "cost_price", "wholesale price": "cost_price",
- "trade price": "cost_price", "tp": "cost_price", "ptr": "cost_price",
-
- // Selling price aliases
- "price": "selling_price", "sale price": "selling_price", "sell price": "selling_price",
- "sp": "selling_price", "mrp": "selling_price", "retail price": "selling_price",
- "rate": "selling_price", "unit price": "selling_price", "price per unit": "selling_price",
- "selling rate": "selling_price", "sales price": "selling_price", "list price": "selling_price",
- "retail": "selling_price", "ptc": "selling_price", "consumer price": "selling_price",
- "max retail price": "selling_price", "maximum retail price": "selling_price",
-
- // Stock quantity aliases
- "stock": "stock_quantity", "qty": "stock_quantity", "quantity": "stock_quantity",
- "opening stock": "stock_quantity", "current stock": "stock_quantity",
- "opening qty": "stock_quantity", "stock on hand": "stock_quantity",
- "available qty": "stock_quantity", "on hand": "stock_quantity",
- "in stock": "stock_quantity", "balance qty": "stock_quantity",
- "inventory": "stock_quantity", "inventory qty": "stock_quantity",
- "available stock": "stock_quantity", "closing stock": "stock_quantity",
- "closing qty": "stock_quantity", "physical stock": "stock_quantity",
-
- // Category aliases
- "type": "category", "group": "category", "class": "category",
- "product type": "category", "item group": "category", "item type": "category",
- "product group": "category", "product category": "category",
- "dosage form": "category", "form": "category", "drug form": "category",
- "formulation": "category", "classification": "category",
-
- // Unit aliases
- "uom": "unit", "unit of measure": "unit", "unit of measurement": "unit",
- "measure": "unit", "units": "unit", "measurement": "unit",
-
- // Reorder level aliases
- "reorder": "reorder_level", "min stock": "reorder_level", "minimum stock": "reorder_level",
- "reorder point": "reorder_level", "min qty": "reorder_level",
- "minimum qty": "reorder_level", "safety stock": "reorder_level",
- "reorder qty": "reorder_level", "min level": "reorder_level",
-
- // GST aliases
- "gst": "gst_rate", "tax rate": "gst_rate", "tax": "gst_rate",
- "gst rate": "gst_rate", "gst %": "gst_rate", "tax %": "gst_rate",
- "vat": "gst_rate", "vat rate": "gst_rate", "sales tax": "gst_rate",
- "sales tax rate": "gst_rate", "tax percentage": "gst_rate",
-
- // Credit limit aliases
- "credit limit": "credit_limit", "limit": "credit_limit",
- "cr limit": "credit_limit", "credit line": "credit_limit",
-
- // (credit_days removed — no longer tracked)
-
-
- // Opening balance aliases
- "opening balance": "opening_balance", "balance": "opening_balance", "ob": "opening_balance",
- "opening": "opening_balance", "op balance": "opening_balance",
- "op bal": "opening_balance", "o/b": "opening_balance", "o.b": "opening_balance",
- "previous balance": "opening_balance", "brought forward": "opening_balance",
- "b/f": "opening_balance", "bf": "opening_balance",
-
- // NTN aliases
- "ntn no": "ntn", "ntn number": "ntn", "tax number": "ntn",
- "gst no": "ntn", "gstin": "ntn", "tax id": "ntn",
- "tin": "ntn", "tax identification": "ntn", "tax reg": "ntn",
- "tax registration": "ntn", "tax registration no": "ntn",
- "national tax number": "ntn", "vat no": "ntn", "vat number": "ntn",
-
- // STRN aliases
- "strn no": "strn", "strn number": "strn", "sales tax reg": "strn",
- "sales tax registration": "strn", "st reg no": "strn",
-
- // Payment terms aliases
- "payment terms": "payment_terms_days", "payment terms days": "payment_terms_days",
- "pay terms": "payment_terms_days", "net terms": "payment_terms_days",
-
- // WHT aliases
- "wht": "wht_rate", "withholding tax": "wht_rate", "wht rate": "wht_rate",
- "wht %": "wht_rate", "withholding": "wht_rate",
-
- // DRAP aliases
- "drap": "drap_reg_number", "drap no": "drap_reg_number", "drap number": "drap_reg_number",
- "reg no": "drap_reg_number", "registration": "drap_reg_number",
- "drap registration": "drap_reg_number", "reg number": "drap_reg_number",
- "registration no": "drap_reg_number", "registration number": "drap_reg_number",
-
- // Pack size aliases
- "pack": "pack_size", "packing": "pack_size", "pack size": "pack_size",
- "packaging": "pack_size", "package size": "pack_size", "pack qty": "pack_size",
-
- // Batch aliases
- "batch": "batch_number", "batch no": "batch_number", "lot": "batch_number",
- "lot no": "batch_number", "lot number": "batch_number",
-
- // Area aliases
- "territory": "area", "sector": "area",
-
- // Address aliases
- "street": "address", "address line 1": "address", "address 1": "address",
- "address line": "address", "postal address": "address", "mailing address": "address",
-
- // Special fields
- "last name": "__last_name",
- "surname": "__last_name",
- "family name": "__last_name",
-};
-
-function resolveColumnName(header: string, tabColumns: string[], currentTab: TabType): string | null {
- const h = header.toLowerCase().trim();
- if (currentTab === "products" && SUPPLIER_ALIASES.has(h)) return "__supplier_name";
- if (tabColumns.includes(h)) return h;
- const alias = COLUMN_ALIASES[h];
- if (alias === "__last_name") return "__last_name";
- if (alias && tabColumns.includes(alias)) return alias;
- if (currentTab === "inventory") {
- if (h === "product name" || h === "product" || h === "item" || h === "item name" || h === "medicine" || h === "drug") return "product_name";
- }
- return null;
-}
-
-function parseCSV(text: string): string[][] {
- const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
- return lines.map(line => {
- const result: string[] = [];
- let current = "";
- let inQuotes = false;
- for (let i = 0; i < line.length; i++) {
- const ch = line[i];
- if (ch === '"') { inQuotes = !inQuotes; }
- else if (ch === "," && !inQuotes) { result.push(current.trim()); current = ""; }
- else { current += ch; }
- }
- result.push(current.trim());
- return result;
- });
-}
-
-function isEmptyRow(row: string[]): boolean {
- return row.every(cell => !cell || cell.trim() === "");
-}
-
-const CHUNK_SIZE = 100;
-
-const TAB_INFO: Record<TabType, { icon: string; desc: string }> = {
- customers: { icon: "👥", desc: "Customer records with contact & credit info" },
- suppliers: { icon: "🏭", desc: "Supplier records with payment terms" },
- products: { icon: "💊", desc: "Product catalog with pricing & stock" },
- inventory: { icon: "📦", desc: "Stock adjustments by product & batch" },
-};
-
-// Helper: check if a value is "empty" for merge purposes
-function isEmptyValue(v: any): boolean {
- if (v === null || v === undefined) return true;
- if (typeof v === "string" && v.trim() === "") return true;
- if (typeof v === "number" && v === 0) return true;
- return false;
-}
+const GROUPS: { id: "master"|"opening"|"transaction"; label: string }[] = [
+  { id: "master", label: "Master Data" },
+  { id: "opening", label: "Opening Balances" },
+  { id: "transaction", label: "Historical Transactions" },
+];
 
 export default function DataImport() {
- const [searchParams] = useSearchParams();
- const defaultTab = (searchParams.get("tab") as TabType) || "customers";
- const [tab, setTab] = useState<TabType>(defaultTab);
- const [parsedRows, setParsedRows] = useState<string[][]>([]);
- const [headers, setHeaders] = useState<string[]>([]);
- const [mappedColumns, setMappedColumns] = useState<(string | null)[]>([]);
- const [importing, setImporting] = useState(false);
- const [lastBatchIds, setLastBatchIds] = useState<string[]>([]);
- const [importResult, setImportResult] = useState<{ success: number; errors: number; updated: number; details: string[] } | null>(null);
- const [validationWarning, setValidationWarning] = useState<string | null>(null);
- const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
- const [fileName, setFileName] = useState<string>("");
- const [isDragging, setIsDragging] = useState(false);
- const [errorsOpen, setErrorsOpen] = useState(false);
- const fileRef = useRef<HTMLInputElement>(null);
+  const nav = useNavigate();
+  const [step, setStep] = useState<Step>(1);
+  const [entity, setEntity] = useState<EntityType | null>(null);
+  const [fileName, setFileName] = useState("");
+  const [fileSize, setFileSize] = useState(0);
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
+  const [mapping, setMapping] = useState<(string | null)[]>([]);
+  const [validated, setValidated] = useState<NormalizedRow[] | null>(null);
+  const [allowPastExpiry, setAllowPastExpiry] = useState(false);
+  const [batchId, setBatchId] = useState<string | null>(null);
+  const [posting, setPosting] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [result, setResult] = useState<{posted: number; skipped: number; errors: string[]} | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
- // No auth check needed - handled by ProtectedRoute
+  const spec = entity ? ENTITIES[entity] : null;
 
- const processRows = (rawHeaders: string[], rawRows: string[][]) => {
- const cols = TAB_COLUMNS[tab];
- const mapped = rawHeaders.map(h => resolveColumnName(h, cols, tab));
- const nonEmptyRows = rawRows.filter(r => !isEmptyRow(r));
+  const resetAll = () => {
+    setStep(1); setEntity(null); setFileName(""); setFileSize(0);
+    setHeaders([]); setRawRows([]); setMapping([]); setValidated(null);
+    setBatchId(null); setPosting(false); setProgress(0); setResult(null);
+  };
 
- setHeaders(rawHeaders);
- setMappedColumns(mapped);
- setParsedRows(nonEmptyRows);
- setImportResult(null);
- setLastBatchIds([]);
+  const goStep = (s: Step) => setStep(s);
 
- const nameCol = tab === "inventory" ? "product_name" : "name";
- const hasNameCol = mapped.includes(nameCol) || mapped.includes("name");
- const hasFirstName = rawHeaders.some(h => h.toLowerCase().trim() === "first name");
- const hasBusinessName = rawHeaders.some(h => h.toLowerCase().trim() === "business name");
- const effectiveHasName = hasNameCol || hasFirstName || hasBusinessName;
-
- if (!effectiveHasName && tab !== "inventory" && nonEmptyRows.length > 0) {
- setValidationWarning(`No "${nameCol}" column detected. Found: ${rawHeaders.join(", ")}. Records without a name will be skipped.`);
- } else {
- setValidationWarning(null);
- }
- };
-
- const processFile = (file: File) => {
- setFileName(file.name);
- const ext = file.name.split(".").pop()?.toLowerCase();
-
- if (ext === "xlsx" || ext === "xls") {
- const reader = new FileReader();
- reader.onload = (ev) => {
- const data = new Uint8Array(ev.target?.result as ArrayBuffer);
- const workbook = XLSX.read(data, { type: "array" });
- const sheet = workbook.Sheets[workbook.SheetNames[0]];
- const rows: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
- if (rows.length > 0) {
- processRows(rows[0].map(String), rows.slice(1).map(r => r.map(String)));
- }
- };
- reader.readAsArrayBuffer(file);
- } else {
- const reader = new FileReader();
- reader.onload = (ev) => {
- const text = ev.target?.result as string;
- const rows = parseCSV(text);
- if (rows.length > 0) {
- processRows(rows[0], rows.slice(1));
- }
- };
- reader.readAsText(file);
- }
- };
-
- const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
- const file = e.target.files?.[0];
- if (!file) return;
- processFile(file);
- };
-
- const handleDrop = useCallback((e: React.DragEvent) => {
- e.preventDefault();
- setIsDragging(false);
- const file = e.dataTransfer.files?.[0];
- if (file) processFile(file);
- }, [tab]);
-
- const handleDragOver = useCallback((e: React.DragEvent) => {
- e.preventDefault();
- setIsDragging(true);
- }, []);
-
- const handleDragLeave = useCallback((e: React.DragEvent) => {
- e.preventDefault();
- setIsDragging(false);
- }, []);
-
- const resetFile = () => {
- setParsedRows([]); setHeaders([]); setMappedColumns([]); setImportResult(null);
- setLastBatchIds([]); setValidationWarning(null); setProgress(null);
- setFileName(""); setErrorsOpen(false);
- if (fileRef.current) fileRef.current.value = "";
- };
-
- const buildRowObjects = () => {
- const cols = TAB_COLUMNS[tab];
- const numericFields: Record<TabType, string[]> = {
- customers: ["credit_limit", "opening_balance"],
- suppliers: ["payment_terms_days", "wht_rate", "opening_balance"],
-      // stock_quantity intentionally excluded — handled separately via stock_movements
-      products: ["cost_price", "selling_price", "gst_rate", "reorder_level"],
- inventory: ["quantity"],
- };
-
- return parsedRows.map(row => {
- const obj: Record<string, any> = {};
- let lastName = "";
- let supplierName = "";
-
- headers.forEach((h, i) => {
- const mapped = mappedColumns[i];
- if (mapped === "__last_name") { lastName = row[i] || ""; return; }
- if (mapped === "__supplier_name") { supplierName = row[i] || ""; return; }
- if (mapped && (cols.includes(mapped) || mapped === "product_name")) {
- const val = row[i] || "";
- if (val || !obj[mapped]) obj[mapped] = val;
- }
- });
-
- if (lastName) {
- obj.name = obj.name ? `${obj.name} ${lastName}`.trim() : lastName.trim();
- }
-
- // Category normalization for products — ALWAYS run, even for empty strings
- if (tab === "products") {
- const lower = String(obj.category || '').toLowerCase().trim();
- obj.category = VALID_CATEGORIES.has(lower) ? lower : "other";
- }
-
- // SKU conflict handling: convert empty SKU to null
- if (tab === "products") {
- if (!obj.sku || String(obj.sku).trim() === "") {
- obj.sku = null;
- }
- }
-
- numericFields[tab]?.forEach(f => {
- if (obj[f] !== undefined && obj[f] !== "") obj[f] = Number(obj[f]) || 0;
- });
-
- return { obj, supplierName };
- });
- };
-
- const handleImport = async () => {
- if (parsedRows.length === 0) return;
- setImporting(true);
- setProgress({ current: 0, total: parsedRows.length });
- const importedIds: string[] = [];
- let success = 0, errors = 0, updated = 0;
- const errorDetails: string[] = [];
-
- try {
- if (tab === "inventory") {
- await importInventory(importedIds, (s, e, u, d) => { success = s; errors = e; updated = u; errorDetails.push(...d); });
- } else if (tab === "products") {
- await importProducts(importedIds, (s, e, u, d) => { success = s; errors = e; updated = u; errorDetails.push(...d); });
- } else {
- await importCustomersOrSuppliers(importedIds, (s, e, u, d) => { success = s; errors = e; updated = u; errorDetails.push(...d); });
- }
- } catch (err: any) {
- errorDetails.push(`Unexpected error: ${err.message}`);
- }
-
- setLastBatchIds(importedIds);
- setImportResult({ success, errors, updated, details: errorDetails.slice(0, 20) });
- setImporting(false);
- setProgress(null);
- const parts = [`${success} new`];
- if (updated > 0) parts.push(`${updated} updated`);
- if (errors > 0) parts.push(`${errors} skipped`);
- toast.success(`Import complete: ${parts.join(", ")}`);
- };
-
- const importProducts = async (
- importedIds: string[],
- report: (s: number, e: number, u: number, d: string[]) => void
- ) => {
- const rowData = buildRowObjects();
- let success = 0, errors = 0, updated = 0;
- const errorDetails: string[] = [];
-
- // Auto-create suppliers
- const supplierNames = [...new Set(rowData.map(r => r.supplierName).filter(n => n.trim()))];
- let suppliersCreated = 0;
- if (supplierNames.length > 0) {
- const { data: existing } = await supabase.from("suppliers").select("name");
- const existingSet = new Set((existing || []).map(s => s.name.toLowerCase()));
- const newSuppliers = supplierNames.filter(n => !existingSet.has(n.toLowerCase())).map(n => ({ name: n }));
- if (newSuppliers.length > 0) {
- for (let i = 0; i < newSuppliers.length; i += CHUNK_SIZE) {
- const chunk = newSuppliers.slice(i, i + CHUNK_SIZE);
- const { error } = await supabase.from("suppliers").insert(chunk as any);
- if (!error) suppliersCreated += chunk.length;
- }
- if (suppliersCreated > 0) toast.info(`Also created ${suppliersCreated} new suppliers from your data`);
- }
- }
-
- // Smart merge: fetch existing products
- const { data: existingProducts } = await supabase.from("products").select("*");
- const existingMap = new Map<string, any>();
- (existingProducts || []).forEach(p => existingMap.set(p.name.toLowerCase().trim(), p));
-
- const toInsert: Record<string, any>[] = [];
- const toUpdate: { id: string; fields: Record<string, any> }[] = [];
-
- rowData.forEach((r, idx) => {
- if (!r.obj.name || !String(r.obj.name).trim()) {
- errors++;
- errorDetails.push(`Row ${idx + 2}: missing product name`);
- return;
- }
-
- const key = String(r.obj.name).toLowerCase().trim();
- const existing = existingMap.get(key);
-
- if (existing) {
- // Smart merge: fill only empty/null/zero fields in existing record
- const updates: Record<string, any> = {};
- for (const [field, importVal] of Object.entries(r.obj)) {
- if (field === "name") continue; // don't update name
- if (!isEmptyValue(importVal) && isEmptyValue(existing[field])) {
- updates[field] = importVal;
- }
- }
- if (Object.keys(updates).length > 0) {
- toUpdate.push({ id: existing.id, fields: updates });
- }
- } else {
- toInsert.push(r.obj);
- existingMap.set(key, r.obj); // prevent duplicates within import
- }
- });
-
- // Batch insert new products
- for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
- const chunk = toInsert.slice(i, i + CHUNK_SIZE);
- const { data, error } = await supabase.from("products").insert(chunk as any).select("id");
- if (error) {
- errors += chunk.length;
- errorDetails.push(`Insert batch ${Math.floor(i / CHUNK_SIZE) + 1}: ${error.message}`);
- } else {
- success += (data?.length || 0);
- importedIds.push(...(data || []).map(d => d.id));
- }
- setProgress({ current: Math.min(i + CHUNK_SIZE, rowData.length), total: rowData.length });
- }
-
-    // Update existing products. NEVER write stock_quantity directly — strip it and,
-    // if a value was provided, post a stock_movements 'adjustment_in/out' instead so
-    // the negative-stock guard, audit trail, and balance derivations all fire.
-    for (const upd of toUpdate) {
-      const { stock_quantity: importedQty, ...safeFields } = (upd.fields ?? {}) as Record<string, any>;
-      const { error } = await supabase.from("products").update(safeFields).eq("id", upd.id);
-      if (error) {
-        errorDetails.push(`Update ${upd.id}: ${error.message}`);
-        continue;
-      }
-      updated++;
-      const qty = Number(importedQty);
-      if (Number.isFinite(qty) && qty !== 0) {
-        // Read current stock and post a delta as an opening/adjustment movement.
-        const { data: cur } = await supabase.from("products").select("stock_quantity").eq("id", upd.id).single();
-        const delta = qty - Number(cur?.stock_quantity ?? 0);
-        if (delta !== 0) {
-          const { error: mErr } = await supabase.from("stock_movements").insert({
-            product_id: upd.id,
-            quantity: Math.abs(delta),
-            movement_type: delta > 0 ? "adjustment_in" : "adjustment_out",
-            date: new Date().toISOString().slice(0, 10),
-            reference_type: "import",
-            notes: `CSV import — stock reconciled to ${qty}`,
-          } as any);
-          if (mErr) errorDetails.push(`Stock adjust ${upd.id}: ${mErr.message}`);
-        }
-      }
+  // ---------- Step 3: File parse ----------
+  async function parseFile(f: File) {
+    setFileName(f.name); setFileSize(f.size);
+    const ab = await f.arrayBuffer();
+    const wb = XLSX.read(ab, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+    if (!aoa.length) { toast.error("File is empty"); return; }
+    const hdr = (aoa[0] as unknown[]).map(h => String(h ?? "").trim());
+    setHeaders(hdr);
+    const rows = (aoa.slice(1) as unknown[][])
+      .filter(r => r.some(c => c !== "" && c != null))
+      .map(r => {
+        const obj: Record<string, unknown> = {};
+        hdr.forEach((h, i) => { obj[h] = r[i]; });
+        return obj;
+      });
+    setRawRows(rows);
+    if (entity) {
+      const auto = detectMapping(hdr, entity);
+      setMapping(auto);
     }
+  }
 
- report(success, errors, updated, errorDetails);
- };
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (f) parseFile(f);
+  }
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault(); setIsDragging(false);
+    const f = e.dataTransfer.files?.[0]; if (f) parseFile(f);
+  }
 
- const importCustomersOrSuppliers = async (
- importedIds: string[],
- report: (s: number, e: number, u: number, d: string[]) => void
- ) => {
- const tableName = tab as "customers" | "suppliers";
- const rowData = buildRowObjects();
- let success = 0, errors = 0, updated = 0;
- const errorDetails: string[] = [];
+  // Re-apply mapping to rows: rebuild rows using mapped canonical keys
+  const mappedRows: Record<string, unknown>[] = useMemo(() => {
+    if (!entity || rawRows.length === 0) return [];
+    return rawRows.map(orig => {
+      const out: Record<string, unknown> = {};
+      headers.forEach((h, i) => {
+        const k = mapping[i];
+        if (k) out[k] = orig[h];
+      });
+      return out;
+    });
+  }, [entity, rawRows, headers, mapping]);
 
- // Smart merge: fetch existing records
- const { data: existingRecords } = await supabase.from(tableName).select("*");
- const existingMap = new Map<string, any>();
- (existingRecords || []).forEach(r => existingMap.set(r.name.toLowerCase().trim(), r));
+  const requiredMissing = useMemo(() => {
+    if (!spec) return [];
+    const mapped = new Set(mapping.filter(Boolean) as string[]);
+    return spec.fields.filter(f => f.required && !mapped.has(f.key)).map(f => f.key);
+  }, [spec, mapping]);
 
- const toInsert: Record<string, any>[] = [];
- const toUpdate: { id: string; fields: Record<string, any> }[] = [];
+  // ---------- Step 4: Validate + stage ----------
+  async function runValidate() {
+    if (!entity || !spec) return;
+    if (requiredMissing.length > 0) { toast.error(`Map required fields: ${requiredMissing.join(", ")}`); return; }
+    const v = validateAll(entity, mappedRows, { allowPastExpiry });
+    setValidated(v);
+    const valid = v.filter(r => r.errors.length === 0).length;
+    const invalid = v.length - valid;
 
- rowData.forEach((r, idx) => {
- if (!r.obj.name || !String(r.obj.name).trim()) {
- errors++;
- errorDetails.push(`Row ${idx + 2}: missing name`);
- return;
- }
+    // Create batch + stage
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: batchRow, error: bErr } = await supabase.from("import_batches").insert({
+      entity_type: entity,
+      file_name: fileName, file_size: fileSize,
+      row_count: v.length, mapped_count: mapping.filter(Boolean).length,
+      valid_count: valid, invalid_count: invalid,
+      column_mapping: { headers, mapping } as any,
+      options: { allowPastExpiry } as any,
+      status: "validated",
+      created_by: user?.id ?? null,
+    } as any).select("id").single();
+    if (bErr || !batchRow) { toast.error(bErr?.message ?? "Could not create batch"); return; }
+    const bid = (batchRow as any).id as string;
+    setBatchId(bid);
 
- const key = String(r.obj.name).toLowerCase().trim();
- const existing = existingMap.get(key);
+    // Persist staging rows in chunks
+    const chunkSize = 500;
+    for (let i = 0; i < v.length; i += chunkSize) {
+      const slice = v.slice(i, i + chunkSize).map(r => ({
+        batch_id: bid,
+        row_number: r.rowNumber,
+        raw: r.raw as any,
+        normalized: r.normalized as any,
+        status: r.errors.length === 0 ? "valid" : "invalid",
+        errors: r.errors as any,
+      }));
+      const { error } = await supabase.from("import_staging_rows").insert(slice as any);
+      if (error) { toast.error(`Staging failed: ${error.message}`); return; }
+    }
+    setStep(4);
+  }
 
- if (existing) {
- // Smart merge: fill only empty/null/zero fields
- const updates: Record<string, any> = {};
- for (const [field, importVal] of Object.entries(r.obj)) {
- if (field === "name" || field === "balance") continue;
- if (!isEmptyValue(importVal) && isEmptyValue(existing[field])) {
- updates[field] = importVal;
- }
- }
- if (Object.keys(updates).length > 0) {
- toUpdate.push({ id: existing.id, fields: updates });
- }
- } else {
- const obj = { ...r.obj };
- obj.balance = obj.opening_balance || 0;
- toInsert.push(obj);
- existingMap.set(key, obj); // prevent duplicates within import
- }
- });
+  // ---------- Step 5: Post ----------
+  async function runPost() {
+    if (!entity || !validated || !batchId) return;
+    setPosting(true); setProgress(20);
+    try {
+      await supabase.from("import_batches").update({ status: "posting" } as any).eq("id", batchId);
+      const r = await postBatch(entity, validated, batchId);
+      setProgress(95);
+      await supabase.from("import_batches").update({
+        status: r.errors.length > 0 && r.posted === 0 ? "failed" : "completed",
+        posted_count: r.posted,
+        posted_at: new Date().toISOString(),
+        error_summary: { posting_errors: r.errors.slice(0, 50) } as any,
+      } as any).eq("id", batchId);
+      await logAudit({
+        action: "created",
+        entity_type: "tenant_member", // closest existing audit entity
+        entity_number: batchId,
+        changes: { import_entity: entity, posted: r.posted, skipped: r.skipped } as any,
+      });
+      setResult(r); setStep(5); setProgress(100);
+      toast.success(`Imported ${r.posted} records`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Import failed");
+      await supabase.from("import_batches").update({ status: "failed" } as any).eq("id", batchId);
+    } finally {
+      setPosting(false);
+    }
+  }
 
- // Batch insert new records
- for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
- const chunk = toInsert.slice(i, i + CHUNK_SIZE);
- const { data, error } = await supabase.from(tableName).insert(chunk as any).select("id");
- if (error) {
- errors += chunk.length;
- errorDetails.push(`Insert batch ${Math.floor(i / CHUNK_SIZE) + 1}: ${error.message}`);
- } else {
- success += (data?.length || 0);
- importedIds.push(...(data || []).map(d => d.id));
- }
- setProgress({ current: Math.min(i + CHUNK_SIZE, rowData.length), total: rowData.length });
- }
+  return (
+    <AppLayout>
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-end justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Data Import & Migration</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Migrate from any legacy ERP. Validate before posting, rollback any batch in one click.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => nav("/import/history")}>
+            <History className="h-4 w-4 mr-2" /> Import History
+          </Button>
+        </div>
 
- // Update existing records
- for (const upd of toUpdate) {
- const { error } = await supabase.from(tableName).update(upd.fields).eq("id", upd.id);
- if (error) {
- errorDetails.push(`Update ${upd.id}: ${error.message}`);
- } else {
- updated++;
- }
- }
+        {/* Stepper */}
+        <Stepper step={step} />
 
- report(success, errors, updated, errorDetails);
- };
+        {/* Step 1 — Pick entity */}
+        {step === 1 && (
+          <div className="space-y-6">
+            {GROUPS.map(g => (
+              <div key={g.id}>
+                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground mb-3 font-semibold">{g.label}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {ENTITY_LIST.filter(e => ENTITIES[e].group === g.id).map(e => (
+                    <button
+                      key={e}
+                      onClick={() => { setEntity(e); setStep(2); }}
+                      className="text-left p-4 border border-border rounded hover:border-primary/60 hover:bg-foreground/[0.02] transition-colors"
+                    >
+                      <p className="font-medium text-sm">{ENTITIES[e].label}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{ENTITIES[e].description}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
- const importInventory = async (
- importedIds: string[],
- report: (s: number, e: number, u: number, d: string[]) => void
- ) => {
- const { data: products } = await supabase.from("products").select("id, name");
- const pMap = new Map((products || []).map(p => [p.name.toLowerCase(), p.id]));
- const batchId = crypto.randomUUID();
- const rowData = buildRowObjects();
- let success = 0, errors = 0;
- const errorDetails: string[] = [];
+        {/* Step 2 — Template */}
+        {step === 2 && spec && (
+          <Card className="p-6 space-y-5">
+            <div>
+              <h2 className="text-lg font-semibold">{spec.label}</h2>
+              <p className="text-sm text-muted-foreground mt-1">{spec.description}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => downloadTemplate(entity!, true)}>
+                <Download className="h-4 w-4 mr-2" /> Download template with examples
+              </Button>
+              <Button variant="outline" onClick={() => downloadTemplate(entity!, false)}>
+                <Download className="h-4 w-4 mr-2" /> Blank template
+              </Button>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Fields</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                {spec.fields.map(f => (
+                  <div key={f.key} className="flex items-center justify-between border-b border-border/40 py-1.5">
+                    <span><code className="text-xs">{f.key}</code> <span className="text-muted-foreground">— {f.label}</span></span>
+                    {f.required && <Badge variant="outline" className="text-[10px]">required</Badge>}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <NavRow onBack={() => setStep(1)} onNext={() => setStep(3)} nextLabel="Upload file" />
+          </Card>
+        )}
 
- const missingProducts = new Set<string>();
- rowData.forEach(r => {
- const pName = r.obj.product_name || r.obj.name || "";
- if (pName.trim() && !pMap.has(pName.toLowerCase())) {
- missingProducts.add(pName.trim());
- }
- });
+        {/* Step 3 — Upload + map */}
+        {step === 3 && spec && (
+          <div className="space-y-4">
+            {rawRows.length === 0 ? (
+              <Card
+                onClick={() => fileRef.current?.click()}
+                onDrop={handleDrop}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                className={`p-12 border-dashed cursor-pointer text-center ${isDragging ? "border-primary bg-primary/5" : ""}`}
+              >
+                <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} className="hidden" />
+                <CloudUpload className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                <p className="font-medium">Drop your file here, or click to browse</p>
+                <p className="text-xs text-muted-foreground mt-1">Accepts .xlsx, .xls, .csv</p>
+              </Card>
+            ) : (
+              <>
+                <Card className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileSpreadsheet className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-sm font-medium">{fileName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {rawRows.length} rows · {headers.length} columns · {mapping.filter(Boolean).length} mapped
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => { setRawRows([]); setHeaders([]); setMapping([]); }}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </Card>
 
- if (missingProducts.size > 0) {
- const newProducts = [...missingProducts].map(n => ({ name: n }));
- for (let i = 0; i < newProducts.length; i += CHUNK_SIZE) {
- const chunk = newProducts.slice(i, i + CHUNK_SIZE);
- const { data } = await supabase.from("products").insert(chunk as any).select("id, name");
- if (data) data.forEach(p => pMap.set(p.name.toLowerCase(), p.id));
- }
- toast.info(`Auto-created ${missingProducts.size} new products for inventory`);
- }
+                <Card className="p-4 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Column mapping</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {headers.map((h, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-sm flex-1 truncate text-muted-foreground">{h || `(col ${i+1})`}</span>
+                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                        <Select value={mapping[i] ?? "__ignore"} onValueChange={(v) => {
+                          const next = [...mapping]; next[i] = v === "__ignore" ? null : v; setMapping(next);
+                        }}>
+                          <SelectTrigger className="w-[200px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__ignore">— ignore —</SelectItem>
+                            {spec.fields.map(f => (
+                              <SelectItem key={f.key} value={f.key}>{f.label}{f.required ? " *" : ""}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+                  {requiredMissing.length > 0 && (
+                    <div className="flex items-start gap-2 p-2 rounded bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5" />
+                      Map required field(s): {requiredMissing.join(", ")}
+                    </div>
+                  )}
+                </Card>
 
- const validRows: any[] = [];
- rowData.forEach((r, idx) => {
- const pName = r.obj.product_name || r.obj.name || "";
- const productId = pMap.get(pName.toLowerCase());
- if (!productId || !pName.trim()) {
- errors++;
- errorDetails.push(`Row ${idx + 2}: product "${pName}" not found`);
- return;
- }
- validRows.push({
- product_id: productId,
- quantity: Number(r.obj.quantity) || 0,
- movement_type: "adjustment",
- batch_number: r.obj.batch_number || null,
- notes: `IMPORT:${batchId}`,
- });
- });
+                {entity === "batches" && (
+                  <Card className="p-4 flex items-center gap-3">
+                    <Switch checked={allowPastExpiry} onCheckedChange={setAllowPastExpiry} id="past-exp" />
+                    <Label htmlFor="past-exp" className="text-sm">Allow batches with past expiry dates</Label>
+                  </Card>
+                )}
 
- for (let i = 0; i < validRows.length; i += CHUNK_SIZE) {
- const chunk = validRows.slice(i, i + CHUNK_SIZE);
- const { data, error } = await supabase.from("stock_movements").insert(chunk).select("id");
- if (error) {
- errors += chunk.length;
- errorDetails.push(`Batch ${Math.floor(i / CHUNK_SIZE) + 1}: ${error.message}`);
- } else {
- success += (data?.length || 0);
- importedIds.push(...(data || []).map(d => d.id));
- }
- setProgress({ current: Math.min(i + CHUNK_SIZE, validRows.length + (rowData.length - validRows.length)), total: rowData.length });
- }
+                <NavRow onBack={() => setStep(2)} onNext={runValidate} nextLabel="Validate" disableNext={requiredMissing.length > 0} />
+              </>
+            )}
+          </div>
+        )}
 
- report(success, errors, 0, errorDetails);
- };
+        {/* Step 4 — Preview */}
+        {step === 4 && validated && spec && (
+          <Card className="p-0 overflow-hidden">
+            <div className="p-4 border-b border-border flex items-center gap-3">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              <div className="flex-1">
+                <p className="font-medium text-sm">Validation complete</p>
+                <p className="text-xs text-muted-foreground">
+                  {validated.filter(r => r.errors.length === 0).length} valid · {validated.filter(r => r.errors.length > 0).length} invalid
+                </p>
+              </div>
+              {validated.some(r => r.errors.length > 0) && (
+                <Button variant="outline" size="sm" onClick={() => downloadFailedRowsCsv(entity!, validated.filter(r => r.errors.length > 0))}>
+                  <Download className="h-3.5 w-3.5 mr-2" /> Failed rows CSV
+                </Button>
+              )}
+            </div>
 
- const handleDeleteBatch = async () => {
- if (lastBatchIds.length === 0) return;
- if (tab === "inventory") {
- await supabase.from("stock_movements").delete().in("id", lastBatchIds);
- } else {
- const tableName = tab as "customers" | "suppliers" | "products";
- await supabase.from(tableName).delete().in("id", lastBatchIds);
- }
- toast.success(`Deleted ${lastBatchIds.length} imported records`);
- resetFile();
- };
+            <Tabs defaultValue="valid" className="p-4">
+              <TabsList>
+                <TabsTrigger value="valid">Valid ({validated.filter(r => r.errors.length === 0).length})</TabsTrigger>
+                <TabsTrigger value="invalid">Invalid ({validated.filter(r => r.errors.length > 0).length})</TabsTrigger>
+              </TabsList>
+              <TabsContent value="valid">
+                <PreviewTable rows={validated.filter(r => r.errors.length === 0).slice(0, 50)} fields={spec.fields.map(f => f.key)} showErrors={false} />
+              </TabsContent>
+              <TabsContent value="invalid">
+                <PreviewTable rows={validated.filter(r => r.errors.length > 0).slice(0, 100)} fields={spec.fields.map(f => f.key)} showErrors />
+              </TabsContent>
+            </Tabs>
 
- const mappedCount = mappedColumns.filter(m => m && m !== "__last_name" && m !== "__supplier_name").length;
- const specialCount = mappedColumns.filter(m => m === "__last_name" || m === "__supplier_name").length;
- const ignoredCount = mappedColumns.filter(m => !m).length;
+            {posting && (
+              <div className="p-4 border-t border-border space-y-2">
+                <Progress value={progress} />
+                <p className="text-xs text-muted-foreground">Posting…</p>
+              </div>
+            )}
 
- return (
- <AppLayout title="Data Import" subtitle="Smart merge from 20+ software formats with duplicate detection">
- <div className="max-w-5xl mx-auto space-y-6">
- {/* Onboarding Banner */}
- <div className="panel rounded-md p-6 border border-primary/10">
- <div className="flex items-start gap-4">
- <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
- <Sparkles className="h-6 w-6 text-primary" />
- </div>
- <div className="flex-1">
- <h3 className="font-heading font-semibold text-foreground text-base mb-1">Welcome to Data Import</h3>
- <p className="text-sm text-muted-foreground leading-relaxed">
- Migrating from Tally, QuickBooks, SAP, Zoho, or Excel? Simply export your data as CSV or Excel, 
- upload it here, and our system will auto-map your columns. <strong>Smart Merge</strong> ensures existing records 
- are enriched — never duplicated.
- </p>
- <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
- <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">1</span> Select type</span>
- <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
- <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">2</span> Upload file</span>
- <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
- <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">3</span> Review mapping</span>
- <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
- <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">4</span> Import</span>
- </div>
- </div>
- </div>
- </div>
+            <div className="p-4 border-t border-border flex items-center justify-between">
+              <Button variant="ghost" onClick={() => setStep(3)}><ArrowLeft className="h-4 w-4 mr-2" /> Back</Button>
+              <Button onClick={runPost} disabled={posting || validated.filter(r => r.errors.length === 0).length === 0}>
+                Post {validated.filter(r => r.errors.length === 0).length} valid records <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </Card>
+        )}
 
- <Tabs value={tab} onValueChange={v => { setTab(v as TabType); resetFile(); }}>
- {/* Premium Tab Pills */}
- <TabsList className="bg-secondary/50 p-1 rounded-xl mb-8 border border-border/50">
- {(["customers", "suppliers", "products", "inventory"] as TabType[]).map(t => (
- <TabsTrigger
- key={t}
- value={t}
- className="data-[state=active]:bg-card data-[state=active]:shadow-md data-[state=active]:text-foreground rounded-lg px-5 py-2.5 text-sm font-medium transition-all"
- >
- <span className="mr-1.5">{TAB_INFO[t].icon}</span>
- {t.charAt(0).toUpperCase() + t.slice(1)}
- </TabsTrigger>
- ))}
- </TabsList>
+        {/* Step 5 — Result */}
+        {step === 5 && result && (
+          <Card className="p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded bg-emerald-500/10 flex items-center justify-center">
+                <Sparkles className="h-6 w-6 text-emerald-500" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">Import complete</h2>
+                <p className="text-sm text-muted-foreground">Batch ID: <code className="text-xs">{batchId}</code></p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Stat label="Posted" value={result.posted} tone="primary" />
+              <Stat label="Skipped" value={result.skipped} tone="muted" />
+              <Stat label="Errors" value={result.errors.length} tone="danger" />
+            </div>
+            {result.errors.length > 0 && (
+              <div className="border border-destructive/20 bg-destructive/5 rounded p-3 max-h-48 overflow-auto">
+                {result.errors.slice(0, 20).map((e, i) => (
+                  <p key={i} className="text-xs text-destructive/80 font-mono">• {e}</p>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Button onClick={resetAll}>Import more</Button>
+              <Button variant="outline" onClick={() => nav("/import/history")}>
+                <History className="h-4 w-4 mr-2" /> View history
+              </Button>
+            </div>
+          </Card>
+        )}
+      </div>
+    </AppLayout>
+  );
+}
 
- {(["customers", "suppliers", "products", "inventory"] as TabType[]).map(t => (
- <TabsContent key={t} value={t} className="space-y-6 animate-fade-in">
+function Stepper({ step }: { step: Step }) {
+  const labels = ["Type", "Template", "Upload & Map", "Validate", "Post"];
+  return (
+    <div className="flex items-center gap-2">
+      {labels.map((l, i) => {
+        const n = (i + 1) as Step;
+        const active = step === n; const done = step > n;
+        return (
+          <div key={l} className="flex items-center gap-2">
+            <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-semibold ${
+              done ? "bg-emerald-500 text-white" : active ? "bg-primary text-primary-foreground" : "bg-foreground/[0.06] text-muted-foreground"
+            }`}>{done ? "✓" : n}</div>
+            <span className={`text-xs ${active ? "font-medium" : "text-muted-foreground"}`}>{l}</span>
+            {i < labels.length - 1 && <div className="w-6 h-px bg-border" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
- {/* Upload Zone */}
- {parsedRows.length === 0 ? (
- <div
- onDrop={handleDrop}
- onDragOver={handleDragOver}
- onDragLeave={handleDragLeave}
- onClick={() => fileRef.current?.click()}
- className={`
- relative cursor-pointer rounded-md border-2 border-dashed transition-all duration-300 p-12
- ${isDragging
- ? "border-primary bg-primary/5 scale-[1.01]"
- : "border-border/60 hover:border-primary/40 hover:bg-accent/30"
- }
- `}
- >
- <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} className="hidden" />
- <div className="flex flex-col items-center text-center space-y-4">
- <div className={`
- w-16 h-16 rounded-md flex items-center justify-center transition-all duration-300
- ${isDragging ? "bg-primary/10 text-primary scale-110" : "bg-secondary text-muted-foreground"}
- `}>
- <CloudUpload className="h-8 w-8" />
- </div>
- <div>
- <p className="text-base font-semibold text-foreground font-heading">
- {isDragging ? "Drop your file here" : "Upload your spreadsheet"}
- </p>
- <p className="text-sm text-muted-foreground mt-1">
- Drag & drop or click to browse · CSV, XLSX, XLS
- </p>
- </div>
+function NavRow({ onBack, onNext, nextLabel, disableNext }: { onBack: () => void; onNext: () => void; nextLabel: string; disableNext?: boolean }) {
+  return (
+    <div className="flex items-center justify-between pt-2">
+      <Button variant="ghost" onClick={onBack}><ArrowLeft className="h-4 w-4 mr-2" /> Back</Button>
+      <Button onClick={onNext} disabled={disableNext}>{nextLabel} <ArrowRight className="h-4 w-4 ml-2" /></Button>
+    </div>
+  );
+}
 
- {/* Download Sample CSV */}
- <Button
- variant="outline"
- size="sm"
- className="rounded-xl text-xs"
- onClick={(e) => {
- e.stopPropagation();
- const cols = TAB_COLUMNS[t];
- const csvContent = cols.join(",") + "\n";
- const blob = new Blob([csvContent], { type: "text/csv" });
- const url = URL.createObjectURL(blob);
- const a = document.createElement("a");
- a.href = url;
- a.download = `${t}_sample.csv`;
- a.click();
- URL.revokeObjectURL(url);
- toast.success("Sample CSV downloaded!");
- }}
- >
- <Download className="h-3.5 w-3.5 mr-1.5" />
- Download Sample CSV
- </Button>
+function Stat({ label, value, tone }: { label: string; value: number; tone: "primary"|"muted"|"danger" }) {
+  const cls = tone === "primary" ? "text-primary" : tone === "danger" ? "text-destructive" : "text-muted-foreground";
+  return (
+    <div className="border border-border rounded p-4">
+      <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
+      <p className={`text-2xl font-semibold tabular-nums ${cls}`}>{value}</p>
+    </div>
+  );
+}
 
- {/* Smart merge info */}
- <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/5 border border-primary/10">
- <GitMerge className="h-4 w-4 text-primary" />
- <span className="text-xs text-primary font-medium">Smart Merge: existing records will be enriched, not duplicated</span>
- </div>
-
- {/* Expected columns preview */}
- <div className="pt-4 border-t border-border/40 w-full max-w-lg">
- <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wider">Expected columns</p>
- <div className="flex flex-wrap justify-center gap-1.5">
- {TAB_COLUMNS[t].map(col => (
- <span key={col} className="text-[11px] px-2.5 py-1 rounded-full bg-secondary text-secondary-foreground font-medium">
- {col}
- </span>
- ))}
- </div>
- <p className="text-[11px] text-muted-foreground mt-3">
- Also accepts 200+ column name variants from Tally, QuickBooks, SAP, Zoho, and more
- </p>
- {t === "products" && (
- <p className="text-[11px] text-primary font-medium mt-2 flex items-center justify-center gap-1">
- <Sparkles className="h-3 w-3" /> "Supplier" column auto-creates supplier records
- </p>
- )}
- {t === "inventory" && (
- <p className="text-[11px] text-primary font-medium mt-2 flex items-center justify-center gap-1">
- <Sparkles className="h-3 w-3" /> Missing products auto-created during import
- </p>
- )}
- </div>
- </div>
- </div>
- ) : (
- <div className="space-y-5">
- {/* File Info Card */}
- <div className="glass-card rounded-md p-5">
- <div className="flex items-center justify-between">
- <div className="flex items-center gap-4">
- <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
- <FileSpreadsheet className="h-6 w-6 text-primary" />
- </div>
- <div>
- <p className="text-sm font-semibold text-foreground">{fileName}</p>
- <div className="flex items-center gap-3 mt-1">
- <span className="text-xs text-muted-foreground">{parsedRows.length} rows</span>
- <span className="text-xs text-muted-foreground">·</span>
- <span className="text-xs text-muted-foreground">{headers.length} columns</span>
- <span className="text-xs text-muted-foreground">·</span>
- <span className="text-xs text-primary font-medium">{mappedCount} mapped</span>
- {specialCount > 0 && (
- <>
- <span className="text-xs text-muted-foreground">·</span>
- <span className="text-xs text-warning font-medium">{specialCount} special</span>
- </>
- )}
- {ignoredCount > 0 && (
- <>
- <span className="text-xs text-muted-foreground">·</span>
- <span className="text-xs text-muted-foreground">{ignoredCount} ignored</span>
- </>
- )}
- </div>
- </div>
- </div>
- <Button variant="ghost" size="icon" onClick={resetFile} className="text-muted-foreground hover:text-destructive">
- <X className="h-4 w-4" />
- </Button>
- </div>
- </div>
-
- {/* Validation Warning */}
- {validationWarning && (
- <div className="flex items-start gap-3 p-4 bg-destructive/5 border border-destructive/20 rounded-xl">
- <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
- <span className="text-sm text-destructive">{validationWarning}</span>
- </div>
- )}
-
- {/* Column Mapping Badges */}
- <div className="glass-card rounded-md p-5">
- <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3 font-heading">Column Mapping</p>
- <div className="flex flex-wrap gap-2">
- {headers.map((h, i) => {
- const m = mappedColumns[i];
- const isSpecial = m === "__supplier_name" || m === "__last_name";
- const label = m === "__supplier_name" ? "auto-create supplier" :
- m === "__last_name" ? "append to name" :
- m ? m : "ignored";
- return (
- <div
- key={i}
- className={`
- inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-all
- ${isSpecial
- ? "bg-warning/10 text-warning border border-warning/20"
- : m
- ? "bg-primary/8 text-primary border border-primary/15"
- : "bg-muted text-muted-foreground border border-border/50"
- }
- `}
- >
- <span className="opacity-70">{h}</span>
- <ArrowRight className="h-3 w-3 opacity-50" />
- <span>{label}</span>
- </div>
- );
- })}
- </div>
- </div>
-
- {/* Data Preview Table */}
- <div className="glass-card rounded-md overflow-hidden">
- <div className="px-5 py-3 border-b border-border/50 flex items-center justify-between">
- <p className="text-xs font-semibold text-foreground uppercase tracking-wider font-heading">Data Preview</p>
- <span className="text-[11px] text-muted-foreground">
- Showing {Math.min(20, parsedRows.length)} of {parsedRows.length}
- </span>
- </div>
- <ScrollArea className="max-h-72">
- <Table>
- <TableHeader>
- <TableRow className="bg-secondary/30 hover:bg-secondary/30">
- {headers.map((h, i) => (
- <TableHead key={i} className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</TableHead>
- ))}
- </TableRow>
- </TableHeader>
- <TableBody>
- {parsedRows.slice(0, 20).map((row, i) => (
- <TableRow key={i} className={i % 2 === 0 ? "bg-transparent" : "bg-secondary/20"}>
- {row.map((cell, j) => (
- <TableCell key={j} className="text-xs py-2 whitespace-nowrap">{cell}</TableCell>
- ))}
- </TableRow>
- ))}
- {parsedRows.length > 20 && (
- <TableRow>
- <TableCell colSpan={headers.length} className="text-center text-xs text-muted-foreground py-3">
- ...and {parsedRows.length - 20} more rows
- </TableCell>
- </TableRow>
- )}
- </TableBody>
- </Table>
- </ScrollArea>
- </div>
-
- {/* Progress Bar */}
- {progress && (
- <div className="glass-card rounded-md p-5 space-y-3">
- <div className="flex justify-between items-center">
- <div className="flex items-center gap-2">
- <div className="h-2 w-2 rounded-full bg-primary animate-pulse-glow" />
- <span className="text-sm font-medium text-foreground">Importing data...</span>
- </div>
- <span className="text-sm font-semibold text-primary tabular-nums">
- {progress.current} / {progress.total}
- </span>
- </div>
- <div className="relative h-3 w-full overflow-hidden rounded-full bg-secondary">
- <div
- className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
- style={{ width: `${(progress.current / progress.total) * 100}%` }}
- />
- </div>
- </div>
- )}
-
- {/* Import Actions */}
- {!progress && !importResult && (
- <div className="flex items-center gap-3">
- <Button
- onClick={handleImport}
- disabled={importing}
- size="lg"
- className="rounded-xl px-8 transition-all"
- >
- <Upload className="h-4 w-4 mr-2" />
- {importing ? "Processing..." : `Import ${parsedRows.length} Records`}
- </Button>
- <Button variant="outline" onClick={resetFile} size="lg" className="rounded-xl">
- Cancel
- </Button>
- </div>
- )}
-
- {/* Import Results */}
- {importResult && (
- <div className="space-y-4">
- <div className="panel rounded-md p-6">
- <div className="flex items-center gap-6">
- <div className="flex items-center gap-3">
- <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
- <FileCheck className="h-5 w-5 text-primary" />
- </div>
- <div>
- <p className="text-2xl font-bold text-primary tabular-nums font-heading">{importResult.success}</p>
- <p className="text-xs text-muted-foreground font-medium">New records</p>
- </div>
- </div>
-
- {importResult.updated > 0 && (
- <div className="flex items-center gap-3 pl-6 border-l border-border">
- <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
- <RefreshCw className="h-5 w-5 text-warning" />
- </div>
- <div>
- <p className="text-2xl font-bold text-warning tabular-nums font-heading">{importResult.updated}</p>
- <p className="text-xs text-muted-foreground font-medium">Merged</p>
- </div>
- </div>
- )}
-
- {importResult.errors > 0 && (
- <div className="flex items-center gap-3 pl-6 border-l border-border">
- <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
- <XCircle className="h-5 w-5 text-destructive" />
- </div>
- <div>
- <p className="text-2xl font-bold text-destructive tabular-nums font-heading">{importResult.errors}</p>
- <p className="text-xs text-muted-foreground font-medium">Skipped</p>
- </div>
- </div>
- )}
-
- <div className="flex-1" />
-
- {lastBatchIds.length > 0 && (
- <AlertDialog>
- <AlertDialogTrigger asChild>
- <Button variant="outline" size="sm" className="rounded-xl text-destructive border-destructive/20 hover:bg-destructive/5">
- <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Undo Import
- </Button>
- </AlertDialogTrigger>
- <AlertDialogContent>
- <AlertDialogHeader>
- <AlertDialogTitle>Delete import batch?</AlertDialogTitle>
- <AlertDialogDescription>
- This will remove all {lastBatchIds.length} records created in this import.
- </AlertDialogDescription>
- </AlertDialogHeader>
- <AlertDialogFooter>
- <AlertDialogCancel>Cancel</AlertDialogCancel>
- <AlertDialogAction onClick={handleDeleteBatch}>Delete</AlertDialogAction>
- </AlertDialogFooter>
- </AlertDialogContent>
- </AlertDialog>
- )}
-
- <Button variant="outline" size="sm" className="rounded-xl" onClick={resetFile}>
- Import More
- </Button>
- </div>
- </div>
-
- {/* Error Details Collapsible */}
- {importResult.details.length > 0 && (
- <Collapsible open={errorsOpen} onOpenChange={setErrorsOpen}>
- <CollapsibleTrigger className="w-full">
- <div className="flex items-center justify-between p-4 rounded-xl border border-destructive/15 bg-destructive/5 hover:bg-destructive/8 transition-colors cursor-pointer">
- <div className="flex items-center gap-2">
- <AlertTriangle className="h-4 w-4 text-destructive" />
- <span className="text-sm font-medium text-destructive">
- {importResult.details.length} error{importResult.details.length > 1 ? "s" : ""} — click to expand
- </span>
- </div>
- <ChevronDown className={`h-4 w-4 text-destructive transition-transform ${errorsOpen ? "rotate-180" : ""}`} />
- </div>
- </CollapsibleTrigger>
- <CollapsibleContent>
- <div className="mt-2 p-4 rounded-xl border border-destructive/15 bg-destructive/5 space-y-1.5">
- {importResult.details.map((d, i) => (
- <p key={i} className="text-xs text-destructive/80 font-mono">• {d}</p>
- ))}
- </div>
- </CollapsibleContent>
- </Collapsible>
- )}
- </div>
- )}
- </div>
- )}
- </TabsContent>
- ))}
- </Tabs>
- </div>
- </AppLayout>
- );
+function PreviewTable({ rows, fields, showErrors }: { rows: NormalizedRow[]; fields: string[]; showErrors: boolean }) {
+  if (rows.length === 0) return <p className="text-sm text-muted-foreground py-6 text-center">No rows.</p>;
+  return (
+    <ScrollArea className="max-h-96 mt-2">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Row</TableHead>
+            {fields.map(f => <TableHead key={f}>{f}</TableHead>)}
+            {showErrors && <TableHead>Errors</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map(r => (
+            <TableRow key={r.rowNumber}>
+              <TableCell className="text-xs text-muted-foreground tabular-nums">{r.rowNumber}</TableCell>
+              {fields.map(f => <TableCell key={f} className="text-xs">{String(r.normalized[f] ?? r.raw[f] ?? "")}</TableCell>)}
+              {showErrors && (
+                <TableCell className="text-xs text-destructive">
+                  {r.errors.map(e => `${e.field}: ${e.message}`).join(" · ")}
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </ScrollArea>
+  );
 }
