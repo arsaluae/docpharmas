@@ -97,6 +97,23 @@ export function validateAll(
     const warnings: string[] = [];
     const normalized: Record<string, unknown> = {};
 
+    // Pre-filter: legacy batch sheets often contain section-header rows
+    // (e.g. "Cap's", "Cosmetics", "Total") with only the Product column populated.
+    // Drop them silently so they don't pollute the failed-rows bucket.
+    if (entity === "batches") {
+      const hasSku = raw.sku != null && String(raw.sku).trim() !== "";
+      const hasBatch = raw.batch_number != null && String(raw.batch_number).trim() !== "";
+      const hasQty = raw.quantity != null && String(raw.quantity).trim() !== "";
+      const hasExpiry = raw.expiry_date != null && String(raw.expiry_date).trim() !== "";
+      if (!hasSku && !hasBatch && !hasQty && !hasExpiry) {
+        result.push({
+          rowNumber: idx + 2, raw, normalized,
+          errors: [], warnings: ["section header — ignored"], merged: true,
+        });
+        return;
+      }
+    }
+
     for (const f of spec.fields) {
       const v = raw[f.key];
       const isEmpty = v === null || v === undefined || v === "";
