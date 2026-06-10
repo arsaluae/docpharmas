@@ -5081,6 +5081,54 @@ export type Database = {
       }
       recompute_tenant_all: { Args: { p_tenant: string }; Returns: undefined }
       refresh_trial_balance: { Args: never; Returns: undefined }
+      report_payables_aging: {
+        Args: { p_as_of?: string }
+        Returns: {
+          amount_paid: number
+          bill_number: string
+          bucket: string
+          city: string
+          contact: string
+          days_overdue: number
+          due_date: string
+          invoice_id: string
+          outstanding: number
+          supplier_id: string
+          supplier_name: string
+          total: number
+        }[]
+      }
+      report_profit_loss: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
+      report_receivables_aging: {
+        Args: { p_as_of?: string }
+        Returns: {
+          amount_paid: number
+          bucket: string
+          city: string
+          contact: string
+          customer_id: string
+          customer_name: string
+          days_overdue: number
+          due_date: string
+          invoice_id: string
+          invoice_number: string
+          outstanding: number
+          total: number
+        }[]
+      }
+      report_sales_summary: {
+        Args: {
+          p_city?: string
+          p_customer?: string
+          p_from: string
+          p_product?: string
+          p_to: string
+        }
+        Returns: Json
+      }
       rollback_import_batch: {
         Args: { p_batch_id: string; p_reason: string }
         Returns: Json
