@@ -234,10 +234,13 @@ export const ENTITIES: Record<EntityType, EntitySpec> = {
       { key: "product_name", label: "Product Name (informational)", type: "text" },
       { key: "batch_number", label: "Batch No.", type: "text", required: true },
       { key: "expiry_date", label: "Batch Expiry (YYYY-MM-DD)", type: "date", required: true },
+      { key: "manufacturing_date", label: "Manufacturing Date (YYYY-MM-DD)", type: "date" },
       { key: "quantity", label: "Base Quantity", type: "number", required: true },
       { key: "unit", label: "Base Unit", type: "text" },
       { key: "to_location", label: "To Location / Warehouse", type: "text" },
       { key: "rate", label: "Cost Rate (PKR)", type: "number" },
+      { key: "batch_supplier", label: "Batch Supplier", type: "text" },
+      { key: "purchase_reference", label: "Purchase Reference / Bill No.", type: "text" },
       { key: "notes", label: "Notes", type: "text" },
     ],
     example: [
