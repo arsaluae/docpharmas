@@ -30,7 +30,8 @@ export async function postBatch(
   rows: Row[],
   batchId: string,
 ): Promise<PostResult> {
-  const validRows = rows.filter(r => r.errors.length === 0);
+  // Skip rows that errored OR were merged into earlier rows during validation.
+  const validRows = rows.filter(r => r.errors.length === 0 && !r.merged);
   switch (entity) {
     case "products":          return postProducts(validRows, batchId);
     case "customers":         return postCustomers(validRows, batchId);
@@ -53,11 +54,11 @@ async function postProducts(rows: Row[], batchId: string): Promise<PostResult> {
   const errors: string[] = [];
   let posted = 0;
 
-  // Pre-load existing SKUs to skip dupes.
+  // Pre-load existing SKUs to skip dupes (tenant-scoped unique).
   const skus = rows.map(r => String(r.normalized.sku ?? "").trim()).filter(Boolean);
   const existing = new Set<string>();
   for (const c of chunk(skus, 500)) {
-    const { data } = await supabase.from("products").select("sku").in("sku", c);
+    const { data } = await supabase.from("products").select("sku").eq("tenant_id", tenantId).in("sku", c);
     (data ?? []).forEach((d: any) => d.sku && existing.add(String(d.sku).toLowerCase()));
   }
 
@@ -67,15 +68,18 @@ async function postProducts(rows: Row[], batchId: string): Promise<PostResult> {
       tenant_id: tenantId,
       name: r.normalized.name,
       sku: r.normalized.sku,
-      category: r.normalized.category,
+      product_code: r.normalized.sku,
+      category: r.normalized.category ?? "other",
       unit: r.normalized.unit ?? "pcs",
       cost_price: Number(r.normalized.cost_price ?? 0),
       selling_price: Number(r.normalized.selling_price ?? 0),
+      mrp: Number(r.normalized.selling_price ?? 0),
       pack_size: r.normalized.pack_size ?? null,
       drap_reg_number: r.normalized.drap_reg_number ?? null,
       gst_rate: Number(r.normalized.gst_rate ?? 0),
       stock_quantity: Number(r.normalized.stock_quantity ?? 0),
       reorder_level: Number(r.normalized.reorder_level ?? 0),
+      notes: r.normalized.notes ?? null,
       import_batch_id: batchId,
     }));
     const { error, data } = await supabase.from("products").insert(payload as any).select("id");
@@ -94,6 +98,8 @@ async function postCustomers(rows: Row[], batchId: string): Promise<PostResult> 
       tenant_id: tenantId,
       name: r.normalized.name,
       customer_code: r.normalized.customer_code ?? null,
+      old_erp_account_code: r.normalized.old_erp_account_code ?? null,
+      cnic: r.normalized.cnic ?? null,
       company: r.normalized.company ?? null,
       phone: r.normalized.phone ?? null,
       email: r.normalized.email ?? null,
@@ -103,6 +109,7 @@ async function postCustomers(rows: Row[], batchId: string): Promise<PostResult> 
       ntn: r.normalized.ntn ?? null,
       strn: r.normalized.strn ?? null,
       credit_limit: Number(r.normalized.credit_limit ?? 0),
+      notes: r.normalized.notes ?? null,
       import_batch_id: batchId,
     }));
     const { error, data } = await supabase.from("customers").insert(payload as any).select("id");
@@ -121,6 +128,7 @@ async function postSuppliers(rows: Row[], batchId: string): Promise<PostResult> 
       tenant_id: tenantId,
       name: r.normalized.name,
       supplier_code: r.normalized.supplier_code ?? null,
+      old_erp_account_code: r.normalized.old_erp_account_code ?? null,
       company: r.normalized.company ?? null,
       phone: r.normalized.phone ?? null,
       email: r.normalized.email ?? null,
@@ -130,6 +138,7 @@ async function postSuppliers(rows: Row[], batchId: string): Promise<PostResult> 
       strn: r.normalized.strn ?? null,
       payment_terms_days: Number(r.normalized.payment_terms_days ?? 30),
       wht_rate: Number(r.normalized.wht_rate ?? 0),
+      notes: r.normalized.notes ?? null,
       import_batch_id: batchId,
     }));
     const { error, data } = await supabase.from("suppliers").insert(payload as any).select("id");
