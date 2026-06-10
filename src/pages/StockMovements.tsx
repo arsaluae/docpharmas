@@ -161,6 +161,7 @@ export default function StockMovements() {
               </p>
             )}
           </div>
+        </div>
         <Button onClick={handleSave} className="w-full mt-4">Save</Button>
       </DialogContent>
     </Dialog>
