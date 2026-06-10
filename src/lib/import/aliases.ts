@@ -37,12 +37,12 @@ const ALIASES: Record<string, string> = {
   "cnic": "cnic", "nic": "cnic", "id card": "cnic",
   // company
   "company": "company", "company name": "company", "firm": "company", "organization": "company",
-  // legacy account code variants
+  // legacy account code variants (customers/suppliers ledger no.)
   "a/c no": "old_erp_account_code", "a/c no.": "old_erp_account_code",
   "a/c #": "old_erp_account_code", "a/c number": "old_erp_account_code",
   "ac no": "old_erp_account_code", "ac no.": "old_erp_account_code",
   "account no": "old_erp_account_code", "account no.": "old_erp_account_code",
-  "account #": "old_erp_account_code", "account code": "old_erp_account_code",
+  "account #": "old_erp_account_code",
   // tax
   "ntn": "ntn", "ntn no": "ntn", "ntn number": "ntn",
   "strn": "strn", "strn no": "strn", "stn": "strn", "sales tax no": "strn",
