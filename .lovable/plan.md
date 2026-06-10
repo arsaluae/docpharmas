@@ -1,105 +1,89 @@
+# Migration importer — field-coverage fix
 
-# ERP Migration Module — Full Spec Build-out
+The schema is already wide enough (customers, suppliers, products, grn_items, migration_errors all have the needed columns). The gaps are in the importer pipeline: header aliases, validators rejecting rows that should warn, posters not linking suppliers, and the wizard not surfacing unmatched/failed buckets clearly. No new tables needed.
 
-The project already ships a working 6-step wizard at `/import/wizard` with auto-detect mapping, validation, staging in `import_batches` + `import_staging_rows`, posting, audit logs, and per-batch rollback. The spec you gave is wider than what's currently captured, so this plan **extends** the existing module instead of rebuilding it.
+## 1. Aliases — guarantee every legacy header lands (`src/lib/import/aliases.ts`)
 
-## 1. Schema additions (one migration)
+Audit shows most legacy headers already map. Add the missing ones the user listed explicitly so auto-detect never misses:
 
-Add the missing legacy columns so we never lose data. All are nullable, all are tenant-scoped via existing RLS; no breaking changes.
+- `business name`, `business` → `name`
+- `mobile`, `mobile #`, `mobile number`, `contact #` → `phone`
+- `a/c no.`, `a/c #` (already partial — add trailing-dot variants) → `old_erp_account_code`
+- `sale price` → `selling_price`
+- `low stock`, `low stock qty` → `low_stock_level`
+- `large pack size`, `large pack`, `outer pack` → `pack_size`
+- `sale information`, `sale info` → `sale_information`
+- `to location`, `warehouse`, `location` (when entity = batches) → `to_location`
+- `base unit`, `unit` → `unit`
+- `base quantity`, `qty`, `quantity` → `quantity`
+- `batch no.`, `batch #`, `batch number`, `lot no.` → `batch_number`
+- `batch expiry`, `expiry`, `expiry date`, `exp date`, `exp.` → `expiry_date`
+- `payment terms`, `pay terms`, `terms` → `payment_terms_days`
+- `county`, `province`, `state` → `province` (customers/suppliers) / `county` if county column used
+- `supplier`, `vendor`, `preferred supplier` → `supplier_name` (products entity)
+- `code`, `product code`, `item code` → `sku` (already present — keep)
 
-**`customers`** — add  
-`title, first_name, last_name, contact_person, sms_mobile, whatsapp, website, tax_number, credit_days, address_line2, district, province, country, postal_code, status, old_erp_id`
+## 2. Validators — turn hard-fails into warnings where the spec allows (`src/lib/import/validators.ts`)
 
-**`suppliers`** — add  
-`contact_person, whatsapp, tax_registration, bank_account, bank_name, province, country, postal_code, status, old_erp_id`
+- Products: drop `required: true` from `cost_price` and `selling_price` in `types.ts`; in the validator, when either is missing or non-numeric, set value to `0` and push a warning ("price defaulted to 0").
+- Customers / Suppliers: when `city`, `address`, `phone` or `email` are missing, push a warning (do not error). When `phone` looks invalid (cleanMobile returns null but value present), keep raw text and append it to `notes` (`mobile-field: …`).
+- Batches: keep the current zero-qty / missing-batch / invalid-expiry behaviour, but tag each error with a `severity` (`"skipped"` for zero-qty / invalid-expiry, `"error"` for missing SKU / batch). The wizard uses this to bucket rows correctly.
 
-**`products`** — add  
-`barcode, generic_name, brand, manufacturer, sub_category, trade_price, retail_price, tax_percent, low_stock_level, stock_account, income_account, expense_account, batch_tracking, expiry_tracking, status, old_erp_id`
-(Existing `stock_quantity` is kept for legacy reads but the spec rule "stock comes from batches" is already true — `recompute_product_stock()` derives it from `stock_movements`. We will not write to `stock_quantity` from the importer; opening stock is posted as `batches` rows.)
+Add this to `NormalizedRow.errors` items (extend `ValidationError` with optional `severity: "error" | "skipped" | "warning"`).
 
-**Inventory** — the existing `goods_received_notes`/`grn_items` + `stock_movements` flow already supports per-batch qty, expiry, batch supplier, manufacturing date (add `manufacturing_date date` to `grn_items`), batch cost, and purchase reference. No new inventory table is needed.
+## 3. Posters — link supplier_id, write to `migration_errors`, log skipped rows (`src/lib/import/posters.ts`)
 
-**New staging tables** (alongside the existing generic `import_batches` + `import_staging_rows`, kept for backwards compatibility):
+- `postProducts`: after insert, capture each posted product's `id` + `sku` + normalized `supplier_name`. Run a single supplier-name resolver:
+    1. Pre-load all suppliers for the tenant (`id`, `name`, `supplier_code`, `old_erp_account_code`).
+    2. Normalize both sides (trim, lower, collapse whitespace, strip punctuation) and try direct match.
+    3. Matches → bulk `update products set supplier_id = …`.
+    4. Unmatched product SKUs are written to `migration_errors` with `severity = "warning"`, `field = "supplier_name"`, `message = "supplier '<name>' not found — needs manual mapping"`, and returned to the caller as `unmatchedSuppliers: { sku, supplier_name }[]`.
+    5. If `company_settings.auto_create_missing_suppliers` is true, create stub supplier rows (name only) and link them before writing warnings.
+- `postBatches`:
+    - For rows with no `batch_supplier`, fall back to the product's `supplier_id` (looked up via the SKU map).
+    - Skip rows where qty<=0 / invalid expiry / unknown SKU but write each to `migration_errors` with the appropriate severity (`skipped` vs `error`) and `field` set so the wizard's downloads include them.
+    - On duplicate `(product_id, batch_number, expiry_date)` within the GRN, merge into the first row (already done in the validator — confirm and add a DB-side check too via existing `idx_grn_items_product_batch`).
+- All posters: write every validation error/warning to `public.migration_errors` (one row per error) with `import_batch_id` and `migration_batch_id` so they survive page refresh and feed the report.
 
-- `migration_batches` (id, tenant_id, started_by, started_at, finished_at, status, source_file, before_counts jsonb, after_counts jsonb, notes)
-- `customer_staging`, `supplier_staging`, `product_staging`, `inventory_staging`, `accounting_staging` — one row per legacy row, every legacy field as a column + `raw jsonb`, `errors jsonb`, `status`, `migration_batch_id`, `tenant_id`, `created_by`, `import_batch_id`
-- `migration_errors` (id, migration_batch_id, entity, row_number, field, message, severity, created_at)
+## 4. Wizard report (`src/pages/MigrationWizard.tsx`)
 
-Each table follows the project's GRANT + RLS + `set_tenant_id` trigger pattern (`tenant_id`, `current_user_can('settings','write')` for write, owner-only for delete).
+Add four buckets to the existing verification screen, each as a card + downloadable CSV:
 
-## 2. Importer field-spec expansion
+- Customers imported (with sub-counts: with city / with address / with phone or email)
+- Suppliers imported (with sub-counts: with city / with address / with phone or email / with payment terms)
+- Products imported (with sub-counts: with sale price / with cost price / with supplier linked / **without supplier — needs mapping**)
+- Batches imported (with sub-counts: with batch / with expiry / with qty, skipped rows, invalid-expiry rows, SKU-mismatch rows)
 
-Edit `src/lib/import/types.ts` and `src/lib/import/aliases.ts`:
+CSV exports read from `migration_errors` filtered by `migration_batch_id` + `severity`.
 
-- Add every new field to the `customers`, `suppliers`, `products` entity specs with friendly labels and `help` text.
-- Add ~60 new alias entries so common legacy headers ("Tax No", "Pay Terms", "Bank A/C", "GTIN", "Generic", "Mfg", "WhatsApp #", "Province", "Zip") auto-map.
-- New entity `inventory` (multi-batch with manufacturing date + batch_supplier + purchase_ref) replacing the narrower `batches` template; the existing `batches` template stays as an alias for backwards compatibility.
-- New entity `accounting_openings` covering Chart of Accounts + Customer Opening + Supplier Opening + Cash/Bank Opening in one combined or split-template flow.
+## 5. Unmatched-supplier mapping screen (new component used inside the wizard)
 
-## 3. Validators (`src/lib/import/validators.ts`)
+After product posting, if `unmatchedSuppliers.length > 0`:
 
-Add the full rule set from the spec:
-- Duplicate `customer_code` / `supplier_code` / `sku` within file and against DB (DB check via batched `select` in `posters.ts`).
-- Email regex (already present), Pakistani phone normalizer (already present) — extend to `sms_mobile` and `whatsapp`.
-- Missing city / address / product name / product code / batch / expiry — `required` flags on the relevant fields.
-- Invalid expiry / past expiry (already present, override switch already in UI).
-- Negative qty / negative opening balance — block.
-- Duplicate `(sku, batch_number)` within file — already auto-merged for `batches`; same rule for `inventory`.
+- Render a table: legacy supplier name | row count | dropdown of existing suppliers + "Create new" option.
+- "Apply mapping" button bulk-updates `products.supplier_id` for the affected SKUs in the current `import_batch_id` and deletes the corresponding rows from `migration_errors`.
+- Skip button leaves the warning in place so the admin can revisit it from the migration report later.
 
-Every error attaches `{ field, message, severity }` and is written to `migration_errors` plus the existing `import_staging_rows.errors` jsonb for backward compatibility.
+## 6. Settings toggle
 
-## 4. Wizard UI (`src/pages/MigrationWizard.tsx`)
+Add `auto_create_missing_suppliers boolean default false` to `company_settings`. Settings → Data Migration adds a single switch; the poster reads it via `useCompanySettings`.
 
-The current 6-step wizard already implements: Select Data Type → Upload → Auto-detect → Manual Mapping → Validation → Preview → Import → Verification → Rollback. Changes:
+## 7. Files touched
 
-- Add a "Pre-import snapshot" step that calls a new `migration_pre_snapshot()` RPC and saves `before_counts` on `migration_batches`.
-- Verification step (already exists) gets new tiles per the spec: **Products / Customers / Suppliers / Batches / Opening Balances Imported · Failed Rows · Duplicate Rows · Missing Data Rows · Rollback Available**.
-- Add a downloadable per-entity error CSV (already exists for failed rows, extend to include "missing data" and "duplicates" tabs).
-- Show migration batch ID prominently and a copy-to-clipboard button.
-
-## 5. Posters (`src/lib/import/posters.ts`)
-
-- Map every new field through to the destination tables.
-- Set `import_batch_id`, `tenant_id` (via trigger), `created_by` on every insert.
-- Refuse to import "draft" transactions: filter out any sales/purchase invoice rows whose status field is `draft`/`pending`.
-- For inventory rows, post one `goods_received_notes` (opening) + `grn_items` per (supplier, batch) group so existing stock triggers run normally — no direct writes to `stock_quantity`.
-
-## 6. Audit & rollback
-
-- The existing `rollback_import_batch` RPC stays. Add a parent `rollback_migration_batch(p_migration_id, p_reason)` that iterates the child `import_batches` in reverse posting order, then marks `migration_batches.status='rolled_back'`.
-- Every step writes to `audit_log` via the existing `logAudit()` helper with the migration batch id.
-
-## 7. Final verification report
-
-After posting, the wizard already produces a per-entity report; this plan extends it to render and download the exact rows from the brief:
-
-```
-text
-Products Imported      <n>
-Customers Imported     <n>
-Suppliers Imported     <n>
-Batches Imported       <n>
-Opening Balances       <n>
-Failed Rows            <n>   ← CSV
-Duplicate Rows         <n>   ← CSV
-Missing Data Rows      <n>   ← CSV
-Rollback Available     yes/no
+```text
+src/lib/import/aliases.ts            ← header coverage
+src/lib/import/types.ts              ← drop required on price fields, add severity type
+src/lib/import/validators.ts         ← warnings vs errors, severity tagging
+src/lib/import/posters.ts            ← supplier linking + write migration_errors + batch fallback
+src/pages/MigrationWizard.tsx        ← extended buckets + downloads
+src/components/migration/UnmatchedSuppliers.tsx   ← new mapping UI
+src/hooks/useCompanySettings.tsx     ← surface auto_create_missing_suppliers
+supabase migration                   ← add company_settings.auto_create_missing_suppliers column only
 ```
 
-## Files touched
+## Out of scope
 
-- One new migration adding the columns, the staging tables (with GRANTs + RLS + tenant triggers), `manufacturing_date` on `grn_items`, and the `rollback_migration_batch` / `migration_pre_snapshot` RPCs.
-- `src/lib/import/types.ts` — field-spec expansion + new entities.
-- `src/lib/import/aliases.ts` — header alias expansion.
-- `src/lib/import/validators.ts` — extra rules + duplicate-against-DB hook.
-- `src/lib/import/posters.ts` — map new fields, route opening stock to GRN, write to new staging tables.
-- `src/lib/import/templates.ts` — refreshed example templates with every column.
-- `src/pages/MigrationWizard.tsx` — pre-snapshot step + extended verification tiles + duplicate/missing CSVs.
-- `src/pages/DataImport.tsx` — render the new fields in mapping + preview.
-
-## Out of scope (deliberate)
-
-- Editing `auth`, `storage`, or any system schema.
-- Importing draft / unposted transactions.
-- Cross-tenant moves — tenant isolation is preserved end-to-end.
-- Production data wipe — that lives behind the existing Danger Zone modal and is unrelated to this migration build-out.
+- No new tables (existing schema covers every field listed).
+- No changes to RLS / tenant isolation.
+- No changes to historical-transaction importers (sales/purchase invoices) beyond what's already shipped.
+- No data wipe.
