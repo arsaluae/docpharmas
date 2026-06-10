@@ -163,9 +163,10 @@ async function postProducts(rows: Row[], batchId: string): Promise<PostResult> {
         status: r.normalized.status ?? null,
         is_active: String(r.normalized.status ?? "active").toLowerCase() !== "inactive",
         old_erp_id: r.normalized.old_erp_id ?? null,
-        notes: r.normalized.notes ?? null,
+        notes: supplierName && !supId
+          ? [r.normalized.notes, `legacy-supplier: ${supplierName}`].filter(Boolean).join(" · ")
+          : (r.normalized.notes ?? null),
         supplier_id: supId,
-        supplier_name_imported: supplierName,
         import_batch_id: batchId,
       };
     });
