@@ -444,11 +444,11 @@ export default function Settings() {
 }
 
 function DangerZoneCard() {
- const { tenant } = useTenant();
+ const { tenantName } = useTenant();
  const [open, setOpen] = useState(false);
  const [confirm, setConfirm] = useState("");
  const [busy, setBusy] = useState(false);
- const expected = `WIPE ${tenant?.name ?? ""}`;
+ const expected = `WIPE ${tenantName ?? ""}`;
 
  const handleWipe = async () => {
   if (confirm !== expected) {
