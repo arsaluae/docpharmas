@@ -285,6 +285,51 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_runs: {
+        Row: {
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          results: Json | null
+          schedule: string
+          started_at: string
+          status: string
+          tenants_failed: number
+          tenants_succeeded: number
+          tenants_total: number
+          total_bytes: number
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          results?: Json | null
+          schedule?: string
+          started_at?: string
+          status?: string
+          tenants_failed?: number
+          tenants_succeeded?: number
+          tenants_total?: number
+          total_bytes?: number
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          results?: Json | null
+          schedule?: string
+          started_at?: string
+          status?: string
+          tenants_failed?: number
+          tenants_succeeded?: number
+          tenants_total?: number
+          total_bytes?: number
+        }
+        Relationships: []
+      }
       bank_accounts: {
         Row: {
           account_number: string | null
