@@ -7,12 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Download, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Download, RotateCcw, Sparkles, Users, Truck, Package, Layers, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import DataImport from "./DataImport";
 import { EntityType, ENTITIES } from "@/lib/import/types";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { UnmatchedSuppliers } from "@/components/migration/UnmatchedSuppliers";
 
 interface Step {
   id: string;
