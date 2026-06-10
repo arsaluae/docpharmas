@@ -1,122 +1,75 @@
-# ERP Data Import / Migration Wizard
+# ERP Hardening & Audit — Phased Plan
 
-Builds on the existing `/import` page (currently 4 simple tabs: Customers/Suppliers/Products/Inventory) and turns it into a production-grade migration system with staging tables, transactional posting, rollback, and a dedicated history view.
+This request spans 10 phases and would take many sessions to do safely. I'll do it in **5 implementation waves**, each ending with a verified, working state. Wave 0 (this turn, if you approve) is a **read-only audit** so we have a real defect list before changing anything.
 
-## 1. Database — staging + history (one migration)
+## Wave 0 — Read-only Audit (no code changes)
 
-Two new tables, both tenant-scoped with RLS:
+Deliverable: a single audit report at `.lovable/audit/findings-2026-06-10.md` containing:
 
-**`import_batches`**
-- `entity_type` (products | customers | suppliers | opening_stock | batches | customer_opening | supplier_opening | bank_opening | chart_of_accounts | sales_invoices | purchase_invoices)
-- `file_name`, `file_size`, `row_count`, `mapped_count`, `valid_count`, `invalid_count`, `posted_count`
-- `column_mapping` jsonb, `options` jsonb (e.g. `allowPastExpiry`, `mergeExisting`)
-- `status` — `uploaded | validated | failed | posting | completed | rolled_back`
-- `created_by`, `created_at`, `posted_at`, `rolled_back_at`, `rollback_reason`
-- `error_summary` jsonb (top error types + counts)
+1. **RLS coverage matrix** — for every public table: RLS on? policies count? tenant filter present? `service_role` GRANT? `anon` GRANT? Flagged rows = needs fix.
+2. **Cross-tenant leak probes** — run `supabase--read_query` as the DB owner on each business table to list tables where a policy is missing `tenant_id = get_user_tenant_id()` or `is_agent_customer(...)`.
+3. **Edge function auth audit** — each of the 6 edge functions: `verify_jwt`, JWT validation in code, service-role usage, secret leakage.
+4. **Secret / repo hygiene** — confirm `.env` only holds publishable keys, `.gitignore` covers `.env*.local`, no service-role key in client bundle (`rg` over `src/`).
+5. **RBAC matrix vs UI** — diff `src/lib/rbac.ts` against routes in `App.tsx` and sidebar items; list routes missing `<RequireCap>`.
+6. **ERP rule probes** — SQL checks for: duplicate invoice numbers per tenant, sales lines missing batch/expiry, posted invoices with `void_reason` null but edited money fields, closed-period writes, negative on-hand, expired-batch sales.
+7. **Backup posture** — `weekly-backup` function review + check whether `pg_cron` schedule exists, retention, encryption, restore path.
+8. **Audit-log coverage** — list every `logAudit(...)` call site vs the required action list; produce the gap list.
+9. **Console / network errors** on `/dashboard` and 5 high-traffic pages.
 
-**`import_staging_rows`**
-- `batch_id` → `import_batches.id` (cascade)
-- `row_number` (original Excel row), `raw` jsonb (raw cells), `normalized` jsonb (after mapping/coercion)
-- `status` — `pending | valid | invalid | posted | skipped`
-- `errors` jsonb (array of `{field, message}`), `posted_entity_id` uuid (link to final row)
-- Index on `(batch_id, status)`
+Output is a checklist with severity (P0/P1/P2) and a proposed fix per item. **Nothing in the DB or repo changes in Wave 0.**
 
-All `INSERT/UPDATE/DELETE/SELECT` policies scoped by `get_user_tenant_id()`, `service_role` full, `set_tenant_id` trigger on insert.
+## Wave 1 — Security & Tenant Isolation (P0)
 
-Every existing target table already has `created_at`; we'll also stamp `import_batch_id uuid` (nullable, indexed) on the 12 target tables that can be rolled back: `products, customers, suppliers, stock_movements, grn_items, payments, chart_of_accounts, sales_invoices, sales_invoice_items, purchase_invoices, purchase_invoice_items, bank_accounts`. Rollback = delete rows where `import_batch_id = $1` inside a transaction.
+Driven by Wave 0 findings. Typical fixes:
 
-A new RPC `rollback_import_batch(p_batch_id uuid, p_reason text)`:
-- Owner/admin only, advisory-lock per tenant
-- Deletes rows from every target table by `import_batch_id`
-- Marks batch `rolled_back`, logs to `audit_log`
+- Add missing `tenant_id = get_user_tenant_id()` to any policy that lacks it.
+- Add `restrictive` `rbac_*` policies on tables that only have permissive ones.
+- Remove `anon` grants on tables that should be auth-only.
+- Add `verify_jwt`/`getClaims()` to edge functions that mutate data.
+- Tighten storage bucket policies (especially `tenant-backups`).
+- Patch any client-side admin checks (`isAdmin` from localStorage etc., if found).
 
-A new RPC `post_import_batch(p_batch_id uuid)` for invoice imports that need transactional integrity (creates invoice + items in one tx, stamps `import_batch_id`).
+Verification: re-run the cross-tenant probes; `supabase--linter` must come back clean for P0 items.
 
-## 2. Wizard UI
+## Wave 2 — Backups & Recovery
 
-Replace the current `DataImport.tsx` body with a 5-step wizard (keep file-parse + alias logic, just restructure):
+- Confirm `pg_cron` daily + weekly + monthly schedules calling `weekly-backup` (currently weekly only). Add daily/monthly variants with retention 14d / 8w / 12m.
+- Extend `tenant-backups` bucket: private, signed-URL only, owner-only download via `manage-tenant`-style edge function.
+- New table `backup_runs` (id, tenant_id, kind, status, size_bytes, file_path, started_at, finished_at, error, created_by) + RLS owner-only.
+- New page `/settings/backups` (owner only): backup-now button, history table, last/next backup, retention settings, restore-from-file dry-run (validates JSON shape, does **not** execute restore — restore stays a manual `service_role` operation documented in `docs/disaster-recovery.md`).
+- `logAudit` entries: `backup_created`, `backup_failed`, `restore_started`, `restore_completed`.
 
-```text
-[1 Type] → [2 Template] → [3 Upload+Map] → [4 Validate+Preview] → [5 Post+Result]
-```
+## Wave 3 — Audit Log Completeness + Sensitive-action Confirmations
 
-**Step 1 — Entity picker.** A grid of 12 cards grouped:
-- *Master Data*: Products, Customers, Suppliers, Chart of Accounts
-- *Opening Balances*: Opening Stock, Batches & Expiry, Customer Opening, Supplier Opening, Bank/Cash Opening
-- *Historical Transactions*: Sales Invoices, Purchase Invoices
+- Extend `AuditAction` enum + `logAudit` call sites to cover every action in your list (login, failed_login, user_invited, settings_changed, import_*, backup_*, report_exported, stock_adjusted with reason, etc.).
+- `login` / `failed_login` captured via `onAuthStateChange` + a small edge function `record-auth-event` (so failed logins are recorded server-side).
+- Wrap these client actions in a confirm-with-reason dialog (`<ConfirmReasonDialog>`): delete invoice, edit posted invoice, stock adjustment, restore backup, change user role, delete product/customer/supplier, rollback import.
+- Reason stored in `audit_log.changes.reason`.
 
-**Step 2 — Template.** "Download Excel template" + "Download Sample (filled)" buttons per entity. Generated client-side with `xlsx` (already a dep) so no storage round-trip.
+## Wave 4 — ERP Rule Hardening + UX polish
 
-**Step 3 — Upload & Map.** Existing drag-drop + auto-mapping. Add a manual override `<Select>` per column to remap. Show required-field checklist with green/red ticks. "Continue" disabled until all required fields are mapped.
+- DB triggers (only where missing — most already exist per memory):
+  - duplicate invoice number guard (already covered by unique idx — verify).
+  - sales order does NOT touch ledger/stock (verify no trigger does).
+  - stock_adjustment requires `reason` (NOT NULL check + trigger).
+  - closed-period writes blocked (already exists — verify on every txn table).
+- UI: professional empty states, error boundary page, `/settings/system-health` extended with backup health, DB health (`supabase--db_health`), storage health.
+- Onboarding wizard polish (Company → Users → Roles → Import) — only if Wave 0 shows real gaps; otherwise skipped.
 
-**Step 4 — Validate & Preview.** Runs all row-level rules client-side, then inserts to `import_staging_rows` in chunks of 500. Shows three tabs: **Valid (N)**, **Invalid (N)**, **Warnings (N)** with a table preview. "Download failed rows" exports invalid rows + reasons as CSV.
+## Wave 5 — Final Report + Launch Checklist
 
-**Step 5 — Post.** "Post N valid rows" button. Calls server posting in batches (1000/chunk). Live progress bar, then summary card: posted / skipped / batch ID, with "Rollback this batch" and "Go to History".
+Single markdown delivered as `/mnt/documents/erp-audit-final.md` with: issues found per phase, files/tables/policies changed, tests performed, residual risks, **launch readiness score /100**, and a go-live checklist.
 
-## 3. Validation rules (per entity)
+## Technical notes
 
-Centralised in `src/lib/import/validators.ts`:
+- All DB changes go through `supabase--migration` (one migration per wave, reviewed by you).
+- No hard deletes added anywhere — voids/reversals only.
+- No client-only role checks: every UI gate is mirrored by a restrictive RLS policy or RPC guard.
+- Restore is intentionally **not** a one-click button — it's a documented procedure to avoid a single compromised admin wiping a tenant.
+- Out of scope for now: SOC2 paperwork, pen-test, third-party WAF, email-domain DMARC (separate engagement).
 
-| Entity | Required | Extra checks |
-|---|---|---|
-| Products | name, sku, cost_price, selling_price | sku unique vs DB+batch, prices ≥ 0, valid category enum |
-| Customers | name | code unique (auto-generated if blank), opening_balance numeric, dr/cr flag |
-| Suppliers | name | code unique, wht_rate 0–100, opening_balance numeric |
-| Opening Stock | sku/product_name, quantity | qty ≥ 0, product must resolve (or auto-create flag) |
-| Batches | sku, batch_number, expiry_date | expiry ≥ today unless `allowPastExpiry`, qty ≥ 0 |
-| Customer Opening | customer (name/code), amount, type | type ∈ debit/credit, amount > 0 |
-| Supplier Opening | supplier, amount, type | same |
-| Bank Opening | account_name, currency, balance | account not duplicated |
-| Chart of Accounts | code, name, type | type ∈ asset/liability/equity/income/expense, code unique |
-| Sales Invoices | invoice_number, date, customer, items[] | number unique, line totals reconcile (qty×rate − disc + tax = total) within 0.01 |
-| Purchase Invoices | bill_number, date, supplier, items[] | same |
+## What I need from you
 
-Invoice imports: header rows and item rows in two sheets of the same workbook (`Invoices` + `InvoiceItems` joined by `invoice_number`). Validator groups them and reconciles totals.
-
-## 4. Posting logic
-
-`src/lib/import/posters.ts` — one poster per entity, all of them:
-1. Read valid staging rows for the batch
-2. Open advisory lock per tenant
-3. Insert into target table(s) stamping `import_batch_id = batch.id`
-4. Mark staging rows `posted` + `posted_entity_id`
-5. Update `import_batches.status = completed`, `posted_at`, counts
-6. `logAudit({ action: "created", entity_type: <…>, entity_number: batch.id, changes: { entity_type, rows: posted } })`
-
-Failures inside posting flip the batch to `failed` and leave staging rows untouched so the user can fix and retry (or rollback the partial post).
-
-## 5. Import History page
-
-New route `/import/history` (linked from wizard + sidebar sub-item):
-- Table: date, entity, file, rows (valid/invalid/posted), status pill, user, actions
-- Row click → drawer with mapping JSON, error summary, "Download failed rows", "Rollback" (owner/admin only, confirms with reason input)
-- Filter by entity type & status, date range
-
-## 6. RBAC
-
-- `data_import.read` — owner, accountant, sales_mgr, purchase_mgr, inventory
-- `data_import.write` — owner, accountant, purchase_mgr, inventory
-- `data_import.rollback` — owner only
-Wired through existing `useRoles()` / `RequireCap`.
-
-## 7. Sample templates (generated, not stored)
-
-`src/lib/import/templates.ts` exports `buildTemplate(entity): Blob` producing an XLSX workbook with:
-- Sheet 1 `Data` — header row + 2 example rows
-- Sheet 2 `Instructions` — field descriptions, required flags, enums, format hints
-- Invoice templates ship the second `InvoiceItems` sheet
-
-## File changes
-
-- **new** `supabase/migrations/<ts>_import_wizard.sql` — staging tables, `import_batch_id` columns, `rollback_import_batch` + `post_import_batch` RPCs, RLS, grants
-- **new** `src/lib/import/{validators,posters,templates,aliases,types}.ts`
-- **rewrite** `src/pages/DataImport.tsx` — 5-step wizard shell (keeps existing parse + alias logic, refactored into `lib/import/`)
-- **new** `src/pages/ImportHistory.tsx`
-- **edit** `src/App.tsx` — add `/import/history` route
-- **edit** `src/components/AppSidebar.tsx` — nest "Import History" under Data Import
-
-## Non-goals (for this pass)
-
-- No background/worker posting — posting runs from the browser tab (chunked). Long imports stay in `posting` state and resume reporting on reload via batch row counts.
-- No Excel formula evaluation — values only.
-- No partial-row edits in the UI (user fixes the source file and re-uploads).
+1. **Approve Wave 0** so I can produce the real defect list. After you review the report we'll scope Waves 1–5 precisely (some items in your wishlist may already be done — memory says RLS, tenant isolation, void_document, period locks, negative-stock trigger, batch+expiry guard, posted-immutability trigger, RBAC matrix, weekly backups, and audit log are already in place; Wave 0 will verify that).
+2. Confirm: **owner = "super admin"** in your terminology, or do you want a new `super_admin` role above `owner` (cross-tenant)? Today everything is single-tenant-scoped.
+3. Confirm restore stays manual (recommended) vs. a one-click owner button (riskier).
