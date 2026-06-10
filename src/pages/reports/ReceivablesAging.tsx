@@ -52,7 +52,7 @@ export default function ReceivablesAging() {
   const headerActions = <ReportToolbar title="Receivables Aging" {...exportData} />;
 
   return (
-    <AppLayout title="Receivables Aging">
+    <AppLayout title="Receivables Aging" headerActions={headerActions}>
       <div className="space-y-4">
         <div className="grid grid-cols-5 gap-3">
           {["Current", "1-30", "31-60", "61-90", "90+"].map(b => (
@@ -75,9 +75,15 @@ export default function ReceivablesAging() {
                   <TableCell className="text-muted-foreground">{r.due_date}</TableCell>
                   <TableCell className="font-mono">{r.days}</TableCell>
                   <TableCell><Badge className={`border-0 ${bucketColor(r.bucket)}`}>{r.bucket}</Badge></TableCell>
-                  <TableCell className="text-right font-mono font-medium">PKR {(r.total - r.amount_paid).toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono font-medium">PKR {r.outstanding.toLocaleString()}</TableCell>
                 </TableRow>
               ))}
+              {rows.length > 0 && (
+                <TableRow className="font-semibold border-t-2">
+                  <TableCell colSpan={5}>TOTAL</TableCell>
+                  <TableCell className="text-right font-mono">PKR {rows.reduce((s, r) => s + r.outstanding, 0).toLocaleString()}</TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent></Card>
