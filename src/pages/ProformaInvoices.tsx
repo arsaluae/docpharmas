@@ -54,6 +54,20 @@ interface SalesOrder {
 
 interface BatchOption { batch_number: string; available: number; expiry_date?: string | null; }
 
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const fmtExpiry = (iso?: string | null): string => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return `${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+};
+const daysUntil = (iso?: string | null): number | null => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return Math.ceil((d.getTime() - Date.now()) / 86400000);
+};
+
 export default function ProformaInvoices() {
  const navigate = useNavigate();
  const [searchParams] = useSearchParams();
