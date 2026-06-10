@@ -34,7 +34,7 @@ export interface EntitySpec {
   group: "master" | "opening" | "transaction";
   description: string;
   fields: FieldSpec[];
-  example: Record<string, string | number>[];
+  example: Record<string, string | number | boolean>[];
   // For invoice-style entities: rows are grouped by this field to form a parent record.
   groupBy?: string;
 }
@@ -100,25 +100,37 @@ export const ENTITIES: Record<EntityType, EntitySpec> = {
       { key: "title", label: "Title", type: "text" },
       { key: "first_name", label: "First Name", type: "text" },
       { key: "last_name", label: "Last Name", type: "text" },
-      { key: "customer_code", label: "Customer Code", type: "text" },
+      { key: "contact_person", label: "Contact Person", type: "text" },
+      { key: "customer_code", label: "ERP Account Code / Customer Code", type: "text" },
       { key: "old_erp_account_code", label: "A/C No. (Legacy)", type: "text" },
+      { key: "old_erp_id", label: "Old ERP ID", type: "text" },
       { key: "company", label: "Company / Pharmacy", type: "text" },
       { key: "phone", label: "Mobile / Phone", type: "text" },
+      { key: "sms_mobile", label: "SMS Mobile", type: "text" },
+      { key: "whatsapp", label: "WhatsApp", type: "text" },
       { key: "email", label: "Email", type: "text" },
-      { key: "address", label: "Address", type: "text" },
-      { key: "city", label: "City", type: "text" },
-      { key: "area", label: "Area", type: "text" },
-      { key: "country", label: "Country", type: "text" },
-      { key: "county", label: "County", type: "text" },
       { key: "website", label: "Website", type: "text" },
+      { key: "address", label: "Address Line 1", type: "text" },
+      { key: "address_line2", label: "Address Line 2", type: "text" },
+      { key: "area", label: "Area", type: "text" },
+      { key: "city", label: "City", type: "text" },
+      { key: "district", label: "District", type: "text" },
+      { key: "province", label: "Province", type: "text" },
+      { key: "country", label: "Country", type: "text" },
+      { key: "postal_code", label: "Postal Code", type: "text" },
+      { key: "county", label: "County", type: "text" },
       { key: "cnic", label: "CNIC", type: "text" },
       { key: "ntn", label: "NTN", type: "text" },
       { key: "strn", label: "STRN", type: "text" },
+      { key: "tax_number", label: "Tax Number", type: "text" },
       { key: "credit_limit", label: "Credit Limit (PKR)", type: "number" },
+      { key: "credit_days", label: "Credit Days", type: "integer" },
+      { key: "opening_balance", label: "Opening Balance (PKR)", type: "number" },
+      { key: "status", label: "Customer Status", type: "text" },
       { key: "notes", label: "Notes", type: "text" },
     ],
     example: [
-      { name: "Rehman Medicos", company: "Rehman Pharmacy", phone: "03001234567", city: "Lahore", area: "DHA", credit_limit: 50000 },
+      { name: "Rehman Medicos", company: "Rehman Pharmacy", phone: "03001234567", city: "Lahore", area: "DHA", credit_limit: 50000, credit_days: 30, status: "active" },
     ],
   },
 
