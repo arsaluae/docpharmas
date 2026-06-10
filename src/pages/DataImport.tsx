@@ -422,9 +422,11 @@ export default function DataImport({ lockedEntity, onComplete, embedded = false 
             </div>
           </Card>
         )}
-      </div>
-    </AppLayout>
+    </div>
   );
+
+  if (embedded) return body;
+  return <AppLayout title="Data Import">{body}</AppLayout>;
 }
 
 function Stepper({ step }: { step: Step }) {
