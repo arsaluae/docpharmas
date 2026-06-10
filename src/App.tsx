@@ -61,6 +61,7 @@ const DataImport = lazy(() => import("./pages/DataImport"));
 const ImportHistory = lazy(() => import("./pages/ImportHistory"));
 const Settings = lazy(() => import("./pages/Settings"));
 const SystemHealth = lazy(() => import("./pages/SystemHealth"));
+const Backups = lazy(() => import("./pages/Backups"));
 
 const ProfitLoss = lazy(() => import("./pages/reports/ProfitLoss"));
 const BalanceSheet = lazy(() => import("./pages/reports/BalanceSheet"));
@@ -198,6 +199,7 @@ const App = () => (
                 <Route path="/import" element={<DataImport />} />
                 <Route path="/import/history" element={<ImportHistory />} />
                 <Route path="/system-health" element={<SystemHealth />} />
+                <Route path="/settings/backups" element={<Backups />} />
                 <Route path="/audit-log" element={<AuditLog />} />
               </Route>
 

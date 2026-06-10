@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type AuditAction =
   | "created"
+  | "updated"
   | "approved"
   | "rejected"
   | "submitted"
@@ -24,7 +25,15 @@ export type AuditAction =
   | "member_password_reset"
   | "backup_created"
   | "backup_failed"
-  | "backup_restored";
+  | "backup_restored"
+  | "backup_triggered"
+  | "login"
+  | "logout"
+  | "failed_login"
+  | "settings_changed"
+  | "import_completed"
+  | "import_rolled_back"
+  | "report_exported";
 
 export type AuditEntity =
   | "sales_order"
@@ -41,7 +50,11 @@ export type AuditEntity =
   | "print_job"
   | "accounting_period"
   | "tenant_member"
-  | "backup_run";
+  | "backup_run"
+  | "auth_session"
+  | "company_settings"
+  | "import_batch"
+  | "report";
 
 interface LogAuditInput {
   action: AuditAction;
