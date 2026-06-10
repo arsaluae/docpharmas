@@ -457,7 +457,7 @@ function DangerZoneCard() {
   }
   setBusy(true);
   try {
-   // @ts-expect-error new RPC, types regenerate after migration
+   
    const { data, error } = await supabase.rpc("wipe_my_tenant", { confirm_text: confirm });
    if (error) throw error;
    toast.success("Tenant data wiped. Reloading…");
@@ -481,7 +481,7 @@ function DangerZoneCard() {
    <CardContent className="space-y-3">
     <p className="text-sm text-muted-foreground">
      Permanently deletes all invoices, payments, stock, customers, suppliers, products, banks,
-     chart of accounts, document templates, and import history for <b>{tenant?.name}</b>.
+     chart of accounts, document templates, and import history for <b>{tenantName}</b>.
      Keeps your login, workspace, team members, and existing backups.
      <br /><b>Take a manual backup first</b> from the Backups page.
     </p>
