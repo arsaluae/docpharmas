@@ -11,124 +11,119 @@
 
 @layer base {
   :root {
-    /* MOUJ surfaces — warm off-white canvas */
-    --background: 220 25% 97%;       /* #F4F6FA app canvas */
-    --foreground: 217 76% 20%;       /* #0C2B5C MOUJ navy — primary ink */
-    --card: 220 20% 99%;             /* #FAFBFC panels */
-    --card-foreground: 217 76% 20%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 217 76% 20%;
-    --surface-2: 220 22% 95%;        /* #EEF1F6 raised wells */
+    /* ── Midnight Indigo · dark canonical ── */
+    --background: 230 60% 13%;       /* #0B1437 app canvas */
+    --foreground: 220 30% 96%;       /* near-white ink */
+    --card: 230 55% 17%;             /* #111C44 panels */
+    --card-foreground: 220 30% 96%;
+    --popover: 230 55% 11%;
+    --popover-foreground: 220 30% 96%;
+    --surface-2: 230 55% 20%;        /* raised wells */
 
-    /* Brand — MOUJ navy primary, MOUJ light blue as single accent */
-    --brand-navy: 217 76% 20%;       /* #0C2B5C */
-    --brand-blue: 197 80% 55%;       /* #2EB4E8 — the only accent */
-    --primary: 197 80% 55%;          /* accent for active states / charts */
+    /* Brand — electric indigo accent on midnight surfaces */
+    --brand-navy: 220 30% 96%;       /* text-as-navy → near-white */
+    --brand-blue: 239 84% 67%;       /* #6366F1 — sole accent */
+    --primary: 239 84% 67%;
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 197 80% 95%;     /* #E2F4FC hover wash */
-    --ring: 197 80% 55%;
+    --primary-soft: 239 84% 67%;     /* used w/ alpha for hover */
+    --ring: 239 84% 67%;
 
     /* Secondary / muted */
-    --secondary: 220 22% 95%;
-    --secondary-foreground: 217 40% 25%;
-    --muted: 220 22% 95%;
-    --muted-foreground: 217 20% 45%; /* #5B6B84 */
-    --subtle: 217 15% 60%;           /* #8693A8 micro-labels */
-    --accent: 220 22% 95%;
-    --accent-foreground: 217 76% 20%;
+    --secondary: 230 50% 22%;
+    --secondary-foreground: 220 25% 92%;
+    --muted: 230 45% 22%;
+    --muted-foreground: 225 18% 68%;
+    --subtle: 226 22% 60%;
+    --accent: 230 50% 22%;
+    --accent-foreground: 220 30% 96%;
 
-    /* Status — muted, never neon */
-    --destructive: 5 57% 42%;
+    /* Status */
+    --destructive: 0 65% 60%;
     --destructive-foreground: 0 0% 100%;
-    --danger: 5 57% 42%;
-    --warning: 36 50% 36%;
+    --danger: 0 65% 60%;
+    --warning: 38 92% 55%;
     --warning-foreground: 0 0% 100%;
-    --success: 150 44% 33%;
+    --success: 158 64% 48%;
     --success-foreground: 0 0% 100%;
-    --info: 197 80% 55%;
+    --info: 189 94% 55%;             /* cyan for live indicator */
 
-    /* Structure — hairline at navy/10 */
-    --border: 217 40% 88%;           /* #D5DEEC hairline w/ navy tint */
-    --border-strong: 217 35% 78%;    /* #B9C7DD */
-    --input: 217 35% 85%;
-    --radius: 4px;
+    /* Structure — hairline at indigo-900/30 */
+    --border: 232 40% 24%;
+    --border-strong: 232 35% 32%;
+    --input: 230 45% 22%;
+    --radius: 8px;
 
-    /* Sidebar — kept dark, retains existing aesthetic */
-    --sidebar-background: 240 8% 4%;
-    --sidebar-foreground: 240 6% 60%;
-    --sidebar-primary: 197 80% 55%;
+    /* Sidebar — deepest near-black */
+    --sidebar-background: 233 70% 5%;
+    --sidebar-foreground: 226 22% 60%;
+    --sidebar-primary: 239 84% 67%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 4% 12%;
-    --sidebar-accent-foreground: 40 22% 92%;
-    --sidebar-border: 240 5% 14%;
-    --sidebar-ring: 197 80% 55%;
+    --sidebar-accent: 232 40% 14%;
+    --sidebar-accent-foreground: 220 30% 96%;
+    --sidebar-border: 232 40% 14%;
+    --sidebar-ring: 239 84% 67%;
 
-    /* Pastel palette — retained for inner pages that still reference these tokens */
-    --pastel-peach: 22 100% 93%;     --pastel-peach-fg: 18 63% 44%;
-    --pastel-mint: 138 50% 91%;      --pastel-mint-fg: 150 44% 33%;
-    --pastel-sky: 197 80% 92%;       --pastel-sky-fg: 197 80% 35%;
-    --pastel-lilac: 251 79% 93%;     --pastel-lilac-fg: 248 47% 53%;
-    --pastel-butter: 47 89% 90%;     --pastel-butter-fg: 36 50% 36%;
-    --pastel-blush: 338 79% 93%;     --pastel-blush-fg: 339 44% 48%;
+    /* Pastel palette — retuned for dark surfaces (kept so legacy JSX still reads them) */
+    --pastel-peach: 22 60% 22%;      --pastel-peach-fg: 22 80% 75%;
+    --pastel-mint: 158 40% 18%;      --pastel-mint-fg: 158 64% 70%;
+    --pastel-sky: 197 60% 20%;       --pastel-sky-fg: 197 80% 75%;
+    --pastel-lilac: 251 45% 25%;     --pastel-lilac-fg: 251 79% 80%;
+    --pastel-butter: 47 50% 22%;     --pastel-butter-fg: 47 89% 75%;
+    --pastel-blush: 338 50% 25%;     --pastel-blush-fg: 338 79% 80%;
 
-    /* Legacy aliases */
-    --pharma-teal: 197 80% 55%;
-    --pharma-violet: 217 76% 20%;
-    --pharma-sage: 150 44% 33%;
-    --medical-cyan: 197 80% 55%;
+    --pharma-teal: 239 84% 67%;
+    --pharma-violet: 239 84% 67%;
+    --pharma-sage: 158 64% 48%;
+    --medical-cyan: 189 94% 55%;
     --medical-cyan-foreground: 0 0% 100%;
   }
 
 
   .dark {
-    /* Surfaces — near-black, not pure */
-    --background: 240 6% 5%;         /* #0A0A0B */
-    --foreground: 40 22% 92%;        /* #F0EEE8 warm off-white */
-    --card: 240 4% 9%;               /* #141416 */
-    --card-foreground: 40 22% 92%;
-    --popover: 240 4% 10%;
-    --popover-foreground: 40 22% 92%;
-    --surface-2: 240 4% 12%;
+    --background: 230 60% 13%;
+    --foreground: 220 30% 96%;
+    --card: 230 55% 17%;
+    --card-foreground: 220 30% 96%;
+    --popover: 230 55% 11%;
+    --popover-foreground: 220 30% 96%;
+    --surface-2: 230 55% 20%;
 
-    /* Accent — electric indigo, brightened for dark bg */
-    --primary: 197 80% 55%;          /* #2EB4E8 */
+    --primary: 239 84% 67%;
     --primary-foreground: 0 0% 100%;
-    --ring: 197 80% 55%;
+    --ring: 239 84% 67%;
 
-    --secondary: 240 4% 13%;
-    --secondary-foreground: 40 15% 80%;
-    --muted: 240 4% 13%;
-    --muted-foreground: 36 4% 55%;   /* #8A8782-ish */
-    --accent: 240 4% 16%;
-    --accent-foreground: 40 22% 92%;
+    --secondary: 230 50% 22%;
+    --secondary-foreground: 220 25% 92%;
+    --muted: 230 45% 22%;
+    --muted-foreground: 225 18% 68%;
+    --accent: 230 50% 22%;
+    --accent-foreground: 220 30% 96%;
 
-    /* Status — muted, serious */
-    --destructive: 0 38% 40%;        /* #7A3535 */
+    --destructive: 0 65% 60%;
     --destructive-foreground: 0 0% 100%;
-    --danger: 0 38% 40%;
-    --warning: 36 50% 36%;           /* #8A6A2E */
+    --danger: 0 65% 60%;
+    --warning: 38 92% 55%;
     --warning-foreground: 0 0% 100%;
-    --success: 150 33% 36%;          /* #3D7A5F */
+    --success: 158 64% 48%;
     --success-foreground: 0 0% 100%;
-    --info: 210 40% 36%;             /* #2E4A6B */
+    --info: 189 94% 55%;
 
-    /* Structure — hairline */
-    --border: 240 5% 15%;            /* approx white@7% over #0A0A0B */
-    --input: 240 5% 20%;
-    --tertiary-foreground: 30 3% 24%;
+    --border: 232 40% 24%;
+    --input: 230 45% 22%;
+    --tertiary-foreground: 226 22% 60%;
 
-    --sidebar-background: 240 6% 4%;
-    --sidebar-foreground: 240 6% 60%;
-    --sidebar-primary: 197 80% 55%;
+    --sidebar-background: 233 70% 5%;
+    --sidebar-foreground: 226 22% 60%;
+    --sidebar-primary: 239 84% 67%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 4% 12%;
-    --sidebar-accent-foreground: 40 22% 92%;
-    --sidebar-border: 240 5% 14%;
-    --sidebar-ring: 197 80% 55%;
+    --sidebar-accent: 232 40% 14%;
+    --sidebar-accent-foreground: 220 30% 96%;
+    --sidebar-border: 232 40% 14%;
+    --sidebar-ring: 239 84% 67%;
 
     --pharma-teal: 239 84% 67%;
     --pharma-violet: 239 84% 67%;
-    --pharma-sage: 150 33% 36%;
+    --pharma-sage: 158 64% 48%;
   }
 }
 
@@ -206,7 +201,7 @@
   }
   .kpi:hover {
     border-color: hsl(var(--border-strong));
-    background: hsl(240 11% 99%);
+    background: hsl(var(--surface-2));
   }
   .kpi[data-active="true"] {
     border-left: 2px solid hsl(var(--primary));
