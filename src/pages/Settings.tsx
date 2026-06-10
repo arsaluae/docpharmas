@@ -14,6 +14,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { useDocumentTemplates, DocumentTemplate } from "@/hooks/useDocumentTemplates";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
 import { FreightProvidersCard } from "@/components/settings/FreightProvidersCard";
 import { CREATABLE_ROLES, ROLE_DESCRIPTION, ROLE_LABEL, type TenantRole } from "@/lib/rbac";
@@ -448,17 +449,37 @@ function DangerZoneCard() {
  const [open, setOpen] = useState(false);
  const [confirm, setConfirm] = useState("");
  const [busy, setBusy] = useState(false);
+ const [showEmpty, setShowEmpty] = useState(false);
+ const [counts, setCounts] = useState<Record<string, number> | null>(null);
+ const [previewError, setPreviewError] = useState<string | null>(null);
  const expected = `WIPE ${tenantName ?? ""}`;
 
+ useEffect(() => {
+  if (!open) { setConfirm(""); setCounts(null); setPreviewError(null); return; }
+  (async () => {
+   try {
+    const { data, error } = await supabase.rpc("preview_wipe_counts" as never);
+    if (error) throw error;
+    setCounts((data ?? {}) as Record<string, number>);
+   } catch (e: any) {
+    setPreviewError(e.message ?? "Failed to load preview");
+   }
+  })();
+ }, [open]);
+
+ const rows = counts
+  ? Object.entries(counts)
+     .map(([table, count]) => ({ table, count: Number(count) || 0 }))
+     .filter((r) => showEmpty || r.count > 0)
+     .sort((a, b) => b.count - a.count || a.table.localeCompare(b.table))
+  : [];
+ const total = counts ? Object.values(counts).reduce((a, b) => a + (Number(b) || 0), 0) : 0;
+
  const handleWipe = async () => {
-  if (confirm !== expected) {
-   toast.error(`Type exactly: ${expected}`);
-   return;
-  }
+  if (confirm !== expected) { toast.error(`Type exactly: ${expected}`); return; }
   setBusy(true);
   try {
-   
-   const { data, error } = await supabase.rpc("wipe_my_tenant", { confirm_text: confirm });
+   const { data, error } = await supabase.rpc("wipe_my_tenant" as never, { confirm_text: confirm } as never);
    if (error) throw error;
    toast.success("Tenant data wiped. Reloading…");
    // eslint-disable-next-line no-console
@@ -466,7 +487,6 @@ function DangerZoneCard() {
    setTimeout(() => window.location.reload(), 1500);
   } catch (e: any) {
    toast.error(e.message ?? "Wipe failed");
-  } finally {
    setBusy(false);
   }
  };
@@ -485,20 +505,90 @@ function DangerZoneCard() {
      Keeps your login, workspace, team members, and existing backups.
      <br /><b>Take a manual backup first</b> from the Backups page.
     </p>
-    {!open ? (
-     <Button variant="destructive" onClick={() => setOpen(true)}>I understand — start wipe</Button>
-    ) : (
-     <div className="space-y-3 rounded-md border border-destructive/40 p-3 bg-destructive/5">
-      <Label className="text-sm">Type <code className="px-1 bg-background rounded">{expected}</code> to confirm</Label>
-      <Input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={expected} autoFocus />
-      <div className="flex gap-2">
-       <Button variant="destructive" disabled={busy || confirm !== expected} onClick={handleWipe}>
-        {busy ? "Wiping…" : "Wipe everything now"}
-       </Button>
-       <Button variant="outline" disabled={busy} onClick={() => { setOpen(false); setConfirm(""); }}>Cancel</Button>
+    <Button variant="destructive" onClick={() => setOpen(true)}>I understand — start wipe</Button>
+
+    <AlertDialog open={open} onOpenChange={(v) => !busy && setOpen(v)}>
+     <AlertDialogContent className="max-w-2xl">
+      <AlertDialogHeader>
+       <AlertDialogTitle className="text-destructive flex items-center gap-2">
+        <Trash2 className="h-4 w-4" /> Confirm wipe of {tenantName}
+       </AlertDialogTitle>
+       <AlertDialogDescription>
+        Review every row that will be permanently deleted. This cannot be undone.
+       </AlertDialogDescription>
+      </AlertDialogHeader>
+
+      <div className="space-y-3">
+       <div className="flex items-center justify-between">
+        <div className="text-sm font-medium">Data to be removed</div>
+        <label className="text-xs text-muted-foreground flex items-center gap-2 cursor-pointer">
+         <input type="checkbox" checked={showEmpty} onChange={(e) => setShowEmpty(e.target.checked)} />
+         Show empty tables
+        </label>
+       </div>
+       <div className="max-h-72 overflow-auto rounded-md border">
+        {previewError ? (
+         <div className="p-3 text-sm text-destructive">{previewError}</div>
+        ) : !counts ? (
+         <div className="p-3 text-sm text-muted-foreground">Loading preview…</div>
+        ) : rows.length === 0 ? (
+         <div className="p-3 text-sm text-muted-foreground">No data to wipe.</div>
+        ) : (
+         <table className="w-full text-sm">
+          <thead className="bg-muted/50 sticky top-0">
+           <tr><th className="text-left px-3 py-1.5 font-medium">Table</th><th className="text-right px-3 py-1.5 font-medium">Rows</th></tr>
+          </thead>
+          <tbody>
+           {rows.map((r) => (
+            <tr key={r.table} className="border-t">
+             <td className="px-3 py-1 font-mono text-xs">{r.table}</td>
+             <td className="px-3 py-1 text-right tabular-nums">{r.count.toLocaleString()}</td>
+            </tr>
+           ))}
+          </tbody>
+          <tfoot>
+           <tr className="border-t bg-muted/30 font-medium">
+            <td className="px-3 py-1.5">Total</td>
+            <td className="px-3 py-1.5 text-right tabular-nums">{total.toLocaleString()}</td>
+           </tr>
+          </tfoot>
+         </table>
+        )}
+       </div>
+
+       <div className="text-xs text-muted-foreground rounded-md border p-2">
+        <b>Kept intact:</b> your login, workspace, team members, role assignments, document number prefixes, and existing backup files.
+       </div>
+
+       <div className="space-y-2">
+        <Label className="text-sm">
+         Type <code className="px-1 bg-muted rounded">{expected}</code> to confirm
+        </Label>
+        <Input
+         value={confirm}
+         onChange={(e) => setConfirm(e.target.value)}
+         placeholder={expected}
+         autoFocus
+         className={confirm && confirm !== expected ? "border-destructive" : ""}
+        />
+        {confirm && confirm !== expected && (
+         <p className="text-xs text-destructive">Text does not match.</p>
+        )}
+       </div>
       </div>
-     </div>
-    )}
+
+      <AlertDialogFooter>
+       <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+       <Button
+        variant="destructive"
+        disabled={busy || !counts || confirm !== expected}
+        onClick={handleWipe}
+       >
+        {busy ? "Wiping…" : `Wipe ${total.toLocaleString()} rows now`}
+       </Button>
+      </AlertDialogFooter>
+     </AlertDialogContent>
+    </AlertDialog>
    </CardContent>
   </Card>
  );

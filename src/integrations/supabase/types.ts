@@ -4182,6 +4182,7 @@ export type Database = {
       }
       is_agent_customer: { Args: { p_customer_id: string }; Returns: boolean }
       is_authenticated: { Args: never; Returns: boolean }
+      preview_wipe_counts: { Args: never; Returns: Json }
       recalc_customer_invoice_status: {
         Args: { p_customer_id: string }
         Returns: undefined
