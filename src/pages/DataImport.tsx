@@ -30,10 +30,16 @@ const GROUPS: { id: "master"|"opening"|"transaction"; label: string }[] = [
   { id: "transaction", label: "Historical Transactions" },
 ];
 
-export default function DataImport() {
+interface DataImportProps {
+  lockedEntity?: EntityType;
+  onComplete?: (info: { batchId: string; posted: number; entity: EntityType }) => void;
+  embedded?: boolean; // hide AppLayout shell when rendered inside the wizard
+}
+
+export default function DataImport({ lockedEntity, onComplete, embedded = false }: DataImportProps = {}) {
   const nav = useNavigate();
-  const [step, setStep] = useState<Step>(1);
-  const [entity, setEntity] = useState<EntityType | null>(null);
+  const [step, setStep] = useState<Step>(lockedEntity ? 2 : 1);
+  const [entity, setEntity] = useState<EntityType | null>(lockedEntity ?? null);
   const [fileName, setFileName] = useState("");
   const [fileSize, setFileSize] = useState(0);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -51,7 +57,9 @@ export default function DataImport() {
   const spec = entity ? ENTITIES[entity] : null;
 
   const resetAll = () => {
-    setStep(1); setEntity(null); setFileName(""); setFileSize(0);
+    setStep(lockedEntity ? 2 : 1);
+    if (!lockedEntity) setEntity(null);
+    setFileName(""); setFileSize(0);
     setHeaders([]); setRawRows([]); setMapping([]); setValidated(null);
     setBatchId(null); setPosting(false); setProgress(0); setResult(null);
   };
@@ -173,6 +181,7 @@ export default function DataImport() {
       });
       setResult(r); setStep(5); setProgress(100);
       toast.success(`Imported ${r.posted} records`);
+      if (onComplete && entity) onComplete({ batchId, posted: r.posted, entity });
     } catch (e: any) {
       toast.error(e?.message ?? "Import failed");
       await supabase.from("import_batches").update({ status: "failed" } as any).eq("id", batchId);
