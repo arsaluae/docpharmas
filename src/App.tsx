@@ -196,6 +196,7 @@ const App = () => (
               <Route element={<RequireCap resource="settings" />}>
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/import" element={<DataImport />} />
+                <Route path="/import/history" element={<ImportHistory />} />
                 <Route path="/system-health" element={<SystemHealth />} />
                 <Route path="/audit-log" element={<AuditLog />} />
               </Route>
