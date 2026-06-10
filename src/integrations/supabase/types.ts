@@ -293,6 +293,7 @@ export type Database = {
           branch: string | null
           created_at: string
           id: string
+          import_batch_id: string | null
           is_default: boolean
           name: string
           opening_balance: number
@@ -305,6 +306,7 @@ export type Database = {
           branch?: string | null
           created_at?: string
           id?: string
+          import_batch_id?: string | null
           is_default?: boolean
           name: string
           opening_balance?: number
@@ -317,6 +319,7 @@ export type Database = {
           branch?: string | null
           created_at?: string
           id?: string
+          import_batch_id?: string | null
           is_default?: boolean
           name?: string
           opening_balance?: number
@@ -339,6 +342,7 @@ export type Database = {
           code: string
           created_at: string
           id: string
+          import_batch_id: string | null
           is_system: boolean
           name: string
           parent_id: string | null
@@ -350,6 +354,7 @@ export type Database = {
           code: string
           created_at?: string
           id?: string
+          import_batch_id?: string | null
           is_system?: boolean
           name: string
           parent_id?: string | null
@@ -361,6 +366,7 @@ export type Database = {
           code?: string
           created_at?: string
           id?: string
+          import_batch_id?: string | null
           is_system?: boolean
           name?: string
           parent_id?: string | null
@@ -776,6 +782,7 @@ export type Database = {
           customer_code: string | null
           email: string | null
           id: string
+          import_batch_id: string | null
           is_active: boolean
           name: string
           ntn: string | null
@@ -796,6 +803,7 @@ export type Database = {
           customer_code?: string | null
           email?: string | null
           id?: string
+          import_batch_id?: string | null
           is_active?: boolean
           name: string
           ntn?: string | null
@@ -816,6 +824,7 @@ export type Database = {
           customer_code?: string | null
           email?: string | null
           id?: string
+          import_batch_id?: string | null
           is_active?: boolean
           name?: string
           ntn?: string | null
@@ -1394,6 +1403,7 @@ export type Database = {
           expiry_date: string | null
           grn_id: string
           id: string
+          import_batch_id: string | null
           item_name: string
           product_id: string | null
           quantity_ordered: number
@@ -1407,6 +1417,7 @@ export type Database = {
           expiry_date?: string | null
           grn_id: string
           id?: string
+          import_batch_id?: string | null
           item_name: string
           product_id?: string | null
           quantity_ordered?: number
@@ -1420,6 +1431,7 @@ export type Database = {
           expiry_date?: string | null
           grn_id?: string
           id?: string
+          import_batch_id?: string | null
           item_name?: string
           product_id?: string | null
           quantity_ordered?: number
@@ -1447,6 +1459,119 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_batches: {
+        Row: {
+          column_mapping: Json | null
+          created_at: string
+          created_by: string | null
+          entity_type: string
+          error_summary: Json | null
+          file_name: string | null
+          file_size: number | null
+          id: string
+          invalid_count: number
+          mapped_count: number
+          options: Json | null
+          posted_at: string | null
+          posted_count: number
+          rollback_reason: string | null
+          rolled_back_at: string | null
+          row_count: number
+          status: string
+          tenant_id: string
+          valid_count: number
+        }
+        Insert: {
+          column_mapping?: Json | null
+          created_at?: string
+          created_by?: string | null
+          entity_type: string
+          error_summary?: Json | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          invalid_count?: number
+          mapped_count?: number
+          options?: Json | null
+          posted_at?: string | null
+          posted_count?: number
+          rollback_reason?: string | null
+          rolled_back_at?: string | null
+          row_count?: number
+          status?: string
+          tenant_id: string
+          valid_count?: number
+        }
+        Update: {
+          column_mapping?: Json | null
+          created_at?: string
+          created_by?: string | null
+          entity_type?: string
+          error_summary?: Json | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          invalid_count?: number
+          mapped_count?: number
+          options?: Json | null
+          posted_at?: string | null
+          posted_count?: number
+          rollback_reason?: string | null
+          rolled_back_at?: string | null
+          row_count?: number
+          status?: string
+          tenant_id?: string
+          valid_count?: number
+        }
+        Relationships: []
+      }
+      import_staging_rows: {
+        Row: {
+          batch_id: string
+          created_at: string
+          errors: Json | null
+          id: string
+          normalized: Json | null
+          posted_entity_id: string | null
+          raw: Json | null
+          row_number: number
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          errors?: Json | null
+          id?: string
+          normalized?: Json | null
+          posted_entity_id?: string | null
+          raw?: Json | null
+          row_number: number
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          errors?: Json | null
+          id?: string
+          normalized?: Json | null
+          posted_entity_id?: string | null
+          raw?: Json | null
+          row_number?: number
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_staging_rows_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
             referencedColumns: ["id"]
           },
         ]
@@ -1613,6 +1738,7 @@ export type Database = {
           date: string
           id: string
           idempotency_key: string | null
+          import_batch_id: string | null
           invoice_id: string | null
           notes: string | null
           party_id: string
@@ -1636,6 +1762,7 @@ export type Database = {
           date?: string
           id?: string
           idempotency_key?: string | null
+          import_batch_id?: string | null
           invoice_id?: string | null
           notes?: string | null
           party_id: string
@@ -1659,6 +1786,7 @@ export type Database = {
           date?: string
           id?: string
           idempotency_key?: string | null
+          import_batch_id?: string | null
           invoice_id?: string | null
           notes?: string | null
           party_id?: string
@@ -2092,6 +2220,7 @@ export type Database = {
           drap_reg_number: string | null
           gst_rate: number
           id: string
+          import_batch_id: string | null
           is_active: boolean
           mrp: number
           name: string
@@ -2111,6 +2240,7 @@ export type Database = {
           drap_reg_number?: string | null
           gst_rate?: number
           id?: string
+          import_batch_id?: string | null
           is_active?: boolean
           mrp?: number
           name: string
@@ -2130,6 +2260,7 @@ export type Database = {
           drap_reg_number?: string | null
           gst_rate?: number
           id?: string
+          import_batch_id?: string | null
           is_active?: boolean
           mrp?: number
           name?: string
@@ -2257,6 +2388,7 @@ export type Database = {
           grn_id: string | null
           gst: number
           id: string
+          import_batch_id: string | null
           status: string
           subtotal: number
           supplier_id: string | null
@@ -2276,6 +2408,7 @@ export type Database = {
           grn_id?: string | null
           gst?: number
           id?: string
+          import_batch_id?: string | null
           status?: string
           subtotal?: number
           supplier_id?: string | null
@@ -2295,6 +2428,7 @@ export type Database = {
           grn_id?: string | null
           gst?: number
           id?: string
+          import_batch_id?: string | null
           status?: string
           subtotal?: number
           supplier_id?: string | null
@@ -3044,6 +3178,7 @@ export type Database = {
           expiry_date: string | null
           gst_rate: number
           id: string
+          import_batch_id: string | null
           invoice_id: string
           product_id: string | null
           quantity: number
@@ -3058,6 +3193,7 @@ export type Database = {
           expiry_date?: string | null
           gst_rate?: number
           id?: string
+          import_batch_id?: string | null
           invoice_id: string
           product_id?: string | null
           quantity?: number
@@ -3072,6 +3208,7 @@ export type Database = {
           expiry_date?: string | null
           gst_rate?: number
           id?: string
+          import_batch_id?: string | null
           invoice_id?: string
           product_id?: string | null
           quantity?: number
@@ -3118,6 +3255,7 @@ export type Database = {
           gst_amount: number
           id: string
           idempotency_key: string | null
+          import_batch_id: string | null
           invoice_number: string
           notes: string | null
           status: string
@@ -3142,6 +3280,7 @@ export type Database = {
           gst_amount?: number
           id?: string
           idempotency_key?: string | null
+          import_batch_id?: string | null
           invoice_number: string
           notes?: string | null
           status?: string
@@ -3166,6 +3305,7 @@ export type Database = {
           gst_amount?: number
           id?: string
           idempotency_key?: string | null
+          import_batch_id?: string | null
           invoice_number?: string
           notes?: string | null
           status?: string
@@ -3414,6 +3554,7 @@ export type Database = {
           created_at: string
           date: string
           id: string
+          import_batch_id: string | null
           movement_type: string
           notes: string | null
           product_id: string
@@ -3431,6 +3572,7 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          import_batch_id?: string | null
           movement_type: string
           notes?: string | null
           product_id: string
@@ -3448,6 +3590,7 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          import_batch_id?: string | null
           movement_type?: string
           notes?: string | null
           product_id?: string
@@ -3536,6 +3679,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          import_batch_id: string | null
           is_active: boolean
           license_expiry_date: string | null
           license_number: string | null
@@ -3559,6 +3703,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          import_batch_id?: string | null
           is_active?: boolean
           license_expiry_date?: string | null
           license_number?: string | null
@@ -3582,6 +3727,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          import_batch_id?: string | null
           is_active?: boolean
           license_expiry_date?: string | null
           license_number?: string | null
@@ -3996,6 +4142,10 @@ export type Database = {
       }
       recompute_tenant_all: { Args: { p_tenant: string }; Returns: undefined }
       refresh_trial_balance: { Args: never; Returns: undefined }
+      rollback_import_batch: {
+        Args: { p_batch_id: string; p_reason: string }
+        Returns: Json
+      }
       run_reconciliation: {
         Args: { p_auto_fix?: boolean; p_tenant: string }
         Returns: {
