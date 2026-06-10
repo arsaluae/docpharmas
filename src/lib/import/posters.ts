@@ -339,6 +339,15 @@ async function lookupProductIds(skus: string[]): Promise<Map<string, string>> {
   return map;
 }
 
+async function lookupProductMeta(skus: string[]): Promise<Map<string, { id: string; supplier_id: string | null }>> {
+  const map = new Map<string, { id: string; supplier_id: string | null }>();
+  for (const c of chunk([...new Set(skus)], 500)) {
+    const { data } = await supabase.from("products").select("id, sku, supplier_id").in("sku", c);
+    (data ?? []).forEach((p: any) => map.set(String(p.sku).toLowerCase(), { id: p.id, supplier_id: p.supplier_id ?? null }));
+  }
+  return map;
+}
+
 async function postOpeningStock(rows: Row[], batchId: string): Promise<PostResult> {
   const tenantId = await getTenantId();
   const errors: string[] = [];
@@ -367,56 +376,109 @@ async function postOpeningStock(rows: Row[], batchId: string): Promise<PostResul
 }
 
 async function postBatches(rows: Row[], batchId: string): Promise<PostResult> {
-  // Create a single opening-balance GRN per import; one grn_item per batch row.
+  // Group rows by effective supplier (batch_supplier > product.supplier_id > none)
+  // and create one GRN per supplier group so per-batch supplier is preserved.
   const tenantId = await getTenantId();
   const errors: string[] = [];
   let posted = 0;
+
   const skus = rows.map(r => String(r.normalized.sku ?? ""));
-  const idMap = await lookupProductIds(skus);
+  const productMap = await lookupProductMeta(skus);
+  const supplierLookup = await loadSupplierLookup(tenantId);
 
-  // Create GRN header
-  let grnNumber = "";
-  try {
-    const { data: num } = await supabase.rpc("generate_document_number" as any, { p_document_type: "grn" });
-    grnNumber = (num as string) ?? `GRN-IMP-${Date.now()}`;
-  } catch { grnNumber = `GRN-IMP-${Date.now()}`; }
-
-  const { data: grnHeader, error: hErr } = await supabase.from("goods_received_notes").insert({
-    tenant_id: tenantId,
-    grn_number: grnNumber,
-    date: new Date().toISOString().slice(0, 10),
-    status: "received",
-    notes: "Opening batches import",
-  } as any).select("id").single();
-  if (hErr || !grnHeader) {
-    return { posted: 0, skipped: rows.length, errors: [hErr?.message ?? "could not create GRN"] };
-  }
-  const grnId = (grnHeader as any).id;
-
+  // Determine supplier_id for each row
+  type Resolved = { row: Row; productId: string; supplierId: string | null };
+  const resolved: Resolved[] = [];
   for (const r of rows) {
     const sku = String(r.normalized.sku ?? "").toLowerCase();
-    const productId = idMap.get(sku);
-    if (!productId) { errors.push(`Row ${r.rowNumber}: SKU ${sku} not found`); continue; }
-    const qty = Number(r.normalized.quantity ?? 0);
-    const rate = Number(r.normalized.rate ?? 0);
-    const payload = {
-      tenant_id: tenantId,
-      grn_id: grnId,
-      product_id: productId,
-      item_name: String(r.normalized.sku),
-      batch_number: r.normalized.batch_number,
-      expiry_date: r.normalized.expiry_date,
-      manufacturing_date: r.normalized.manufacturing_date ?? null,
-      quantity_ordered: qty,
-      quantity_received: qty,
-      rate,
-      amount: qty * rate,
-      import_batch_id: batchId,
-    } as any;
-    const { error } = await supabase.from("grn_items").insert(payload);
-    if (error) errors.push(`Row ${r.rowNumber}: ${error.message}`);
-    else posted++;
+    const meta = productMap.get(sku);
+    if (!meta) {
+      errors.push(`Row ${r.rowNumber}: SKU ${sku} not found in products master`);
+      continue;
+    }
+    let supId: string | null = null;
+    const batchSupplierName = r.normalized.batch_supplier ? String(r.normalized.batch_supplier).trim() : "";
+    if (batchSupplierName) {
+      supId = supplierLookup.get(normalizeName(batchSupplierName)) ?? null;
+    }
+    if (!supId) supId = meta.supplier_id;
+    resolved.push({ row: r, productId: meta.id, supplierId: supId });
   }
+
+  // Bucket by supplier_id ("" = none)
+  const buckets = new Map<string, Resolved[]>();
+  for (const r of resolved) {
+    const k = r.supplierId ?? "";
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k)!.push(r);
+  }
+
+  for (const [supplierKey, items] of buckets) {
+    const supplierId = supplierKey || null;
+    let grnNumber = "";
+    try {
+      const { data: num } = await supabase.rpc("generate_document_number" as any, { p_document_type: "grn" });
+      grnNumber = (num as string) ?? `GRN-IMP-${Date.now()}`;
+    } catch { grnNumber = `GRN-IMP-${Date.now()}`; }
+
+    const { data: grnHeader, error: hErr } = await supabase.from("goods_received_notes").insert({
+      tenant_id: tenantId,
+      grn_number: grnNumber,
+      supplier_id: supplierId,
+      date: new Date().toISOString().slice(0, 10),
+      status: "received",
+      notes: supplierId ? "Opening batches import (per-supplier)" : "Opening batches import (no supplier)",
+    } as any).select("id").single();
+    if (hErr || !grnHeader) {
+      errors.push(`GRN create failed: ${hErr?.message ?? "unknown"}`);
+      continue;
+    }
+    const grnId = (grnHeader as any).id;
+
+    const payload = items.map(({ row: r, productId }) => {
+      const qty = Number(r.normalized.quantity ?? 0);
+      const rate = Number(r.normalized.rate ?? 0);
+      return {
+        tenant_id: tenantId,
+        grn_id: grnId,
+        product_id: productId,
+        item_name: String(r.normalized.sku),
+        batch_number: r.normalized.batch_number,
+        expiry_date: r.normalized.expiry_date,
+        manufacturing_date: r.normalized.manufacturing_date ?? null,
+        quantity_ordered: qty,
+        quantity_received: qty,
+        rate,
+        amount: qty * rate,
+        import_batch_id: batchId,
+      };
+    });
+
+    for (const c of chunk(payload, 500)) {
+      const { error, data } = await supabase.from("grn_items").insert(c as any).select("id");
+      if (error) errors.push(`GRN ${grnNumber}: ${error.message}`);
+      else posted += data?.length ?? 0;
+    }
+  }
+
+  // Persist unknown-SKU errors to migration_errors for the report
+  const unknownSku = rows.filter(r => !productMap.get(String(r.normalized.sku ?? "").toLowerCase()));
+  if (unknownSku.length > 0) {
+    const errPayload = unknownSku.map(r => ({
+      tenant_id: tenantId,
+      import_batch_id: batchId,
+      entity: "batches",
+      row_number: r.rowNumber,
+      field: "sku",
+      message: `Product code '${r.normalized.sku}' not found in products master`,
+      severity: "error",
+      raw: r.normalized as any,
+    }));
+    for (const c of chunk(errPayload, 500)) {
+      await supabase.from("migration_errors").insert(c as any);
+    }
+  }
+
   return { posted, skipped: rows.length - posted, errors };
 }
 
