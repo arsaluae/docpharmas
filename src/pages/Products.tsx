@@ -284,7 +284,7 @@ export default function Products() {
  <TableHeader>
  <TableRow>
  <TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>SKU</TableHead><TableHead>Category</TableHead><TableHead>DRAP</TableHead>
- <TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Price</TableHead>
+ <TableHead className="text-right">Cost</TableHead><TableHead className="text-right">MRP</TableHead>
  <TableHead className="text-right">Margin</TableHead><TableHead className="text-right">Stock</TableHead>
  <TableHead className="text-center">Actions</TableHead>
  </TableRow>
