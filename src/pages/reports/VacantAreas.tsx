@@ -40,7 +40,7 @@ export default function VacantAreas() {
     const cov = new Map<string, Set<string>>();
     if (basis === "sales") {
       // Pull all sales invoices (id, customer_id) + items (invoice_id, product_id) in 2 calls
-      const { data: invs } = await supabase.from("sales_invoices").select("id, customer_id");
+      const { data: invs } = await supabase.from("sales_invoices").select("id, customer_id").not("status", "in", "(draft,voided,cancelled)");
       const invMap = new Map<string, string>(); // invoice_id -> customer_id
       (invs || []).forEach((i: any) => { if (i.customer_id) invMap.set(i.id, i.customer_id); });
       const invIds = Array.from(invMap.keys());

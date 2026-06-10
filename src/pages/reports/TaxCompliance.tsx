@@ -51,9 +51,10 @@ export default function TaxCompliance() {
  }, [navigate]);
 
  const load = async () => {
+ const NOT_POSTED = "(draft,voided,cancelled)";
  const [sales, purchases, sups, drap, prods] = await Promise.all([
- supabase.from("sales_invoices").select("gst_amount"),
- supabase.from("purchase_invoices").select("gst, wht_amount, supplier_id"),
+ supabase.from("sales_invoices").select("gst_amount").not("status", "in", NOT_POSTED),
+ supabase.from("purchase_invoices").select("gst, wht_amount, supplier_id").not("status", "in", NOT_POSTED),
  supabase.from("suppliers").select("id, name"),
  supabase.from("drap_registrations").select("*").order("expiry_date", { ascending: true }),
  supabase.from("products").select("id, name"),

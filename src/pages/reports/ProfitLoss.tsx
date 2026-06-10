@@ -22,12 +22,13 @@ export default function ProfitLoss() {
   useEffect(() => { load(); }, [from, to]);
 
   const load = async () => {
+    const NOT_POSTED = "(draft,voided,cancelled)";
     const [sales, expenses, sReturns, pReturns, salaryPay] = await Promise.all([
-      supabase.from("sales_invoices").select("id, subtotal").gte("date", from).lte("date", to),
-      supabase.from("expenses").select("amount, category, expense_type").gte("date", from).lte("date", to),
-      supabase.from("sales_returns").select("total").gte("date", from).lte("date", to),
-      supabase.from("purchase_returns").select("total").gte("date", from).lte("date", to),
-      supabase.from("salary_payments").select("amount").gte("date", from).lte("date", to),
+      supabase.from("sales_invoices").select("id, subtotal").gte("date", from).lte("date", to).not("status", "in", NOT_POSTED),
+      supabase.from("expenses").select("amount, category, expense_type").gte("date", from).lte("date", to).not("status", "in", NOT_POSTED),
+      supabase.from("sales_returns").select("total").gte("date", from).lte("date", to).not("status", "in", NOT_POSTED),
+      supabase.from("purchase_returns").select("total").gte("date", from).lte("date", to).not("status", "in", NOT_POSTED),
+      supabase.from("salary_payments").select("amount").gte("date", from).lte("date", to).not("status", "in", NOT_POSTED),
     ]);
 
     const salesIds = (sales.data || []).map(s => s.id);

@@ -17,9 +17,9 @@ export default function PayablesAging() {
 
   const load = async () => {
     const [inv, sups, pmts] = await Promise.all([
-      supabase.from("purchase_invoices").select("id, bill_number, supplier_id, total, due_date").in("status", ["unpaid", "partial"]),
+      supabase.from("purchase_invoices").select("id, bill_number, supplier_id, total, due_date").in("status", ["unpaid", "partial"]).not("status", "in", "(draft,voided,cancelled)"),
       supabase.from("suppliers").select("id, name"),
-      supabase.from("payments").select("invoice_id, amount").eq("party_type", "supplier").eq("type", "made"),
+      supabase.from("payments").select("invoice_id, amount").eq("party_type", "supplier").eq("type", "made").not("status", "in", "(draft,voided,cancelled)"),
     ]);
     const nameMap: Record<string, string> = {};
     (sups.data || []).forEach(s => { nameMap[s.id] = s.name; });

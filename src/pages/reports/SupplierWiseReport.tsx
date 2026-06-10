@@ -11,11 +11,19 @@ export default function SupplierWiseReport() {
   useEffect(() => { loadReport(); }, []);
 
   const loadReport = async () => {
+    const NOT_POSTED = "(draft,voided,cancelled)";
     const [suppliers, invoices, payments, returns] = await Promise.all([
       fetchAllRows("suppliers", "id, name, balance"),
-      fetchAllRows("purchase_invoices", "supplier_id, total"),
-      fetchAllRows("payments", "party_id, amount", [{ column: "party_type", op: "eq", value: "supplier" }]),
-      fetchAllRows("purchase_returns", "supplier_id, total"),
+      fetchAllRows("purchase_invoices", "supplier_id, total", [
+        { column: "status", op: "not", value: "in", value2: NOT_POSTED },
+      ]),
+      fetchAllRows("payments", "party_id, amount", [
+        { column: "party_type", op: "eq", value: "supplier" },
+        { column: "status", op: "not", value: "in", value2: NOT_POSTED },
+      ]),
+      fetchAllRows("purchase_returns", "supplier_id, total", [
+        { column: "status", op: "not", value: "in", value2: NOT_POSTED },
+      ]),
     ]);
     if (!suppliers.length) return;
     const map = new Map<string, any>();

@@ -22,12 +22,21 @@ export default function CitywiseSales() {
 
  useEffect(() => { (async () => {
  setLoading(true);
- const [c, inv, it, p] = await Promise.all([
+ const NOT_POSTED = "(draft,voided,cancelled)";
+ const [c, inv, p] = await Promise.all([
  fetchAllRows("customers", "id, city"),
- fetchAllRows("sales_invoices", "id, customer_id, subtotal, date"),
- fetchAllRows("sales_invoice_items", "invoice_id, product_id, quantity, amount"),
+ fetchAllRows("sales_invoices", "id, customer_id, subtotal, date", [
+   { column: "status", op: "not", value: "in", value2: NOT_POSTED },
+ ]),
  fetchAllRows("products", "id, name"),
  ]);
+ const invIds = inv.map((i: any) => i.id);
+ let it: any[] = [];
+ for (let i = 0; i < invIds.length; i += 500) {
+   it = it.concat(await fetchAllRows("sales_invoice_items", "invoice_id, product_id, quantity, amount", [
+     { column: "invoice_id", op: "in", value: invIds.slice(i, i + 500) },
+   ]));
+ }
  setCustomers(c); setInvoices(inv); setItems(it); setProducts(p);
  setLoading(false);
  })(); }, []);

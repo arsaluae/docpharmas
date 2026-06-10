@@ -13,11 +13,19 @@ export default function CustomerWiseReport() {
   useEffect(() => { loadReport(); }, []);
 
   const loadReport = async () => {
+    const NOT_POSTED = "(draft,voided,cancelled)";
     const [customers, invoices, payments, returns] = await Promise.all([
       fetchAllRows("customers", "id, name, area, balance"),
-      fetchAllRows("sales_invoices", "customer_id, total"),
-      fetchAllRows("payments", "party_id, amount", [{ column: "party_type", op: "eq", value: "customer" }]),
-      fetchAllRows("sales_returns", "customer_id, total"),
+      fetchAllRows("sales_invoices", "customer_id, total", [
+        { column: "status", op: "not", value: "in", value2: NOT_POSTED },
+      ]),
+      fetchAllRows("payments", "party_id, amount", [
+        { column: "party_type", op: "eq", value: "customer" },
+        { column: "status", op: "not", value: "in", value2: NOT_POSTED },
+      ]),
+      fetchAllRows("sales_returns", "customer_id, total", [
+        { column: "status", op: "not", value: "in", value2: NOT_POSTED },
+      ]),
     ]);
     if (!customers.length) return;
     const map = new Map<string, any>();

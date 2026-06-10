@@ -19,19 +19,20 @@ export default function BalanceSheet() {
   useEffect(() => { load(); }, [asOfDate]);
 
   const load = async () => {
+    const NOT_POSTED = "(draft,voided,cancelled)";
     const [banks, custs, prods, sups, printers, salesInv, purchInv, expenses, payments, sReturns, pReturns, salaryPay] = await Promise.all([
       supabase.from("bank_accounts").select("opening_balance"),
       supabase.from("customers").select("opening_balance"),
       supabase.from("products").select("cost_price, stock_quantity"),
       supabase.from("suppliers").select("opening_balance"),
       supabase.from("printers").select("opening_balance"),
-      supabase.from("sales_invoices").select("gst_amount, subtotal, total, customer_id").lte("date", asOfDate),
-      supabase.from("purchase_invoices").select("gst, subtotal, total, supplier_id").lte("date", asOfDate),
-      supabase.from("expenses").select("amount, expense_type, bank_account_id").lte("date", asOfDate),
-      supabase.from("payments").select("type, amount, party_type, party_id, bank_account_id").lte("date", asOfDate),
-      supabase.from("sales_returns").select("total, customer_id").lte("date", asOfDate),
-      supabase.from("purchase_returns").select("total, supplier_id").lte("date", asOfDate),
-      supabase.from("salary_payments").select("amount, bank_account_id").lte("date", asOfDate),
+      supabase.from("sales_invoices").select("gst_amount, subtotal, total, customer_id").lte("date", asOfDate).not("status", "in", NOT_POSTED),
+      supabase.from("purchase_invoices").select("gst, subtotal, total, supplier_id").lte("date", asOfDate).not("status", "in", NOT_POSTED),
+      supabase.from("expenses").select("amount, expense_type, bank_account_id").lte("date", asOfDate).not("status", "in", NOT_POSTED),
+      supabase.from("payments").select("type, amount, party_type, party_id, bank_account_id").lte("date", asOfDate).not("status", "in", NOT_POSTED),
+      supabase.from("sales_returns").select("total, customer_id").lte("date", asOfDate).not("status", "in", NOT_POSTED),
+      supabase.from("purchase_returns").select("total, supplier_id").lte("date", asOfDate).not("status", "in", NOT_POSTED),
+      supabase.from("salary_payments").select("amount, bank_account_id").lte("date", asOfDate).not("status", "in", NOT_POSTED),
     ]);
 
     // Calculate bank balances from transactions

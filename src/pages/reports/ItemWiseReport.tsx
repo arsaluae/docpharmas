@@ -11,11 +11,19 @@ export default function ItemWiseReport() {
   useEffect(() => { loadReport(); }, []);
 
   const loadReport = async () => {
-    const [products, grnItems, salesItems] = await Promise.all([
+    const NOT_POSTED = "(draft,voided,cancelled)";
+    const [products, grnItems, postedInv] = await Promise.all([
       fetchAllRows("products", "id, name, stock_quantity, cost_price, selling_price"),
       fetchAllRows("grn_items", "product_id, quantity_received, amount"),
-      fetchAllRows("sales_invoice_items", "product_id, quantity, amount"),
+      fetchAllRows("sales_invoices", "id", [{ column: "status", op: "not", value: "in", value2: NOT_POSTED }]),
     ]);
+    const invIds = postedInv.map((i: any) => i.id);
+    let salesItems: any[] = [];
+    for (let i = 0; i < invIds.length; i += 500) {
+      salesItems = salesItems.concat(await fetchAllRows("sales_invoice_items", "product_id, quantity, amount", [
+        { column: "invoice_id", op: "in", value: invIds.slice(i, i + 500) },
+      ]));
+    }
     if (!products.length) return;
     const map = new Map<string, any>();
     products.forEach((p: any) => map.set(p.id, { ...p, purchased_qty: 0, sold_qty: 0, total_cost: 0, total_revenue: 0 }));

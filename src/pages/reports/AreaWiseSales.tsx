@@ -26,7 +26,7 @@ export default function AreaWiseSales() {
   const load = async () => {
     setLoading(true);
     const [invRes, custRes, prodRes] = await Promise.all([
-      supabase.from("sales_invoices").select("id, customer_id, total, date"),
+      supabase.from("sales_invoices").select("id, customer_id, total, date").not("status", "in", "(draft,voided,cancelled)"),
       supabase.from("customers").select("id, city, area, name"),
       supabase.from("products").select("id, name"),
     ]);
