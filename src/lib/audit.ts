@@ -21,7 +21,10 @@ export type AuditAction =
   | "member_invited"
   | "member_removed"
   | "member_reactivated"
-  | "member_password_reset";
+  | "member_password_reset"
+  | "backup_created"
+  | "backup_failed"
+  | "backup_restored";
 
 export type AuditEntity =
   | "sales_order"
@@ -37,7 +40,8 @@ export type AuditEntity =
   | "stock_movement"
   | "print_job"
   | "accounting_period"
-  | "tenant_member";
+  | "tenant_member"
+  | "backup_run";
 
 interface LogAuditInput {
   action: AuditAction;

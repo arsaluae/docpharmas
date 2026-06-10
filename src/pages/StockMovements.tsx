@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useTenant } from "@/hooks/useTenant";
+import { logAudit } from "@/lib/audit";
+
+const ADJUSTMENT_TYPES = new Set(["adjustment", "adjustment_in", "adjustment_out"]);
 
 const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", "return_out", "adjustment", "adjustment_in", "adjustment_out", "opening", "damage", "expired"];
 
@@ -63,18 +66,40 @@ export default function StockMovements() {
 
   const handleSave = async () => {
     if (!productId || !quantity || Number(quantity) <= 0) { toast.error("Product and quantity required"); return; }
-    const { error } = await supabase.from("stock_movements").insert({
+    const isAdjustment = ADJUSTMENT_TYPES.has(moveType);
+    if (isAdjustment && (!notes || notes.trim().length < 3)) {
+      toast.error("A reason (min 3 characters) is required for stock adjustments.");
+      return;
+    }
+    const { data: inserted, error } = await supabase.from("stock_movements").insert({
       product_id: productId, movement_type: moveType, quantity: Number(quantity),
       batch_number: batchNumber || null, date, notes: notes || null,
-    });
+    }).select("id").single();
     if (error) {
       if (error.message?.includes("Insufficient stock")) {
         const name = productNames[productId] || "product";
         toast.error(`Insufficient stock for ${name} (requested ${quantity}).`);
+      } else if (error.message?.includes("requires a reason")) {
+        toast.error("A reason (min 3 characters) is required for stock adjustments.");
       } else {
         toast.error("Failed to record movement: " + error.message);
       }
       return;
+    }
+    if (isAdjustment && inserted?.id) {
+      void logAudit({
+        action: "stock_adjusted",
+        entity_type: "stock_movement",
+        entity_id: inserted.id,
+        changes: {
+          product: productNames[productId] || productId,
+          movement_type: moveType,
+          quantity: Number(quantity),
+          batch_number: batchNumber || null,
+          reason: notes,
+          date,
+        },
+      });
     }
     toast.success("Stock movement recorded");
     setOpen(false); setProductId(""); setMoveType("adjustment"); setQuantity(""); setBatchNumber(""); setNotes("");
@@ -121,7 +146,21 @@ export default function StockMovements() {
           <div><Label>Quantity *</Label><Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} /></div>
           <div><Label>Batch #</Label><Input value={batchNumber} onChange={e => setBatchNumber(e.target.value)} /></div>
           <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-          <div className="col-span-2"><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
+          <div className="col-span-2">
+            <Label>
+              Reason / Notes {ADJUSTMENT_TYPES.has(moveType) && <span className="text-destructive">*</span>}
+            </Label>
+            <Input
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder={ADJUSTMENT_TYPES.has(moveType) ? "Required — explain why stock is being adjusted" : "Optional"}
+            />
+            {ADJUSTMENT_TYPES.has(moveType) && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Adjustments are audited. A reason of at least 3 characters is required.
+              </p>
+            )}
+          </div>
         </div>
         <Button onClick={handleSave} className="w-full mt-4">Save</Button>
       </DialogContent>
