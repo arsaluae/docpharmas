@@ -4105,6 +4105,7 @@ export type Database = {
       }
     }
     Functions: {
+      _backup_cron_secret: { Args: never; Returns: string }
       agent_can_see_customer: {
         Args: { p_customer_id: string }
         Returns: boolean
