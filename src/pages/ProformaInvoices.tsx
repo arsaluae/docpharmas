@@ -54,6 +54,20 @@ interface SalesOrder {
 
 interface BatchOption { batch_number: string; available: number; expiry_date?: string | null; }
 
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const fmtExpiry = (iso?: string | null): string => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return `${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+};
+const daysUntil = (iso?: string | null): number | null => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return Math.ceil((d.getTime() - Date.now()) / 86400000);
+};
+
 export default function ProformaInvoices() {
  const navigate = useNavigate();
  const [searchParams] = useSearchParams();
@@ -602,75 +616,122 @@ export default function ProformaInvoices() {
  setPaymentOpen(false); setPaymentSaving(false); load();
  };
 
- const buildSalesInvoiceHtml = async (order: SalesOrder): Promise<string> => {
-   if (!order.converted_invoice_id) return "";
-   const { data: inv } = await supabase.from("sales_invoices").select("*, customers(name, address, phone, area)").eq("id", order.converted_invoice_id).single();
-   const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name)").eq("invoice_id", order.converted_invoice_id);
-   if (!inv) return "";
-   return generatePdfHtml({
-     title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
-     partyLabel: "Customer",
-     partyName: (inv.customers as any)?.name || "—",
-     partyAddress: (inv.customers as any)?.address || undefined,
-     partyPhone: (inv.customers as any)?.phone || undefined,
-     partyArea: (inv.customers as any)?.area || undefined,
-     columns: [
-       { header: "#", key: "idx" },
-       { header: "Product", key: "name" },
-       { header: "Batch #", key: "batch_number" },
-       { header: "Expiry", key: "expiry_date" },
-       { header: "Qty", key: "quantity", align: "right" },
-       { header: "Rate", key: "rate", align: "right" },
-       { header: "Amount", key: "amount", align: "right" },
-     ],
-     rows: (invItems || []).map((i: any, idx: number) => ({
-       idx: idx + 1, name: i.products?.name || "Item",
-       batch_number: i.batch_number || "—",
-       expiry_date: i.expiry_date || "—",
-       quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
-     })),
-     totals: [
-       { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
-       { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
-       { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
-     ],
-     settings, template: getTemplate("sales_invoice"),
-   });
- };
+  const buildSalesInvoiceHtml = async (order: SalesOrder): Promise<string> => {
+    if (!order.converted_invoice_id) return "";
+    const { data: inv } = await supabase.from("sales_invoices").select("*, customers(name, address, phone, area)").eq("id", order.converted_invoice_id).single();
+    const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name, selling_price)").eq("invoice_id", order.converted_invoice_id);
+    if (!inv) return "";
+    // Fallback: backfill missing expiry_date from GRN in one batched query (older rows).
+    const items = invItems || [];
+    const missing = items.filter((i: any) => !i.expiry_date && i.product_id && i.batch_number);
+    const expiryMap: Record<string, string> = {};
+    if (missing.length > 0) {
+      const { data: grnRows } = await supabase
+        .from("grn_items")
+        .select("product_id, batch_number, expiry_date")
+        .in("product_id", Array.from(new Set(missing.map((m: any) => m.product_id))))
+        .in("batch_number", Array.from(new Set(missing.map((m: any) => m.batch_number))));
+      (grnRows || []).forEach((g: any) => {
+        if (g.expiry_date) expiryMap[`${g.product_id}__${g.batch_number}`] = g.expiry_date;
+      });
+    }
+    return generatePdfHtml({
+      title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
+      partyLabel: "Customer",
+      partyName: (inv.customers as any)?.name || "—",
+      partyAddress: (inv.customers as any)?.address || undefined,
+      partyPhone: (inv.customers as any)?.phone || undefined,
+      partyArea: (inv.customers as any)?.area || undefined,
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "name" },
+        { header: "Batch #", key: "batch_number" },
+        { header: "Expiry", key: "expiry_date" },
+        { header: "MRP", key: "mrp", align: "right" },
+        { header: "Qty", key: "quantity", align: "right" },
+        { header: "Rate", key: "rate", align: "right" },
+        { header: "Amount", key: "amount", align: "right" },
+      ],
+      rows: items.map((i: any, idx: number) => {
+        const exp = i.expiry_date || expiryMap[`${i.product_id}__${i.batch_number}`] || null;
+        const mrp = Number(i.products?.selling_price || 0);
+        return {
+          idx: idx + 1, name: i.products?.name || "Item",
+          batch_number: i.batch_number || "—",
+          expiry_date: fmtExpiry(exp),
+          mrp: mrp > 0 ? mrp.toLocaleString() : "—",
+          quantity: i.quantity, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(),
+        };
+      }),
+      totals: [
+        { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
+        { label: "GST", value: `PKR ${Number(inv.gst_amount).toLocaleString()}` },
+        { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
+      ],
+      settings, template: getTemplate("sales_invoice"),
+    });
+  };
  const printInvoice = async (order: SalesOrder) => { await openPreview(order, "sales_invoice"); };
 
  // ── DELIVERY NOTE PDF ──
- const buildDeliveryNoteHtml = async (order: SalesOrder): Promise<string> => {
-   const invoiceId = order.converted_invoice_id;
-   if (!invoiceId) return "";
-   const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", invoiceId).maybeSingle();
-   if (!dn) return "";
-   const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
-   const custName = (order.customers as any)?.name || "—";
-   const custAddress = (order.customers as any)?.address || undefined;
-   const custPhone = (order.customers as any)?.phone || undefined;
-   const custArea = (order.customers as any)?.area || undefined;
-   return generatePdfHtml({
-     title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
-     partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
-     columns: [
-       { header: "#", key: "idx" },
-       { header: "Product", key: "product_name" },
-       { header: "Batch #", key: "batch_number" },
-       { header: "Expiry", key: "expiry_date" },
-       { header: "Qty", key: "quantity", align: "right" },
-     ],
-     rows: dnItems.map((i: any, idx: number) => ({
-       idx: idx + 1,
-       product_name: i.product_name || "Item",
-       batch_number: i.batch_number || "—",
-       expiry_date: i.expiry_date || "—",
-       quantity: i.quantity,
-     })),
-     totals: [],
-     settings, template: getTemplate("delivery_note"),
-   });
- };
+  const buildDeliveryNoteHtml = async (order: SalesOrder): Promise<string> => {
+    const invoiceId = order.converted_invoice_id;
+    if (!invoiceId) return "";
+    const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", invoiceId).maybeSingle();
+    if (!dn) return "";
+    const dnItems: any[] = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
+    const custName = (order.customers as any)?.name || "—";
+    const custAddress = (order.customers as any)?.address || undefined;
+    const custPhone = (order.customers as any)?.phone || undefined;
+    const custArea = (order.customers as any)?.area || undefined;
+
+    // Batch fetch MRP for each product, and expiry fallback for items missing it.
+    const productIds = Array.from(new Set(dnItems.map((i: any) => i.product_id).filter(Boolean)));
+    const mrpMap: Record<string, number> = {};
+    if (productIds.length > 0) {
+      const { data: pr } = await supabase.from("products").select("id, selling_price").in("id", productIds);
+      (pr || []).forEach((p: any) => { mrpMap[p.id] = Number(p.selling_price || 0); });
+    }
+    const missing = dnItems.filter((i: any) => !i.expiry_date && i.product_id && i.batch_number);
+    const expiryMap: Record<string, string> = {};
+    if (missing.length > 0) {
+      const { data: grnRows } = await supabase
+        .from("grn_items")
+        .select("product_id, batch_number, expiry_date")
+        .in("product_id", Array.from(new Set(missing.map((m: any) => m.product_id))))
+        .in("batch_number", Array.from(new Set(missing.map((m: any) => m.batch_number))));
+      (grnRows || []).forEach((g: any) => {
+        if (g.expiry_date) expiryMap[`${g.product_id}__${g.batch_number}`] = g.expiry_date;
+      });
+    }
+
+    return generatePdfHtml({
+      title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
+      partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "product_name" },
+        { header: "Batch #", key: "batch_number" },
+        { header: "Expiry", key: "expiry_date" },
+        { header: "MRP", key: "mrp", align: "right" },
+        { header: "Qty", key: "quantity", align: "right" },
+      ],
+      rows: dnItems.map((i: any, idx: number) => {
+        const exp = i.expiry_date || expiryMap[`${i.product_id}__${i.batch_number}`] || null;
+        const mrp = mrpMap[i.product_id] || 0;
+        return {
+          idx: idx + 1,
+          product_name: i.product_name || "Item",
+          batch_number: i.batch_number || "—",
+          expiry_date: fmtExpiry(exp),
+          mrp: mrp > 0 ? mrp.toLocaleString() : "—",
+          quantity: i.quantity,
+        };
+      }),
+      totals: [],
+      settings, template: getTemplate("delivery_note"),
+    });
+  };
  const printDeliveryNote = async (order: SalesOrder) => { await openPreview(order, "delivery_note"); };
 
  // ── SUBMIT (Convert to Invoice) ──
@@ -1326,21 +1387,26 @@ export default function ProformaInvoices() {
  <Label className="text-sm font-semibold">Items</Label>
  <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: 17, amount: 0, discount_pct: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
  </div>
- {editItems.map((item, idx) => (
- <div key={idx} className="grid grid-cols-12 gap-2 items-end">
- <div className="col-span-3"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" /></div>
- <div className="col-span-1"><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="text-xs" placeholder="Qty" /></div>
- <div className="col-span-2 relative">
- <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs" placeholder="Rate" />
- {item.last_price !== undefined && item.last_price !== null && (
- <span className="absolute -bottom-4 left-0 text-[10px] text-success font-medium">Last: PKR {Number(item.last_price).toLocaleString()}</span>
- )}
- </div>
- <div className="col-span-1"><Input type="number" value={item.discount_pct || 0} onChange={e => updateEditItem(idx, "discount_pct", e.target.value)} className="text-xs" placeholder="Disc%" /></div>
- <div className="col-span-3 text-right text-xs font-mono pt-2">{item.amount.toLocaleString()}</div>
- <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
- </div>
- ))}
+  {editItems.map((item, idx) => {
+  const mrp = products.find(p => p.id === item.product_id)?.selling_price;
+  return (
+  <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+  <div className="col-span-3">
+    <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
+    {mrp ? <span className="block text-[10px] text-muted-foreground mt-1 tabular-nums">MRP PKR {Number(mrp).toLocaleString()}</span> : null}
+  </div>
+  <div className="col-span-1"><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="text-xs tabular-nums" placeholder="Qty" /></div>
+  <div className="col-span-2 relative">
+  <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs tabular-nums" placeholder="Rate" />
+  {item.last_price !== undefined && item.last_price !== null && (
+  <span className="absolute -bottom-4 left-0 text-[10px] text-success font-medium">Last: PKR {Number(item.last_price).toLocaleString()}</span>
+  )}
+  </div>
+  <div className="col-span-1"><Input type="number" value={item.discount_pct || 0} onChange={e => updateEditItem(idx, "discount_pct", e.target.value)} className="text-xs tabular-nums" placeholder="Disc%" /></div>
+  <div className="col-span-3 text-right text-xs font-mono pt-2 tabular-nums">{item.amount.toLocaleString()}</div>
+  <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
+  </div>
+  );})}
  {(() => { const t = calcTotals(editItems); return (
  <div className="border-t border-border pt-3 space-y-1 text-sm">
  <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{t.subtotal.toLocaleString()}</span></div>
@@ -1359,82 +1425,102 @@ export default function ProformaInvoices() {
  {/* ═══ SUBMIT DIALOG (Batch + Dispatch) ═══ */}
  <Dialog open={submitOpen} onOpenChange={setSubmitOpen}>
  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
- <DialogHeader>
- <DialogTitle className="font-heading">Dispatch Order — Assign Batches & Courier</DialogTitle>
- </DialogHeader>
- <p className="text-sm text-muted-foreground">
- Pick the batch (FEFO – earliest expiry first) for each item, then choose the courier. This creates the Sales Invoice, Delivery Note and updates stock.
- </p>
- <Separator />
+  <DialogHeader>
+  <DialogTitle className="font-heading">Dispatch Order — Assign Batches & Courier</DialogTitle>
+  {submitOrder && (
+    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+      <span className="font-mono text-foreground">{submitOrder.proforma_number}</span>
+      <span>·</span>
+      <span>{(submitOrder.customers as any)?.name || "—"}</span>
+    </div>
+  )}
+  </DialogHeader>
+  <p className="text-sm text-muted-foreground">
+  Pick the batch (FEFO – earliest expiry first) for each item, then choose the courier. This creates the Sales Invoice, Delivery Note and updates stock.
+  </p>
+  <Separator />
 
- {/* Courier */}
- <div className="rounded-xl border border-border bg-primary/5 p-3">
- <Label className="text-xs font-semibold text-primary dark:text-primary flex items-center gap-1.5">
- <Truck className="h-3.5 w-3.5" /> Dispatched through? *
- </Label>
- <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
- {freightProviders.map(p => (
- <button
- key={p.id}
- type="button"
- onClick={() => setFreightProviderId(p.id)}
- className={`px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${
- freightProviderId === p.id
- ? "border-border bg-primary/15 text-primary dark:text-primary shadow-sm"
- : "border-border bg-card hover:bg-muted/50 text-foreground"
- }`}
- >
- <div className="font-mono text-[10px] text-muted-foreground">{p.code}</div>
- {p.name}
- </button>
- ))}
- {freightProviders.length === 0 && (
- <p className="col-span-full text-xs text-muted-foreground">
- No couriers configured. Add them under Settings → Couriers.
- </p>
- )}
- </div>
- </div>
+  {/* Courier */}
+  <div className="rounded-xl border border-border bg-primary/5 p-3">
+  <Label className="text-xs font-semibold text-primary dark:text-primary flex items-center gap-1.5">
+  <Truck className="h-3.5 w-3.5" /> Dispatched through? {!freightProviderId && freightProviders.length > 0 && <span className="text-[10px] font-normal text-destructive ml-1">— required</span>}
+  </Label>
+  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+  {freightProviders.map(p => (
+  <button
+  key={p.id}
+  type="button"
+  onClick={() => setFreightProviderId(p.id)}
+  className={`px-3 py-2 rounded-lg border text-xs font-semibold transition-all duration-150 ${
+  freightProviderId === p.id
+  ? "border-primary bg-primary/15 text-primary dark:text-primary ring-1 ring-primary/40"
+  : "border-border bg-card hover:bg-muted/50 text-foreground"
+  }`}
+  >
+  <div className="font-mono text-[10px] text-muted-foreground">{p.code}</div>
+  {p.name}
+  </button>
+  ))}
+  {freightProviders.length === 0 && (
+  <p className="col-span-full text-xs text-muted-foreground">
+  No couriers configured. Add them under Settings → Couriers.
+  </p>
+  )}
+  </div>
+  </div>
 
- {submitItems.map((item, idx) => {
- const selectedBatch = batchOptions[item.product_id]?.find(b => b.batch_number === item.batch_number);
- return (
- <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
- <div className="flex items-center justify-between">
- <span className="text-sm font-semibold text-foreground">{item.product_name || "Item"}</span>
- <span className="text-xs font-mono text-muted-foreground">Ordered: {item.quantity}</span>
- </div>
- <div className="grid grid-cols-2 gap-3">
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Batch * (FEFO)</Label>
- {batchOptions[item.product_id]?.length > 0 ? (
- <>
- <SearchableSelect
- options={batchOptions[item.product_id].map(b => ({
- value: b.batch_number,
- label: `${b.batch_number} · ${b.available} avail${b.expiry_date ? ` · exp ${b.expiry_date}` : ""}`,
- }))}
- value={item.batch_number}
- onChange={v => { const u = [...submitItems]; u[idx].batch_number = v; setSubmitItems(u); }}
- placeholder="Select batch..."
- triggerClassName="text-xs h-9"
- />
- {selectedBatch?.expiry_date && (
- <p className="text-[10px] text-muted-foreground mt-1">Expires: <span className="font-mono text-foreground">{selectedBatch.expiry_date}</span></p>
- )}
- </>
- ) : (
- <p className="text-xs text-destructive mt-1">No batches available</p>
- )}
- </div>
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Dispatch Quantity</Label>
- <Input type="number" className="text-xs h-9" value={item.convert_quantity}
- onChange={e => { const u = [...submitItems]; u[idx].convert_quantity = e.target.value; setSubmitItems(u); }} />
- </div>
- </div>
- </div>
- );})}
+  {submitItems.map((item, idx) => {
+  const selectedBatch = batchOptions[item.product_id]?.find(b => b.batch_number === item.batch_number);
+  const mrp = products.find(p => p.id === item.product_id)?.selling_price;
+  const exp = selectedBatch?.expiry_date;
+  const days = daysUntil(exp);
+  const expTone = days != null && days < 60 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30";
+  return (
+  <div key={idx} className="relative p-4 pl-5 rounded-xl border border-border bg-muted/20 space-y-3 overflow-hidden">
+  <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary/70" aria-hidden />
+  <div className="flex items-start justify-between gap-3">
+    <div className="min-w-0">
+      <div className="text-sm font-semibold text-foreground truncate">{item.product_name || "Item"}</div>
+      {mrp ? <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">MRP <span className="text-foreground font-mono">PKR {Number(mrp).toLocaleString()}</span></div> : null}
+    </div>
+    <span className="text-[11px] font-mono text-muted-foreground whitespace-nowrap shrink-0">Ordered: <span className="text-foreground">{item.quantity}</span></span>
+  </div>
+  <div className="grid grid-cols-2 gap-3">
+  <div>
+  <Label className="text-xs font-medium text-muted-foreground">Batch * (FEFO)</Label>
+  {batchOptions[item.product_id]?.length > 0 ? (
+  <>
+  <SearchableSelect
+  options={batchOptions[item.product_id].map(b => ({
+  value: b.batch_number,
+  label: `${b.batch_number} · ${b.available} avail${b.expiry_date ? ` · exp ${fmtExpiry(b.expiry_date)}` : ""}`,
+  }))}
+  value={item.batch_number}
+  onChange={v => { const u = [...submitItems]; u[idx].batch_number = v; setSubmitItems(u); }}
+  placeholder="Select batch..."
+  triggerClassName="text-xs h-9"
+  />
+  {exp && (
+    <span className={`inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium tabular-nums ${expTone}`}>
+      Expires {fmtExpiry(exp)}{days != null && days < 60 ? ` · ${days}d` : ""}
+    </span>
+  )}
+  </>
+  ) : (
+  <p className="text-xs text-destructive mt-1">No batches available</p>
+  )}
+  </div>
+  <div>
+  <Label className="text-xs font-medium text-muted-foreground">Dispatch Quantity</Label>
+  <div className="relative">
+    <Input type="number" className="text-xs h-9 tabular-nums pr-16" value={item.convert_quantity}
+    onChange={e => { const u = [...submitItems]; u[idx].convert_quantity = e.target.value; setSubmitItems(u); }} />
+    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground tabular-nums">/ {item.quantity}</span>
+  </div>
+  </div>
+  </div>
+  </div>
+  );})}
 
  <Button
  onClick={handleSubmit}

@@ -91,7 +91,7 @@ export function QuickCreateProductDialog({ open, onOpenChange, onCreated, defaul
               <Input value={packSize} onChange={e => setPackSize(e.target.value)} placeholder="e.g. 10x10" />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-medium text-muted-foreground">Unit</Label>
               <Input value={unit} onChange={e => setUnit(e.target.value)} />
@@ -100,10 +100,11 @@ export function QuickCreateProductDialog({ open, onOpenChange, onCreated, defaul
               <Label className="text-xs font-medium text-muted-foreground">Cost (PKR)</Label>
               <Input type="number" value={costPrice} onChange={e => setCostPrice(e.target.value)} />
             </div>
-            <div>
-              <Label className="text-xs font-medium text-muted-foreground">MRP (PKR)</Label>
-              <Input type="number" value={sellingPrice} onChange={e => setSellingPrice(e.target.value)} />
-            </div>
+          </div>
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <Label className="text-xs font-semibold text-primary">MRP (PKR) *</Label>
+            <Input type="number" value={sellingPrice} onChange={e => setSellingPrice(e.target.value)} className="mt-1 tabular-nums" placeholder="0" />
+            <p className="text-[10px] text-muted-foreground mt-1">Printed on every sales invoice & delivery note.</p>
           </div>
           <p className="text-[10px] text-muted-foreground">
             Tip: you can complete additional fields (DRAP, GST, reorder level) later from the Products page.
