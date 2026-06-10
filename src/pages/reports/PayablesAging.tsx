@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ReportToolbar } from "@/components/reports/ReportToolbar";
 
 interface AgingRow { bill_number: string; supplier: string; total: number; paid: number; outstanding: number; due_date: string; days: number; bucket: string; }
 const bucketLabel = (days: number) => { if (days <= 0) return "Current"; if (days <= 30) return "1-30"; if (days <= 60) return "31-60"; if (days <= 90) return "61-90"; return "90+"; };
