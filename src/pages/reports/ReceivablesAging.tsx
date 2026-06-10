@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ReportToolbar } from "@/components/reports/ReportToolbar";
 
-interface AgingRow { invoice_number: string; customer: string; total: number; amount_paid: number; due_date: string; days: number; bucket: string; }
+interface AgingRow { invoice_number: string; customer: string; total: number; amount_paid: number; due_date: string; days: number; bucket: string; outstanding: number; }
 const bucketLabel = (days: number) => { if (days <= 0) return "Current"; if (days <= 30) return "1-30"; if (days <= 60) return "31-60"; if (days <= 90) return "61-90"; return "90+"; };
 const bucketColor = (b: string) => { if (b === "Current") return "bg-primary/10 text-primary"; if (b === "1-30") return "bg-warning/10 text-warning"; if (b === "31-60") return "bg-warning/20 text-warning"; if (b === "61-90") return "bg-destructive/10 text-destructive"; return "bg-destructive/20 text-destructive"; };
 
@@ -26,13 +27,29 @@ export default function ReceivablesAging() {
     const data: AgingRow[] = (inv.data || []).map(i => {
       const due = i.due_date ? new Date(i.due_date) : today;
       const days = Math.floor((today.getTime() - due.getTime()) / 86400000);
-      return { invoice_number: i.invoice_number, customer: nameMap[i.customer_id || ""] || "—", total: Number(i.total), amount_paid: Number(i.amount_paid), due_date: i.due_date || "—", days: Math.max(days, 0), bucket: bucketLabel(days) };
+      const total = Number(i.total); const paid = Number(i.amount_paid);
+      return { invoice_number: i.invoice_number, customer: nameMap[i.customer_id || ""] || "—", total, amount_paid: paid, outstanding: total - paid, due_date: i.due_date || "—", days: Math.max(days, 0), bucket: bucketLabel(days) };
     });
     setRows(data);
     const totals: Record<string, number> = {};
-    data.forEach(r => { totals[r.bucket] = (totals[r.bucket] || 0) + (r.total - r.amount_paid); });
+    data.forEach(r => { totals[r.bucket] = (totals[r.bucket] || 0) + r.outstanding; });
     setBucketTotals(totals);
   };
+
+  const exportData = useMemo(() => ({
+    columns: [
+      { key: "invoice_number", header: "Invoice #", type: "text" as const },
+      { key: "customer", header: "Customer", type: "text" as const },
+      { key: "due_date", header: "Due Date", type: "date" as const },
+      { key: "days", header: "Days", type: "number" as const },
+      { key: "bucket", header: "Bucket", type: "text" as const },
+      { key: "outstanding", header: "Outstanding (PKR)", type: "currency" as const },
+    ],
+    rows: rows.map(r => ({ ...r })),
+    totalsRow: { invoice_number: "TOTAL", outstanding: rows.reduce((s, r) => s + r.outstanding, 0) },
+  }), [rows]);
+
+  const headerActions = <ReportToolbar title="Receivables Aging" {...exportData} />;
 
   return (
     <AppLayout title="Receivables Aging">
