@@ -424,6 +424,16 @@ export default function Settings() {
  </Card>
 
  <AutomatedBackupCard />
+
+ <Card>
+  <CardContent className="pt-6 flex items-center justify-between gap-4 flex-wrap">
+   <div>
+    <h3 className="font-medium flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Backups & Disaster Recovery</h3>
+    <p className="text-sm text-muted-foreground mt-1">Owner-only page showing daily / weekly / monthly backup history, sizes, retention, and signed-URL downloads.</p>
+   </div>
+   <Button variant="outline" onClick={() => navigate("/settings/backups")}>Open Backups page</Button>
+  </CardContent>
+ </Card>
  </TabsContent>
  </Tabs>
  </div>
