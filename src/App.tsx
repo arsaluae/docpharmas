@@ -58,6 +58,7 @@ const Printers = lazy(() => import("./pages/Printers"));
 const PrinterLedger = lazy(() => import("./pages/PrinterLedger"));
 const PrintJobs = lazy(() => import("./pages/PrintJobs"));
 const DataImport = lazy(() => import("./pages/DataImport"));
+const ImportHistory = lazy(() => import("./pages/ImportHistory"));
 const Settings = lazy(() => import("./pages/Settings"));
 const SystemHealth = lazy(() => import("./pages/SystemHealth"));
 
