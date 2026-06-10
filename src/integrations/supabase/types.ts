@@ -416,6 +416,8 @@ export type Database = {
       company_settings: {
         Row: {
           address: string | null
+          allow_expired_sale: boolean
+          allow_negative_stock: boolean
           company_name: string | null
           created_at: string
           default_gst_rate: number
@@ -437,6 +439,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          allow_expired_sale?: boolean
+          allow_negative_stock?: boolean
           company_name?: string | null
           created_at?: string
           default_gst_rate?: number
@@ -458,6 +462,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          allow_expired_sale?: boolean
+          allow_negative_stock?: boolean
           company_name?: string | null
           created_at?: string
           default_gst_rate?: number
@@ -1606,6 +1612,7 @@ export type Database = {
           created_at: string
           date: string
           id: string
+          idempotency_key: string | null
           invoice_id: string | null
           notes: string | null
           party_id: string
@@ -1628,6 +1635,7 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          idempotency_key?: string | null
           invoice_id?: string | null
           notes?: string | null
           party_id: string
@@ -1650,6 +1658,7 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          idempotency_key?: string | null
           invoice_id?: string | null
           notes?: string | null
           party_id?: string
@@ -3032,6 +3041,7 @@ export type Database = {
           amount: number
           batch_number: string | null
           discount_percent: number
+          expiry_date: string | null
           gst_rate: number
           id: string
           invoice_id: string
@@ -3045,6 +3055,7 @@ export type Database = {
           amount?: number
           batch_number?: string | null
           discount_percent?: number
+          expiry_date?: string | null
           gst_rate?: number
           id?: string
           invoice_id: string
@@ -3058,6 +3069,7 @@ export type Database = {
           amount?: number
           batch_number?: string | null
           discount_percent?: number
+          expiry_date?: string | null
           gst_rate?: number
           id?: string
           invoice_id?: string
@@ -3105,6 +3117,7 @@ export type Database = {
           fbr_qr_data: string | null
           gst_amount: number
           id: string
+          idempotency_key: string | null
           invoice_number: string
           notes: string | null
           status: string
@@ -3128,6 +3141,7 @@ export type Database = {
           fbr_qr_data?: string | null
           gst_amount?: number
           id?: string
+          idempotency_key?: string | null
           invoice_number: string
           notes?: string | null
           status?: string
@@ -3151,6 +3165,7 @@ export type Database = {
           fbr_qr_data?: string | null
           gst_amount?: number
           id?: string
+          idempotency_key?: string | null
           invoice_number?: string
           notes?: string | null
           status?: string
@@ -3899,6 +3914,10 @@ export type Database = {
       }
     }
     Functions: {
+      agent_can_see_customer: {
+        Args: { p_customer_id: string }
+        Returns: boolean
+      }
       current_tenant_role: {
         Args: never
         Returns: Database["public"]["Enums"]["tenant_role"]
