@@ -58,7 +58,7 @@ export default function Backups() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId]);
 
-  if (tenantLoading) return <AppLayout><div className="p-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div></AppLayout>;
+  if (tenantLoading) return <AppLayout title="Backups & Recovery"><div className="p-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div></AppLayout>;
   if (tenantRole !== "owner") return <Navigate to="/dashboard" replace />;
 
   const runNow = async () => {
@@ -93,7 +93,7 @@ export default function Backups() {
   const lastFailure = rows?.find((r) => r.status === "failed");
 
   return (
-    <AppLayout>
+    <AppLayout title="Backups & Recovery">
       <div className="space-y-6 p-6 max-w-6xl mx-auto">
         <div className="flex items-start justify-between gap-4">
           <div>
