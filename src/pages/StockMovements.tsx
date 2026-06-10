@@ -146,8 +146,21 @@ export default function StockMovements() {
           <div><Label>Quantity *</Label><Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} /></div>
           <div><Label>Batch #</Label><Input value={batchNumber} onChange={e => setBatchNumber(e.target.value)} /></div>
           <div><Label>Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-          <div className="col-span-2"><Label>Notes</Label><Input value={notes} onChange={e => setNotes(e.target.value)} /></div>
-        </div>
+          <div className="col-span-2">
+            <Label>
+              Reason / Notes {ADJUSTMENT_TYPES.has(moveType) && <span className="text-destructive">*</span>}
+            </Label>
+            <Input
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder={ADJUSTMENT_TYPES.has(moveType) ? "Required — explain why stock is being adjusted" : "Optional"}
+            />
+            {ADJUSTMENT_TYPES.has(moveType) && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Adjustments are audited. A reason of at least 3 characters is required.
+              </p>
+            )}
+          </div>
         <Button onClick={handleSave} className="w-full mt-4">Save</Button>
       </DialogContent>
     </Dialog>
