@@ -105,12 +105,9 @@ const ALIASES: Record<string, string> = {
   // legacy ids
   "old erp id": "old_erp_id", "legacy id": "old_erp_id", "erp id": "old_erp_id",
   // accounting
-  "account code": "code", "account type": "account_type", "account": "code",
+  "account type": "account_type", "account": "code",
   "bank": "bank_name", "bank name": "bank_name", "account number": "account_number",
   "bank account": "bank_account", "bank a/c": "bank_account", "bank ac": "bank_account",
-  "a/c no": "old_erp_account_code", "a/c no.": "old_erp_account_code",
-  "ac no": "old_erp_account_code", "ac no.": "old_erp_account_code",
-  "a/c number": "old_erp_account_code", "account no": "old_erp_account_code",
   "branch": "branch",
   // supplier link on product master
   "supplier": "supplier_name", "vendor": "supplier_name", "preferred supplier": "supplier_name",
