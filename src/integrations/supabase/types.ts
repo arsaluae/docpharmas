@@ -566,6 +566,7 @@ export type Database = {
           address: string | null
           allow_expired_sale: boolean
           allow_negative_stock: boolean
+          auto_create_missing_suppliers: boolean
           company_name: string | null
           created_at: string
           default_gst_rate: number
@@ -589,6 +590,7 @@ export type Database = {
           address?: string | null
           allow_expired_sale?: boolean
           allow_negative_stock?: boolean
+          auto_create_missing_suppliers?: boolean
           company_name?: string | null
           created_at?: string
           default_gst_rate?: number
@@ -612,6 +614,7 @@ export type Database = {
           address?: string | null
           allow_expired_sale?: boolean
           allow_negative_stock?: boolean
+          auto_create_missing_suppliers?: boolean
           company_name?: string | null
           created_at?: string
           default_gst_rate?: number
