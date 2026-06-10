@@ -190,21 +190,27 @@ export default function DataImport({ lockedEntity, onComplete, embedded = false 
     }
   }
 
-  return (
-    <AppLayout title="Data Import">
-      <div className="max-w-6xl mx-auto p-6 space-y-6">
+  const body = (
+    <div className={embedded ? "space-y-6" : "max-w-6xl mx-auto p-6 space-y-6"}>
         {/* Header */}
-        <div className="flex items-end justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Data Import & Migration</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Migrate from any legacy ERP. Validate before posting, rollback any batch in one click.
-            </p>
+        {!embedded && (
+          <div className="flex items-end justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Data Import & Migration</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Migrate from any legacy ERP. Validate before posting, rollback any batch in one click.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => nav("/import/wizard")}>
+                <Sparkles className="h-4 w-4 mr-2" /> ERP Migration Wizard
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => nav("/import/history")}>
+                <History className="h-4 w-4 mr-2" /> Import History
+              </Button>
+            </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => nav("/import/history")}>
-            <History className="h-4 w-4 mr-2" /> Import History
-          </Button>
-        </div>
+        )}
 
         {/* Stepper */}
         <Stepper step={step} />
