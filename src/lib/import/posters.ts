@@ -78,7 +78,7 @@ async function postProducts(rows: Row[], batchId: string): Promise<PostResult> {
       reorder_level: Number(r.normalized.reorder_level ?? 0),
       import_batch_id: batchId,
     }));
-    const { error, data } = await supabase.from("products").insert(payload).select("id");
+    const { error, data } = await supabase.from("products").insert(payload as any).select("id");
     if (error) errors.push(error.message);
     else posted += data?.length ?? 0;
   }
@@ -105,7 +105,7 @@ async function postCustomers(rows: Row[], batchId: string): Promise<PostResult> 
       credit_limit: Number(r.normalized.credit_limit ?? 0),
       import_batch_id: batchId,
     }));
-    const { error, data } = await supabase.from("customers").insert(payload).select("id");
+    const { error, data } = await supabase.from("customers").insert(payload as any).select("id");
     if (error) errors.push(error.message);
     else posted += data?.length ?? 0;
   }
@@ -132,7 +132,7 @@ async function postSuppliers(rows: Row[], batchId: string): Promise<PostResult> 
       wht_rate: Number(r.normalized.wht_rate ?? 0),
       import_batch_id: batchId,
     }));
-    const { error, data } = await supabase.from("suppliers").insert(payload).select("id");
+    const { error, data } = await supabase.from("suppliers").insert(payload as any).select("id");
     if (error) errors.push(error.message);
     else posted += data?.length ?? 0;
   }
@@ -152,7 +152,7 @@ async function postChartOfAccounts(rows: Row[], batchId: string): Promise<PostRe
       balance: Number(r.normalized.balance ?? 0),
       import_batch_id: batchId,
     }));
-    const { error, data } = await supabase.from("chart_of_accounts").insert(payload).select("id");
+    const { error, data } = await supabase.from("chart_of_accounts").insert(payload as any).select("id");
     if (error) errors.push(error.message);
     else posted += data?.length ?? 0;
   }
