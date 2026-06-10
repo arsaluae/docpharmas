@@ -1,114 +1,69 @@
+# Wipe Tenant Data — Plan
 
-## Goal
+## Step 1 — Manual backup (safety net)
+- Invoke the existing `weekly-backup` edge function with `{ manual: true }` from the Backups page (or via curl).
+- Wait for the `backup_runs` row to flip to `status = 'success'` and confirm the signed download URL works.
+- Abort the wipe if the backup fails.
 
-You already have a solid per-entity importer (`DataImport`, `ImportHistory`, `import_batches`, `import_staging_rows`, `rollback_import_batch`). What's missing for a true legacy-ERP migration is:
+## Step 2 — Identify scope
+- Resolve `target_tenant := get_user_tenant_id(auth.uid())` for the logged-in owner.
+- All deletes are scoped with `WHERE tenant_id = target_tenant`. No cross-tenant rows are touched.
 
-1. A **fixed, guided sequence** (Suppliers → Customers → Products → Batches → Opening Balances → Verification).
-2. **Field aliases** matching your legacy column names (Product Code, A/C No., Business Name, To Location, Base Quantity, Batch Expiry, etc.).
-3. **Pharma-grade row rules** (drop qty=0, drop unknown SKUs, reject `0000-00-00`, Excel-serial dates, merge duplicate product+batch).
-4. **Data cleaners** (mobile normalization, email validation, license-text-in-email → notes).
-5. **Final verification report** screen rolled up from `import_batches` + `import_staging_rows`.
+## Step 3 — Wipe order (children → parents, FK-safe)
+Run as one migration wrapped in a transaction so it either fully succeeds or fully rolls back.
 
-Rollback, staging tables, audit, failed-rows CSV, and column auto-mapping already work — we extend, not rebuild.
+**Transactional / accounting**
+1. `journal_lines` → `journal_entries`
+2. `credit_note_applications`, `debit_note_applications`
+3. `credit_notes`, `debit_notes`
+4. `payments`, `payment_submissions`
+5. `sales_return_items` → `sales_returns`
+6. `purchase_return_items` → `purchase_returns`
+7. `sales_invoice_items` → `sales_invoices`
+8. `warranty_invoices`
+9. `delivery_notes`
+10. `proforma_invoices`
+11. `purchase_invoices`
+12. `grn_items` → `goods_received_notes`
+13. `purchase_order_items` → `purchase_orders`
+14. `purchase_proforma_items` → `purchase_proformas`
+15. `additional_costs`, `landed_costs` artifacts
+16. `print_rejections`, `print_dispatches`, `print_deliveries`, `purchase_print_allocations`, `print_jobs`
+17. `agent_commissions`, `salary_payments`, `expenses`, `tax_records`, `reconciliation_log`
+18. `stock_movements`, `stock_audit_log`, `reorder_alerts`
 
----
+**Master data (per user's choice — "business data + master settings")**
+19. `customer_distributors`, `customer_licenses`, `customer_products`, `agent_customers`, `city_products`, `supplier_products`, `drap_registrations`
+20. `customers`, `suppliers`, `sales_agents`, `staff`, `freight_providers`, `printers`
+21. `products`
+22. `areas`
+23. `expense_ledgers`, `chart_of_accounts`, `accounting_periods`
+24. `bank_accounts`
+25. `document_templates`, `document_counters`
+26. `import_staging_rows` → `import_batches`
+27. `audit_log` (cleared so the new history starts fresh — or kept; see Question below)
+28. `backup_runs` rows older than today (keep today's safety backup row)
+29. Reset `company_settings` to defaults (keep the row, blank business fields, keep tenant ownership)
 
-## Plan
+**Kept intentionally**
+- `tenants`, `tenant_users`, `user_roles`, `pending_signups`, `role_capabilities`
+- `auth.users` (your login)
+- Storage bucket `tenant-backups` (so the just-taken backup remains downloadable)
 
-### 1. New file `src/lib/import/cleaners.ts`
-Pure helpers reused by validators:
-- `cleanMobile(v)` — strip non-digits, normalize `+92`/`0092`/`0` prefixes to canonical `03XXXXXXXXX`.
-- `cleanEmail(v)` → `{ email: string|null, overflowNote: string|null }`. Regex test; if fails but value looks like license/address text (length > 10 or contains spaces/`,`/`Lic`), push to `overflowNote`.
-- `parseExcelDate(v)` — already in `validators.ts`; extract here. Treat `"0000-00-00"`, `"0"`, blank as null.
-- `mergeBatchKey(sku, batch)` — lowercased key for duplicate-merging.
+## Step 4 — Reset sequences / counters
+- `DELETE FROM document_counters WHERE tenant_id = target_tenant;` — next document numbers restart at 0001.
 
-### 2. Expand `src/lib/import/aliases.ts`
-Add legacy headers → canonical keys, per entity:
-- Products: `product code`→`sku`, `product name`→`name`, `sale price`→`selling_price`, `cost`→`cost_price`, `low stock`→`reorder_level`, `large pack size`→`pack_size`, `supplier`→`supplier_name`, `type`→`category`, `weight`/`unit`/`base unit`→`unit`, plus carry-only fields (`expense_account`, `income_account`, `stock_account`, `sale_information`) stored in `notes`.
-- Customers: `business name`/`title`/`first name`/`last name`→ composed `name`, `mobile`/`sms mobile`/`phone`→`phone`, `a/c no.`→`old_erp_account_code`, `cnic`→`cnic`, `country`/`county`/`website`→`notes` overflow.
-- Suppliers: `business name`+`first name`+`last name`→`name`, `a/c no.`→`old_erp_account_code`, `payment terms`→`payment_terms_days`.
-- Batches: `code`→`sku`, `product`→`name` (informational), `to location`→`location` (notes), `base unit`→`unit`, `base quantity`→`quantity`, `batch no.`→`batch_number`, `batch expiry`→`expiry_date`.
+## Step 5 — Verification
+- Run a single `SELECT` that counts rows in every wiped table for `target_tenant` — all must return 0 except the kept tables.
+- Surface the result as a toast / console table.
 
-### 3. Extend `src/lib/import/types.ts`
-- Add optional fields where needed: `products.notes`, `products.supplier_name`; `customers.old_erp_account_code`, `customers.cnic`, `customers.notes`; `suppliers.old_erp_account_code`, `suppliers.notes`; `batches.notes`.
-- Add new `EntityType: "opening_balances"` (umbrella for customer + supplier opening, single sheet with `party_type` column) — kept alongside existing `customer_opening`/`supplier_opening`.
+## Technical details
+- Implement as a `SECURITY DEFINER` RPC `public.wipe_my_tenant(confirm_text text)` that:
+  - Requires `confirm_text = 'WIPE ' || tenant_name` to run.
+  - Requires `has_role(auth.uid(), 'admin')`.
+  - Performs all deletes above inside a single transaction.
+  - Writes one `audit_log` entry (`action = 'tenant_wiped'`) **after** clearing audit_log, so a single trace row remains.
+- Add a small "Danger Zone" panel on `/settings` (Owner-only) with the typed-confirmation modal that calls the RPC. This avoids me running destructive SQL directly and gives you a repeatable, auditable button.
 
-### 4. Extend `src/lib/import/validators.ts`
-Apply legacy-ERP rules per entity:
-- **All entities**: run cleaners; email overflow appended to `notes`.
-- **Batches**:
-  - drop (mark `errors`) qty `0` / missing → error "zero quantity";
-  - missing SKU/batch → error;
-  - expiry parses `0000-00-00` & Excel serials via `parseExcelDate`;
-  - cross-row merge: if same (`sku`,`batch_number`) appears twice → sum `quantity`, keep first row, others marked `merged` (new status, treated as valid with no insert, counted in report).
-  - existence check against products table happens during posting (already does); validators flag missing SKU only if products were already imported in this wizard (best-effort — actual block at post time).
-- **Products**: dedup by SKU (already done). Coerce category aliases (Type column) to known enum via lookup table; unknown → fall back to `other`.
-
-### 5. Extend `src/lib/import/posters.ts`
-- `postProducts`: write `notes`, `supplier_name` (resolve `supplier_id` from suppliers table when found).
-- `postCustomers`/`postSuppliers`: write `old_erp_account_code`, `cnic`, `notes`.
-- `postBatches`: skip rows already marked `merged`. Final list goes through existing GRN flow.
-- Add `import_batch_id` to all inserts (already there).
-
-### 6. DB migration (single file)
-- Add nullable cols if not present:
-  - `customers.old_erp_account_code text`, `customers.cnic text`, `customers.notes text`
-  - `suppliers.old_erp_account_code text`, `suppliers.notes text`
-  - `products.notes text`, `products.legacy_codes jsonb`
-- Tenant-scoped partial unique index on `old_erp_account_code` (where not null) for both customers & suppliers — prevents re-importing same legacy code twice.
-- No new tables (staging already exists).
-
-### 7. New page `src/pages/MigrationWizard.tsx` (route `/import/wizard`)
-A linear 6-step shell that reuses existing `DataImport` flow inside each step:
-```text
-[ Suppliers ] → [ Customers ] → [ Products ] → [ Batches ] → [ Opening Balances ] → [ Verification ]
-```
-- Each step shows: short instructions, "Download template", embedded `DataImport` sub-flow locked to that entity (props `lockedEntity`), and a "Skip step" option.
-- Wizard tracks `wizard_run_id` (uuid in localStorage) so verification report can filter `import_batches.created_at >= wizard_started_at`.
-- Step is marked complete when at least one batch for that entity has status `completed`.
-
-### 8. Refactor `DataImport.tsx` minimally
-Accept optional `lockedEntity?: EntityType` prop and `onComplete?: () => void`. When `lockedEntity` is set: skip Step 1 (entity picker), header changes, and on success call `onComplete`. No behavior change for existing `/import` route.
-
-### 9. Verification report (Step 6)
-A new card-driven view inside `MigrationWizard.tsx` that queries:
-- counts from `import_batches` for this wizard run, grouped by `entity_type` (posted vs invalid).
-- counts from `import_staging_rows` joined to wizard batches, broken down by error reason (zero qty / invalid expiry / unknown SKU / missing batch / merged duplicates / missing phone+email).
-- "Download full report" → CSV with one row per entity.
-- "Rollback entire migration" button → loops the wizard's batch ids through existing `rollback_import_batch` RPC after confirmation + reason.
-
-### 10. Navigation
-- Add a prominent "ERP Migration Wizard" button on `DataImport` and a sidebar entry under Settings (admin-only via existing `RequireCap`).
-- `App.tsx` route: `/import/wizard` → `MigrationWizard`.
-
----
-
-## Out of scope (intentionally)
-- No new staging tables — existing `import_staging_rows` already does what `product_import_staging`/`customer_import_staging` would do; per-entity staging is implicit via `batch_id + entity_type`.
-- No edge function — all logic runs client-side using authenticated supabase calls under RLS, same as current importer.
-- No change to rollback RPC — already cascades across products/customers/suppliers/grn/stock/payments.
-
----
-
-## Files touched
-
-**New**
-- `src/lib/import/cleaners.ts`
-- `src/pages/MigrationWizard.tsx`
-- one migration in `supabase/migrations/`
-
-**Edited**
-- `src/lib/import/aliases.ts` (add legacy headers)
-- `src/lib/import/types.ts` (extra fields, opening_balances type)
-- `src/lib/import/validators.ts` (cleaners + merge + qty/expiry rules)
-- `src/lib/import/posters.ts` (write new cols, skip `merged` rows, resolve supplier_id)
-- `src/pages/DataImport.tsx` (accept `lockedEntity`/`onComplete`)
-- `src/App.tsx` (new route)
-- `src/components/AppSidebar.tsx` or Settings nav (link)
-
-## Risks
-- Adding columns to `customers`/`suppliers`/`products` is additive and nullable → safe with RLS unchanged.
-- Wizard's "rollback entire migration" uses the same RPC for each batch sequentially; if user has *other* batches mixed in, they remain untouched (filter is by batch_id list, not entity).
-- Excel files >50k rows can be slow in browser — same constraint as today; we keep 500-row chunks.
-
-Reply **go** to build, or tell me what to adjust (e.g. drop the umbrella `opening_balances` entity, change wizard order, add a separate `product_import_staging` table for auditors, etc.).
+## Open question
+Do you want `audit_log` **cleared** too, or **kept** so you retain the historical trail of the old data lifecycle? Default in this plan: cleared, with a single post-wipe entry.
