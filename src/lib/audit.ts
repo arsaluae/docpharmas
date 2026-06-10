@@ -40,7 +40,8 @@ export type AuditEntity =
   | "stock_movement"
   | "print_job"
   | "accounting_period"
-  | "tenant_member";
+  | "tenant_member"
+  | "backup_run";
 
 interface LogAuditInput {
   action: AuditAction;
