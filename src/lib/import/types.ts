@@ -336,7 +336,7 @@ export const ENTITY_LIST: EntityType[] = [
 
 export type BatchStatus = "uploaded"|"validated"|"failed"|"posting"|"completed"|"rolled_back";
 
-export interface ValidationError { field: string; message: string }
+export interface ValidationError { field: string; message: string; severity?: "error" | "skipped" | "warning" }
 export interface NormalizedRow {
   rowNumber: number;
   raw: Record<string, unknown>;

@@ -1,89 +1,75 @@
-# Migration importer — field-coverage fix
 
-The schema is already wide enough (customers, suppliers, products, grn_items, migration_errors all have the needed columns). The gaps are in the importer pipeline: header aliases, validators rejecting rows that should warn, posters not linking suppliers, and the wizard not surfacing unmatched/failed buckets clearly. No new tables needed.
+## Goal
 
-## 1. Aliases — guarantee every legacy header lands (`src/lib/import/aliases.ts`)
+Import the uploaded `Batch and Quantity.xlsx` (and any future file in the same legacy shape) through the existing **Batches** importer so that every product can carry multiple batches, each with its own quantity and expiry.
 
-Audit shows most legacy headers already map. Add the missing ones the user listed explicitly so auto-detect never misses:
+## What the file looks like
 
-- `business name`, `business` → `name`
-- `mobile`, `mobile #`, `mobile number`, `contact #` → `phone`
-- `a/c no.`, `a/c #` (already partial — add trailing-dot variants) → `old_erp_account_code`
-- `sale price` → `selling_price`
-- `low stock`, `low stock qty` → `low_stock_level`
-- `large pack size`, `large pack`, `outer pack` → `pack_size`
-- `sale information`, `sale info` → `sale_information`
-- `to location`, `warehouse`, `location` (when entity = batches) → `to_location`
-- `base unit`, `unit` → `unit`
-- `base quantity`, `qty`, `quantity` → `quantity`
-- `batch no.`, `batch #`, `batch number`, `lot no.` → `batch_number`
-- `batch expiry`, `expiry`, `expiry date`, `exp date`, `exp.` → `expiry_date`
-- `payment terms`, `pay terms`, `terms` → `payment_terms_days`
-- `county`, `province`, `state` → `province` (customers/suppliers) / `county` if county column used
-- `supplier`, `vendor`, `preferred supplier` → `supplier_name` (products entity)
-- `code`, `product code`, `item code` → `sku` (already present — keep)
-
-## 2. Validators — turn hard-fails into warnings where the spec allows (`src/lib/import/validators.ts`)
-
-- Products: drop `required: true` from `cost_price` and `selling_price` in `types.ts`; in the validator, when either is missing or non-numeric, set value to `0` and push a warning ("price defaulted to 0").
-- Customers / Suppliers: when `city`, `address`, `phone` or `email` are missing, push a warning (do not error). When `phone` looks invalid (cleanMobile returns null but value present), keep raw text and append it to `notes` (`mobile-field: …`).
-- Batches: keep the current zero-qty / missing-batch / invalid-expiry behaviour, but tag each error with a `severity` (`"skipped"` for zero-qty / invalid-expiry, `"error"` for missing SKU / batch). The wizard uses this to bucket rows correctly.
-
-Add this to `NormalizedRow.errors` items (extend `ValidationError` with optional `severity: "error" | "skipped" | "warning"`).
-
-## 3. Posters — link supplier_id, write to `migration_errors`, log skipped rows (`src/lib/import/posters.ts`)
-
-- `postProducts`: after insert, capture each posted product's `id` + `sku` + normalized `supplier_name`. Run a single supplier-name resolver:
-    1. Pre-load all suppliers for the tenant (`id`, `name`, `supplier_code`, `old_erp_account_code`).
-    2. Normalize both sides (trim, lower, collapse whitespace, strip punctuation) and try direct match.
-    3. Matches → bulk `update products set supplier_id = …`.
-    4. Unmatched product SKUs are written to `migration_errors` with `severity = "warning"`, `field = "supplier_name"`, `message = "supplier '<name>' not found — needs manual mapping"`, and returned to the caller as `unmatchedSuppliers: { sku, supplier_name }[]`.
-    5. If `company_settings.auto_create_missing_suppliers` is true, create stub supplier rows (name only) and link them before writing warnings.
-- `postBatches`:
-    - For rows with no `batch_supplier`, fall back to the product's `supplier_id` (looked up via the SKU map).
-    - Skip rows where qty<=0 / invalid expiry / unknown SKU but write each to `migration_errors` with the appropriate severity (`skipped` vs `error`) and `field` set so the wizard's downloads include them.
-    - On duplicate `(product_id, batch_number, expiry_date)` within the GRN, merge into the first row (already done in the validator — confirm and add a DB-side check too via existing `idx_grn_items_product_batch`).
-- All posters: write every validation error/warning to `public.migration_errors` (one row per error) with `import_batch_id` and `migration_batch_id` so they survive page refresh and feed the report.
-
-## 4. Wizard report (`src/pages/MigrationWizard.tsx`)
-
-Add four buckets to the existing verification screen, each as a card + downloadable CSV:
-
-- Customers imported (with sub-counts: with city / with address / with phone or email)
-- Suppliers imported (with sub-counts: with city / with address / with phone or email / with payment terms)
-- Products imported (with sub-counts: with sale price / with cost price / with supplier linked / **without supplier — needs mapping**)
-- Batches imported (with sub-counts: with batch / with expiry / with qty, skipped rows, invalid-expiry rows, SKU-mismatch rows)
-
-CSV exports read from `migration_errors` filtered by `migration_batch_id` + `severity`.
-
-## 5. Unmatched-supplier mapping screen (new component used inside the wizard)
-
-After product posting, if `unmatchedSuppliers.length > 0`:
-
-- Render a table: legacy supplier name | row count | dropdown of existing suppliers + "Create new" option.
-- "Apply mapping" button bulk-updates `products.supplier_id` for the affected SKUs in the current `import_batch_id` and deletes the corresponding rows from `migration_errors`.
-- Skip button leaves the warning in place so the admin can revisit it from the migration report later.
-
-## 6. Settings toggle
-
-Add `auto_create_missing_suppliers boolean default false` to `company_settings`. Settings → Data Migration adds a single switch; the poster reads it via `useCompanySettings`.
-
-## 7. Files touched
+Columns:
 
 ```text
-src/lib/import/aliases.ts            ← header coverage
-src/lib/import/types.ts              ← drop required on price fields, add severity type
-src/lib/import/validators.ts         ← warnings vs errors, severity tagging
-src/lib/import/posters.ts            ← supplier linking + write migration_errors + batch fallback
-src/pages/MigrationWizard.tsx        ← extended buckets + downloads
-src/components/migration/UnmatchedSuppliers.tsx   ← new mapping UI
-src/hooks/useCompanySettings.tsx     ← surface auto_create_missing_suppliers
-supabase migration                   ← add company_settings.auto_create_missing_suppliers column only
+Code | Product | To Location | Base Unit | Base Quantity | Batch No. | Batch Expiry
 ```
 
-## Out of scope
+- Multiple rows per product (one per batch) — already supported by the current batches validator.
+- Sub-section header rows where only `Product` has a value (e.g. `Cap's`, `Cosmetics`, `Drops`, `Total`) with no Code / Batch / Qty.
+- Quantity values like `13.`, `1,132.`, `-64.` (legacy stock adjustments).
+- Expiry values like `0000-00-00` for unknown / blocked batches.
+- `Code` is the legacy product code (e.g. `1015`) — the same code already imported as the product SKU.
 
-- No new tables (existing schema covers every field listed).
-- No changes to RLS / tenant isolation.
-- No changes to historical-transaction importers (sales/purchase invoices) beyond what's already shipped.
-- No data wipe.
+## Why the current importer fails on this file
+
+1. Header aliases already map (`Code → sku`, `Base Quantity → quantity`, `Batch No. → batch_number`, `Batch Expiry → expiry_date`, `Base Unit → unit`, `To Location → to_location`) — no change needed there.
+2. Section-header rows (`Cap's`, `Total`) flow into the validator and produce noisy "missing SKU / batch / qty" errors.
+3. Generic number validator (`validators.ts` lines 113-114) rejects negatives on `quantity` before the batches case runs, so the row appears as a hard error instead of a clean "skipped: negative qty".
+4. Past-expiry rows are blocked unless the wizard's `allowPastExpiry` is on — for a legacy migration we need to surface that toggle clearly.
+5. `postBatches` already groups by supplier and tolerates missing supplier, but unmatched SKUs need to be logged to `migration_errors` with `severity = "warning"` so the verification report shows them.
+
+## Changes
+
+### 1. `src/lib/import/validators.ts`
+- Add a pre-filter inside `validateAll` for `entity === "batches"`: drop rows where **all** of `sku`, `batch_number`, `quantity`, `expiry_date` are empty (section headers / `Total` rows). Tag them as `merged: true` so they don't count as errors, with `warnings: ["section header — ignored"]`.
+- In the generic number branch, special-case `entity === "batches" && f.key === "quantity"`: accept negatives (store the value), do not push the `must be ≥ 0` error. The batches cross-field block will still skip `qty <= 0` rows with a clearer message.
+- Replace the existing `quantity` / `expiry` error messages in the batches case with `severity: "skipped"` tags (extend `ValidationError` with optional `severity`) so the wizard buckets them as "skipped" rather than "failed":
+  - negative or zero qty → `severity: "skipped"`, message `"non-positive quantity (legacy adjustment) — skipped"`.
+  - missing/invalid expiry (`0000-00-00`) → `severity: "skipped"`, message `"missing or sentinel expiry — skipped"`.
+  - missing SKU / batch → `severity: "error"` (genuine data problem).
+
+### 2. `src/lib/import/types.ts`
+- Extend `ValidationError` with `severity?: "error" | "skipped" | "warning"` (default `"error"`).
+
+### 3. `src/lib/import/posters.ts` — `postBatches`
+- After loading the product lookup, push every row whose `sku` is not matched into `migration_errors` with `severity = "warning"`, `field = "sku"`, `message = "product code <code> not found — batch skipped"`, and skip the row instead of failing the whole batch.
+- For matched rows with no `batch_supplier`, fall back to the product's `supplier_id` (already implemented — confirm path still runs after the new skip logic).
+- Continue to merge `(product_id, batch_number, expiry_date)` duplicates so the same batch appearing twice for one product is summed.
+
+### 4. `src/pages/MigrationWizard.tsx`
+- Surface an "Allow past-expiry batches" switch on the Batches step (binds to `validateAll`'s `allowPastExpiry`) so legacy expired stock can still be brought in for traceability.
+- Extend the Batches coverage card with sub-counts:
+  - rows imported,
+  - rows skipped (section headers),
+  - rows skipped (non-positive qty),
+  - rows skipped (invalid expiry),
+  - rows skipped (SKU not found in products) — link to download CSV from `migration_errors`.
+
+### Out of scope
+
+- No DB schema changes; `grn_items`, `batches` import infra, and `migration_errors` are already in place.
+- No changes to the Products / Customers / Suppliers importers.
+- No new RPC or RLS work.
+
+## Files touched
+
+```text
+src/lib/import/types.ts          (add ValidationError.severity)
+src/lib/import/validators.ts     (pre-filter, allow negative qty, severity tags)
+src/lib/import/posters.ts        (log unmatched SKUs to migration_errors)
+src/pages/MigrationWizard.tsx    (allow-past-expiry toggle + sub-counts)
+```
+
+## Verification after build
+
+1. Upload `Batch and Quantity.xlsx` on the Batches step.
+2. Confirm header auto-detect maps all 7 columns.
+3. Validate — expect: section-header rows ignored silently, negative/zero qty rows shown as "skipped", `0000-00-00` rows shown as "skipped".
+4. Post — confirm products with multiple batches receive one GRN line per (batch, expiry) and unmatched legacy codes appear in the report's "SKU not found" bucket.

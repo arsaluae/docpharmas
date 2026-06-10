@@ -471,7 +471,7 @@ async function postBatches(rows: Row[], batchId: string): Promise<PostResult> {
       row_number: r.rowNumber,
       field: "sku",
       message: `Product code '${r.normalized.sku}' not found in products master`,
-      severity: "error",
+      severity: "warning",
       raw: r.normalized as any,
     }));
     for (const c of chunk(errPayload, 500)) {
