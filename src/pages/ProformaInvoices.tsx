@@ -737,11 +737,19 @@ export default function ProformaInvoices() {
 
  const handleSubmit = async () => {
  if (!submitOrder) return;
- // Validate all items have batch
+ // Validate all items have batch + a resolvable expiry
+ const expiryFor = (productId: string, batchNo: string) =>
+   batchOptions[productId]?.find(b => b.batch_number === batchNo)?.expiry_date || null;
  if (submitItems.some(i => i.product_id && !i.batch_number)) {
  toast.error("Every item must have a batch number selected"); return;
  }
+ if (submitItems.some(i => i.product_id && i.batch_number && !expiryFor(i.product_id, i.batch_number))) {
+ toast.error("Selected batch has no expiry date on record. Open the batch in Products and add one before invoicing."); return;
+ }
  setSubmitting(true);
+
+ // Idempotency key — prevents duplicate invoice if user double-clicks (DB-level guard).
+ const idempotencyKey = (crypto as any)?.randomUUID?.() || `${submitOrder.id}-${Date.now()}`;
 
  const { data: invNumber } = await supabase.rpc("generate_document_number", { p_document_type: "sales_invoice" });
  if (!invNumber) { toast.error("Failed to generate invoice number"); setSubmitting(false); return; }
@@ -755,6 +763,7 @@ export default function ProformaInvoices() {
  date: new Date().toISOString().split("T")[0],
  subtotal: submitOrder.subtotal, gst_amount: submitOrder.gst, total: submitOrder.total, status: "dispatched",
  agent_id: orderAgentId,
+ idempotency_key: idempotencyKey,
  } as any).select("*, customers(name)").single();
 
   if (invErr || !inv) { toast.error("Failed to create invoice: " + (invErr?.message || "Unknown error")); setSubmitting(false); return; }
@@ -762,7 +771,9 @@ export default function ProformaInvoices() {
  const lineItems = submitItems.map((i: any) => ({
  invoice_id: inv.id, product_id: i.product_id || null,
  quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
- amount: i.amount, batch_number: i.batch_number || null,
+ amount: i.amount,
+ batch_number: i.batch_number || null,
+ expiry_date: i.product_id && i.batch_number ? expiryFor(i.product_id, i.batch_number) : null,
  }));
  const { error: itemsErr } = await supabase.from("sales_invoice_items").insert(lineItems);
  if (itemsErr) {
@@ -771,6 +782,7 @@ export default function ProformaInvoices() {
  toast.error("Failed to save invoice items — rolled back: " + itemsErr.message);
  setSubmitting(false); return;
  }
+
 
  // Stock movements (single source of truth for inventory — no duplicate trigger)
  for (const item of submitItems) {
