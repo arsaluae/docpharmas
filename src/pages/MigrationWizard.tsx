@@ -471,7 +471,7 @@ function VerificationReport({ state }: { state: WizardState }) {
 function CoverageCard({
   icon, title, total, rows,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   total: number;
   rows: { label: string; value: number; warn?: boolean }[];
