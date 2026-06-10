@@ -4230,6 +4230,7 @@ export type Database = {
         Args: { p_id: string; p_reason: string; p_table: string }
         Returns: undefined
       }
+      wipe_my_tenant: { Args: { confirm_text: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
