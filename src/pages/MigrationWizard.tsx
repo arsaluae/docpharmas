@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
@@ -7,12 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Download, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Download, RotateCcw, Sparkles, Users, Truck, Package, Layers, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import DataImport from "./DataImport";
 import { EntityType, ENTITIES } from "@/lib/import/types";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { UnmatchedSuppliers } from "@/components/migration/UnmatchedSuppliers";
 
 interface Step {
   id: string;
@@ -183,6 +184,12 @@ interface ReportRow {
 
 function VerificationReport({ state }: { state: WizardState }) {
   const [rows, setRows] = useState<ReportRow[] | null>(null);
+  const [coverage, setCoverage] = useState<{
+    customers: { total: number; withCity: number; withAddress: number; withContact: number };
+    suppliers: { total: number; withCity: number; withAddress: number; withContact: number; withTerms: number };
+    products: { total: number; withSalePrice: number; withCostPrice: number; withSupplier: number; withoutSupplier: number };
+    batches: { total: number; withBatch: number; withExpiry: number; withQty: number };
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [rolling, setRolling] = useState(false);
   const [reason, setReason] = useState("");
@@ -196,7 +203,7 @@ function VerificationReport({ state }: { state: WizardState }) {
 
   async function loadReport() {
     setLoading(true);
-    if (batchIds.length === 0) { setRows([]); setLoading(false); return; }
+    if (batchIds.length === 0) { setRows([]); setCoverage(null); setLoading(false); return; }
 
     const { data: batches } = await supabase
       .from("import_batches")
@@ -238,11 +245,52 @@ function VerificationReport({ state }: { state: WizardState }) {
       if (errStr.includes("missing batch")) rep.missingBatch++;
       const n = (r.normalized ?? {}) as any;
       if ((entityType === "customers" || entityType === "suppliers") && !n.phone && !n.email) rep.missingContact++;
-      // merged rows are stored in raw with warnings inside normalized? validators mark merged via NormalizedRow.merged
-      // but staging stores status. Count "skipped" with merged-only error count zero & merged set in raw
     }
 
     setRows([...byEntity.values()]);
+
+    // Per-entity field coverage from the actual posted records
+    const [cust, sup, prod, grn] = await Promise.all([
+      supabase.from("customers").select("city, address, phone, email").in("import_batch_id", batchIds).limit(20000),
+      supabase.from("suppliers").select("city, address, phone, email, payment_terms_days").in("import_batch_id", batchIds).limit(20000),
+      supabase.from("products").select("selling_price, cost_price, supplier_id").in("import_batch_id", batchIds).limit(20000),
+      supabase.from("grn_items").select("batch_number, expiry_date, quantity_received").in("import_batch_id", batchIds).limit(50000),
+    ]);
+
+    const c = (cust.data ?? []) as any[];
+    const s = (sup.data ?? []) as any[];
+    const p = (prod.data ?? []) as any[];
+    const b = (grn.data ?? []) as any[];
+
+    setCoverage({
+      customers: {
+        total: c.length,
+        withCity: c.filter(x => x.city && String(x.city).trim()).length,
+        withAddress: c.filter(x => x.address && String(x.address).trim()).length,
+        withContact: c.filter(x => (x.phone && String(x.phone).trim()) || (x.email && String(x.email).trim())).length,
+      },
+      suppliers: {
+        total: s.length,
+        withCity: s.filter(x => x.city && String(x.city).trim()).length,
+        withAddress: s.filter(x => x.address && String(x.address).trim()).length,
+        withContact: s.filter(x => (x.phone && String(x.phone).trim()) || (x.email && String(x.email).trim())).length,
+        withTerms: s.filter(x => x.payment_terms_days != null && Number(x.payment_terms_days) > 0).length,
+      },
+      products: {
+        total: p.length,
+        withSalePrice: p.filter(x => Number(x.selling_price ?? 0) > 0).length,
+        withCostPrice: p.filter(x => Number(x.cost_price ?? 0) > 0).length,
+        withSupplier: p.filter(x => x.supplier_id).length,
+        withoutSupplier: p.filter(x => !x.supplier_id).length,
+      },
+      batches: {
+        total: b.length,
+        withBatch: b.filter(x => x.batch_number && String(x.batch_number).trim()).length,
+        withExpiry: b.filter(x => x.expiry_date).length,
+        withQty: b.filter(x => Number(x.quantity_received ?? 0) > 0).length,
+      },
+    });
+
     setLoading(false);
   }
 
@@ -361,6 +409,90 @@ function VerificationReport({ state }: { state: WizardState }) {
           </table>
         </div>
       )}
+
+      {coverage && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 pt-2">
+          <CoverageCard
+            icon={<Users className="h-4 w-4" />}
+            title="Customers imported"
+            total={coverage.customers.total}
+            rows={[
+              { label: "with city", value: coverage.customers.withCity },
+              { label: "with address", value: coverage.customers.withAddress },
+              { label: "with phone / email", value: coverage.customers.withContact },
+            ]}
+          />
+          <CoverageCard
+            icon={<Truck className="h-4 w-4" />}
+            title="Suppliers imported"
+            total={coverage.suppliers.total}
+            rows={[
+              { label: "with city", value: coverage.suppliers.withCity },
+              { label: "with address", value: coverage.suppliers.withAddress },
+              { label: "with phone / email", value: coverage.suppliers.withContact },
+              { label: "with payment terms", value: coverage.suppliers.withTerms },
+            ]}
+          />
+          <CoverageCard
+            icon={<Package className="h-4 w-4" />}
+            title="Products imported"
+            total={coverage.products.total}
+            rows={[
+              { label: "with sale price", value: coverage.products.withSalePrice },
+              { label: "with cost price", value: coverage.products.withCostPrice },
+              { label: "with supplier linked", value: coverage.products.withSupplier },
+              { label: "without supplier", value: coverage.products.withoutSupplier, warn: coverage.products.withoutSupplier > 0 },
+            ]}
+          />
+          <CoverageCard
+            icon={<Layers className="h-4 w-4" />}
+            title="Batches imported"
+            total={coverage.batches.total}
+            rows={[
+              { label: "with batch #", value: coverage.batches.withBatch },
+              { label: "with expiry", value: coverage.batches.withExpiry },
+              { label: "with quantity", value: coverage.batches.withQty },
+            ]}
+          />
+        </div>
+      )}
+
+      <div className="pt-4 border-t border-border">
+        <div className="flex items-center gap-2 mb-3">
+          <AlertCircle className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold">Supplier mapping fixes</h3>
+        </div>
+        <UnmatchedSuppliers batchIds={batchIds} />
+      </div>
+    </Card>
+  );
+}
+
+function CoverageCard({
+  icon, title, total, rows,
+}: {
+  icon: ReactNode;
+  title: string;
+  total: number;
+  rows: { label: string; value: number; warn?: boolean }[];
+}) {
+  return (
+    <Card className="p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+          {icon}
+          {title}
+        </div>
+        <span className="text-lg font-semibold tabular-nums">{total}</span>
+      </div>
+      <div className="space-y-1">
+        {rows.map(r => (
+          <div key={r.label} className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">{r.label}</span>
+            <span className={`tabular-nums font-medium ${r.warn ? "text-amber-600" : "text-foreground"}`}>{r.value}</span>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }

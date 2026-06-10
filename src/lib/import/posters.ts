@@ -49,6 +49,41 @@ export async function postBatch(
 
 // ---------- Master data ----------
 
+function normalizeName(s: unknown): string {
+  return String(s ?? "").trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim();
+}
+
+async function loadSupplierLookup(tenantId: string): Promise<Map<string, string>> {
+  const map = new Map<string, string>(); // normalized name → id
+  const { data } = await supabase
+    .from("suppliers")
+    .select("id, name, supplier_code, old_erp_account_code")
+    .eq("tenant_id", tenantId);
+  (data ?? []).forEach((s: any) => {
+    const id = s.id;
+    [s.name, s.supplier_code, s.old_erp_account_code].forEach(v => {
+      const k = normalizeName(v);
+      if (k) map.set(k, id);
+    });
+  });
+  return map;
+}
+
+async function autoCreateSuppliers(tenantId: string, names: string[], batchId: string): Promise<Map<string, string>> {
+  const created = new Map<string, string>();
+  if (names.length === 0) return created;
+  const payload = names.map(n => ({
+    tenant_id: tenantId,
+    name: n,
+    is_active: true,
+    notes: "Auto-created during product import",
+    import_batch_id: batchId,
+  }));
+  const { data } = await supabase.from("suppliers").insert(payload as any).select("id, name");
+  (data ?? []).forEach((s: any) => created.set(normalizeName(s.name), s.id));
+  return created;
+}
+
 async function postProducts(rows: Row[], batchId: string): Promise<PostResult> {
   const tenantId = await getTenantId();
   const errors: string[] = [];
@@ -62,47 +97,102 @@ async function postProducts(rows: Row[], batchId: string): Promise<PostResult> {
     (data ?? []).forEach((d: any) => d.sku && existing.add(String(d.sku).toLowerCase()));
   }
 
+  // Build supplier lookup and figure out which names are missing
+  const supplierMap = await loadSupplierLookup(tenantId);
+  const wantedSuppliers = new Set<string>();
+  rows.forEach(r => {
+    const n = normalizeName(r.normalized.supplier_name);
+    if (n && !supplierMap.has(n)) wantedSuppliers.add(String(r.normalized.supplier_name).trim());
+  });
+
+  // Auto-create missing suppliers if the company setting is enabled
+  let autoCreate = false;
+  try {
+    const { data: cs } = await supabase
+      .from("company_settings")
+      .select("auto_create_missing_suppliers")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    autoCreate = Boolean((cs as any)?.auto_create_missing_suppliers);
+  } catch { /* ignore */ }
+
+  if (autoCreate && wantedSuppliers.size > 0) {
+    const created = await autoCreateSuppliers(tenantId, [...wantedSuppliers], batchId);
+    created.forEach((id, k) => supplierMap.set(k, id));
+  }
+
   const fresh = rows.filter(r => !existing.has(String(r.normalized.sku ?? "").toLowerCase()));
+  const unmatchedLog: { row: number; sku: string; supplier_name: string }[] = [];
+
   for (const c of chunk(fresh, 500)) {
-    const payload = c.map(r => ({
-      tenant_id: tenantId,
-      name: r.normalized.name,
-      sku: r.normalized.sku,
-      product_code: r.normalized.sku,
-      barcode: r.normalized.barcode ?? null,
-      generic_name: r.normalized.generic_name ?? null,
-      brand: r.normalized.brand ?? null,
-      manufacturer: r.normalized.manufacturer ?? null,
-      category: r.normalized.category ?? "other",
-      sub_category: r.normalized.sub_category ?? null,
-      unit: r.normalized.unit ?? "pcs",
-      cost_price: Number(r.normalized.cost_price ?? 0),
-      trade_price: r.normalized.trade_price != null ? Number(r.normalized.trade_price) : null,
-      retail_price: r.normalized.retail_price != null ? Number(r.normalized.retail_price) : null,
-      selling_price: Number(r.normalized.selling_price ?? 0),
-      mrp: Number(r.normalized.selling_price ?? 0),
-      tax_percent: r.normalized.tax_percent != null ? Number(r.normalized.tax_percent) : null,
-      pack_size: r.normalized.pack_size ?? null,
-      drap_reg_number: r.normalized.drap_reg_number ?? null,
-      gst_rate: Number(r.normalized.gst_rate ?? 0),
-      stock_quantity: 0, // never seed stock directly; opening stock comes via batches
-      reorder_level: Number(r.normalized.reorder_level ?? r.normalized.low_stock_level ?? 0),
-      low_stock_level: r.normalized.low_stock_level != null ? Number(r.normalized.low_stock_level) : null,
-      stock_account: r.normalized.stock_account ?? null,
-      income_account: r.normalized.income_account ?? null,
-      expense_account: r.normalized.expense_account ?? null,
-      batch_tracking: r.normalized.batch_tracking != null ? Boolean(r.normalized.batch_tracking) : true,
-      expiry_tracking: r.normalized.expiry_tracking != null ? Boolean(r.normalized.expiry_tracking) : true,
-      status: r.normalized.status ?? null,
-      is_active: String(r.normalized.status ?? "active").toLowerCase() !== "inactive",
-      old_erp_id: r.normalized.old_erp_id ?? null,
-      notes: r.normalized.notes ?? null,
-      import_batch_id: batchId,
-    }));
+    const payload = c.map(r => {
+      const supplierName = r.normalized.supplier_name ? String(r.normalized.supplier_name).trim() : null;
+      const supId = supplierName ? supplierMap.get(normalizeName(supplierName)) ?? null : null;
+      if (supplierName && !supId) {
+        unmatchedLog.push({ row: r.rowNumber, sku: String(r.normalized.sku ?? ""), supplier_name: supplierName });
+      }
+      return {
+        tenant_id: tenantId,
+        name: r.normalized.name,
+        sku: r.normalized.sku,
+        product_code: r.normalized.sku,
+        barcode: r.normalized.barcode ?? null,
+        generic_name: r.normalized.generic_name ?? null,
+        brand: r.normalized.brand ?? null,
+        manufacturer: r.normalized.manufacturer ?? null,
+        category: r.normalized.category ?? "other",
+        sub_category: r.normalized.sub_category ?? null,
+        unit: r.normalized.unit ?? "pcs",
+        cost_price: Number(r.normalized.cost_price ?? 0),
+        trade_price: r.normalized.trade_price != null ? Number(r.normalized.trade_price) : null,
+        retail_price: r.normalized.retail_price != null ? Number(r.normalized.retail_price) : null,
+        selling_price: Number(r.normalized.selling_price ?? 0),
+        mrp: Number(r.normalized.selling_price ?? 0),
+        tax_percent: r.normalized.tax_percent != null ? Number(r.normalized.tax_percent) : null,
+        pack_size: r.normalized.pack_size ?? null,
+        drap_reg_number: r.normalized.drap_reg_number ?? null,
+        gst_rate: Number(r.normalized.gst_rate ?? 0),
+        stock_quantity: 0, // never seed stock directly; opening stock comes via batches
+        reorder_level: Number(r.normalized.reorder_level ?? r.normalized.low_stock_level ?? 0),
+        low_stock_level: r.normalized.low_stock_level != null ? Number(r.normalized.low_stock_level) : null,
+        stock_account: r.normalized.stock_account ?? null,
+        income_account: r.normalized.income_account ?? null,
+        expense_account: r.normalized.expense_account ?? null,
+        batch_tracking: r.normalized.batch_tracking != null ? Boolean(r.normalized.batch_tracking) : true,
+        expiry_tracking: r.normalized.expiry_tracking != null ? Boolean(r.normalized.expiry_tracking) : true,
+        status: r.normalized.status ?? null,
+        is_active: String(r.normalized.status ?? "active").toLowerCase() !== "inactive",
+        old_erp_id: r.normalized.old_erp_id ?? null,
+        notes: supplierName && !supId
+          ? [r.normalized.notes, `legacy-supplier: ${supplierName}`].filter(Boolean).join(" · ")
+          : (r.normalized.notes ?? null),
+        supplier_id: supId,
+        import_batch_id: batchId,
+      };
+    });
     const { error, data } = await supabase.from("products").insert(payload as any).select("id");
     if (error) errors.push(error.message);
     else posted += data?.length ?? 0;
   }
+
+  // Persist unmatched supplier warnings to migration_errors so the wizard can surface them
+  if (unmatchedLog.length > 0) {
+    const errPayload = unmatchedLog.map(u => ({
+      tenant_id: tenantId,
+      import_batch_id: batchId,
+      entity: "products",
+      row_number: u.row,
+      field: "supplier_name",
+      message: `Supplier '${u.supplier_name}' not found — needs manual mapping`,
+      severity: "warning",
+      raw: { sku: u.sku, supplier_name: u.supplier_name } as any,
+    }));
+    for (const c of chunk(errPayload, 500)) {
+      await supabase.from("migration_errors").insert(c as any);
+    }
+    errors.push(`${unmatchedLog.length} product rows have unmatched suppliers (see Verification step)`);
+  }
+
   return { posted, skipped: rows.length - posted, errors };
 }
 
@@ -249,6 +339,15 @@ async function lookupProductIds(skus: string[]): Promise<Map<string, string>> {
   return map;
 }
 
+async function lookupProductMeta(skus: string[]): Promise<Map<string, { id: string; supplier_id: string | null }>> {
+  const map = new Map<string, { id: string; supplier_id: string | null }>();
+  for (const c of chunk([...new Set(skus)], 500)) {
+    const { data } = await supabase.from("products").select("id, sku, supplier_id").in("sku", c);
+    (data ?? []).forEach((p: any) => map.set(String(p.sku).toLowerCase(), { id: p.id, supplier_id: p.supplier_id ?? null }));
+  }
+  return map;
+}
+
 async function postOpeningStock(rows: Row[], batchId: string): Promise<PostResult> {
   const tenantId = await getTenantId();
   const errors: string[] = [];
@@ -277,56 +376,109 @@ async function postOpeningStock(rows: Row[], batchId: string): Promise<PostResul
 }
 
 async function postBatches(rows: Row[], batchId: string): Promise<PostResult> {
-  // Create a single opening-balance GRN per import; one grn_item per batch row.
+  // Group rows by effective supplier (batch_supplier > product.supplier_id > none)
+  // and create one GRN per supplier group so per-batch supplier is preserved.
   const tenantId = await getTenantId();
   const errors: string[] = [];
   let posted = 0;
+
   const skus = rows.map(r => String(r.normalized.sku ?? ""));
-  const idMap = await lookupProductIds(skus);
+  const productMap = await lookupProductMeta(skus);
+  const supplierLookup = await loadSupplierLookup(tenantId);
 
-  // Create GRN header
-  let grnNumber = "";
-  try {
-    const { data: num } = await supabase.rpc("generate_document_number" as any, { p_document_type: "grn" });
-    grnNumber = (num as string) ?? `GRN-IMP-${Date.now()}`;
-  } catch { grnNumber = `GRN-IMP-${Date.now()}`; }
-
-  const { data: grnHeader, error: hErr } = await supabase.from("goods_received_notes").insert({
-    tenant_id: tenantId,
-    grn_number: grnNumber,
-    date: new Date().toISOString().slice(0, 10),
-    status: "received",
-    notes: "Opening batches import",
-  } as any).select("id").single();
-  if (hErr || !grnHeader) {
-    return { posted: 0, skipped: rows.length, errors: [hErr?.message ?? "could not create GRN"] };
-  }
-  const grnId = (grnHeader as any).id;
-
+  // Determine supplier_id for each row
+  type Resolved = { row: Row; productId: string; supplierId: string | null };
+  const resolved: Resolved[] = [];
   for (const r of rows) {
     const sku = String(r.normalized.sku ?? "").toLowerCase();
-    const productId = idMap.get(sku);
-    if (!productId) { errors.push(`Row ${r.rowNumber}: SKU ${sku} not found`); continue; }
-    const qty = Number(r.normalized.quantity ?? 0);
-    const rate = Number(r.normalized.rate ?? 0);
-    const payload = {
-      tenant_id: tenantId,
-      grn_id: grnId,
-      product_id: productId,
-      item_name: String(r.normalized.sku),
-      batch_number: r.normalized.batch_number,
-      expiry_date: r.normalized.expiry_date,
-      manufacturing_date: r.normalized.manufacturing_date ?? null,
-      quantity_ordered: qty,
-      quantity_received: qty,
-      rate,
-      amount: qty * rate,
-      import_batch_id: batchId,
-    } as any;
-    const { error } = await supabase.from("grn_items").insert(payload);
-    if (error) errors.push(`Row ${r.rowNumber}: ${error.message}`);
-    else posted++;
+    const meta = productMap.get(sku);
+    if (!meta) {
+      errors.push(`Row ${r.rowNumber}: SKU ${sku} not found in products master`);
+      continue;
+    }
+    let supId: string | null = null;
+    const batchSupplierName = r.normalized.batch_supplier ? String(r.normalized.batch_supplier).trim() : "";
+    if (batchSupplierName) {
+      supId = supplierLookup.get(normalizeName(batchSupplierName)) ?? null;
+    }
+    if (!supId) supId = meta.supplier_id;
+    resolved.push({ row: r, productId: meta.id, supplierId: supId });
   }
+
+  // Bucket by supplier_id ("" = none)
+  const buckets = new Map<string, Resolved[]>();
+  for (const r of resolved) {
+    const k = r.supplierId ?? "";
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k)!.push(r);
+  }
+
+  for (const [supplierKey, items] of buckets) {
+    const supplierId = supplierKey || null;
+    let grnNumber = "";
+    try {
+      const { data: num } = await supabase.rpc("generate_document_number" as any, { p_document_type: "grn" });
+      grnNumber = (num as string) ?? `GRN-IMP-${Date.now()}`;
+    } catch { grnNumber = `GRN-IMP-${Date.now()}`; }
+
+    const { data: grnHeader, error: hErr } = await supabase.from("goods_received_notes").insert({
+      tenant_id: tenantId,
+      grn_number: grnNumber,
+      supplier_id: supplierId,
+      date: new Date().toISOString().slice(0, 10),
+      status: "received",
+      notes: supplierId ? "Opening batches import (per-supplier)" : "Opening batches import (no supplier)",
+    } as any).select("id").single();
+    if (hErr || !grnHeader) {
+      errors.push(`GRN create failed: ${hErr?.message ?? "unknown"}`);
+      continue;
+    }
+    const grnId = (grnHeader as any).id;
+
+    const payload = items.map(({ row: r, productId }) => {
+      const qty = Number(r.normalized.quantity ?? 0);
+      const rate = Number(r.normalized.rate ?? 0);
+      return {
+        tenant_id: tenantId,
+        grn_id: grnId,
+        product_id: productId,
+        item_name: String(r.normalized.sku),
+        batch_number: r.normalized.batch_number,
+        expiry_date: r.normalized.expiry_date,
+        manufacturing_date: r.normalized.manufacturing_date ?? null,
+        quantity_ordered: qty,
+        quantity_received: qty,
+        rate,
+        amount: qty * rate,
+        import_batch_id: batchId,
+      };
+    });
+
+    for (const c of chunk(payload, 500)) {
+      const { error, data } = await supabase.from("grn_items").insert(c as any).select("id");
+      if (error) errors.push(`GRN ${grnNumber}: ${error.message}`);
+      else posted += data?.length ?? 0;
+    }
+  }
+
+  // Persist unknown-SKU errors to migration_errors for the report
+  const unknownSku = rows.filter(r => !productMap.get(String(r.normalized.sku ?? "").toLowerCase()));
+  if (unknownSku.length > 0) {
+    const errPayload = unknownSku.map(r => ({
+      tenant_id: tenantId,
+      import_batch_id: batchId,
+      entity: "batches",
+      row_number: r.rowNumber,
+      field: "sku",
+      message: `Product code '${r.normalized.sku}' not found in products master`,
+      severity: "error",
+      raw: r.normalized as any,
+    }));
+    for (const c of chunk(errPayload, 500)) {
+      await supabase.from("migration_errors").insert(c as any);
+    }
+  }
+
   return { posted, skipped: rows.length - posted, errors };
 }
 
