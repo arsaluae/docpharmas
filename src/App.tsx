@@ -58,6 +58,7 @@ const Printers = lazy(() => import("./pages/Printers"));
 const PrinterLedger = lazy(() => import("./pages/PrinterLedger"));
 const PrintJobs = lazy(() => import("./pages/PrintJobs"));
 const DataImport = lazy(() => import("./pages/DataImport"));
+const ImportHistory = lazy(() => import("./pages/ImportHistory"));
 const Settings = lazy(() => import("./pages/Settings"));
 const SystemHealth = lazy(() => import("./pages/SystemHealth"));
 
@@ -195,6 +196,7 @@ const App = () => (
               <Route element={<RequireCap resource="settings" />}>
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/import" element={<DataImport />} />
+                <Route path="/import/history" element={<ImportHistory />} />
                 <Route path="/system-health" element={<SystemHealth />} />
                 <Route path="/audit-log" element={<AuditLog />} />
               </Route>
