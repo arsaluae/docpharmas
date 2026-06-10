@@ -50,6 +50,103 @@ export type Database = {
         }
         Relationships: []
       }
+      accounting_staging: {
+        Row: {
+          account_code: string | null
+          account_name: string | null
+          account_number: string | null
+          account_type: string | null
+          amount: number | null
+          bank_name: string | null
+          branch: string | null
+          created_at: string
+          created_by: string | null
+          errors: Json | null
+          id: string
+          import_batch_id: string | null
+          kind: string | null
+          migration_batch_id: string | null
+          notes: string | null
+          party_code: string | null
+          party_name: string | null
+          raw: Json | null
+          row_number: number | null
+          status: string
+          tenant_id: string | null
+          type: string | null
+        }
+        Insert: {
+          account_code?: string | null
+          account_name?: string | null
+          account_number?: string | null
+          account_type?: string | null
+          amount?: number | null
+          bank_name?: string | null
+          branch?: string | null
+          created_at?: string
+          created_by?: string | null
+          errors?: Json | null
+          id?: string
+          import_batch_id?: string | null
+          kind?: string | null
+          migration_batch_id?: string | null
+          notes?: string | null
+          party_code?: string | null
+          party_name?: string | null
+          raw?: Json | null
+          row_number?: number | null
+          status?: string
+          tenant_id?: string | null
+          type?: string | null
+        }
+        Update: {
+          account_code?: string | null
+          account_name?: string | null
+          account_number?: string | null
+          account_type?: string | null
+          amount?: number | null
+          bank_name?: string | null
+          branch?: string | null
+          created_at?: string
+          created_by?: string | null
+          errors?: Json | null
+          id?: string
+          import_batch_id?: string | null
+          kind?: string | null
+          migration_batch_id?: string | null
+          notes?: string | null
+          party_code?: string | null
+          party_name?: string | null
+          raw?: Json | null
+          row_number?: number | null
+          status?: string
+          tenant_id?: string | null
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_staging_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_staging_migration_batch_id_fkey"
+            columns: ["migration_batch_id"]
+            isOneToOne: false
+            referencedRelation: "migration_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_staging_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       additional_costs: {
         Row: {
           amount: number
@@ -815,78 +912,271 @@ export type Database = {
           },
         ]
       }
+      customer_staging: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          area: string | null
+          business_name: string | null
+          city: string | null
+          cnic: string | null
+          contact_person: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          credit_days: number | null
+          credit_limit: number | null
+          customer_status: string | null
+          district: string | null
+          email: string | null
+          errors: Json | null
+          first_name: string | null
+          id: string
+          import_batch_id: string | null
+          last_name: string | null
+          migration_batch_id: string | null
+          mobile: string | null
+          notes: string | null
+          old_erp_account_code: string | null
+          old_erp_id: string | null
+          opening_balance: number | null
+          phone: string | null
+          postal_code: string | null
+          province: string | null
+          raw: Json | null
+          row_number: number | null
+          sms_mobile: string | null
+          status: string
+          tax_number: string | null
+          tenant_id: string | null
+          title: string | null
+          website: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          area?: string | null
+          business_name?: string | null
+          city?: string | null
+          cnic?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_days?: number | null
+          credit_limit?: number | null
+          customer_status?: string | null
+          district?: string | null
+          email?: string | null
+          errors?: Json | null
+          first_name?: string | null
+          id?: string
+          import_batch_id?: string | null
+          last_name?: string | null
+          migration_batch_id?: string | null
+          mobile?: string | null
+          notes?: string | null
+          old_erp_account_code?: string | null
+          old_erp_id?: string | null
+          opening_balance?: number | null
+          phone?: string | null
+          postal_code?: string | null
+          province?: string | null
+          raw?: Json | null
+          row_number?: number | null
+          sms_mobile?: string | null
+          status?: string
+          tax_number?: string | null
+          tenant_id?: string | null
+          title?: string | null
+          website?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          area?: string | null
+          business_name?: string | null
+          city?: string | null
+          cnic?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_days?: number | null
+          credit_limit?: number | null
+          customer_status?: string | null
+          district?: string | null
+          email?: string | null
+          errors?: Json | null
+          first_name?: string | null
+          id?: string
+          import_batch_id?: string | null
+          last_name?: string | null
+          migration_batch_id?: string | null
+          mobile?: string | null
+          notes?: string | null
+          old_erp_account_code?: string | null
+          old_erp_id?: string | null
+          opening_balance?: number | null
+          phone?: string | null
+          postal_code?: string | null
+          province?: string | null
+          raw?: Json | null
+          row_number?: number | null
+          sms_mobile?: string | null
+          status?: string
+          tax_number?: string | null
+          tenant_id?: string | null
+          title?: string | null
+          website?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_staging_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_staging_migration_batch_id_fkey"
+            columns: ["migration_batch_id"]
+            isOneToOne: false
+            referencedRelation: "migration_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_staging_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
+          address_line2: string | null
           area: string | null
           balance: number
           city: string | null
           cnic: string | null
           company: string | null
+          contact_person: string | null
+          country: string | null
           created_at: string
+          credit_days: number | null
           credit_limit: number
           customer_code: string | null
+          district: string | null
           email: string | null
+          first_name: string | null
           id: string
           import_batch_id: string | null
           is_active: boolean
+          last_name: string | null
           name: string
           notes: string | null
           ntn: string | null
           old_erp_account_code: string | null
+          old_erp_id: string | null
           opening_balance: number
           phone: string | null
           phones: Json
+          postal_code: string | null
+          province: string | null
+          sms_mobile: string | null
+          status: string | null
           strn: string | null
+          tax_number: string | null
           tenant_id: string | null
+          title: string | null
+          website: string | null
+          whatsapp: string | null
         }
         Insert: {
           address?: string | null
+          address_line2?: string | null
           area?: string | null
           balance?: number
           city?: string | null
           cnic?: string | null
           company?: string | null
+          contact_person?: string | null
+          country?: string | null
           created_at?: string
+          credit_days?: number | null
           credit_limit?: number
           customer_code?: string | null
+          district?: string | null
           email?: string | null
+          first_name?: string | null
           id?: string
           import_batch_id?: string | null
           is_active?: boolean
+          last_name?: string | null
           name: string
           notes?: string | null
           ntn?: string | null
           old_erp_account_code?: string | null
+          old_erp_id?: string | null
           opening_balance?: number
           phone?: string | null
           phones?: Json
+          postal_code?: string | null
+          province?: string | null
+          sms_mobile?: string | null
+          status?: string | null
           strn?: string | null
+          tax_number?: string | null
           tenant_id?: string | null
+          title?: string | null
+          website?: string | null
+          whatsapp?: string | null
         }
         Update: {
           address?: string | null
+          address_line2?: string | null
           area?: string | null
           balance?: number
           city?: string | null
           cnic?: string | null
           company?: string | null
+          contact_person?: string | null
+          country?: string | null
           created_at?: string
+          credit_days?: number | null
           credit_limit?: number
           customer_code?: string | null
+          district?: string | null
           email?: string | null
+          first_name?: string | null
           id?: string
           import_batch_id?: string | null
           is_active?: boolean
+          last_name?: string | null
           name?: string
           notes?: string | null
           ntn?: string | null
           old_erp_account_code?: string | null
+          old_erp_id?: string | null
           opening_balance?: number
           phone?: string | null
           phones?: Json
+          postal_code?: string | null
+          province?: string | null
+          sms_mobile?: string | null
+          status?: string | null
           strn?: string | null
+          tax_number?: string | null
           tenant_id?: string | null
+          title?: string | null
+          website?: string | null
+          whatsapp?: string | null
         }
         Relationships: [
           {
@@ -1459,6 +1749,7 @@ export type Database = {
           id: string
           import_batch_id: string | null
           item_name: string
+          manufacturing_date: string | null
           product_id: string | null
           quantity_ordered: number
           quantity_received: number
@@ -1473,6 +1764,7 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           item_name: string
+          manufacturing_date?: string | null
           product_id?: string | null
           quantity_ordered?: number
           quantity_received?: number
@@ -1487,6 +1779,7 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           item_name?: string
+          manufacturing_date?: string | null
           product_id?: string | null
           quantity_ordered?: number
           quantity_received?: number
@@ -1630,6 +1923,103 @@ export type Database = {
           },
         ]
       }
+      inventory_staging: {
+        Row: {
+          batch_cost: number | null
+          batch_number: string | null
+          batch_supplier: string | null
+          created_at: string
+          created_by: string | null
+          errors: Json | null
+          expiry_date: string | null
+          id: string
+          import_batch_id: string | null
+          location: string | null
+          manufacturing_date: string | null
+          migration_batch_id: string | null
+          notes: string | null
+          product_name: string | null
+          purchase_reference: string | null
+          quantity: number | null
+          raw: Json | null
+          row_number: number | null
+          sku: string | null
+          status: string
+          tenant_id: string | null
+          unit: string | null
+        }
+        Insert: {
+          batch_cost?: number | null
+          batch_number?: string | null
+          batch_supplier?: string | null
+          created_at?: string
+          created_by?: string | null
+          errors?: Json | null
+          expiry_date?: string | null
+          id?: string
+          import_batch_id?: string | null
+          location?: string | null
+          manufacturing_date?: string | null
+          migration_batch_id?: string | null
+          notes?: string | null
+          product_name?: string | null
+          purchase_reference?: string | null
+          quantity?: number | null
+          raw?: Json | null
+          row_number?: number | null
+          sku?: string | null
+          status?: string
+          tenant_id?: string | null
+          unit?: string | null
+        }
+        Update: {
+          batch_cost?: number | null
+          batch_number?: string | null
+          batch_supplier?: string | null
+          created_at?: string
+          created_by?: string | null
+          errors?: Json | null
+          expiry_date?: string | null
+          id?: string
+          import_batch_id?: string | null
+          location?: string | null
+          manufacturing_date?: string | null
+          migration_batch_id?: string | null
+          notes?: string | null
+          product_name?: string | null
+          purchase_reference?: string | null
+          quantity?: number | null
+          raw?: Json | null
+          row_number?: number | null
+          sku?: string | null
+          status?: string
+          tenant_id?: string | null
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_staging_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_staging_migration_batch_id_fkey"
+            columns: ["migration_batch_id"]
+            isOneToOne: false
+            referencedRelation: "migration_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_staging_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           created_at: string
@@ -1728,6 +2118,120 @@ export type Database = {
           },
           {
             foreignKeyName: "journal_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      migration_batches: {
+        Row: {
+          after_counts: Json | null
+          before_counts: Json | null
+          created_at: string
+          finished_at: string | null
+          id: string
+          notes: string | null
+          source_file: string | null
+          started_at: string
+          started_by: string | null
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          after_counts?: Json | null
+          before_counts?: Json | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          notes?: string | null
+          source_file?: string | null
+          started_at?: string
+          started_by?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          after_counts?: Json | null
+          before_counts?: Json | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          notes?: string | null
+          source_file?: string | null
+          started_at?: string
+          started_by?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "migration_batches_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      migration_errors: {
+        Row: {
+          created_at: string
+          entity: string
+          field: string | null
+          id: string
+          import_batch_id: string | null
+          message: string
+          migration_batch_id: string | null
+          raw: Json | null
+          row_number: number | null
+          severity: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity: string
+          field?: string | null
+          id?: string
+          import_batch_id?: string | null
+          message: string
+          migration_batch_id?: string | null
+          raw?: Json | null
+          row_number?: number | null
+          severity?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity?: string
+          field?: string | null
+          id?: string
+          import_batch_id?: string | null
+          message?: string
+          migration_batch_id?: string | null
+          raw?: Json | null
+          row_number?: number | null
+          severity?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "migration_errors_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "migration_errors_migration_batch_id_fkey"
+            columns: ["migration_batch_id"]
+            isOneToOne: false
+            referencedRelation: "migration_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "migration_errors_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2266,71 +2770,264 @@ export type Database = {
           },
         ]
       }
+      product_staging: {
+        Row: {
+          barcode: string | null
+          batch_tracking: boolean | null
+          brand: string | null
+          category: string | null
+          cost_price: number | null
+          created_at: string
+          created_by: string | null
+          errors: Json | null
+          expense_account: string | null
+          expiry_tracking: boolean | null
+          generic_name: string | null
+          id: string
+          import_batch_id: string | null
+          income_account: string | null
+          large_pack_size: string | null
+          low_stock_level: number | null
+          manufacturer: string | null
+          migration_batch_id: string | null
+          notes: string | null
+          old_erp_id: string | null
+          product_code: string | null
+          product_name: string | null
+          product_status: string | null
+          raw: Json | null
+          reorder_level: number | null
+          retail_price: number | null
+          row_number: number | null
+          sale_price: number | null
+          sku: string | null
+          status: string
+          stock_account: string | null
+          sub_category: string | null
+          supplier: string | null
+          tax_percent: number | null
+          tenant_id: string | null
+          trade_price: number | null
+          unit: string | null
+          weight: string | null
+        }
+        Insert: {
+          barcode?: string | null
+          batch_tracking?: boolean | null
+          brand?: string | null
+          category?: string | null
+          cost_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          errors?: Json | null
+          expense_account?: string | null
+          expiry_tracking?: boolean | null
+          generic_name?: string | null
+          id?: string
+          import_batch_id?: string | null
+          income_account?: string | null
+          large_pack_size?: string | null
+          low_stock_level?: number | null
+          manufacturer?: string | null
+          migration_batch_id?: string | null
+          notes?: string | null
+          old_erp_id?: string | null
+          product_code?: string | null
+          product_name?: string | null
+          product_status?: string | null
+          raw?: Json | null
+          reorder_level?: number | null
+          retail_price?: number | null
+          row_number?: number | null
+          sale_price?: number | null
+          sku?: string | null
+          status?: string
+          stock_account?: string | null
+          sub_category?: string | null
+          supplier?: string | null
+          tax_percent?: number | null
+          tenant_id?: string | null
+          trade_price?: number | null
+          unit?: string | null
+          weight?: string | null
+        }
+        Update: {
+          barcode?: string | null
+          batch_tracking?: boolean | null
+          brand?: string | null
+          category?: string | null
+          cost_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          errors?: Json | null
+          expense_account?: string | null
+          expiry_tracking?: boolean | null
+          generic_name?: string | null
+          id?: string
+          import_batch_id?: string | null
+          income_account?: string | null
+          large_pack_size?: string | null
+          low_stock_level?: number | null
+          manufacturer?: string | null
+          migration_batch_id?: string | null
+          notes?: string | null
+          old_erp_id?: string | null
+          product_code?: string | null
+          product_name?: string | null
+          product_status?: string | null
+          raw?: Json | null
+          reorder_level?: number | null
+          retail_price?: number | null
+          row_number?: number | null
+          sale_price?: number | null
+          sku?: string | null
+          status?: string
+          stock_account?: string | null
+          sub_category?: string | null
+          supplier?: string | null
+          tax_percent?: number | null
+          tenant_id?: string | null
+          trade_price?: number | null
+          unit?: string | null
+          weight?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_staging_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_staging_migration_batch_id_fkey"
+            columns: ["migration_batch_id"]
+            isOneToOne: false
+            referencedRelation: "migration_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_staging_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
+          barcode: string | null
+          batch_tracking: boolean
+          brand: string | null
           category: string
           cost_price: number
           created_at: string
           drap_reg_number: string | null
+          expense_account: string | null
+          expiry_tracking: boolean
+          generic_name: string | null
           gst_rate: number
           id: string
           import_batch_id: string | null
+          income_account: string | null
           is_active: boolean
           legacy_codes: Json | null
+          low_stock_level: number | null
+          manufacturer: string | null
           mrp: number
           name: string
           notes: string | null
+          old_erp_id: string | null
           pack_size: string | null
           product_code: string | null
           reorder_level: number
+          retail_price: number | null
           selling_price: number
           sku: string | null
+          status: string | null
+          stock_account: string | null
           stock_quantity: number
+          sub_category: string | null
+          tax_percent: number | null
           tenant_id: string | null
+          trade_price: number | null
           unit: string
         }
         Insert: {
+          barcode?: string | null
+          batch_tracking?: boolean
+          brand?: string | null
           category?: string
           cost_price?: number
           created_at?: string
           drap_reg_number?: string | null
+          expense_account?: string | null
+          expiry_tracking?: boolean
+          generic_name?: string | null
           gst_rate?: number
           id?: string
           import_batch_id?: string | null
+          income_account?: string | null
           is_active?: boolean
           legacy_codes?: Json | null
+          low_stock_level?: number | null
+          manufacturer?: string | null
           mrp?: number
           name: string
           notes?: string | null
+          old_erp_id?: string | null
           pack_size?: string | null
           product_code?: string | null
           reorder_level?: number
+          retail_price?: number | null
           selling_price?: number
           sku?: string | null
+          status?: string | null
+          stock_account?: string | null
           stock_quantity?: number
+          sub_category?: string | null
+          tax_percent?: number | null
           tenant_id?: string | null
+          trade_price?: number | null
           unit?: string
         }
         Update: {
+          barcode?: string | null
+          batch_tracking?: boolean
+          brand?: string | null
           category?: string
           cost_price?: number
           created_at?: string
           drap_reg_number?: string | null
+          expense_account?: string | null
+          expiry_tracking?: boolean
+          generic_name?: string | null
           gst_rate?: number
           id?: string
           import_batch_id?: string | null
+          income_account?: string | null
           is_active?: boolean
           legacy_codes?: Json | null
+          low_stock_level?: number | null
+          manufacturer?: string | null
           mrp?: number
           name?: string
           notes?: string | null
+          old_erp_id?: string | null
           pack_size?: string | null
           product_code?: string | null
           reorder_level?: number
+          retail_price?: number | null
           selling_price?: number
           sku?: string | null
+          status?: string | null
+          stock_account?: string | null
           stock_quantity?: number
+          sub_category?: string | null
+          tax_percent?: number | null
           tenant_id?: string | null
+          trade_price?: number | null
           unit?: string
         }
         Relationships: [
@@ -3729,13 +4426,147 @@ export type Database = {
           },
         ]
       }
+      supplier_staging: {
+        Row: {
+          address: string | null
+          area: string | null
+          bank_account: string | null
+          bank_name: string | null
+          business_name: string | null
+          city: string | null
+          contact_person: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          errors: Json | null
+          id: string
+          import_batch_id: string | null
+          migration_batch_id: string | null
+          mobile: string | null
+          notes: string | null
+          ntn: string | null
+          old_erp_id: string | null
+          opening_balance: number | null
+          payment_terms_days: number | null
+          phone: string | null
+          postal_code: string | null
+          province: string | null
+          raw: Json | null
+          row_number: number | null
+          status: string
+          strn: string | null
+          supplier_code: string | null
+          supplier_status: string | null
+          tax_registration: string | null
+          tenant_id: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          area?: string | null
+          bank_account?: string | null
+          bank_name?: string | null
+          business_name?: string | null
+          city?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          errors?: Json | null
+          id?: string
+          import_batch_id?: string | null
+          migration_batch_id?: string | null
+          mobile?: string | null
+          notes?: string | null
+          ntn?: string | null
+          old_erp_id?: string | null
+          opening_balance?: number | null
+          payment_terms_days?: number | null
+          phone?: string | null
+          postal_code?: string | null
+          province?: string | null
+          raw?: Json | null
+          row_number?: number | null
+          status?: string
+          strn?: string | null
+          supplier_code?: string | null
+          supplier_status?: string | null
+          tax_registration?: string | null
+          tenant_id?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          area?: string | null
+          bank_account?: string | null
+          bank_name?: string | null
+          business_name?: string | null
+          city?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          errors?: Json | null
+          id?: string
+          import_batch_id?: string | null
+          migration_batch_id?: string | null
+          mobile?: string | null
+          notes?: string | null
+          ntn?: string | null
+          old_erp_id?: string | null
+          opening_balance?: number | null
+          payment_terms_days?: number | null
+          phone?: string | null
+          postal_code?: string | null
+          province?: string | null
+          raw?: Json | null
+          row_number?: number | null
+          status?: string
+          strn?: string | null
+          supplier_code?: string | null
+          supplier_status?: string | null
+          tax_registration?: string | null
+          tenant_id?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_staging_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_staging_migration_batch_id_fkey"
+            columns: ["migration_batch_id"]
+            isOneToOne: false
+            referencedRelation: "migration_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_staging_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           address: string | null
           area: string | null
           balance: number
+          bank_account: string | null
+          bank_name: string | null
           city: string | null
           company: string | null
+          contact_person: string | null
+          country: string | null
           created_at: string
           email: string | null
           id: string
@@ -3747,21 +4578,31 @@ export type Database = {
           notes: string | null
           ntn: string | null
           old_erp_account_code: string | null
+          old_erp_id: string | null
           opening_balance: number
           payment_terms_days: number
           phone: string | null
           phones: Json
+          postal_code: string | null
+          province: string | null
+          status: string | null
           strn: string | null
           supplier_code: string | null
+          tax_registration: string | null
           tenant_id: string | null
+          whatsapp: string | null
           wht_rate: number
         }
         Insert: {
           address?: string | null
           area?: string | null
           balance?: number
+          bank_account?: string | null
+          bank_name?: string | null
           city?: string | null
           company?: string | null
+          contact_person?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -3773,21 +4614,31 @@ export type Database = {
           notes?: string | null
           ntn?: string | null
           old_erp_account_code?: string | null
+          old_erp_id?: string | null
           opening_balance?: number
           payment_terms_days?: number
           phone?: string | null
           phones?: Json
+          postal_code?: string | null
+          province?: string | null
+          status?: string | null
           strn?: string | null
           supplier_code?: string | null
+          tax_registration?: string | null
           tenant_id?: string | null
+          whatsapp?: string | null
           wht_rate?: number
         }
         Update: {
           address?: string | null
           area?: string | null
           balance?: number
+          bank_account?: string | null
+          bank_name?: string | null
           city?: string | null
           company?: string | null
+          contact_person?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -3799,13 +4650,19 @@ export type Database = {
           notes?: string | null
           ntn?: string | null
           old_erp_account_code?: string | null
+          old_erp_id?: string | null
           opening_balance?: number
           payment_terms_days?: number
           phone?: string | null
           phones?: Json
+          postal_code?: string | null
+          province?: string | null
+          status?: string | null
           strn?: string | null
           supplier_code?: string | null
+          tax_registration?: string | null
           tenant_id?: string | null
+          whatsapp?: string | null
           wht_rate?: number
         }
         Relationships: [
@@ -4182,6 +5039,7 @@ export type Database = {
       }
       is_agent_customer: { Args: { p_customer_id: string }; Returns: boolean }
       is_authenticated: { Args: never; Returns: boolean }
+      migration_pre_snapshot: { Args: never; Returns: Json }
       preview_wipe_counts: { Args: never; Returns: Json }
       recalc_customer_invoice_status: {
         Args: { p_customer_id: string }
@@ -4212,6 +5070,10 @@ export type Database = {
       refresh_trial_balance: { Args: never; Returns: undefined }
       rollback_import_batch: {
         Args: { p_batch_id: string; p_reason: string }
+        Returns: Json
+      }
+      rollback_migration_batch: {
+        Args: { p_migration_id: string; p_reason: string }
         Returns: Json
       }
       run_reconciliation: {
