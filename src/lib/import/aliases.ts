@@ -105,7 +105,7 @@ const ALIASES: Record<string, string> = {
   // legacy ids
   "old erp id": "old_erp_id", "legacy id": "old_erp_id", "erp id": "old_erp_id",
   // accounting
-  "account type": "account_type", "account": "code",
+  "account code": "code", "account type": "account_type", "account": "code",
   "bank": "bank_name", "bank name": "bank_name", "account number": "account_number",
   "bank account": "bank_account", "bank a/c": "bank_account", "bank ac": "bank_account",
   "branch": "branch",
