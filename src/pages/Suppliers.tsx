@@ -206,7 +206,7 @@ export default function Suppliers() {
  </div>
  <div>
  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Total</p>
- <p className="text-lg font-bold font-mono tabular-nums text-foreground">{suppliers.length}</p>
+ <p className="text-lg font-bold font-mono tabular-nums text-foreground">{summary.total}</p>
  </div>
  </div>
  <div className="summary-card p-4 flex items-center gap-3">
