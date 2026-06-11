@@ -233,7 +233,7 @@ export default function Suppliers() {
  </div>
  <div>
  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Avg Terms</p>
- <p className="text-lg font-bold font-mono tabular-nums text-foreground">{suppliers.length > 0 ? Math.round(suppliers.reduce((s, sup) => s + sup.payment_terms_days, 0) / suppliers.length) : 0}d</p>
+ <p className="text-lg font-bold font-mono tabular-nums text-foreground">{summary.avg_terms}d</p>
  </div>
  </div>
  </div>
