@@ -1,113 +1,111 @@
-# Plan — Courier Expense Accounts + Net Price / MRP Split
+## Goal
 
-Two independent changes. Both are additive — no existing records or ledger postings are touched.
+Redesign every transactional document (Sales Order/Proforma, Sales Invoice, Delivery Note, Sales Return, Purchase Order, Purchase Invoice, GRN, Warranty) so it looks like a premium pharma distributor invoice (Unilever/Nestlé distributor style) — fully readable on A4 print, PDF download, mobile, and WhatsApp screenshot.
 
----
-
-## Part A — Courier / Freight Expense Accounts
-
-### Goal
-Track transport expenses against specific couriers (NCCS, ADDA, and any future ones the user adds), with a per-courier ledger and a monthly payment report.
-
-### Data model
-The `freight_providers` table already exists (currently only used for dispatch labels on delivery notes). I will reuse it as the master "Courier" list — no new table needed.
-
-Migration:
-- Add `expenses.freight_provider_id uuid` (nullable, FK → `freight_providers.id`, ON DELETE SET NULL, index on `(tenant_id, freight_provider_id, date)`).
-- Seed `NCCS` and `ADDA` rows into `freight_providers` for the current tenant (idempotent — skipped if already present).
-
-No change to `category` enum — couriers stay under the existing `transport` category, but the new FK pins the expense to a specific courier so the ledger and report can group on it.
-
-### UI changes
-1. **Expenses page (`src/pages/Expenses.tsx`)**
-   - When `category = 'transport'`, show a **Courier** dropdown (lists active `freight_providers` + inline "Add new courier" that writes to the same table). Saved into the new `freight_provider_id` column.
-   - Add a "Courier" filter chip beside the existing category filter.
-   - Show the courier name in the expense list/table when present.
-
-2. **Settings → Couriers card (`FreightProvidersCard.tsx`)**
-   - Already supports add/disable/delete. Add a short helper line: "Used for both dispatch labels and courier expense tracking." No structural change.
-
-3. **New report — `src/pages/reports/CourierExpenses.tsx`**
-   - Route: `/reports/courier-expenses`, added under Reports hub.
-   - Filters: date range (defaults to current FY), courier multi-select.
-   - Table: month × courier matrix of paid amounts + grand totals row/column.
-   - Drill-down: click a cell → opens dialog with the underlying expenses (date, expense #, description, amount, payment method).
-   - Uses `ReportToolbar` for Excel/CSV/Print/Copy (per project rule). Excludes voided rows per the posted-only rule.
-
-4. **Courier ledger (per-courier statement)**
-   - Add a "View Ledger" action on each row in `FreightProvidersCard`.
-   - Opens a dialog (or `/reports/courier-expenses?provider=<id>`) showing a chronological list of all expenses tagged to that courier with running total.
-
-### RLS / RBAC
-- `freight_providers` already has master read/write policies — no change.
-- New `expenses.freight_provider_id` is just a column on `expenses`; existing expense RLS (accounting role, sa_deny) already covers it.
+All work is centralized in `src/lib/pdf-generator.ts` + callers. No DB changes.
 
 ---
 
-## Part B — Net Price (ledger) + MRP (display-only) on Products
+## 1. Extend `PdfOptions` (backward compatible — all new fields optional)
 
-### Current state
-- `products.selling_price` (numeric, NOT NULL) — currently labelled "MRP" in the UI, used everywhere as the sales rate (hits all ledgers, taxes, COGS, GP).
-- `products.mrp` (numeric, NOT NULL, default 0) — column already exists, partly read in `ProformaInvoices.tsx` as a "catalog MRP" hint but mostly unused. Never the basis for any calculation.
+New party fields:
+- `partyCode` (Customer/Supplier code e.g. `CUS-0042`)
+- `partyMobile` (separate from phone, shown prominently)
+- `partyCity`
+- `partyAccountCode` (chart-of-accounts code)
 
-### Decision (matches the user's spec)
-- Rename UI label `selling_price` → **"Net Price"**. This stays the source of truth for every calculation, invoice total, tax, COGS, payment, ledger posting, and report. No DB column rename (would break too much code); rename is **label-only**.
-- Treat `products.mrp` as the true **Market Retail Price** — informational, printed on invoices, never used in math. Backfill: for tenants where `mrp = 0`, leave it at 0 and let the user fill it in (no automatic copy from `selling_price`, because the user said current values are net prices, not MRPs).
+New document fields (rendered in meta strip):
+- `salesAgentName`, `salesAgentMobile`
+- `validity` (e.g. "Valid for 7 days")
+- `paymentTerms` (e.g. "Net 30", "Cash on Delivery")
+- `deliveryStatus` (e.g. "Pending", "Dispatched")
 
-### UI changes
-1. **Products page (`src/pages/Products.tsx`)**
-   - Form: change "MRP (PKR) *" label → **"Net Price (PKR) *"** (still writes to `selling_price`). Add a second field **"MRP (PKR)"** that writes to `products.mrp` (optional, defaults 0, helper text: "Market retail price — printed on invoices only, not used in any calculation").
-   - Table headers: `Cost | Net Price | MRP` (three columns; MRP shows "—" when 0).
-   - Import templates: add `mrp` as an optional column.
+New table column key support: `product_code`, `tax`, `line_total` (aliases added to `KEY_ALIASES`).
 
-2. **Quick-create dialog (`QuickCreateProductDialog.tsx`)**
-   - Same relabel + add optional MRP field.
+`totals` extended to recognize a `previous_balance` row label and a `grand_total` flag for hero styling.
 
-3. **Proforma / Sales Invoice / Delivery Note line editors**
-   - Rate input keeps writing to `selling_price`-derived `rate`. Relabel header "Rate" tooltip → "Net Price". The "Above MRP" warning continues to compare `rate` against `products.mrp` (or against `selling_price` when MRP is 0, as a safe fallback).
-   - In editor rows the existing "Catalog MRP" hint becomes authoritative — reads `products.mrp` only (no fallback to `selling_price` when MRP is set).
+## 2. New A4 layout (premium pharma)
 
-4. **Printed documents (PDFs)**
-   - Proforma / Sales Invoice / Warranty Invoice / Delivery Note PDFs already have an "MRP" column — switch its source to `products.mrp` only. When `mrp = 0` it prints "—" (so legacy products without an MRP entered don't show a misleading net price as MRP).
-   - Add a small footer note on the invoice template: "MRP shown for reference only. All amounts billed at Net Price."
+Replace `buildPdfHtml` with three composable sections:
 
-### Calculations / ledger — explicitly UNCHANGED
-- Sales invoice line `rate`, `amount`, GST, WHT, customer balance, COGS, GP, P&L, receivables, stock value — all continue to use `selling_price` (now relabelled Net Price). No trigger, RPC, or report SQL is modified.
-- `products.mrp` does not appear in any aggregate, ledger, or report query.
+**Header band** — full-width dark gradient strip:
+- Logo: `max-height:200px; max-width:340px` (≈250% bigger).
+- Company name 26px bold, tagline 12px italic muted, then a compact 2-column block: address/city · phone/mobile · email/website · NTN/STRN.
+- White-on-dark for instant premium feel; reverses cleanly on print.
 
-### Migration
-- No schema change required for Part B (`products.mrp` already exists). Single tiny migration ensures the column default stays `0` and adds a comment: `COMMENT ON COLUMN products.mrp IS 'Market retail price — display only, never used in calculations'`.
+**Document title bar** — solid accent band with title left, document # right (mono), date below — no more centered "framed" box.
 
----
+**Two-card party block** (side-by-side):
+- Left "BILL TO" card with thick accent left border, displays ALL of: name (16px bold), code chip, mobile (📱 large), phone, city · area, full address, account code (mono, small).
+- Right "DOCUMENT INFO" card: Doc#, Date, Sales Agent (+ mobile), Validity, Payment Terms, Delivery Status — label/value rows with subtle dividers.
 
-## Files touched
+**Items table** — taller rows, larger fonts:
+- Header 14px, body 14px, line-height 1.5, row padding 12px.
+- Columns sized so Product Name flexes (`width:auto`) and never truncates (`white-space:normal; word-break:break-word`).
+- Numeric cells right-aligned, tabular-nums, mono for codes/batches.
+- Zebra rows + bold subtotal row.
 
-**Migration (single approval)**
-- Add `expenses.freight_provider_id` + index, seed NCCS/ADDA, add MRP column comment.
+**Totals summary card** — premium right-aligned panel (max-width 360px):
+- Subtotal, Discount, Tax, Previous Balance: 14px rows.
+- **GRAND TOTAL**: separate dark hero block, label 12px uppercase, amount **32px** bold tabular-nums, accent underline.
+- Amount-in-words directly under the card, italic, full width.
 
-**Code**
-- `src/pages/Expenses.tsx` — courier dropdown, filter, list column.
-- `src/components/settings/FreightProvidersCard.tsx` — helper line + "View Ledger" button.
-- `src/pages/reports/CourierExpenses.tsx` *(new)* — monthly matrix + drill-down + export toolbar.
-- `src/pages/Reports.tsx` — link the new report under "Operations / Expenses".
-- `src/App.tsx` — route `/reports/courier-expenses` (gated by `reports:read`).
-- `src/pages/Products.tsx` + `src/components/QuickCreateProductDialog.tsx` — relabel + add MRP input + table column.
-- `src/pages/ProformaInvoices.tsx` (and the equivalent sales-invoice / delivery-note line editors) — MRP source = `products.mrp` only; footer note.
-- `src/lib/pdf-generator.ts` (or template files under `useDocumentTemplates`) — print MRP from `products.mrp`, footer note.
+**Footer**: sales agent strip (name + mobile, left) | signatures (right) | bank details + certification text below.
 
-**Out of scope** (will not change unless you ask)
-- Renaming the `selling_price` DB column.
-- Posting MRP to any ledger or report.
-- Auto-populating `mrp` from `selling_price`.
-- Per-courier accounts in `chart_of_accounts` (we use `freight_providers` + `expenses.freight_provider_id` for grouping — simpler and matches how the rest of the app does master-data grouping).
+## 3. New WhatsApp/mobile portrait layout
 
----
+Add a second template selectable via `PdfPreviewDialog` views (it already supports a `views` array). Key: `whatsapp`, label "WhatsApp", color accent green.
 
-## Acceptance checklist
-1. Settings → Couriers shows NCCS + ADDA; new couriers can be added.
-2. Recording a transport expense lets you pick a courier; the expense saves with `freight_provider_id`.
-3. `/reports/courier-expenses` shows month-wise totals per courier, exports to Excel/CSV, drills down to source expenses.
-4. "View Ledger" on a courier opens its chronological statement.
-5. Product form has separate **Net Price** and **MRP** fields; product list shows three columns (Cost / Net Price / MRP).
-6. Sales invoice, proforma, delivery note PDFs print MRP from `products.mrp` only (blank when not set); all totals/taxes/ledger postings remain identical to today.
-7. Voided expenses are excluded from the courier report (posted-only rule).
+- Fixed 720×1280 portrait canvas, 28px padding, single column.
+- Logo 180px tall, centered.
+- Company name 24px, doc title 20px badge.
+- "BILL TO" hero block: customer name 28px, mobile 22px, city 16px, address 14px.
+- Items as compact stacked cards (not a table): product name 16px bold + qty × rate on row 2, line total right-aligned — no horizontal scroll on phones.
+- **Grand total hero**: full-width dark card, amount **40px** bold, label above, amount-in-words below in 12px.
+- Sales agent + WhatsApp/phone CTA at bottom.
+- Minimal whitespace, dense and screenshot-friendly.
+
+Implementation: extract `renderA4(opts)` and `renderWhatsApp(opts)` as separate functions inside `pdf-generator.ts`. Export both:
+
+```ts
+generatePdfHtml(opts)              // unchanged — returns A4 (default)
+generateWhatsAppHtml(opts)         // new — returns portrait
+generateDocumentViews(opts)        // new — returns PdfView[] for PdfPreviewDialog
+```
+
+## 4. Wire callers to show both views
+
+Update every page that opens `PdfPreviewDialog` for a document to pass `views={generateDocumentViews(opts)}`:
+
+- `ProformaInvoices.tsx` (Sales Order/Proforma + Sales Invoice + Sales Return preview)
+- `DeliveryNotes.tsx`
+- `PurchaseProforma.tsx` (Purchase Order + Purchase Invoice + GRN)
+- `WarrantyInvoices.tsx`
+- `PrintJobs.tsx`
+
+Each caller also passes the new `partyCode`, `partyMobile`, `partyCity`, `salesAgentName`, `salesAgentMobile`, `paymentTerms`, `validity`, `deliveryStatus` it already has in scope (selected from customers/suppliers/sales_agents joins that already exist on these pages).
+
+## 5. Print CSS
+
+- `@page { size:A4; margin:12mm 10mm }`
+- `thead { display:table-header-group }` so headers repeat on every printed page.
+- Avoid `tr` page breaks (`page-break-inside:avoid`).
+- WhatsApp template hidden in print media query (`@media print { .wa-frame { display:none } }`) and vice-versa.
+
+## Out of scope
+
+- Database schema changes.
+- Renaming any existing column keys (kept via aliases).
+- Editing `PdfPreviewDialog.tsx` (already supports multi-view).
+- Touching report PDFs (only transactional documents).
+
+## Acceptance
+
+- Logo ~2.5× larger on A4 header.
+- Customer name, code, mobile, phone, city, area, address, account code all visible on every doc.
+- Product names wrap, never truncate; rows ≥ 14px font.
+- Grand total ≥ 32px on A4, ≥ 40px on WhatsApp.
+- Amount-in-words present on every financial doc.
+- Sales agent name + mobile visible.
+- `PdfPreviewDialog` shows two pills: **A4 Print** / **WhatsApp** for all six target documents.
+- Prints cleanly on a single A4 page for typical 10-line invoices, with header repeating on overflow.
