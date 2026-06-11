@@ -44,7 +44,17 @@ export default function SalesAgents() {
   const [commType, setCommType] = useState("percentage");
   const [commRate, setCommRate] = useState("");
   const [agentStatus, setAgentStatus] = useState("active");
+  const [linkedUserId, setLinkedUserId] = useState<string>("");
+  const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { tenantId } = useTenant();
+
+  // Invite-new-agent flow
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePassword, setInvitePassword] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteBusy, setInviteBusy] = useState(false);
 
   // Allocation form
   const [allocAgent, setAllocAgent] = useState("");
