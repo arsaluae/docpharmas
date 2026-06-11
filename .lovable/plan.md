@@ -1,111 +1,83 @@
 ## Goal
 
-Redesign every transactional document (Sales Order/Proforma, Sales Invoice, Delivery Note, Sales Return, Purchase Order, Purchase Invoice, GRN, Warranty) so it looks like a premium pharma distributor invoice (Unilever/Nestlé distributor style) — fully readable on A4 print, PDF download, mobile, and WhatsApp screenshot.
+Roll back the recent premium/WhatsApp redesign of document templates and restore the **original classic layout** (left logo, right company details, centered title, left doc info, right customer card, product table, bottom-right totals, amount-in-words, footer). Then apply a **light visual polish only** — bigger logo, bigger fonts, customer phone, cleaner spacing — without changing the structure.
 
-All work is centralized in `src/lib/pdf-generator.ts` + callers. No DB changes.
+All work happens in `src/lib/pdf-generator.ts`. Callers are not touched.
 
 ---
 
-## 1. Extend `PdfOptions` (backward compatible — all new fields optional)
+## 1. `src/lib/pdf-generator.ts` — restore classic layout
 
-New party fields:
-- `partyCode` (Customer/Supplier code e.g. `CUS-0042`)
-- `partyMobile` (separate from phone, shown prominently)
-- `partyCity`
-- `partyAccountCode` (chart-of-accounts code)
+Replace the current A4 renderer with the original layout but tuned to the new font/size spec:
 
-New document fields (rendered in meta strip):
-- `salesAgentName`, `salesAgentMobile`
-- `validity` (e.g. "Valid for 7 days")
-- `paymentTerms` (e.g. "Net 30", "Cash on Delivery")
-- `deliveryStatus` (e.g. "Pending", "Dispatched")
+**Header (unchanged structure)**
+- Two-column row: logo left, company block right.
+- Logo: `max-height: 110px; max-width: 220px` (was ~80px → larger, but not the 200px hero size from the redesign).
+- Company name: **22px bold**, tagline 12px italic, then address / phone / email / NTN-STRN in 12px.
 
-New table column key support: `product_code`, `tax`, `line_total` (aliases added to `KEY_ALIASES`).
+**Document title bar**
+- Centered title **24px bold uppercase**, thin underline accent.
+- Doc number + date shown directly under, 13px muted.
 
-`totals` extended to recognize a `previous_balance` row label and a `grand_total` flag for hero styling.
+**Two-column meta row**
+- Left: "Document Info" plain list — Doc#, Date, Sales Agent, Validity, Payment Terms, Delivery Status. Label/value rows at **15px**.
+- Right: "Bill To" / "Ship To" card with thin border and subtle header. Inside:
+  - Customer name **18px bold**
+  - Mobile / Phone **14px** (📞 prefix; render even when only one is set; never hidden)
+  - City · Area **14px**
+  - Full address **14px**
+  - Optional code / NTN / license / CNIC **12px** muted
+- Card sizing kept similar to original (no thick coloured left bar, no dark hero).
 
-## 2. New A4 layout (premium pharma)
+**Items table**
+- Same column set as before (driven by template).
+- Header row: **14px**, uppercase, semi-bold, light grey background (`#f1f2f4`), 1px bottom border.
+- Body rows: **15px**, row padding `10px 8px`, zebra (`#fafbfc`), `border-bottom: 1px solid #e6e8eb`.
+- Product Name column: `width:auto; white-space:normal; word-break:break-word` so names wrap and never truncate.
+- Numeric columns: right-aligned, `font-variant-numeric: tabular-nums`.
 
-Replace `buildPdfHtml` with three composable sections:
+**Totals box (bottom-right, original position)**
+- Width ~320px, right-aligned, 1px border, no gradient.
+- Rows (Subtotal/Discount/Tax/Previous Balance): 14px label / 15px value.
+- Grand Total row: separator above, label uppercase 13px, **amount 24px bold**, `PKR` prefix kept visible, tabular-nums.
 
-**Header band** — full-width dark gradient strip:
-- Logo: `max-height:200px; max-width:340px` (≈250% bigger).
-- Company name 26px bold, tagline 12px italic muted, then a compact 2-column block: address/city · phone/mobile · email/website · NTN/STRN.
-- White-on-dark for instant premium feel; reverses cleanly on print.
+**Amount in words**
+- Directly under totals, full-width, **15px italic**, label "Amount in words:" 13px muted.
 
-**Document title bar** — solid accent band with title left, document # right (mono), date below — no more centered "framed" box.
+**Footer**
+- Signature labels row (same as before), bank details line, optional notes/certification.
+- Sales agent name + mobile printed as a small left-side line above signatures.
 
-**Two-card party block** (side-by-side):
-- Left "BILL TO" card with thick accent left border, displays ALL of: name (16px bold), code chip, mobile (📱 large), phone, city · area, full address, account code (mono, small).
-- Right "DOCUMENT INFO" card: Doc#, Date, Sales Agent (+ mobile), Validity, Payment Terms, Delivery Status — label/value rows with subtle dividers.
+**Spacing/print**
+- `@page { size:A4; margin:12mm 12mm }`
+- Page frame padding tightened to reduce empty space (`24px 28px`).
+- `thead { display: table-header-group }`; `tr { page-break-inside: avoid }`.
 
-**Items table** — taller rows, larger fonts:
-- Header 14px, body 14px, line-height 1.5, row padding 12px.
-- Columns sized so Product Name flexes (`width:auto`) and never truncates (`white-space:normal; word-break:break-word`).
-- Numeric cells right-aligned, tabular-nums, mono for codes/batches.
-- Zebra rows + bold subtotal row.
+## 2. Remove WhatsApp template
 
-**Totals summary card** — premium right-aligned panel (max-width 360px):
-- Subtotal, Discount, Tax, Previous Balance: 14px rows.
-- **GRAND TOTAL**: separate dark hero block, label 12px uppercase, amount **32px** bold tabular-nums, accent underline.
-- Amount-in-words directly under the card, italic, full width.
+- Delete `generateWhatsAppHtml` body and its branding/styles.
+- Keep the export name for backward compatibility but have it return the same polished A4 HTML (so existing imports keep compiling).
+- Change `generateDocumentViews(opts)` to return a single-view array: `[{ key:"a4", label:"A4 Print", color:"bg-foreground text-background border-foreground", html: generatePdfHtml(opts) }]`. With one view, `PdfPreviewDialog` automatically hides the switcher pills.
 
-**Footer**: sales agent strip (name + mobile, left) | signatures (right) | bank details + certification text below.
+## 3. Callers — no logic changes
 
-## 3. New WhatsApp/mobile portrait layout
+`ProformaInvoices.tsx`, `DeliveryNotes.tsx`, `PurchaseProforma.tsx`, `WarrantyInvoices.tsx`, `PrintJobs.tsx` continue to call `generateDocumentViews(opts)` and pass `views` to `PdfPreviewDialog`. Because there's only one view now, the user sees the polished classic A4 directly with no pill switcher and no WhatsApp tab.
 
-Add a second template selectable via `PdfPreviewDialog` views (it already supports a `views` array). Key: `whatsapp`, label "WhatsApp", color accent green.
-
-- Fixed 720×1280 portrait canvas, 28px padding, single column.
-- Logo 180px tall, centered.
-- Company name 24px, doc title 20px badge.
-- "BILL TO" hero block: customer name 28px, mobile 22px, city 16px, address 14px.
-- Items as compact stacked cards (not a table): product name 16px bold + qty × rate on row 2, line total right-aligned — no horizontal scroll on phones.
-- **Grand total hero**: full-width dark card, amount **40px** bold, label above, amount-in-words below in 12px.
-- Sales agent + WhatsApp/phone CTA at bottom.
-- Minimal whitespace, dense and screenshot-friendly.
-
-Implementation: extract `renderA4(opts)` and `renderWhatsApp(opts)` as separate functions inside `pdf-generator.ts`. Export both:
-
-```ts
-generatePdfHtml(opts)              // unchanged — returns A4 (default)
-generateWhatsAppHtml(opts)         // new — returns portrait
-generateDocumentViews(opts)        // new — returns PdfView[] for PdfPreviewDialog
-```
-
-## 4. Wire callers to show both views
-
-Update every page that opens `PdfPreviewDialog` for a document to pass `views={generateDocumentViews(opts)}`:
-
-- `ProformaInvoices.tsx` (Sales Order/Proforma + Sales Invoice + Sales Return preview)
-- `DeliveryNotes.tsx`
-- `PurchaseProforma.tsx` (Purchase Order + Purchase Invoice + GRN)
-- `WarrantyInvoices.tsx`
-- `PrintJobs.tsx`
-
-Each caller also passes the new `partyCode`, `partyMobile`, `partyCity`, `salesAgentName`, `salesAgentMobile`, `paymentTerms`, `validity`, `deliveryStatus` it already has in scope (selected from customers/suppliers/sales_agents joins that already exist on these pages).
-
-## 5. Print CSS
-
-- `@page { size:A4; margin:12mm 10mm }`
-- `thead { display:table-header-group }` so headers repeat on every printed page.
-- Avoid `tr` page breaks (`page-break-inside:avoid`).
-- WhatsApp template hidden in print media query (`@media print { .wa-frame { display:none } }`) and vice-versa.
+The WhatsApp side-by-side build inside `ProformaInvoices.tsx` (lines 465–467) that pulls the `whatsapp` view will be repointed to the single A4 view (`.find(v => v.key === "a4")`) so combined SO+SI+DN previews still work.
 
 ## Out of scope
 
-- Database schema changes.
-- Renaming any existing column keys (kept via aliases).
-- Editing `PdfPreviewDialog.tsx` (already supports multi-view).
-- Touching report PDFs (only transactional documents).
+- Database / schema changes.
+- Renaming any `PdfOptions` fields (all current optional fields remain; unused ones simply don't render).
+- Editing `PdfPreviewDialog.tsx`.
+- Any new mobile-only template (explicitly rejected this round).
 
 ## Acceptance
 
-- Logo ~2.5× larger on A4 header.
-- Customer name, code, mobile, phone, city, area, address, account code all visible on every doc.
-- Product names wrap, never truncate; rows ≥ 14px font.
-- Grand total ≥ 32px on A4, ≥ 40px on WhatsApp.
-- Amount-in-words present on every financial doc.
-- Sales agent name + mobile visible.
-- `PdfPreviewDialog` shows two pills: **A4 Print** / **WhatsApp** for all six target documents.
-- Prints cleanly on a single A4 page for typical 10-line invoices, with header repeating on overflow.
+- Layout matches the original: logo top-left, company top-right, title centered, doc info left, customer card right, table, bottom-right total box, amount-in-words, footer.
+- Logo visibly larger than the pre-redesign version (110px tall) but not the dark-band hero from the redesign.
+- Fonts match the requested sizes (company 22, title 24, customer 18, details 14, doc info 15, table header 14, table rows 15, total 24, words 15).
+- Customer mobile/phone, city, area, and full address always visible.
+- Product names wrap fully.
+- Grand total prominent with `PKR` and 24px bold number.
+- Prints cleanly on A4; preview shows a single template (no WhatsApp pill).
