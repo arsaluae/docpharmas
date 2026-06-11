@@ -40,6 +40,10 @@ export default function Suppliers() {
  const { settings } = useCompanySettings();
  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
  const [search, setSearch] = useState("");
+ const [debouncedSearch, setDebouncedSearch] = useState("");
+ const [cityFilter, setCityFilter] = useState<string>("all");
+ const [cities, setCities] = useState<string[]>([]);
+ const [summary, setSummary] = useState({ total: 0, payables: 0, with_balance: 0, avg_terms: 0 });
  const pagination = usePagination();
  const [form, setForm] = useState(emptyForm);
  const [open, setOpen] = useState(false);
@@ -50,11 +54,32 @@ export default function Suppliers() {
  const [profileSupplier, setProfileSupplier] = useState<Supplier | null>(null);
  const [showInactive, setShowInactive] = useState(false);
 
- useEffect(() => { loadSuppliers(); }, [pagination.page, showInactive]);
+ useEffect(() => {
+  const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+  return () => clearTimeout(t);
+ }, [search]);
+
+ useEffect(() => { loadSuppliers(); }, [pagination.page, showInactive, cityFilter, debouncedSearch]);
+ useEffect(() => { loadAux(); }, []);
+ useEffect(() => { pagination.setPage(0); }, [cityFilter, debouncedSearch, showInactive]);
+
+ const loadAux = async () => {
+  const [{ data: sum }, { data: cityList }] = await Promise.all([
+   supabase.rpc("suppliers_summary" as any),
+   supabase.rpc("suppliers_cities" as any),
+  ]);
+  if (sum) setSummary(sum as any);
+  if (cityList) setCities(cityList as string[]);
+ };
 
  const loadSuppliers = async () => {
  let q = supabase.from("suppliers").select("*", { count: "exact" }).order("created_at", { ascending: false });
  if (!showInactive) q = q.eq("is_active", true);
+ if (cityFilter !== "all") q = q.eq("city", cityFilter);
+ if (debouncedSearch) {
+  const s = debouncedSearch.replace(/[%,()]/g, "");
+  q = q.or(`name.ilike.%${s}%,company.ilike.%${s}%,supplier_code.ilike.%${s}%,city.ilike.%${s}%`);
+ }
  const { data, count } = await q.range(pagination.from, pagination.to);
  if (data) setSuppliers(data as any);
  if (count !== null) pagination.setTotalCount(count);
