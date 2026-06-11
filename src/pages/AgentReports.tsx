@@ -32,7 +32,7 @@ export default function AgentReports() {
         .eq("type", "received").eq("party_type", "customer").gte("date", from).lte("date", to).order("date", { ascending: false }),
       supabase.from("customers").select("id, name, balance, phone, city"),
       supabase.from("delivery_notes").select("id, dn_number, date, customer_id, status").order("date", { ascending: false }).limit(100),
-      supabase.from("proforma_invoices").select("id, pi_number:invoice_number, date, total, status, customer_id, customers(name)")
+      supabase.from("proforma_invoices").select("id, proforma_number, date, total, status, customer_id, customers(name)")
         .neq("status", "voided").order("date", { ascending: false }).limit(100),
     ]);
     setInvoices(inv ?? []);
