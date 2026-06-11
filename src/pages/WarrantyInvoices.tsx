@@ -19,7 +19,7 @@ import { Plus, Search, ShieldCheck, Trash2, X, Download, ArrowRight, ChevronLeft
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { generatePdfHtml } from "@/lib/pdf-generator";
+import { generatePdfHtml, generateDocumentViews } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { AddDistributorDialog } from "@/components/AddDistributorDialog";
@@ -60,6 +60,7 @@ export default function WarrantyInvoices() {
  const [pdfHtml, setPdfHtml] = useState("");
  const [pdfOpen, setPdfOpen] = useState(false);
  const [pdfTitle, setPdfTitle] = useState("");
+ const [pdfOpts, setPdfOpts] = useState<any | null>(null);
  const { settings } = useCompanySettings();
  const { getTemplate } = useDocumentTemplates();
 
@@ -537,7 +538,7 @@ export default function WarrantyInvoices() {
  { header: "TP Rate", key: "tp_rate", align: "right" as const },
  { header: "Amount", key: "amount", align: "right" as const },
  ];
- const wiHtml = generatePdfHtml({
+ const __opts_wiHtml = ({
  title: "WARRANTY INVOICE", documentNumber: inv.warranty_number, date: inv.date,
  partyLabel: "Pharmacy / Distributor", partyName: inv.pharmacy_name,
  partyAddress: inv.pharmacy_address || undefined,
@@ -556,7 +557,9 @@ export default function WarrantyInvoices() {
  { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
  ],
  notes: inv.notes || undefined, settings, template,
- });
+ } as any);
+ const wiHtml = generatePdfHtml(__opts_wiHtml);
+ setPdfOpts(__opts_wiHtml);
  setPdfHtml(wiHtml); setPdfTitle(`Warranty Invoice — ${inv.warranty_number}`); setPdfOpen(true);
  }}>
  <Download className="h-3 w-3" /> PDF
@@ -582,7 +585,7 @@ export default function WarrantyInvoices() {
  { header: "TP Rate", key: "tp_rate", align: "right" as const },
  { header: "Amount", key: "amount", align: "right" as const },
  ];
- const html = generatePdfHtml({
+ const __opts_html = ({
  title: "WARRANTY INVOICE", documentNumber: inv.warranty_number, date: inv.date,
  partyLabel: "Pharmacy / Distributor", partyName: inv.pharmacy_name,
  columns: cols as any,
@@ -594,7 +597,9 @@ export default function WarrantyInvoices() {
  })),
  totals: [{ label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` }],
  settings, template,
- });
+ } as any);
+ const html = generatePdfHtml(__opts_html);
+ setPdfOpts(__opts_html);
  pdfLink = await uploadSharedDocument(html, inv.warranty_number) || undefined;
  } catch (e) { console.error("PDF link error:", e); }
  const message = buildWarrantyInvoiceMessage({

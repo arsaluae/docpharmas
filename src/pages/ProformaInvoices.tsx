@@ -22,7 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { GraceDeleteButton } from "@/components/GraceDeleteButton";
-import { generatePdfHtml } from "@/lib/pdf-generator";
+import { generatePdfHtml, generateDocumentViews } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -86,6 +86,7 @@ export default function ProformaInvoices() {
  const [pdfHtml, setPdfHtml] = useState("");
  const [pdfOpen, setPdfOpen] = useState(false);
  const [pdfTitle, setPdfTitle] = useState("");
+ const [pdfOpts, setPdfOpts] = useState<any | null>(null);
  const [pdfViews, setPdfViews] = useState<{ key: string; label: string; color: string; html: string; disabled?: boolean }[] | undefined>(undefined);
  const [pdfDefaultView, setPdfDefaultView] = useState<string | undefined>(undefined);
 
@@ -558,7 +559,7 @@ export default function ProformaInvoices() {
  let pdfLink: string | undefined;
  try {
  const { buildSalesInvoiceMessage, openWhatsApp, uploadSharedDocument } = await import("@/lib/whatsapp-share");
- const html = generatePdfHtml({
+ const __opts_html = ({
  title: "SALES INVOICE",
  documentNumber: order.invoice_number || order.proforma_number,
  date: order.date, partyLabel: "Customer", partyName: custName,
@@ -571,7 +572,9 @@ export default function ProformaInvoices() {
  rows: pfItems.map((i, idx) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString() })),
  totals: [{ label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` }],
  settings, template: getTemplate("sales_invoice"),
- });
+ } as any);
+ const html = generatePdfHtml(__opts_html);
+ setPdfOpts(__opts_html);
  pdfLink = await uploadSharedDocument(html, order.invoice_number || order.proforma_number) || undefined;
  } catch (e) { console.error("PDF link error:", e); }
 
