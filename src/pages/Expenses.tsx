@@ -438,6 +438,7 @@ export default function Expenses() {
                   <TableHead>Category</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Ledger</TableHead>
+                  <TableHead>Courier</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead>Date</TableHead>
                   {settings?.gst_enabled && <TableHead className="text-right">GST</TableHead>}
@@ -461,6 +462,7 @@ export default function Expenses() {
                     <TableCell className="capitalize">{formatCategory(e.category)}</TableCell>
                     <TableCell className="text-muted-foreground">{e.description || "—"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{e.ledger_id ? ledgerNameMap.get(e.ledger_id) || "—" : "—"}</TableCell>
+                    <TableCell className="text-xs">{e.freight_provider_id ? (couriers.find(c => c.id === e.freight_provider_id)?.name || "—") : <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell className="capitalize text-muted-foreground">{e.payment_method.replace("_", " ")}</TableCell>
                     <TableCell className="text-muted-foreground">{e.date}</TableCell>
                     {settings?.gst_enabled && <TableCell className="text-right text-muted-foreground font-mono">{Number(e.gst_amount).toLocaleString()}</TableCell>}
