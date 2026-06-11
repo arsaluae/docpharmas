@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Truck, BookOpen, Trash2, Upload, Store, Edit, Power } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -40,6 +41,10 @@ export default function Suppliers() {
  const { settings } = useCompanySettings();
  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
  const [search, setSearch] = useState("");
+ const [debouncedSearch, setDebouncedSearch] = useState("");
+ const [cityFilter, setCityFilter] = useState<string>("all");
+ const [cities, setCities] = useState<string[]>([]);
+ const [summary, setSummary] = useState({ total: 0, payables: 0, with_balance: 0, avg_terms: 0 });
  const pagination = usePagination();
  const [form, setForm] = useState(emptyForm);
  const [open, setOpen] = useState(false);
@@ -50,11 +55,32 @@ export default function Suppliers() {
  const [profileSupplier, setProfileSupplier] = useState<Supplier | null>(null);
  const [showInactive, setShowInactive] = useState(false);
 
- useEffect(() => { loadSuppliers(); }, [pagination.page, showInactive]);
+ useEffect(() => {
+  const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+  return () => clearTimeout(t);
+ }, [search]);
+
+ useEffect(() => { loadSuppliers(); }, [pagination.page, showInactive, cityFilter, debouncedSearch]);
+ useEffect(() => { loadAux(); }, []);
+ useEffect(() => { pagination.setPage(0); }, [cityFilter, debouncedSearch, showInactive]);
+
+ const loadAux = async () => {
+  const [{ data: sum }, { data: cityList }] = await Promise.all([
+   supabase.rpc("suppliers_summary" as any),
+   supabase.rpc("suppliers_cities" as any),
+  ]);
+  if (sum) setSummary(sum as any);
+  if (cityList) setCities(cityList as string[]);
+ };
 
  const loadSuppliers = async () => {
  let q = supabase.from("suppliers").select("*", { count: "exact" }).order("created_at", { ascending: false });
  if (!showInactive) q = q.eq("is_active", true);
+ if (cityFilter !== "all") q = q.eq("city", cityFilter);
+ if (debouncedSearch) {
+  const s = debouncedSearch.replace(/[%,()]/g, "");
+  q = q.or(`name.ilike.%${s}%,company.ilike.%${s}%,supplier_code.ilike.%${s}%,city.ilike.%${s}%`);
+ }
  const { data, count } = await q.range(pagination.from, pagination.to);
  if (data) setSuppliers(data as any);
  if (count !== null) pagination.setTotalCount(count);
@@ -136,9 +162,8 @@ export default function Suppliers() {
  else setSelectedIds(new Set(filtered.map(s => s.id)));
  };
 
- const filtered = suppliers.filter(s =>
- s.name.toLowerCase().includes(search.toLowerCase()) || (s.company || "").toLowerCase().includes(search.toLowerCase()) || (s.supplier_code || "").toLowerCase().includes(search.toLowerCase())
- );
+ const filtered = suppliers;
+
 
  const headerActions = (
  <>
@@ -169,8 +194,8 @@ export default function Suppliers() {
  </>
  );
 
- const totalBalance = suppliers.reduce((s, sup) => s + Number(sup.balance), 0);
- const totalPayable = suppliers.filter(s => Number(s.balance) > 0).length;
+ const totalBalance = Number(summary.payables) || 0;
+ const totalPayable = Number(summary.with_balance) || 0;
 
  return (
  <AppLayout title="Suppliers" subtitle="RM & packing material suppliers with WHT tracking" headerActions={headerActions}>
@@ -182,7 +207,7 @@ export default function Suppliers() {
  </div>
  <div>
  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Total</p>
- <p className="text-lg font-bold font-mono tabular-nums text-foreground">{suppliers.length}</p>
+ <p className="text-lg font-bold font-mono tabular-nums text-foreground">{summary.total}</p>
  </div>
  </div>
  <div className="summary-card p-4 flex items-center gap-3">
@@ -209,7 +234,7 @@ export default function Suppliers() {
  </div>
  <div>
  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Avg Terms</p>
- <p className="text-lg font-bold font-mono tabular-nums text-foreground">{suppliers.length > 0 ? Math.round(suppliers.reduce((s, sup) => s + sup.payment_terms_days, 0) / suppliers.length) : 0}d</p>
+ <p className="text-lg font-bold font-mono tabular-nums text-foreground">{summary.avg_terms}d</p>
  </div>
  </div>
  </div>
@@ -219,9 +244,17 @@ export default function Suppliers() {
  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
  <Input placeholder="Search suppliers..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
  </div>
+ <Select value={cityFilter} onValueChange={setCityFilter}>
+  <SelectTrigger className="w-[180px] h-9 text-xs"><SelectValue placeholder="All cities" /></SelectTrigger>
+  <SelectContent className="max-h-[300px]">
+   <SelectItem value="all">All cities</SelectItem>
+   {cities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+  </SelectContent>
+ </Select>
  <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
  <Switch checked={showInactive} onCheckedChange={setShowInactive} /> Show inactive
  </label>
+
  </div>
 
  {selectedIds.size > 0 && (

@@ -49,6 +49,10 @@ export default function Customers() {
  const navigate = useNavigate();
  const [customers, setCustomers] = useState<CustomerWithCode[]>([]);
  const [search, setSearch] = useState("");
+ const [debouncedSearch, setDebouncedSearch] = useState("");
+ const [cityFilter, setCityFilter] = useState<string>("all");
+ const [cities, setCities] = useState<string[]>([]);
+ const [summary, setSummary] = useState({ total: 0, receivables: 0, credit_limit: 0, over_limit: 0 });
  const pagination = usePagination();
  const [form, setForm] = useState(emptyForm);
  const [open, setOpen] = useState(false);
@@ -66,11 +70,32 @@ export default function Customers() {
  const [profileCustomer, setProfileCustomer] = useState<Customer | null>(null);
  const [showInactive, setShowInactive] = useState(false);
 
- useEffect(() => { loadCustomers(); }, [pagination.page, showInactive]);
+ useEffect(() => {
+  const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+  return () => clearTimeout(t);
+ }, [search]);
+
+ useEffect(() => { loadCustomers(); }, [pagination.page, showInactive, cityFilter, debouncedSearch]);
+ useEffect(() => { loadAux(); }, []);
+ useEffect(() => { pagination.setPage(0); }, [cityFilter, debouncedSearch, showInactive]);
+
+ const loadAux = async () => {
+  const [{ data: sum }, { data: cityList }] = await Promise.all([
+   supabase.rpc("customers_summary" as any),
+   supabase.rpc("customers_cities" as any),
+  ]);
+  if (sum) setSummary(sum as any);
+  if (cityList) setCities(cityList as string[]);
+ };
 
  const loadCustomers = async () => {
  let q = supabase.from("customers").select("*", { count: "exact" }).order("created_at", { ascending: false });
  if (!showInactive) q = q.eq("is_active", true);
+ if (cityFilter !== "all") q = q.eq("city", cityFilter);
+ if (debouncedSearch) {
+  const s = debouncedSearch.replace(/[%,()]/g, "");
+  q = q.or(`name.ilike.%${s}%,company.ilike.%${s}%,customer_code.ilike.%${s}%,city.ilike.%${s}%`);
+ }
  const { data, count } = await q.range(pagination.from, pagination.to);
  if (data) setCustomers(data);
  if (count !== null) pagination.setTotalCount(count);
@@ -186,11 +211,10 @@ export default function Customers() {
  setLicenses(data || []);
  };
 
- const filtered = customers.filter(c =>
- c.name.toLowerCase().includes(search.toLowerCase()) ||
- (c.company || "").toLowerCase().includes(search.toLowerCase()) ||
- (c.city || "").toLowerCase().includes(search.toLowerCase())
- );
+ const filtered = customers; // server-side filtering now
+
+ const refreshAfterChange = () => { loadCustomers(); loadAux(); };
+
 
  const headerActions = (
  <>
@@ -218,8 +242,9 @@ export default function Customers() {
  </>
  );
 
- const totalBalance = customers.reduce((s, c) => s + Number(c.balance), 0);
- const totalCreditLimit = customers.reduce((s, c) => s + Number(c.credit_limit), 0);
+ const totalBalance = Number(summary.receivables) || 0;
+ const totalCreditLimit = Number(summary.credit_limit) || 0;
+
 
  return (
  <AppLayout title="Customers" subtitle="Manage customer accounts, credit terms & ledgers" headerActions={headerActions}>
@@ -231,7 +256,7 @@ export default function Customers() {
  </div>
  <div>
  <p className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-bold">Total</p>
- <p className="text-lg font-bold font-mono tabular-nums text-foreground">{customers.length}</p>
+ <p className="text-lg font-bold font-mono tabular-nums text-foreground">{summary.total}</p>
  </div>
  </div>
  <div className="summary-card p-4 flex items-center gap-3">
@@ -258,7 +283,7 @@ export default function Customers() {
  </div>
  <div>
  <p className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-bold">Over Limit</p>
- <p className="text-lg font-bold font-mono tabular-nums text-foreground">{customers.filter(c => Number(c.balance) > Number(c.credit_limit) && Number(c.credit_limit) > 0).length}</p>
+ <p className="text-lg font-bold font-mono tabular-nums text-foreground">{summary.over_limit}</p>
  </div>
  </div>
  </div>
@@ -268,9 +293,17 @@ export default function Customers() {
  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
  <Input placeholder="Search customers..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
  </div>
+ <Select value={cityFilter} onValueChange={setCityFilter}>
+  <SelectTrigger className="w-[180px] h-9 text-xs"><SelectValue placeholder="All cities" /></SelectTrigger>
+  <SelectContent className="max-h-[300px]">
+   <SelectItem value="all">All cities</SelectItem>
+   {cities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+  </SelectContent>
+ </Select>
  <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
  <Switch checked={showInactive} onCheckedChange={setShowInactive} /> Show inactive
  </label>
+
  </div>
 
  {selectedIds.size > 0 && (

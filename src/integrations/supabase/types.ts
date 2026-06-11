@@ -5009,6 +5009,8 @@ export type Database = {
         Args: { p_action: string; p_resource: string }
         Returns: boolean
       }
+      customers_cities: { Args: never; Returns: string[] }
+      customers_summary: { Args: never; Returns: Json }
       dashboard_charts: {
         Args: {
           p_month_start: string
@@ -5035,6 +5037,10 @@ export type Database = {
       }
       generate_document_number: {
         Args: { p_document_type: string }
+        Returns: string
+      }
+      generate_document_number_for_tenant: {
+        Args: { p_document_type: string; p_tenant_id: string }
         Returns: string
       }
       get_user_tenant_id: { Args: never; Returns: string }
@@ -5149,6 +5155,8 @@ export type Database = {
           stored: number
         }[]
       }
+      suppliers_cities: { Args: never; Returns: string[] }
+      suppliers_summary: { Args: never; Returns: Json }
       table_resource: { Args: { p_table: string }; Returns: string }
       void_document: {
         Args: { p_id: string; p_reason: string; p_table: string }
