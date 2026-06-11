@@ -1205,56 +1205,64 @@ export default function ProformaInvoices() {
             <div className="hidden md:block rounded-lg border border-border overflow-hidden bg-card">
               <div className="overflow-x-auto">
                 <div className="min-w-[1000px]">
-                  <div className="grid grid-cols-[36px_minmax(280px,1fr)_90px_110px_90px_90px_90px_140px_44px] gap-2 px-3 py-2.5 bg-muted/50 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <div className="grid grid-cols-[32px_minmax(260px,1fr)_100px_80px_100px_80px_80px_140px_40px] gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
                     <div>#</div>
                     <div>Product</div>
+                    <div className="text-right">MRP</div>
                     <div className="text-right">Qty</div>
                     <div className="text-right">Rate</div>
                     <div className="text-right">Disc %</div>
                     {settings?.gst_enabled ? <div className="text-right">GST %</div> : <div />}
-                    <div className="text-right">Stock</div>
                     <div className="text-right">Line Total</div>
                     <div />
                   </div>
                   {items.length === 0 ? (
                     <div className="px-3 py-10 text-center text-[14px] text-muted-foreground">No items yet — click "Add Item" or press <kbd className="px-1.5 py-0.5 rounded border border-border text-[11px] font-mono">Alt + N</kbd></div>
-                  ) : items.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-[36px_minmax(280px,1fr)_90px_110px_90px_90px_90px_140px_44px] gap-2 px-3 py-2.5 items-center border-t border-border/60 hover:bg-muted/20">
+                  ) : items.map((item, idx) => {
+                    const catalogMrp = Number(products.find(p => p.id === item.product_id)?.mrp || products.find(p => p.id === item.product_id)?.selling_price || 0);
+                    const effectiveMrp = Number(item.mrp || catalogMrp || 0);
+                    const aboveMrp = effectiveMrp > 0 && Number(item.rate) > effectiveMrp;
+                    return (
+                    <div key={idx} className="grid grid-cols-[32px_minmax(260px,1fr)_100px_80px_100px_80px_80px_140px_40px] gap-2 px-3 py-2 items-center border-t border-border/60 hover:bg-muted/20">
                       <div className="text-[12px] font-mono text-muted-foreground">{idx + 1}</div>
                       <div className="min-w-0">
-                        <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Search by name, code, supplier…" triggerClassName="h-10 text-[14px]" />
+                        <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Search by name, code, supplier…" triggerClassName="h-9 text-[14px]" />
                         {item.last_price !== undefined && item.last_price !== null && (
                           <div className="text-[11px] text-success mt-0.5 ml-1">Last: PKR {Number(item.last_price).toLocaleString()}</div>
                         )}
                       </div>
                       <div>
-                        <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="h-10 text-right text-[15px] font-mono tabular-nums" placeholder="0" />
+                        <Input type="number" value={item.mrp ?? ""} onChange={e => updateItem(idx, "mrp", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder={catalogMrp ? String(catalogMrp) : "0"} />
                       </div>
                       <div>
-                        <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="h-10 text-right text-[15px] font-mono tabular-nums" placeholder="0.00" />
+                        <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="0" />
                       </div>
                       <div>
-                        <Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="h-10 text-right text-[15px] font-mono tabular-nums" placeholder="0" />
+                        <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className={`h-9 text-right text-[14px] font-mono tabular-nums ${aboveMrp ? "border-warning text-warning" : ""}`} placeholder="0.00" />
+                        {aboveMrp && <div className="text-[10px] text-warning mt-0.5 text-right">Above MRP</div>}
+                      </div>
+                      <div>
+                        <Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="0" />
                       </div>
                       {settings?.gst_enabled ? (
                         <div>
-                          <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="h-10 text-right text-[15px] font-mono tabular-nums" placeholder="17" />
+                          <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="17" />
                         </div>
                       ) : <div />}
-                      <div className="text-right text-[13px] text-muted-foreground font-mono tabular-nums">—</div>
-                      <div className="text-right text-[16px] font-mono font-semibold text-foreground tabular-nums">
+                      <div className="text-right text-[15px] font-mono font-semibold text-foreground tabular-nums">
                         {Number(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </div>
                       <div className="flex justify-end">
-                        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Remove">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Remove">
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
               </div>
             </div>
+
 
             {/* MOBILE CARDS */}
             <div className="md:hidden space-y-3">
