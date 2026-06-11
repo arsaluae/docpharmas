@@ -163,11 +163,14 @@ export default function SalesAgentDashboard() {
               <Button className="w-full justify-start gap-2" variant="outline" onClick={() => navigate("/proforma")}>
                 <FileText className="h-4 w-4" /> New Sales Order
               </Button>
-              <Button className="w-full justify-start gap-2" variant="outline" onClick={() => navigate("/customers")}>
-                <Users className="h-4 w-4" /> My Customers
+              <Button className="w-full justify-start gap-2" variant="outline" onClick={() => navigate("/collect-payment")}>
+                <Wallet className="h-4 w-4" /> Record Payment
               </Button>
-              <Button className="w-full justify-start gap-2" variant="outline" onClick={() => navigate("/warranty-invoices")}>
-                <Wallet className="h-4 w-4" /> Warranty Notes
+              <Button className="w-full justify-start gap-2" variant="outline" onClick={() => navigate("/stock-availability")}>
+                <Users className="h-4 w-4" /> Check Stock
+              </Button>
+              <Button className="w-full justify-start gap-2" variant="outline" onClick={() => navigate("/reports/agent")}>
+                <ArrowUpRight className="h-4 w-4" /> My Reports
               </Button>
             </div>
           </div>

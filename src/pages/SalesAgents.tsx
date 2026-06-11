@@ -11,17 +11,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Search, Trash2, Pencil, Users, UserPlus, BarChart3, Banknote, CheckCircle } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, Users, UserPlus, BarChart3, Banknote, CheckCircle, LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useTenant } from "@/hooks/useTenant";
 
 interface SalesAgent {
   id: string; name: string; phone: string | null; email: string | null;
   address: string | null; status: string; commission_type: string; commission_rate: number;
+  user_id: string | null;
 }
 interface AgentCustomer { id: string; agent_id: string; customer_id: string; }
 interface Customer { id: string; name: string; company: string | null; }
+interface TenantUser { user_id: string; email: string | null; role: string; is_active: boolean; }
 
 export default function SalesAgents() {
   const [activeTab, setActiveTab] = useState("agents");
@@ -41,7 +44,17 @@ export default function SalesAgents() {
   const [commType, setCommType] = useState("percentage");
   const [commRate, setCommRate] = useState("");
   const [agentStatus, setAgentStatus] = useState("active");
+  const [linkedUserId, setLinkedUserId] = useState<string>("");
+  const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { tenantId } = useTenant();
+
+  // Invite-new-agent flow
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePassword, setInvitePassword] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteBusy, setInviteBusy] = useState(false);
 
   // Allocation form
   const [allocAgent, setAllocAgent] = useState("");
@@ -74,15 +87,25 @@ export default function SalesAgents() {
     if (agRes.data) setAgents(agRes.data as any);
     if (custRes.data) setCustomers(custRes.data as any);
     if (allocRes.data) setAllocations(allocRes.data as any);
+    // Load tenant users for linking dropdown (owner-only edge function)
+    if (tenantId) {
+      try {
+        const { data: tuRes } = await supabase.functions.invoke("manage-tenant", {
+          body: { action: "list_tenant_users", tenant_id: tenantId },
+        });
+        if (tuRes?.users) setTenantUsers(tuRes.users);
+      } catch { /* non-owner — ignore */ }
+    }
   };
 
   // Agent CRUD
   const handleSaveAgent = async () => {
     if (!name.trim()) { toast.error("Name is required"); return; }
-    const payload = {
+    const payload: any = {
       name, phone: phone || null, email: email || null, address: address || null,
       commission_type: commType, commission_rate: Number(commRate) || 0,
       status: agentStatus,
+      user_id: linkedUserId || null,
     };
     if (editId) {
       const { error } = await supabase.from("sales_agents").update(payload).eq("id", editId);
@@ -100,6 +123,7 @@ export default function SalesAgents() {
     setEditId(a.id); setName(a.name); setPhone(a.phone || ""); setEmail(a.email || "");
     setAddress(a.address || ""); setCommType(a.commission_type); setCommRate(String(a.commission_rate));
     setAgentStatus(a.status);
+    setLinkedUserId(a.user_id || "");
     setAgentOpen(true);
   };
 
@@ -113,6 +137,31 @@ export default function SalesAgents() {
   const resetForm = () => {
     setAgentOpen(false); setEditId(null); setName(""); setPhone(""); setEmail("");
     setAddress(""); setCommType("percentage"); setCommRate(""); setAgentStatus("active");
+    setLinkedUserId("");
+  };
+
+  const handleInviteAgent = async () => {
+    if (!inviteEmail || !invitePassword || invitePassword.length < 6 || !inviteName.trim()) {
+      toast.error("Name, email and a password (min 6 chars) are required"); return;
+    }
+    if (!tenantId) { toast.error("Tenant not loaded"); return; }
+    setInviteBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-tenant", {
+        body: { action: "owner_create_user", tenant_id: tenantId, email: inviteEmail, password: invitePassword, role: "sales_agent" },
+      });
+      if (error || data?.error) { toast.error(error?.message || data?.error || "Failed to invite"); return; }
+      const newUserId = data?.user_id;
+      // Create the linked sales_agents row in the same step
+      const { error: insErr } = await supabase.from("sales_agents").insert({
+        name: inviteName, email: inviteEmail, user_id: newUserId, status: "active",
+        commission_type: "percentage", commission_rate: 0,
+      } as any);
+      if (insErr) { toast.error(insErr.message); return; }
+      toast.success(`Invited ${inviteName} and linked to ${inviteEmail}`);
+      setInviteOpen(false); setInviteEmail(""); setInvitePassword(""); setInviteName("");
+      load();
+    } finally { setInviteBusy(false); }
   };
 
   // Allocation
@@ -214,8 +263,33 @@ export default function SalesAgents() {
     return c.name.toLowerCase().includes(q) || (c.company || "").toLowerCase().includes(q);
   });
 
+  const linkedUserIds = new Set(agents.map(a => a.user_id).filter(Boolean) as string[]);
+  const linkableUsers = tenantUsers.filter(u =>
+    u.is_active && (u.role === "sales_agent" || u.role === "staff") &&
+    (!linkedUserIds.has(u.user_id) || u.user_id === linkedUserId)
+  );
+
   const agentActions = (
     <div className="flex gap-2">
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline"><UserPlus className="h-4 w-4 mr-1" /> Invite New Agent</Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite a new Sales Agent</DialogTitle>
+            <DialogDescription>Creates a login + an agent profile, linked automatically. The agent will see only their assigned customers.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            <div className="col-span-2"><Label>Display name *</Label><Input value={inviteName} onChange={e => setInviteName(e.target.value)} /></div>
+            <div><Label>Email *</Label><Input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} /></div>
+            <div><Label>Temporary password *</Label><Input type="text" value={invitePassword} onChange={e => setInvitePassword(e.target.value)} placeholder="min 6 chars" /></div>
+          </div>
+          <Button onClick={handleInviteAgent} disabled={inviteBusy} className="w-full mt-4">
+            {inviteBusy ? "Inviting…" : "Create login & agent"}
+          </Button>
+        </DialogContent>
+      </Dialog>
       <Dialog open={agentOpen} onOpenChange={o => { if (!o) resetForm(); else setAgentOpen(true); }}>
         <DialogTrigger asChild>
           <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Agent</Button>
@@ -223,13 +297,26 @@ export default function SalesAgents() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editId ? "Edit Agent" : "Add Sales Agent"}</DialogTitle>
-            <DialogDescription>Manage your sales commission agents</DialogDescription>
+            <DialogDescription>Manage your sales commission agents. Link to a login so RLS can scope their data.</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3 mt-2">
             <div><Label>Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
             <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
             <div><Label>Email</Label><Input value={email} onChange={e => setEmail(e.target.value)} /></div>
             <div><Label>Address</Label><Input value={address} onChange={e => setAddress(e.target.value)} /></div>
+            <div className="col-span-2">
+              <Label className="flex items-center gap-1.5"><LinkIcon className="h-3 w-3" /> Linked Login (required for agent to see their data)</Label>
+              <Select value={linkedUserId || "__none"} onValueChange={v => setLinkedUserId(v === "__none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Pick an unlinked sales-agent login..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">— No login linked —</SelectItem>
+                  {linkableUsers.map(u => (
+                    <SelectItem key={u.user_id} value={u.user_id}>{u.email ?? u.user_id} ({u.role})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">Only logins with role <b>sales_agent</b> appear here. Use "Invite New Agent" above to create a login on the fly.</p>
+            </div>
             <div>
               <Label>Commission Type</Label>
               <Select value={commType} onValueChange={setCommType}>
@@ -329,6 +416,7 @@ export default function SalesAgents() {
                     <TableHead>Name</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Linked Login</TableHead>
                     <TableHead>Commission</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center w-32">Actions</TableHead>
@@ -336,14 +424,23 @@ export default function SalesAgents() {
                 </TableHeader>
                 <TableBody>
                   {filteredAgents.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                    <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                       <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />No agents found.
                     </TableCell></TableRow>
-                  ) : filteredAgents.map(a => (
+                  ) : filteredAgents.map(a => {
+                    const linkedEmail = tenantUsers.find(u => u.user_id === a.user_id)?.email;
+                    return (
                     <TableRow key={a.id}>
                       <TableCell className="font-medium">{a.name}</TableCell>
                       <TableCell className="text-muted-foreground font-mono text-xs">{a.phone || "—"}</TableCell>
                       <TableCell className="text-muted-foreground text-xs">{a.email || "—"}</TableCell>
+                      <TableCell className="text-xs">
+                        {a.user_id ? (
+                          <Badge variant="outline" className="text-[10px] gap-1"><LinkIcon className="h-2.5 w-2.5" /> {linkedEmail ?? "linked"}</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-destructive border-destructive/40">Not linked</Badge>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">
                           {a.commission_type === "percentage" ? `${a.commission_rate}%` : `PKR ${Number(a.commission_rate).toLocaleString()}`}
@@ -361,7 +458,7 @@ export default function SalesAgents() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  );})}
                 </TableBody>
               </Table>
             </CardContent>
