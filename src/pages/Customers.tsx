@@ -283,7 +283,7 @@ export default function Customers() {
  </div>
  <div>
  <p className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-bold">Over Limit</p>
- <p className="text-lg font-bold font-mono tabular-nums text-foreground">{customers.filter(c => Number(c.balance) > Number(c.credit_limit) && Number(c.credit_limit) > 0).length}</p>
+ <p className="text-lg font-bold font-mono tabular-nums text-foreground">{summary.over_limit}</p>
  </div>
  </div>
  </div>
