@@ -598,7 +598,7 @@ export default function ProformaInvoices() {
    const custAddress = (order.customers as any)?.address || undefined;
    const custPhone = (order.customers as any)?.phone || undefined;
    const custArea = (order.customers as any)?.area || undefined;
-   return generatePdfHtml({
+   { const __o = ({
      title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
      partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
      meta: [{ label: "Validity", value: `${order.validity_days} days` }],
@@ -622,7 +622,7 @@ export default function ProformaInvoices() {
      ],
      notes: order.payment_instructions || undefined, settings,
      template: { ...(getTemplate("sales_invoice") as any), title: "Sales Order" } as any,
-   });
+   } as any); return { html: generatePdfHtml(__o), opts: __o }; }
  };
  const printOrder = (order: SalesOrder) => { openPreview(order, "sales_order"); };
  
@@ -686,7 +686,7 @@ export default function ProformaInvoices() {
         if (g.expiry_date) expiryMap[`${g.product_id}__${g.batch_number}`] = g.expiry_date;
       });
     }
-    return generatePdfHtml({
+    { const __o = ({
       title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
       partyLabel: "Customer",
       partyName: (inv.customers as any)?.name || "—",
@@ -720,7 +720,7 @@ export default function ProformaInvoices() {
         { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
       ],
       settings, template: getTemplate("sales_invoice"),
-    });
+    } as any); return { html: generatePdfHtml(__o), opts: __o }; }
   };
  const printInvoice = async (order: SalesOrder) => { await openPreview(order, "sales_invoice"); };
 
@@ -756,7 +756,7 @@ export default function ProformaInvoices() {
       });
     }
 
-    return generatePdfHtml({
+    { const __o = ({
       title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
       partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
       columns: [
@@ -781,7 +781,7 @@ export default function ProformaInvoices() {
       }),
       totals: [],
       settings, template: getTemplate("delivery_note"),
-    });
+    } as any); return { html: generatePdfHtml(__o), opts: __o }; }
   };
  const printDeliveryNote = async (order: SalesOrder) => { await openPreview(order, "delivery_note"); };
 
