@@ -142,6 +142,27 @@ export function AppSidebar() {
       </div>
 
       <SidebarContent className="mt-2 px-2 gap-0">
+        {isSalesAgentRole(tenantRole) ? (
+          // Sales-agent dedicated flat nav
+          <SidebarMenu>
+            {salesAgentNav.map(item => {
+              const isActive = item.url === "/dashboard"
+                ? location.pathname === "/dashboard"
+                : matchUrl(item.url);
+              return (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} end={item.url === "/dashboard"}
+                      className={`mouj-nav-row ${collapsed ? "justify-center" : ""} ${isActive ? "is-active" : ""}`}>
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
+          </SidebarMenu>
+        ) : (<>
         {/* Dashboard */}
         <SidebarMenu>
           <SidebarMenuItem>
