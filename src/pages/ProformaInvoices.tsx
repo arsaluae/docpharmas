@@ -248,7 +248,7 @@ export default function ProformaInvoices() {
  // ── SIMPLIFIED LOAD: proforma_invoices only ──
  const load = async () => {
  setLoading(true);
- let pfQuery = supabase.from("proforma_invoices").select("*, customers(name, company, phone, address, area)", { count: "exact" }).order("created_at", { ascending: false });
+ let pfQuery = supabase.from("proforma_invoices").select("*, customers(customer_code, name, company, phone, sms_mobile, address, city, area, old_erp_account_code)", { count: "exact" }).order("created_at", { ascending: false });
  if (statusFilter !== "all") {
  if (statusFilter === "draft") pfQuery = pfQuery.eq("status", "draft");
  else pfQuery = pfQuery.neq("status", "draft"); // simplified for server-side
