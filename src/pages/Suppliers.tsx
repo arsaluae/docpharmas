@@ -161,9 +161,8 @@ export default function Suppliers() {
  else setSelectedIds(new Set(filtered.map(s => s.id)));
  };
 
- const filtered = suppliers.filter(s =>
- s.name.toLowerCase().includes(search.toLowerCase()) || (s.company || "").toLowerCase().includes(search.toLowerCase()) || (s.supplier_code || "").toLowerCase().includes(search.toLowerCase())
- );
+ const filtered = suppliers;
+
 
  const headerActions = (
  <>
