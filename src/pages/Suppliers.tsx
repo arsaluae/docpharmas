@@ -243,9 +243,17 @@ export default function Suppliers() {
  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
  <Input placeholder="Search suppliers..." className="pl-10 rounded-full border-0 shadow-none bg-transparent" value={search} onChange={e => setSearch(e.target.value)} />
  </div>
+ <Select value={cityFilter} onValueChange={setCityFilter}>
+  <SelectTrigger className="w-[180px] h-9 text-xs"><SelectValue placeholder="All cities" /></SelectTrigger>
+  <SelectContent className="max-h-[300px]">
+   <SelectItem value="all">All cities</SelectItem>
+   {cities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+  </SelectContent>
+ </Select>
  <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
  <Switch checked={showInactive} onCheckedChange={setShowInactive} /> Show inactive
  </label>
+
  </div>
 
  {selectedIds.size > 0 && (
