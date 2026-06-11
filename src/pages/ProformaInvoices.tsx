@@ -737,8 +737,8 @@ export default function ProformaInvoices() {
     const productIds = Array.from(new Set(dnItems.map((i: any) => i.product_id).filter(Boolean)));
     const mrpMap: Record<string, number> = {};
     if (productIds.length > 0) {
-      const { data: pr } = await supabase.from("products").select("id, selling_price").in("id", productIds);
-      (pr || []).forEach((p: any) => { mrpMap[p.id] = Number(p.selling_price || 0); });
+       const { data: pr } = await supabase.from("products").select("id, mrp, selling_price").in("id", productIds);
+       (pr || []).forEach((p: any) => { mrpMap[p.id] = Number(p.mrp || p.selling_price || 0); });
     }
     const missing = dnItems.filter((i: any) => !i.expiry_date && i.product_id && i.batch_number);
     const expiryMap: Record<string, string> = {};
