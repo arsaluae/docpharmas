@@ -603,14 +603,23 @@ export default function WarrantyInvoices() {
  setPdfOpts(__opts_html);
  pdfLink = await uploadSharedDocument(html, inv.warranty_number) || undefined;
  } catch (e) { console.error("PDF link error:", e); }
- const message = buildWarrantyInvoiceMessage({
- warrantyNumber: inv.warranty_number,
- companyName: settings?.company_name || "DocPharmas",
- pharmacyName: inv.pharmacy_name, customerPhone: phone, date: inv.date,
- items: wiItems.map((i: any) => ({ product_name: i.product_name, batch_number: i.batch_number, mrp: i.mrp, tp_rate: i.tp_rate, quantity: i.quantity })),
- total: inv.total, pdfLink,
- });
- openWhatsApp(phone, message);
+  await sendWhatsAppDoc({
+  documentType: "sales_invoice",
+  phone,
+  vars: {
+  company_name: settings?.company_name || "DocPharmas",
+  company_phone: (settings as any)?.phone || "",
+  company_email: (settings as any)?.email || "",
+  company_address: (settings as any)?.address || "",
+  customer_name: inv.pharmacy_name,
+  customer_phone: phone,
+  document_type: "Warranty Invoice",
+  document_number: inv.warranty_number,
+  document_date: inv.date,
+  document_total: Number(inv.total).toLocaleString(),
+  document_link: pdfLink || "",
+  },
+  });
  }} title="Share via WhatsApp">
  <MessageCircle className="h-3.5 w-3.5 text-success" />
  </Button>
