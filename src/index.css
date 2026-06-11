@@ -11,73 +11,76 @@
 
 @layer base {
   :root {
-    /* ── Midnight Indigo · dark canonical ── */
-    --background: 230 60% 13%;       /* #0B1437 app canvas */
-    --foreground: 220 30% 96%;       /* near-white ink */
-    --card: 230 55% 17%;             /* #111C44 panels */
-    --card-foreground: 220 30% 96%;
-    --popover: 230 55% 11%;
-    --popover-foreground: 220 30% 96%;
-    --surface-2: 230 55% 20%;        /* raised wells */
+    /* ── Stripe-style light premium · default ── */
+    --background: 0 0% 100%;              /* #FFFFFF canvas */
+    --foreground: 214 71% 15%;            /* #0A2540 Stripe navy ink */
+    --card: 0 0% 100%;
+    --card-foreground: 214 71% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 214 71% 15%;
+    --surface-2: 210 17% 96%;             /* #F6F8FA muted surface */
 
-    /* Brand — electric indigo accent on midnight surfaces */
-    --brand-navy: 220 30% 96%;       /* text-as-navy → near-white */
-    --brand-blue: 239 84% 67%;       /* #6366F1 — sole accent */
-    --primary: 239 84% 67%;
+    --brand-navy: 214 71% 15%;
+    --brand-blue: 244 100% 68%;           /* #635BFF Stripe indigo */
+    --primary: 244 100% 68%;
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 239 84% 67%;     /* used w/ alpha for hover */
-    --ring: 239 84% 67%;
+    --primary-soft: 244 100% 68%;
+    --ring: 244 100% 68%;
 
-    /* Secondary / muted */
-    --secondary: 230 50% 22%;
-    --secondary-foreground: 220 25% 92%;
-    --muted: 230 45% 22%;
-    --muted-foreground: 225 18% 68%;
-    --subtle: 226 22% 60%;
-    --accent: 230 50% 22%;
-    --accent-foreground: 220 30% 96%;
+    --secondary: 210 17% 96%;
+    --secondary-foreground: 214 71% 15%;
+    --muted: 210 17% 96%;
+    --muted-foreground: 215 14% 34%;      /* #4F5B6B */
+    --subtle: 215 14% 50%;
+    --accent: 210 17% 96%;
+    --accent-foreground: 214 71% 15%;
 
-    /* Status */
-    --destructive: 0 65% 60%;
+    /* Status — slightly desaturated, legible on white */
+    --destructive: 349 89% 48%;           /* #E11D48 */
     --destructive-foreground: 0 0% 100%;
-    --danger: 0 65% 60%;
-    --warning: 38 92% 55%;
+    --danger: 349 89% 48%;
+    --warning: 32 95% 44%;                /* #D97706 */
     --warning-foreground: 0 0% 100%;
-    --success: 158 64% 48%;
+    --success: 160 84% 35%;               /* #0E9F6E */
     --success-foreground: 0 0% 100%;
-    --info: 189 94% 55%;             /* cyan for live indicator */
+    --info: 199 89% 48%;                  /* #0EA5E9 */
 
-    /* Structure — hairline at indigo-900/30 */
-    --border: 232 40% 24%;
-    --border-strong: 232 35% 32%;
-    --input: 230 45% 22%;
-    --radius: 8px;
+    /* Borders — Stripe hairline */
+    --border: 213 26% 91%;                /* #E3E8EE */
+    --border-strong: 213 20% 82%;
+    --input: 213 26% 91%;
+    --radius: 10px;
 
-    /* Sidebar — deepest near-black */
-    --sidebar-background: 233 70% 5%;
-    --sidebar-foreground: 226 22% 60%;
-    --sidebar-primary: 239 84% 67%;
+    /* Elevation — premium soft Stripe-like */
+    --shadow-xs: 0 1px 2px 0 rgba(10, 37, 64, 0.04), 0 1px 1px 0 rgba(10, 37, 64, 0.03);
+    --shadow-sm: 0 2px 4px -1px rgba(10, 37, 64, 0.06), 0 4px 8px -2px rgba(10, 37, 64, 0.04);
+    --shadow-md: 0 4px 12px -2px rgba(10, 37, 64, 0.08), 0 8px 24px -4px rgba(10, 37, 64, 0.06);
+    --shadow-lg: 0 12px 32px -8px rgba(10, 37, 64, 0.16), 0 4px 12px -2px rgba(10, 37, 64, 0.06);
+
+    /* Sidebar — soft off-white panel */
+    --sidebar-background: 220 23% 98%;    /* #FAFBFC */
+    --sidebar-foreground: 215 14% 34%;
+    --sidebar-primary: 244 100% 68%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 232 40% 14%;
-    --sidebar-accent-foreground: 220 30% 96%;
-    --sidebar-border: 232 40% 14%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-accent: 213 26% 94%;
+    --sidebar-accent-foreground: 214 71% 15%;
+    --sidebar-border: 213 26% 91%;
+    --sidebar-ring: 244 100% 68%;
 
-    /* Pastel palette — retuned for dark surfaces (kept so legacy JSX still reads them) */
-    --pastel-peach: 22 60% 22%;      --pastel-peach-fg: 22 80% 75%;
-    --pastel-mint: 158 40% 18%;      --pastel-mint-fg: 158 64% 70%;
-    --pastel-sky: 197 60% 20%;       --pastel-sky-fg: 197 80% 75%;
-    --pastel-lilac: 251 45% 25%;     --pastel-lilac-fg: 251 79% 80%;
-    --pastel-butter: 47 50% 22%;     --pastel-butter-fg: 47 89% 75%;
-    --pastel-blush: 338 50% 25%;     --pastel-blush-fg: 338 79% 80%;
+    /* Pastel washes — kept as flattened muted for legacy JSX */
+    --pastel-peach: 22 60% 96%;      --pastel-peach-fg: 22 80% 35%;
+    --pastel-mint: 158 40% 96%;      --pastel-mint-fg: 158 64% 30%;
+    --pastel-sky: 197 60% 96%;       --pastel-sky-fg: 197 80% 30%;
+    --pastel-lilac: 251 45% 96%;     --pastel-lilac-fg: 251 79% 40%;
+    --pastel-butter: 47 70% 96%;     --pastel-butter-fg: 47 89% 30%;
+    --pastel-blush: 338 50% 96%;     --pastel-blush-fg: 338 79% 40%;
 
-    --pharma-teal: 239 84% 67%;
-    --pharma-violet: 239 84% 67%;
-    --pharma-sage: 158 64% 48%;
-    --medical-cyan: 189 94% 55%;
+    --pharma-teal: 244 100% 68%;
+    --pharma-violet: 244 100% 68%;
+    --pharma-sage: 160 84% 35%;
+    --medical-cyan: 199 89% 48%;
     --medical-cyan-foreground: 0 0% 100%;
   }
-
 
   .dark {
     --background: 230 60% 13%;
@@ -88,14 +91,18 @@
     --popover-foreground: 220 30% 96%;
     --surface-2: 230 55% 20%;
 
+    --brand-navy: 220 30% 96%;
+    --brand-blue: 239 84% 67%;
     --primary: 239 84% 67%;
     --primary-foreground: 0 0% 100%;
+    --primary-soft: 239 84% 67%;
     --ring: 239 84% 67%;
 
     --secondary: 230 50% 22%;
     --secondary-foreground: 220 25% 92%;
     --muted: 230 45% 22%;
     --muted-foreground: 225 18% 68%;
+    --subtle: 226 22% 60%;
     --accent: 230 50% 22%;
     --accent-foreground: 220 30% 96%;
 
@@ -109,8 +116,14 @@
     --info: 189 94% 55%;
 
     --border: 232 40% 24%;
+    --border-strong: 232 35% 32%;
     --input: 230 45% 22%;
     --tertiary-foreground: 226 22% 60%;
+
+    --shadow-xs: none;
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
 
     --sidebar-background: 233 70% 5%;
     --sidebar-foreground: 226 22% 60%;
@@ -126,6 +139,7 @@
     --pharma-sage: 158 64% 48%;
   }
 }
+
 
 @layer base {
   * {
