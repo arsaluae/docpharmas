@@ -749,10 +749,7 @@ export default function ProformaInvoices() {
     const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", invoiceId).maybeSingle();
     if (!dn) return "";
     const dnItems: any[] = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
-    const custName = (order.customers as any)?.name || "—";
-    const custAddress = (order.customers as any)?.address || undefined;
-    const custPhone = (order.customers as any)?.phone || undefined;
-    const custArea = (order.customers as any)?.area || undefined;
+    const c = (order.customers as any) || {};
 
     // Batch fetch MRP for each product, and expiry fallback for items missing it.
     const productIds = Array.from(new Set(dnItems.map((i: any) => i.product_id).filter(Boolean)));
