@@ -217,6 +217,9 @@ export default function Settings() {
  <TabsTrigger value="templates">
  <FileText className="h-4 w-4 mr-1" /> Document Templates
  </TabsTrigger>
+ <TabsTrigger value="whatsapp">
+ <MessageCircle className="h-4 w-4 mr-1" /> WhatsApp Templates
+ </TabsTrigger>
  {tenantRole === "owner" && (
  <TabsTrigger value="team">
  <Users className="h-4 w-4 mr-1" /> Team & Access
