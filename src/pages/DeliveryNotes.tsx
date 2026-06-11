@@ -214,39 +214,51 @@ export default function DeliveryNotes() {
  <Download className="h-3 w-3" /> PDF
  </Button>
  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
- const { buildDeliveryNoteMessage, openWhatsApp, uploadSharedDocument } = await import("@/lib/whatsapp-share");
- const items = typeof dn.items === "string" ? JSON.parse(dn.items) : dn.items;
- const customerName = (dn as any).customers?.name || "Customer";
- // Get customer phone
- let phone = "";
- if (dn.customer_id) {
- const { data } = await supabase.from("customers").select("phone").eq("id", dn.customer_id).single();
- phone = data?.phone || "";
- }
- // Generate PDF link
- let pdfLink: string | undefined;
- try {
- const html = generatePdfHtml({
- title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date,
- partyLabel: "Customer", partyName: customerName, partyPhone: phone || undefined,
- columns: [
- { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
- { header: "Batch", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
- { header: "Qty", key: "quantity", align: "right" as const },
- ],
- rows: items.map((i: any, idx: number) => ({ ...i, idx: idx + 1 })),
- notes: dn.notes || undefined, settings, template: getTemplate("delivery_note"),
- });
- pdfLink = await uploadSharedDocument(html, dn.dn_number) || undefined;
- } catch (e) { console.error("PDF link error:", e); }
- const message = buildDeliveryNoteMessage({
- dnNumber: dn.dn_number,
- companyName: settings?.company_name || "DocPharmas",
- customerName, customerPhone: phone, date: dn.date,
- items: items.map((i: any) => ({ product_name: i.product_name || "Item", batch_number: i.batch_number, expiry_date: i.expiry_date, quantity: i.quantity })),
- pdfLink,
- });
- openWhatsApp(phone, message);
+  const { uploadSharedDocument } = await import("@/lib/whatsapp-share");
+  const { sendWhatsAppDoc } = await import("@/lib/whatsapp-templates");
+  const items = typeof dn.items === "string" ? JSON.parse(dn.items) : dn.items;
+  const customerName = (dn as any).customers?.name || "Customer";
+  let phone = "";
+  let city = ""; let address = ""; let code = "";
+  if (dn.customer_id) {
+  const { data } = await supabase.from("customers").select("phone, city, address, customer_code").eq("id", dn.customer_id).single();
+  phone = data?.phone || ""; city = (data as any)?.city || ""; address = (data as any)?.address || ""; code = (data as any)?.customer_code || "";
+  }
+  let pdfLink: string | undefined;
+  try {
+  const html = generatePdfHtml({
+  title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date,
+  partyLabel: "Customer", partyName: customerName, partyPhone: phone || undefined,
+  columns: [
+  { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+  { header: "Batch", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
+  { header: "Qty", key: "quantity", align: "right" as const },
+  ],
+  rows: items.map((i: any, idx: number) => ({ ...i, idx: idx + 1 })),
+  notes: dn.notes || undefined, settings, template: getTemplate("delivery_note"),
+  });
+  pdfLink = await uploadSharedDocument(html, dn.dn_number) || undefined;
+  } catch (e) { console.error("PDF link error:", e); }
+  await sendWhatsAppDoc({
+  documentType: "delivery_note",
+  phone,
+  vars: {
+  company_name: settings?.company_name || "DocPharmas",
+  company_phone: settings?.phone || "",
+  company_email: settings?.email || "",
+  company_address: settings?.address || "",
+  customer_name: customerName,
+  customer_code: code,
+  customer_phone: phone,
+  customer_city: city,
+  customer_address: address,
+  document_type: "Delivery Note",
+  document_number: dn.dn_number,
+  document_date: dn.date,
+  document_status: dn.status,
+  document_link: pdfLink || "",
+  },
+  });
  }} title="Share via WhatsApp">
  <MessageCircle className="h-3.5 w-3.5 text-success" />
  </Button>
