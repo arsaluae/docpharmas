@@ -263,8 +263,33 @@ export default function SalesAgents() {
     return c.name.toLowerCase().includes(q) || (c.company || "").toLowerCase().includes(q);
   });
 
+  const linkedUserIds = new Set(agents.map(a => a.user_id).filter(Boolean) as string[]);
+  const linkableUsers = tenantUsers.filter(u =>
+    u.is_active && (u.role === "sales_agent" || u.role === "staff") &&
+    (!linkedUserIds.has(u.user_id) || u.user_id === linkedUserId)
+  );
+
   const agentActions = (
     <div className="flex gap-2">
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline"><UserPlus className="h-4 w-4 mr-1" /> Invite New Agent</Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite a new Sales Agent</DialogTitle>
+            <DialogDescription>Creates a login + an agent profile, linked automatically. The agent will see only their assigned customers.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            <div className="col-span-2"><Label>Display name *</Label><Input value={inviteName} onChange={e => setInviteName(e.target.value)} /></div>
+            <div><Label>Email *</Label><Input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} /></div>
+            <div><Label>Temporary password *</Label><Input type="text" value={invitePassword} onChange={e => setInvitePassword(e.target.value)} placeholder="min 6 chars" /></div>
+          </div>
+          <Button onClick={handleInviteAgent} disabled={inviteBusy} className="w-full mt-4">
+            {inviteBusy ? "Inviting…" : "Create login & agent"}
+          </Button>
+        </DialogContent>
+      </Dialog>
       <Dialog open={agentOpen} onOpenChange={o => { if (!o) resetForm(); else setAgentOpen(true); }}>
         <DialogTrigger asChild>
           <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Agent</Button>
@@ -272,13 +297,26 @@ export default function SalesAgents() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editId ? "Edit Agent" : "Add Sales Agent"}</DialogTitle>
-            <DialogDescription>Manage your sales commission agents</DialogDescription>
+            <DialogDescription>Manage your sales commission agents. Link to a login so RLS can scope their data.</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3 mt-2">
             <div><Label>Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
             <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
             <div><Label>Email</Label><Input value={email} onChange={e => setEmail(e.target.value)} /></div>
             <div><Label>Address</Label><Input value={address} onChange={e => setAddress(e.target.value)} /></div>
+            <div className="col-span-2">
+              <Label className="flex items-center gap-1.5"><LinkIcon className="h-3 w-3" /> Linked Login (required for agent to see their data)</Label>
+              <Select value={linkedUserId || "__none"} onValueChange={v => setLinkedUserId(v === "__none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Pick an unlinked sales-agent login..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">— No login linked —</SelectItem>
+                  {linkableUsers.map(u => (
+                    <SelectItem key={u.user_id} value={u.user_id}>{u.email ?? u.user_id} ({u.role})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">Only logins with role <b>sales_agent</b> appear here. Use "Invite New Agent" above to create a login on the fly.</p>
+            </div>
             <div>
               <Label>Commission Type</Label>
               <Select value={commType} onValueChange={setCommType}>
