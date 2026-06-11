@@ -126,7 +126,8 @@ export default function Expenses() {
         amount: Number(amount), gst_amount: Number(gstAmount) || 0,
         payment_method: paymentMethod, bank_account_id: bankAccountId || null,
         date, notes: notes || null, expense_type: expenseType, ledger_id: ledgerId || null,
-      });
+        freight_provider_id: category === "transport" ? (freightProviderId || null) : null,
+      } as any);
       if (insErr) {
         await supabase.from("expenses").insert({
           expense_number: oldExpense.expense_number, category: oldExpense.category,
@@ -147,11 +148,23 @@ export default function Expenses() {
         amount: Number(amount), gst_amount: Number(gstAmount) || 0,
         payment_method: paymentMethod, bank_account_id: bankAccountId || null,
         date, notes: notes || null, expense_type: expenseType, ledger_id: ledgerId || null,
-      });
+        freight_provider_id: category === "transport" ? (freightProviderId || null) : null,
+      } as any);
       if (error) { toast.error("Failed to save: " + error.message); return; }
       toast.success(`Expense ${expNumber} recorded`);
     }
     resetForm(); load();
+  };
+
+  const addCourierInline = async () => {
+    if (!newCourierName.trim()) { toast.error("Courier name required"); return; }
+    const code = newCourierName.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12) || `C${Date.now().toString().slice(-4)}`;
+    const { data, error } = await supabase.from("freight_providers" as any).insert({ name: newCourierName.trim(), code, is_active: true } as any).select("id").single();
+    if (error) { toast.error("Failed: " + error.message); return; }
+    toast.success("Courier added");
+    setNewCourierName(""); setAddCourierOpen(false);
+    await reloadCouriers();
+    if (data?.id) setFreightProviderId((data as any).id);
   };
 
   const handleDelete = async () => {
@@ -168,6 +181,7 @@ export default function Expenses() {
     setGstAmount(String(e.gst_amount)); setPaymentMethod(e.payment_method);
     setBankAccountId(e.bank_account_id || ""); setDate(e.date);
     setNotes(e.notes || ""); setLedgerId(e.ledger_id || "");
+    setFreightProviderId(e.freight_provider_id || "");
     setOpen(true);
   };
 
@@ -177,6 +191,7 @@ export default function Expenses() {
     setExpenseType(activeTab === "personal" ? "personal" : "business");
     setDescription(""); setAmount(""); setGstAmount(""); setLedgerId("");
     setPaymentMethod("cash"); setBankAccountId(""); setNotes("");
+    setFreightProviderId("");
   };
 
   const handleOpenDialog = () => {
