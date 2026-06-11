@@ -123,6 +123,49 @@ export default function ProformaInvoices() {
   }>({ key: draftKey, enabled: createOpen });
   const [draftDismissed, setDraftDismissed] = useState(false);
 
+  // Extended customer details fetched on selection (for the composer summary panel)
+  const [customerDetail, setCustomerDetail] = useState<{
+    name: string; company: string | null; city: string | null; address: string | null;
+    phone: string | null; ntn: string | null; balance: number; credit_limit: number;
+  } | null>(null);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [createAndPrint, setCreateAndPrint] = useState(false);
+
+  useEffect(() => {
+    if (!customerId) { setCustomerDetail(null); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("customers")
+        .select("name, company, city, address, phone, ntn, balance, credit_limit")
+        .eq("id", customerId)
+        .single();
+      if (data) setCustomerDetail({
+        name: data.name, company: data.company, city: data.city, address: data.address,
+        phone: data.phone, ntn: data.ntn,
+        balance: Number(data.balance || 0), credit_limit: Number(data.credit_limit || 0),
+      });
+    })();
+  }, [customerId]);
+
+  const composerDirty = !!customerId || items.some(i => !!i.product_id || Number(i.quantity) > 0 || Number(i.rate) > 0) || !!paymentInstructions;
+  const requestCloseComposer = () => {
+    if (composerDirty) setCloseConfirmOpen(true);
+    else setCreateOpen(false);
+  };
+  const confirmDiscardAndClose = () => {
+    clearDraft();
+    setCustomerId(""); setItems([]); setPaymentInstructions(""); setAgentId("");
+    setCloseConfirmOpen(false); setCreateOpen(false);
+  };
+
+  // Alt+N inside composer to add a new line
+  useEffect(() => {
+    if (!createOpen) return;
+    const h = (e: KeyboardEvent) => { if (e.altKey && (e.key === "n" || e.key === "N")) { e.preventDefault(); addItem(); } };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [createOpen]);
+
   // Persist on field change (debounced inside the hook)
   useEffect(() => {
     if (!createOpen) return;
