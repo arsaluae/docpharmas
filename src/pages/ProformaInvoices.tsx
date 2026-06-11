@@ -725,7 +725,7 @@ export default function ProformaInvoices() {
  const printInvoice = async (order: SalesOrder) => { await openPreview(order, "sales_invoice"); };
 
  // ── DELIVERY NOTE PDF ──
-  const buildDeliveryNoteHtml = async (order: SalesOrder): Promise<string> => {
+  const buildDeliveryNoteHtml = async (order: SalesOrder): Promise<{ html: string; opts: any } | ""> => {
     const invoiceId = order.converted_invoice_id;
     if (!invoiceId) return "";
     const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", invoiceId).maybeSingle();
