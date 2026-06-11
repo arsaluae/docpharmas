@@ -360,7 +360,7 @@ export default function DeliveryNotes() {
  )}
  </DialogContent>
  </Dialog>
- <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+ <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} views={pdfViews} title={pdfTitle} />
  </AppLayout>
  );
 }
