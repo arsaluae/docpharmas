@@ -558,7 +558,7 @@ export default function ProformaInvoices() {
  // Generate PDF link
  let pdfLink: string | undefined;
  try {
- const { buildSalesInvoiceMessage, openWhatsApp, uploadSharedDocument } = await import("@/lib/whatsapp-share");
+ const { uploadSharedDocument } = await import("@/lib/whatsapp-share");
  const __opts_html = ({
  title: "SALES INVOICE",
  documentNumber: order.invoice_number || order.proforma_number,
