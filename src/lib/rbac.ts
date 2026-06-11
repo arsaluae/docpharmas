@@ -20,6 +20,8 @@ export type Resource =
   | "accounting"
   | "master"
   | "reports"
+  | "reports.sales_agent"
+  | "payment_in"
   | "settings"
   | "team"
   | "billing";
@@ -49,14 +51,20 @@ const MATRIX: Record<TenantRole, Caps> = {
     reports: { read: true },
   },
   sales_agent: {
-    // Pure sales scope: own customers + sales documents only.
-    // No purchase, no inventory, no finance, no reports, no settings.
+    // Pure sales scope: own customers + sales documents + own collections.
+    // No purchase, no admin finance, no admin reports, no settings.
     sales: { read: true, write: true },
     master: { read: true },
+    inventory: { read: true }, // stock availability view only (cost hidden)
+    payment_in: { read: true, write: true },
+    "reports.sales_agent": { read: true },
   },
   staff: {
     sales: { read: true, write: true },
     master: { read: true },
+    inventory: { read: true },
+    payment_in: { read: true, write: true },
+    "reports.sales_agent": { read: true },
   },
   inventory: {
     inventory: { read: true, write: true, void: true },
@@ -88,6 +96,10 @@ export function can(role: TenantRole | null | undefined, resource: Resource, act
   if (!role) return false;
   if (role === "owner") return true;
   return !!MATRIX[role]?.[resource]?.[action];
+}
+
+export function isSalesAgentRole(role: TenantRole | null | undefined): boolean {
+  return role === "sales_agent" || role === "staff";
 }
 
 export const ROLE_LABEL: Record<TenantRole, string> = {
