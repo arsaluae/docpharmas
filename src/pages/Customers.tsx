@@ -49,6 +49,10 @@ export default function Customers() {
  const navigate = useNavigate();
  const [customers, setCustomers] = useState<CustomerWithCode[]>([]);
  const [search, setSearch] = useState("");
+ const [debouncedSearch, setDebouncedSearch] = useState("");
+ const [cityFilter, setCityFilter] = useState<string>("all");
+ const [cities, setCities] = useState<string[]>([]);
+ const [summary, setSummary] = useState({ total: 0, receivables: 0, credit_limit: 0, over_limit: 0 });
  const pagination = usePagination();
  const [form, setForm] = useState(emptyForm);
  const [open, setOpen] = useState(false);
@@ -66,11 +70,32 @@ export default function Customers() {
  const [profileCustomer, setProfileCustomer] = useState<Customer | null>(null);
  const [showInactive, setShowInactive] = useState(false);
 
- useEffect(() => { loadCustomers(); }, [pagination.page, showInactive]);
+ useEffect(() => {
+  const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+  return () => clearTimeout(t);
+ }, [search]);
+
+ useEffect(() => { loadCustomers(); }, [pagination.page, showInactive, cityFilter, debouncedSearch]);
+ useEffect(() => { loadAux(); }, []);
+ useEffect(() => { pagination.setPage(0); }, [cityFilter, debouncedSearch, showInactive]);
+
+ const loadAux = async () => {
+  const [{ data: sum }, { data: cityList }] = await Promise.all([
+   supabase.rpc("customers_summary" as any),
+   supabase.rpc("customers_cities" as any),
+  ]);
+  if (sum) setSummary(sum as any);
+  if (cityList) setCities(cityList as string[]);
+ };
 
  const loadCustomers = async () => {
  let q = supabase.from("customers").select("*", { count: "exact" }).order("created_at", { ascending: false });
  if (!showInactive) q = q.eq("is_active", true);
+ if (cityFilter !== "all") q = q.eq("city", cityFilter);
+ if (debouncedSearch) {
+  const s = debouncedSearch.replace(/[%,()]/g, "");
+  q = q.or(`name.ilike.%${s}%,company.ilike.%${s}%,customer_code.ilike.%${s}%,city.ilike.%${s}%`);
+ }
  const { data, count } = await q.range(pagination.from, pagination.to);
  if (data) setCustomers(data);
  if (count !== null) pagination.setTotalCount(count);
