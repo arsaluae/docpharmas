@@ -667,8 +667,8 @@ export default function ProformaInvoices() {
   const buildSalesInvoiceHtml = async (order: SalesOrder): Promise<string> => {
     if (!order.converted_invoice_id) return "";
     const { data: inv } = await supabase.from("sales_invoices").select("*, customers(name, address, phone, area)").eq("id", order.converted_invoice_id).single();
-    const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name, selling_price)").eq("invoice_id", order.converted_invoice_id);
-    if (!inv) return "";
+     const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name, mrp, selling_price)").eq("invoice_id", order.converted_invoice_id);
+     if (!inv) return "";
     // Fallback: backfill missing expiry_date from GRN in one batched query (older rows).
     const items = invItems || [];
     const missing = items.filter((i: any) => !i.expiry_date && i.product_id && i.batch_number);
