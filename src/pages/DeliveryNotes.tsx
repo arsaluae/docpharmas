@@ -50,7 +50,7 @@ export default function DeliveryNotes() {
  useEffect(() => { load(); }, [pagination.page]);
 
  const load = async () => {
- const { data, count } = await supabase.from("delivery_notes").select("*, customers(code, name, phone, mobile, city, area, address), suppliers(code, name, phone, mobile, city, address)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
+ const { data, count } = await supabase.from("delivery_notes").select("*, customers(customer_code, name, phone, sms_mobile, city, area, address, old_erp_account_code), suppliers(supplier_code, name, phone, city, address)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
  if (data) setNotes(data as any);
  if (count !== null) pagination.setTotalCount(count);
  };
