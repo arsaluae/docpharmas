@@ -358,29 +358,41 @@ export default function Payments() {
  <TableCell className="text-center">
  <div className="flex items-center justify-center gap-1">
  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
- const { buildPaymentReceiptMessage, openWhatsApp } = await import("@/lib/whatsapp-share");
- const partyName = partyNames[p.party_id] || "Party";
- // Get party phone
- let phone = "";
- if (p.party_type === "customer") {
- const { data } = await supabase.from("customers").select("phone, balance").eq("id", p.party_id).single();
- phone = data?.phone || "";
- } else if (p.party_type === "supplier") {
- const { data } = await supabase.from("suppliers").select("phone, balance").eq("id", p.party_id).single();
- phone = data?.phone || "";
- }
- const bankAcc = bankAccounts.find(b => b.id === p.bank_account_id);
- const message = buildPaymentReceiptMessage({
- paymentNumber: p.payment_number,
- companyName: settings?.company_name || "DocPharmas",
- partyName, partyPhone: phone, date: p.date,
- type: p.type as "received" | "made", amount: p.amount,
- paymentMethod: p.payment_method,
- bankName: bankAcc ? `${bankAcc.bank_name} — ${bankAcc.name}` : undefined,
- chequeNumber: p.cheque_number || undefined,
- reference: p.reference || undefined,
- });
- openWhatsApp(phone, message);
+  const { sendWhatsAppDoc } = await import("@/lib/whatsapp-templates");
+  const partyName = partyNames[p.party_id] || "Party";
+  let phone = "";
+  let city = ""; let address = ""; let code = "";
+  if (p.party_type === "customer") {
+  const { data } = await supabase.from("customers").select("phone, city, address, customer_code, balance").eq("id", p.party_id).single();
+  phone = data?.phone || ""; city = (data as any)?.city || ""; address = (data as any)?.address || ""; code = (data as any)?.customer_code || "";
+  } else if (p.party_type === "supplier") {
+  const { data } = await supabase.from("suppliers").select("phone, balance").eq("id", p.party_id).single();
+  phone = data?.phone || "";
+  }
+  const bankAcc = bankAccounts.find(b => b.id === p.bank_account_id);
+  await sendWhatsAppDoc({
+  documentType: "payment_receipt",
+  phone,
+  vars: {
+  company_name: settings?.company_name || "DocPharmas",
+  company_phone: (settings as any)?.phone || "",
+  company_email: (settings as any)?.email || "",
+  company_address: (settings as any)?.address || "",
+  customer_name: partyName,
+  customer_code: code,
+  customer_phone: phone,
+  customer_city: city,
+  customer_address: address,
+  document_type: p.type === "received" ? "Payment Received" : "Payment Made",
+  document_number: p.payment_number,
+  document_date: p.date,
+  payment_amount: Number(p.amount).toLocaleString(),
+  payment_date: p.date,
+  payment_method: (p.payment_method || "").replace(/_/g, " "),
+  payment_reference: p.reference || p.cheque_number || "",
+  payment_receipt_link: "",
+  },
+  });
  }} title="Share via WhatsApp">
  <MessageCircle className="h-3.5 w-3.5 text-success" />
  </Button>
