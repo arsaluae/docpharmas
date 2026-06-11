@@ -579,6 +579,8 @@ export type Database = {
           logo_url: string | null
           ntn: string | null
           phone: string | null
+          require_payment_in_approval: boolean
+          sales_agent_scope: string
           strn: string | null
           tenant_id: string | null
           updated_at: string
@@ -603,6 +605,8 @@ export type Database = {
           logo_url?: string | null
           ntn?: string | null
           phone?: string | null
+          require_payment_in_approval?: boolean
+          sales_agent_scope?: string
           strn?: string | null
           tenant_id?: string | null
           updated_at?: string
@@ -627,6 +631,8 @@ export type Database = {
           logo_url?: string | null
           ntn?: string | null
           phone?: string | null
+          require_payment_in_approval?: boolean
+          sales_agent_scope?: string
           strn?: string | null
           tenant_id?: string | null
           updated_at?: string
@@ -898,6 +904,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "customer_products_product_id_fkey"
@@ -1302,6 +1315,7 @@ export type Database = {
       }
       delivery_notes: {
         Row: {
+          agent_id: string | null
           created_at: string
           customer_id: string | null
           date: string
@@ -1321,6 +1335,7 @@ export type Database = {
           voided_by: string | null
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           customer_id?: string | null
           date?: string
@@ -1340,6 +1355,7 @@ export type Database = {
           voided_by?: string | null
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           customer_id?: string | null
           date?: string
@@ -1359,6 +1375,13 @@ export type Database = {
           voided_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "delivery_notes_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "sales_agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "delivery_notes_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -1497,6 +1520,13 @@ export type Database = {
           tenant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "drap_registrations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
+          },
           {
             foreignKeyName: "drap_registrations_product_id_fkey"
             columns: ["product_id"]
@@ -1796,6 +1826,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "goods_received_notes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grn_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "grn_items_product_id_fkey"
@@ -2291,11 +2328,13 @@ export type Database = {
       }
       payments: {
         Row: {
+          agent_id: string | null
           amount: number
           bank_account_id: string | null
           cheque_date: string | null
           cheque_number: string | null
           created_at: string
+          created_by: string | null
           date: string
           id: string
           idempotency_key: string | null
@@ -2307,6 +2346,7 @@ export type Database = {
           payment_method: string
           payment_number: string
           reference: string | null
+          source: string
           status: string
           tenant_id: string | null
           type: string
@@ -2315,11 +2355,13 @@ export type Database = {
           voided_by: string | null
         }
         Insert: {
+          agent_id?: string | null
           amount?: number
           bank_account_id?: string | null
           cheque_date?: string | null
           cheque_number?: string | null
           created_at?: string
+          created_by?: string | null
           date?: string
           id?: string
           idempotency_key?: string | null
@@ -2331,6 +2373,7 @@ export type Database = {
           payment_method?: string
           payment_number: string
           reference?: string | null
+          source?: string
           status?: string
           tenant_id?: string | null
           type: string
@@ -2339,11 +2382,13 @@ export type Database = {
           voided_by?: string | null
         }
         Update: {
+          agent_id?: string | null
           amount?: number
           bank_account_id?: string | null
           cheque_date?: string | null
           cheque_number?: string | null
           created_at?: string
+          created_by?: string | null
           date?: string
           id?: string
           idempotency_key?: string | null
@@ -2355,6 +2400,7 @@ export type Database = {
           payment_method?: string
           payment_number?: string
           reference?: string | null
+          source?: string
           status?: string
           tenant_id?: string | null
           type?: string
@@ -2363,6 +2409,13 @@ export type Database = {
           voided_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "sales_agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_bank_account_id_fkey"
             columns: ["bank_account_id"]
@@ -2607,6 +2660,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "printers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "print_jobs_product_id_fkey"
@@ -3285,6 +3345,13 @@ export type Database = {
             foreignKeyName: "purchase_order_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -3474,6 +3541,13 @@ export type Database = {
             foreignKeyName: "purchase_proforma_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "purchase_proforma_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -3604,6 +3678,13 @@ export type Database = {
           tenant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "purchase_return_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
+          },
           {
             foreignKeyName: "purchase_return_items_product_id_fkey"
             columns: ["product_id"]
@@ -3780,6 +3861,13 @@ export type Database = {
           tenant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reorder_alerts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
+          },
           {
             foreignKeyName: "reorder_alerts_product_id_fkey"
             columns: ["product_id"]
@@ -3998,6 +4086,13 @@ export type Database = {
             foreignKeyName: "sales_invoice_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "sales_invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -4142,6 +4237,13 @@ export type Database = {
           tenant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_return_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
+          },
           {
             foreignKeyName: "sales_return_items_product_id_fkey"
             columns: ["product_id"]
@@ -4378,6 +4480,13 @@ export type Database = {
             foreignKeyName: "stock_movements_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -4416,6 +4525,13 @@ export type Database = {
           tenant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "supplier_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
+          },
           {
             foreignKeyName: "supplier_products_product_id_fkey"
             columns: ["product_id"]
@@ -4936,6 +5052,98 @@ export type Database = {
       }
     }
     Views: {
+      agent_batch_availability: {
+        Row: {
+          available_qty: number | null
+          batch_number: string | null
+          expiry_date: string | null
+          expiry_status: string | null
+          product_code: string | null
+          product_id: string | null
+          product_name: string | null
+          selling_price: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grn_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "grn_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grn_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_stock_availability: {
+        Row: {
+          available_qty: number | null
+          brand: string | null
+          category: string | null
+          mrp: number | null
+          name: string | null
+          pack_size: string | null
+          product_code: string | null
+          product_id: string | null
+          reorder_level: number | null
+          selling_price: number | null
+          stock_status: string | null
+          tenant_id: string | null
+          unit: string | null
+        }
+        Insert: {
+          available_qty?: number | null
+          brand?: string | null
+          category?: string | null
+          mrp?: number | null
+          name?: string | null
+          pack_size?: string | null
+          product_code?: string | null
+          product_id?: string | null
+          reorder_level?: number | null
+          selling_price?: number | null
+          stock_status?: never
+          tenant_id?: string | null
+          unit?: string | null
+        }
+        Update: {
+          available_qty?: number | null
+          brand?: string | null
+          category?: string | null
+          mrp?: number | null
+          name?: string | null
+          pack_size?: string | null
+          product_code?: string | null
+          product_id?: string | null
+          reorder_level?: number | null
+          selling_price?: number | null
+          stock_status?: never
+          tenant_id?: string | null
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mv_trial_balance: {
         Row: {
           account_id: string | null
@@ -5001,6 +5209,7 @@ export type Database = {
         Args: { p_customer_id: string }
         Returns: boolean
       }
+      current_sales_agent_id: { Args: never; Returns: string }
       current_tenant_role: {
         Args: never
         Returns: Database["public"]["Enums"]["tenant_role"]
