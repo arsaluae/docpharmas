@@ -1498,7 +1498,7 @@ export default function PurchaseProforma() {
  </AlertDialogContent>
  </AlertDialog>
 
- <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+ <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} views={pdfOpts ? generateDocumentViews(pdfOpts) : undefined} title={pdfTitle} />
 
  {/* ═══ POST-CONFIRM DOCUMENT CHOICE ═══ */}
  <Dialog open={postConfirmOpen} onOpenChange={setPostConfirmOpen}>
