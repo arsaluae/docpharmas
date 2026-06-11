@@ -592,7 +592,7 @@ export default function ProformaInvoices() {
  };
 
  // ── HTML BUILDERS (return string; preview wires them through PdfPreviewDialog views) ──
- const buildSalesOrderHtml = (order: SalesOrder): string => {
+ const buildSalesOrderHtml = (order: SalesOrder): { html: string; opts: any } => {
    const pfItems = getPfItems(order);
    const custName = (order.customers as any)?.name || "—";
    const custAddress = (order.customers as any)?.address || undefined;
