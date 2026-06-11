@@ -1,127 +1,82 @@
-# Premium Pharma ERP Redesign — Phase 1
+## Dark Mode + Top-Bar Theme Toggle
 
-Scope: app shell, dashboard, and Sales/Purchase hubs. Visual direction: Stripe-style light premium. Density: balanced. Adds an AI Command Center (palette + insights chat + proactive alerts).
+Add an aesthetic, premium dark mode that mirrors the Stripe-style light theme, plus a light/dark switch in the top bar. Theme persists per user and respects system preference on first load.
 
-Out of scope this pass: reports, finance, inventory, settings, auth, PDFs. They will inherit the new tokens/typography automatically but keep their current layouts.
+### 1. Theme tokens (`src/index.css`)
 
-## 1. Design tokens (light-first)
+Refine the existing `.dark` block so dark mode feels like a true premium counterpart to the light theme (not just inverted):
 
-Update `src/index.css` light theme + `tailwind.config.ts`:
+- Surfaces
+  - `--background: 222 24% 7%` (deep slate-black, not pure black)
+  - `--card: 222 22% 9%`
+  - `--muted: 222 18% 12%`
+  - `--sidebar: 222 24% 6%` (slightly deeper than bg for layering)
+  - `--popover: 222 22% 10%`
+- Ink
+  - `--foreground: 210 30% 96%`
+  - `--muted-foreground: 215 16% 65%`
+- Lines & focus
+  - `--border: 220 14% 18%` (hairline, low-contrast)
+  - `--input: 220 14% 16%`
+  - `--ring: 243 75% 65%` (indigo glow)
+- Brand & status (slightly desaturated for dark)
+  - `--primary: 243 75% 65%` / `--primary-foreground: 0 0% 100%`
+  - success/warning/danger/info tuned ~10% lighter than light mode
+- Elevation: redefine `--shadow-sm-soft` / `--shadow-md-soft` using `rgba(0,0,0,.35/.5)` plus a 1px inner highlight (`inset 0 1px 0 rgba(255,255,255,.04)`) so cards read as lifted glass.
+- Sidebar override: update `.dark .mouj-dark-sidebar` so it uses the new sidebar token (deeper than bg), indigo active row with subtle left accent, and hairline `--border` dividers — matching the light variant's structure.
 
-- Surfaces: `--background: #FFFFFF`, `--muted: #F6F8FA`, `--card: #FFFFFF`, `--sidebar: #FAFBFC`.
-- Ink: `--foreground: #0A2540` (Stripe navy), `--muted-foreground: #4F5B6B`.
-- Borders: `--border: #E3E8EE` hairline; `--ring: #635BFF`.
-- Brand: `--primary: #635BFF` (Stripe indigo) with `--primary-foreground: #FFFFFF`; keep current dark theme intact (toggle still works).
-- Status: success `#0E9F6E`, warning `#D97706`, danger `#E11D48`, info `#0EA5E9` — used in pills/KPIs, not chrome.
-- Elevation: introduce 3 shadow tokens (`--shadow-xs/sm/md`) using soft Stripe-like `rgba(10,37,64,.06/.08/.12)`. Cards get `shadow-xs` resting, `shadow-sm` on hover.
-- Radius: bump `--radius` to `10px` for cards, `8px` for inputs/buttons.
-- Type scale: keep Sora/Manrope/JetBrains Mono. Adjust scale to: display 30/36, h1 22/28, h2 16/22, body 14/20, meta 12/16, micro 11/14 uppercase tracking-wider. `tabular-nums` everywhere numeric.
+### 2. Theme provider
 
-## 2. App shell (`AppSidebar.tsx`, `AppLayout.tsx`)
+Add `src/components/theme-provider.tsx` — a tiny context that:
+- Reads stored theme from `localStorage` key `docpharmas-theme` (`light` | `dark` | `system`).
+- Falls back to `prefers-color-scheme` when `system`.
+- Toggles the `.dark` class on `<html>`.
+- Exposes `useTheme()` with `theme` and `setTheme`.
 
-Sidebar:
-- Width 304px expanded (was ~240), collapses to 64px icon rail.
-- Brand block top: 56px tall, logo + tenant name + tenant switcher chevron.
-- Workspace KPI strip under brand: today's sales, receivables, cash — one line each, mono, click-through.
-- Sections: Overview, Sales, Purchase, Inventory, Finance, Reports, Admin. Each section a `SidebarGroup` with uppercase 11px label and 4px row gap.
-- Nav rows: 40px tall, 14px label, icon 18px, active state = left 2px indigo bar + `bg-primary/[0.06]` + indigo text. Hover = `bg-foreground/[0.04]`.
-- Footer pinned: user avatar, role pill, settings, theme toggle.
+Wrap `<App />` in `src/App.tsx` with `<ThemeProvider defaultTheme="light">`. Default stays light (current look) so existing users see no change until they toggle.
 
-Top bar (`AppLayout`):
-- Height 56px, white, hairline bottom border.
-- Left: SidebarTrigger + breadcrumb (section › page) at 12px.
-- Center: AI Command Center launcher — pill input 420px wide with `⌘K`, sparkle icon, placeholder "Ask or search anything…".
-- Right: date chip, notifications bell with unread dot, environment pill (Live/Sandbox), user menu.
-- Page header band: 28/32px title (light tracking), subtitle 13px muted, right-aligned action cluster. Sticky on scroll with a thin shadow when stuck.
+### 3. Top-bar toggle
 
-## 3. AI Command Center
-
-One unified surface, three modes inside the same overlay:
-
-- Trigger: `⌘K` or click the launcher in the top bar. Opens a 720px centered overlay.
-- Tabs along the top: **Jump to** (search/nav), **Ask** (chat), **Alerts** (proactive feed).
-- **Jump to** mode: reuses current CommandPalette index (pages, recent, customers, invoices). Add fuzzy + section grouping.
-- **Ask** mode: AI SDK `useChat` against a new Supabase Edge Function `ai-command` using Lovable AI Gateway, `google/gemini-3-flash-preview`. System prompt scopes to read-only pharma context. Streams answers with markdown. Suggested prompts row: "Top 5 overdue customers", "Stock expiring next 60 days", "This month vs last month sales". AI Elements (`Conversation`, `Message`, `PromptInput`, `Shimmer`) used per chat-ui-composition rules.
-- **Alerts** mode: pulls from existing `reorder_alerts`, overdue receivables (computed from `customers.balance` + invoice due dates), credit-limit breaches, expiring stock (`grn_items` 30/60/90). Each row is click-through to the relevant page with prefilters.
-- Persistence: none (single session). Storage choice is "no persistence" — chat resets on close, matching the command-palette mental model.
-
-## 4. Dashboard (`src/pages/Index.tsx` admin view)
-
-Layout (12-col grid, 24px gutters):
+In `src/components/AppLayout.tsx`, add a segmented light/dark switch in the top bar, placed left of the notifications bell:
 
 ```text
-┌──────────────────────────────────────────────────────────┐
-│  KPI strip — 4 metric cards with sparkline + delta       │
-├───────────────────────────┬──────────────────────────────┤
-│  Sales trend (8 col)      │  AI insight card (4 col)     │
-│  Recharts area, 6mo       │  1 hero insight + CTA        │
-├───────────────────────────┼──────────────────────────────┤
-│  Receivables aging (6)    │  Top customers MTD (6)       │
-├───────────────────────────┴──────────────────────────────┤
-│  Proactive alerts feed (full width, 3-col cards)         │
-├──────────────────────────────────────────────────────────┤
-│  Recent activity timeline (full width)                   │
-└──────────────────────────────────────────────────────────┘
+[ ☀  ◐ ]   <- 2-segment pill, 28px tall, hairline border, indigo active pill
 ```
 
-KPI cards:
-- 4 metrics: MTD Sales, Receivables, Cash on hand, Stock value.
-- Each card: 11px uppercase label, 28px value with `tabular-nums`, 12px delta vs last month with arrow + color, 40px sparkline (Recharts mini area).
-- Card chrome: white, 10px radius, hairline border, `shadow-xs`, 20px padding. Hover lifts to `shadow-sm` + border darken.
+- Two icons: `Sun` and `Moon` from `lucide-react`.
+- Active segment uses `bg-primary/10 text-primary` with a soft inner shadow.
+- Hover state: `bg-muted`.
+- Accessible: `role="group"`, each button has `aria-label` and `aria-pressed`.
+- Animation: 150ms ease-out background transition, icon scales 0.95→1 on activate.
 
-AI insight card: pulls latest result from `ai-insights` function, shows headline + 2 bullets + "Open insights" link.
+No separate settings page — the top-bar control is the single source of truth.
 
-Alerts feed: 3-column card grid (Reorder · Overdue · Expiring) with count badge and top 3 rows + "View all".
+### 4. Component QA pass (visual only)
 
-Activity timeline: reuse `ActivityTimeline` with denser styling.
+After tokens land, sanity-check these surfaces in dark mode and tweak token values if anything reads flat. No structural changes:
+- Sidebar (active row, hover, collapsed state)
+- Top bar + Command Palette overlay (glass should still read as lifted)
+- Dashboard KPI cards, sparkline strokes, AI insight card
+- Sales/Purchase hub tables (zebra off, hairline rows still visible)
+- Status pills (success/warning/danger contrast on dark muted bg)
+- Dialogs / PdfPreviewDialog chrome (PDF body itself stays white — it's a document)
 
-## 5. Sales hub (`ProformaInvoices.tsx` list view only)
+### Out of scope
 
-Keep the recently redesigned composer untouched. Rework only the list page:
+- No changes to PDF templates (invoices stay light — they're print documents).
+- No auth/profile persistence (localStorage is enough; can move to `profiles.theme` later if requested).
+- No new "system" UI affordance beyond the 2-segment toggle (system is the implicit default before first click).
 
-- Header band: title + status filter pills (All · Draft · Sent · Paid · Overdue · Voided) with counts.
-- Toolbar row: search, customer filter, date range, city filter, agent filter, "Columns" menu, "Export". Filters render as removable chips below the toolbar.
-- Summary strip: 4 mini-KPIs (Open value, Overdue value, Collected MTD, Avg days to pay) — same KPI chrome as dashboard but compact.
-- Table: 44px rows, balanced density, columns Inv# · Date · Customer · City · Total · Paid · Status · Due. Sticky header, zebra off, hairline row dividers. Row hover = `bg-muted/40`. Status as pill component, amounts mono right-aligned, dates `DD MMM YYYY`.
-- Bulk action bar appears on row selection (mark paid, send, export, void).
-- Pagination strip bottom: 50/page server pagination preserved, page X of Y mono.
-- Mobile: stacked cards (existing pattern) restyled to match.
+### Files touched
 
-## 6. Purchase hub (`PurchaseProforma.tsx` list view only)
+- `src/index.css` — refine `.dark` tokens, shadows, sidebar override
+- `src/components/theme-provider.tsx` — new
+- `src/App.tsx` — wrap with ThemeProvider
+- `src/components/AppLayout.tsx` — add top-bar toggle
 
-Same pattern as Sales hub, columns: PO# · Date · Supplier · Items · Total · GRN status · Payment status. Summary strip: Open PO value, Pending GRN, Payable this week, Avg lead time.
+### Acceptance
 
-## 7. Files touched
-
-- `src/index.css` — light token overhaul + shadow vars.
-- `tailwind.config.ts` — shadow utilities, radius bump.
-- `src/components/AppSidebar.tsx` — width, sections, KPI block, footer.
-- `src/components/AppLayout.tsx` — top bar redesign, AI launcher, sticky page header.
-- `src/components/CommandPalette.tsx` — refactor into tabbed AI Command Center.
-- `src/components/ai/AICommandCenter.tsx` *(new)* — overlay shell with Jump/Ask/Alerts tabs.
-- `src/components/ai/AskPanel.tsx` *(new)* — AI Elements chat surface.
-- `src/components/ai/AlertsPanel.tsx` *(new)* — proactive alerts list.
-- `supabase/functions/ai-command/index.ts` *(new)* — streaming chat endpoint via Lovable AI Gateway.
-- `src/pages/Index.tsx` (admin dashboard branch) — new grid, KPI cards, alerts feed.
-- `src/components/ui/metric-card.tsx` — restyle to premium KPI card with sparkline slot.
-- `src/components/ui/status-pill.tsx` — light-theme palette.
-- `src/pages/ProformaInvoices.tsx` — list-view header/toolbar/table chrome only.
-- `src/pages/PurchaseProforma.tsx` — same.
-
-## 8. Technical notes
-
-- Keep existing dark theme working; only the light theme is retuned now.
-- Sidebar width change requires updating `--sidebar-width` CSS var consumed by `components/ui/sidebar.tsx` (no fork of the primitive).
-- AI Command Center uses AI SDK + AI Elements (`bun x ai-elements@latest add conversation message prompt-input shimmer`). New edge function follows `connecting-to-ai-models-classic-stack`. `LOVABLE_API_KEY` is server-only.
-- Alerts feed is read-only aggregation over existing tables — no schema changes.
-- No business logic changes anywhere; numbers, totals, document numbering, RLS, triggers untouched.
-- All numeric cells `tabular-nums`; dates via `formatDateDDMMMYYYY`.
-
-## 9. Acceptance
-
-- Sidebar 304px, sections labeled, active state has indigo bar + tint.
-- Top bar AI launcher opens overlay with three working tabs; Ctrl+K still works.
-- Dashboard KPI cards show value + delta + sparkline; alerts feed shows live counts; no layout shift on load.
-- Sales and Purchase hubs show status pills, filter chips, summary strip, 44px rows, server pagination still 50/page.
-- Light theme passes contrast on text/borders/status pills; dark theme unchanged.
-- No regressions in composer flows, PDF generation, or list pagination.
+- Toggle in top bar flips entire app between light and dark instantly, with no flash on reload.
+- Dark mode feels premium: layered surfaces, hairline borders visible, indigo accents glow subtly, tabular numbers stay crisp.
+- Light mode is byte-identical to current.
+- Choice persists across reloads; first-time visitors get light by default.

@@ -2,8 +2,9 @@ import { ReactNode, useState, useEffect, useCallback, lazy, Suspense } from "rea
 import { useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { CalendarDays, Search, ChevronRight, Sparkles, Bell } from "lucide-react";
+import { CalendarDays, Search, ChevronRight, Sparkles, Bell, Sun, Moon } from "lucide-react";
 import { useGlobalShortcuts } from "@/components/KeyboardShortcuts";
+import { useTheme } from "@/components/theme-provider";
 
 const RECENT_KEY = "lovable:recent-pages";
 const MAX_RECENT = 5;
@@ -58,6 +59,7 @@ export function AppLayout({ title, subtitle, children, headerActions }: AppLayou
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteTab, setPaletteTab] = useState<Tab>("jump");
   const location = useLocation();
+  const { theme, setTheme } = useTheme();
 
   const openPalette = useCallback((tab: Tab = "jump") => {
     setPaletteTab(tab);
@@ -106,6 +108,40 @@ export function AppLayout({ title, subtitle, children, headerActions }: AppLayou
             </div>
 
             {/* Right cluster */}
+            {/* Theme switch — segmented light/dark pill */}
+            <div
+              role="group"
+              aria-label="Theme"
+              className="hidden sm:inline-flex h-9 items-center gap-0.5 rounded-md border border-border bg-card p-0.5"
+            >
+              <button
+                type="button"
+                onClick={() => setTheme("light")}
+                aria-label="Light mode"
+                aria-pressed={theme === "light"}
+                className={`h-7 w-8 inline-flex items-center justify-center rounded-[5px] transition-all duration-150 ease-out ${
+                  theme === "light"
+                    ? "bg-primary/10 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Sun className="h-3.5 w-3.5" strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme("dark")}
+                aria-label="Dark mode"
+                aria-pressed={theme === "dark"}
+                className={`h-7 w-8 inline-flex items-center justify-center rounded-[5px] transition-all duration-150 ease-out ${
+                  theme === "dark"
+                    ? "bg-primary/15 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Moon className="h-3.5 w-3.5" strokeWidth={2} />
+              </button>
+            </div>
+
             <button
               onClick={() => openPalette("alerts")}
               className="relative h-9 w-9 rounded-md border border-border bg-card hover:border-primary/40 hover:bg-muted/40 transition-colors inline-flex items-center justify-center text-muted-foreground"
