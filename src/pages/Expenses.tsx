@@ -17,7 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Receipt, Briefcase, User, Wallet, Pencil, Trash2, BookOpen, ArrowLeft, X } from "lucide-react";
+import { Plus, Search, Receipt, Briefcase, User, Wallet, Pencil, Trash2, BookOpen, ArrowLeft, X, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useFreightProviders } from "@/hooks/useFreightProviders";
