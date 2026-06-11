@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
 import { FreightProvidersCard } from "@/components/settings/FreightProvidersCard";
+import { WhatsAppTemplatesCard } from "@/components/settings/WhatsAppTemplatesCard";
 import { CREATABLE_ROLES, ROLE_DESCRIPTION, ROLE_LABEL, type TenantRole } from "@/lib/rbac";
 import { logAudit } from "@/lib/audit";
 
