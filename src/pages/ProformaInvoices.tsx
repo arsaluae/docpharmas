@@ -578,17 +578,29 @@ export default function ProformaInvoices() {
  pdfLink = await uploadSharedDocument(html, order.invoice_number || order.proforma_number) || undefined;
  } catch (e) { console.error("PDF link error:", e); }
 
- const { buildSalesInvoiceMessage, openWhatsApp } = await import("@/lib/whatsapp-share");
- const message = buildSalesInvoiceMessage({
- documentNumber: order.invoice_number || order.proforma_number,
- companyName, customerName: custName, customerPhone: custPhone,
- date: order.date,
- items: pfItems.map(i => ({ product_name: i.product_name, quantity: i.quantity, rate: i.rate })),
- total: order.total,
- paymentInstructions: order.payment_instructions || undefined,
- bankDetails, pdfLink,
- });
- openWhatsApp(custPhone, message);
+  const { sendWhatsAppDoc } = await import("@/lib/whatsapp-templates");
+  await sendWhatsAppDoc({
+    documentType: order.invoice_number ? "sales_invoice" : "sales_order",
+    phone: custPhone,
+    vars: {
+      company_name: companyName,
+      company_phone: settings?.phone || "",
+      company_email: settings?.email || "",
+      company_address: settings?.address || "",
+      customer_name: custName,
+      customer_code: cust?.customer_code || "",
+      customer_phone: custPhone,
+      customer_city: cust?.city || "",
+      customer_address: cust?.address || "",
+      document_type: order.invoice_number ? "Sales Invoice" : "Sales Order",
+      document_number: order.invoice_number || order.proforma_number,
+      document_date: order.date,
+      validity_days: (order as any).validity_days ?? "",
+      document_total: Number(order.total).toLocaleString(),
+      document_status: order.status || "",
+      document_link: pdfLink || "",
+    },
+  });
  };
 
  // ── HTML BUILDERS (return string; preview wires them through PdfPreviewDialog views) ──
