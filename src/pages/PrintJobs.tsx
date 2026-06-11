@@ -19,7 +19,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { Plus, Search, ClipboardCheck, Package, Truck, CheckCircle2, Trash2, Eye, Send, Factory, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { generatePdfHtml } from "@/lib/pdf-generator";
+import { generatePdfHtml, generateDocumentViews } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 
 interface PrinterEntity { id: string; name: string; }
@@ -101,6 +101,7 @@ export default function PrintJobs() {
  const [pdfHtml, setPdfHtml] = useState("");
  const [pdfOpen, setPdfOpen] = useState(false);
  const [pdfTitle, setPdfTitle] = useState("");
+ const [pdfOpts, setPdfOpts] = useState<any | null>(null);
  const { settings } = useCompanySettings();
 
  const [searchParams, setSearchParams] = useSearchParams();
@@ -278,7 +279,7 @@ export default function PrintJobs() {
  const previewJob = (job: PrintJob) => {
  const printerName = printerNames[job.printer_id || ""] || "—";
  const productName = productNames[job.product_id || ""] || "—";
- const html = generatePdfHtml({
+ const __opts_html = ({
  title: "PRINT JOB ORDER", documentNumber: job.job_number, date: job.date,
  partyLabel: "Printer", partyName: printerName,
  statusTheme: job.status === "settled" ? "paid" : job.status === "delivered" ? "dispatched" : "draft",
@@ -307,7 +308,9 @@ export default function PrintJobs() {
  ],
  notes: [job.notes, job.rejection_reason ? `Rejection: ${job.rejection_reason}` : null].filter(Boolean).join("\n") || undefined,
  settings,
- });
+ } as any);
+ const html = generatePdfHtml(__opts_html);
+ setPdfOpts(__opts_html);
  setPdfHtml(html); setPdfTitle(`Print Job — ${job.job_number}`); setPdfOpen(true);
  };
 
@@ -703,7 +706,7 @@ export default function PrintJobs() {
  </DialogContent>
  </Dialog>
 
-  <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+  <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} views={pdfOpts ? generateDocumentViews(pdfOpts) : undefined} title={pdfTitle} />
 
   {/* Record Rejection Dialog */}
   <Dialog open={!!rejectJob} onOpenChange={o => { if (!o) setRejectJob(null); }}>

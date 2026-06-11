@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { generatePdfHtml } from "@/lib/pdf-generator";
+import { generatePdfHtml, generateDocumentViews } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 
@@ -34,6 +34,7 @@ export default function DeliveryNotes() {
  const { settings } = useCompanySettings();
  const { getTemplate } = useDocumentTemplates();
  const [pdfHtml, setPdfHtml] = useState("");
+ const [pdfViews, setPdfViews] = useState<ReturnType<typeof generateDocumentViews> | undefined>(undefined);
  const [pdfOpen, setPdfOpen] = useState(false);
  const [pdfTitle, setPdfTitle] = useState("");
 
@@ -49,30 +50,42 @@ export default function DeliveryNotes() {
  useEffect(() => { load(); }, [pagination.page]);
 
  const load = async () => {
- const { data, count } = await supabase.from("delivery_notes").select("*, customers(name, phone), suppliers(name, phone)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
+ const { data, count } = await supabase.from("delivery_notes").select("*, customers(customer_code, name, phone, sms_mobile, city, area, address, old_erp_account_code), suppliers(supplier_code, name, phone, city, address)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
  if (data) setNotes(data as any);
  if (count !== null) pagination.setTotalCount(count);
  };
 
  const printDN = (dn: DeliveryNote) => {
  const items = typeof dn.items === "string" ? JSON.parse(dn.items) : dn.items;
- const customerName = (dn as any).customers?.name || (dn as any).suppliers?.name || undefined;
- const partyPhone = (dn as any).customers?.phone || (dn as any).suppliers?.phone || undefined;
- const html = generatePdfHtml({
- title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date,
- partyLabel: dn.customer_id ? "Customer" : dn.supplier_id ? "Supplier" : undefined,
- partyName: customerName,
- partyPhone,
- columns: [
- { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
- { header: "Batch #", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
- { header: "Quantity", key: "quantity", align: "right" },
- ],
- rows: items.map((i: any, idx: number) => ({ ...i, idx: idx + 1 })),
- notes: dn.notes || undefined, settings,
- template: getTemplate("delivery_note"),
- });
- setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
+ const c = (dn as any).customers || (dn as any).suppliers || {};
+ const opts = {
+   title: "DELIVERY NOTE",
+   documentNumber: dn.dn_number,
+   date: dn.date,
+   statusTheme: "dispatched" as const,
+   partyLabel: dn.customer_id ? "Customer" : dn.supplier_id ? "Supplier" : undefined,
+   partyName: c.name || undefined,
+   partyCode: c.customer_code || c.supplier_code || undefined,
+   partyMobile: c.sms_mobile || undefined,
+   partyPhone: c.phone || undefined,
+   partyCity: c.city || undefined,
+   partyArea: c.area || undefined,
+   partyAddress: c.address || undefined,
+   partyAccountCode: c.old_erp_account_code || undefined,
+   deliveryStatus: (dn as any).delivery_type_label || dn.status,
+   columns: [
+     { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+     { header: "Batch #", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
+     { header: "Quantity", key: "quantity", align: "right" as const },
+   ],
+   rows: items.map((i: any, idx: number) => ({ ...i, idx: idx + 1 })),
+   notes: dn.notes || undefined, settings,
+   template: getTemplate("delivery_note"),
+ };
+ const views = generateDocumentViews(opts);
+ setPdfViews(views);
+ setPdfHtml(views[0].html);
+ setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
  };
 
  const filtered = notes.filter(n => {
@@ -347,7 +360,7 @@ export default function DeliveryNotes() {
  )}
  </DialogContent>
  </Dialog>
- <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+ <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} views={pdfViews} title={pdfTitle} />
  </AppLayout>
  );
 }

@@ -22,7 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { GraceDeleteButton } from "@/components/GraceDeleteButton";
-import { generatePdfHtml } from "@/lib/pdf-generator";
+import { generatePdfHtml, generateDocumentViews } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -86,6 +86,7 @@ export default function ProformaInvoices() {
  const [pdfHtml, setPdfHtml] = useState("");
  const [pdfOpen, setPdfOpen] = useState(false);
  const [pdfTitle, setPdfTitle] = useState("");
+ const [pdfOpts, setPdfOpts] = useState<any | null>(null);
  const [pdfViews, setPdfViews] = useState<{ key: string; label: string; color: string; html: string; disabled?: boolean }[] | undefined>(undefined);
  const [pdfDefaultView, setPdfDefaultView] = useState<string | undefined>(undefined);
 
@@ -247,7 +248,7 @@ export default function ProformaInvoices() {
  // ── SIMPLIFIED LOAD: proforma_invoices only ──
  const load = async () => {
  setLoading(true);
- let pfQuery = supabase.from("proforma_invoices").select("*, customers(name, company, phone, address, area)", { count: "exact" }).order("created_at", { ascending: false });
+ let pfQuery = supabase.from("proforma_invoices").select("*, customers(customer_code, name, company, phone, sms_mobile, address, city, area, old_erp_account_code)", { count: "exact" }).order("created_at", { ascending: false });
  if (statusFilter !== "all") {
  if (statusFilter === "draft") pfQuery = pfQuery.eq("status", "draft");
  else pfQuery = pfQuery.neq("status", "draft"); // simplified for server-side
@@ -454,17 +455,23 @@ export default function ProformaInvoices() {
  }
  };
 
- // ── PREVIEW with 3-view template switcher (Sales Order / Invoice / Delivery Note) ──
+ // ── PREVIEW with template switcher (Sales Order / Invoice / Delivery Note × A4/WhatsApp) ──
  const openPreview = async (order: SalesOrder, preferredView?: "sales_order" | "sales_invoice" | "delivery_note") => {
-   const orderHtml = buildSalesOrderHtml(order);
-   const invoiceHtml = order.converted_invoice_id ? await buildSalesInvoiceHtml(order) : "";
-   const dnHtml = order.converted_invoice_id ? await buildDeliveryNoteHtml(order) : "";
-   const hasInvoice = !!invoiceHtml;
-   const hasDn = !!dnHtml;
+   const orderBuilt = buildSalesOrderHtml(order);
+   const invoiceBuilt = order.converted_invoice_id ? await buildSalesInvoiceHtml(order) : "";
+   const dnBuilt = order.converted_invoice_id ? await buildDeliveryNoteHtml(order) : "";
+   const hasInvoice = !!invoiceBuilt;
+   const hasDn = !!dnBuilt;
+   const orderWa = generateDocumentViews(orderBuilt.opts).find(v => v.key === "whatsapp")!.html;
+   const invoiceWa = hasInvoice ? generateDocumentViews((invoiceBuilt as any).opts).find(v => v.key === "whatsapp")!.html : "";
+   const dnWa = hasDn ? generateDocumentViews((dnBuilt as any).opts).find(v => v.key === "whatsapp")!.html : "";
    const views = [
-     { key: "sales_order",  label: "Sales Order",    color: "bg-amber-500 text-white border-amber-500",   html: orderHtml },
-     { key: "sales_invoice",label: "Sales Invoice",  color: "bg-blue-600 text-white border-blue-600",     html: invoiceHtml, disabled: !hasInvoice },
-     { key: "delivery_note",label: "Delivery Note",  color: "bg-violet-600 text-white border-violet-600", html: dnHtml,      disabled: !hasDn },
+     { key: "sales_order",      label: "Sales Order",     color: "bg-amber-500 text-white border-amber-500",   html: orderBuilt.html },
+     { key: "sales_order_wa",   label: "SO · WhatsApp",   color: "bg-emerald-600 text-white border-emerald-600", html: orderWa },
+     { key: "sales_invoice",    label: "Sales Invoice",   color: "bg-blue-600 text-white border-blue-600",     html: hasInvoice ? (invoiceBuilt as any).html : "", disabled: !hasInvoice },
+     { key: "sales_invoice_wa", label: "SI · WhatsApp",   color: "bg-emerald-600 text-white border-emerald-600", html: invoiceWa, disabled: !hasInvoice },
+     { key: "delivery_note",    label: "Delivery Note",   color: "bg-violet-600 text-white border-violet-600", html: hasDn ? (dnBuilt as any).html : "", disabled: !hasDn },
+     { key: "delivery_note_wa", label: "DN · WhatsApp",   color: "bg-emerald-600 text-white border-emerald-600", html: dnWa, disabled: !hasDn },
    ];
    const def = preferredView && views.find(v => v.key === preferredView && !v.disabled)
      ? preferredView
@@ -558,7 +565,7 @@ export default function ProformaInvoices() {
  let pdfLink: string | undefined;
  try {
  const { buildSalesInvoiceMessage, openWhatsApp, uploadSharedDocument } = await import("@/lib/whatsapp-share");
- const html = generatePdfHtml({
+ const __opts_html = ({
  title: "SALES INVOICE",
  documentNumber: order.invoice_number || order.proforma_number,
  date: order.date, partyLabel: "Customer", partyName: custName,
@@ -571,7 +578,9 @@ export default function ProformaInvoices() {
  rows: pfItems.map((i, idx) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString() })),
  totals: [{ label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` }],
  settings, template: getTemplate("sales_invoice"),
- });
+ } as any);
+ const html = generatePdfHtml(__opts_html);
+ setPdfOpts(__opts_html);
  pdfLink = await uploadSharedDocument(html, order.invoice_number || order.proforma_number) || undefined;
  } catch (e) { console.error("PDF link error:", e); }
 
@@ -589,16 +598,22 @@ export default function ProformaInvoices() {
  };
 
  // ── HTML BUILDERS (return string; preview wires them through PdfPreviewDialog views) ──
- const buildSalesOrderHtml = (order: SalesOrder): string => {
+ const buildSalesOrderHtml = (order: SalesOrder): { html: string; opts: any } => {
    const pfItems = getPfItems(order);
-   const custName = (order.customers as any)?.name || "—";
-   const custAddress = (order.customers as any)?.address || undefined;
-   const custPhone = (order.customers as any)?.phone || undefined;
-   const custArea = (order.customers as any)?.area || undefined;
-   return generatePdfHtml({
+   const c = (order.customers as any) || {};
+   { const __o = ({
      title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
-     partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
-     meta: [{ label: "Validity", value: `${order.validity_days} days` }],
+     partyLabel: "Customer",
+     partyName: c.name || "—",
+     partyCode: c.customer_code || undefined,
+     partyMobile: c.sms_mobile || undefined,
+     partyPhone: c.phone || undefined,
+     partyCity: c.city || undefined,
+     partyArea: c.area || undefined,
+     partyAddress: c.address || undefined,
+     partyAccountCode: c.old_erp_account_code || undefined,
+     validity: `Valid for ${order.validity_days} days`,
+     paymentTerms: order.payment_instructions || undefined,
       columns: [
         { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
         { header: "MRP", key: "mrp", align: "right" },
@@ -619,7 +634,7 @@ export default function ProformaInvoices() {
      ],
      notes: order.payment_instructions || undefined, settings,
      template: { ...(getTemplate("sales_invoice") as any), title: "Sales Order" } as any,
-   });
+   } as any); return { html: generatePdfHtml(__o), opts: __o }; }
  };
  const printOrder = (order: SalesOrder) => { openPreview(order, "sales_order"); };
  
@@ -664,9 +679,9 @@ export default function ProformaInvoices() {
  setPaymentOpen(false); setPaymentSaving(false); load();
  };
 
-  const buildSalesInvoiceHtml = async (order: SalesOrder): Promise<string> => {
+  const buildSalesInvoiceHtml = async (order: SalesOrder): Promise<{ html: string; opts: any } | ""> => {
     if (!order.converted_invoice_id) return "";
-    const { data: inv } = await supabase.from("sales_invoices").select("*, customers(name, address, phone, area)").eq("id", order.converted_invoice_id).single();
+    const { data: inv } = await supabase.from("sales_invoices").select("*, customers(customer_code, name, address, phone, sms_mobile, city, area, old_erp_account_code)").eq("id", order.converted_invoice_id).single();
      const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name, mrp, selling_price)").eq("invoice_id", order.converted_invoice_id);
      if (!inv) return "";
     // Fallback: backfill missing expiry_date from GRN in one batched query (older rows).
@@ -683,13 +698,19 @@ export default function ProformaInvoices() {
         if (g.expiry_date) expiryMap[`${g.product_id}__${g.batch_number}`] = g.expiry_date;
       });
     }
-    return generatePdfHtml({
+    { const __c = (inv.customers as any) || {};
+      const __o = ({
       title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
       partyLabel: "Customer",
-      partyName: (inv.customers as any)?.name || "—",
-      partyAddress: (inv.customers as any)?.address || undefined,
-      partyPhone: (inv.customers as any)?.phone || undefined,
-      partyArea: (inv.customers as any)?.area || undefined,
+      partyName: __c.name || "—",
+      partyCode: __c.customer_code || undefined,
+      partyMobile: __c.sms_mobile || undefined,
+      partyPhone: __c.phone || undefined,
+      partyCity: __c.city || undefined,
+      partyArea: __c.area || undefined,
+      partyAddress: __c.address || undefined,
+      partyAccountCode: __c.old_erp_account_code || undefined,
+      paymentTerms: (inv as any).payment_terms || undefined,
       columns: [
         { header: "#", key: "idx" },
         { header: "Product", key: "name" },
@@ -717,21 +738,18 @@ export default function ProformaInvoices() {
         { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
       ],
       settings, template: getTemplate("sales_invoice"),
-    });
+    } as any); return { html: generatePdfHtml(__o), opts: __o }; }
   };
  const printInvoice = async (order: SalesOrder) => { await openPreview(order, "sales_invoice"); };
 
  // ── DELIVERY NOTE PDF ──
-  const buildDeliveryNoteHtml = async (order: SalesOrder): Promise<string> => {
+  const buildDeliveryNoteHtml = async (order: SalesOrder): Promise<{ html: string; opts: any } | ""> => {
     const invoiceId = order.converted_invoice_id;
     if (!invoiceId) return "";
     const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", invoiceId).maybeSingle();
     if (!dn) return "";
     const dnItems: any[] = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
-    const custName = (order.customers as any)?.name || "—";
-    const custAddress = (order.customers as any)?.address || undefined;
-    const custPhone = (order.customers as any)?.phone || undefined;
-    const custArea = (order.customers as any)?.area || undefined;
+    const c = (order.customers as any) || {};
 
     // Batch fetch MRP for each product, and expiry fallback for items missing it.
     const productIds = Array.from(new Set(dnItems.map((i: any) => i.product_id).filter(Boolean)));
@@ -753,9 +771,18 @@ export default function ProformaInvoices() {
       });
     }
 
-    return generatePdfHtml({
+    { const __o = ({
       title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
-      partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
+      partyLabel: "Customer",
+      partyName: c.name || "—",
+      partyCode: c.customer_code || undefined,
+      partyMobile: c.sms_mobile || undefined,
+      partyPhone: c.phone || undefined,
+      partyCity: c.city || undefined,
+      partyArea: c.area || undefined,
+      partyAddress: c.address || undefined,
+      partyAccountCode: c.old_erp_account_code || undefined,
+      deliveryStatus: dn.status,
       columns: [
         { header: "#", key: "idx" },
         { header: "Product", key: "product_name" },
@@ -778,7 +805,7 @@ export default function ProformaInvoices() {
       }),
       totals: [],
       settings, template: getTemplate("delivery_note"),
-    });
+    } as any); return { html: generatePdfHtml(__o), opts: __o }; }
   };
  const printDeliveryNote = async (order: SalesOrder) => { await openPreview(order, "delivery_note"); };
 
