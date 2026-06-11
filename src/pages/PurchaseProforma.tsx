@@ -22,7 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { GraceDeleteButton } from "@/components/GraceDeleteButton";
-import { generatePdfHtml } from "@/lib/pdf-generator";
+import { generatePdfHtml, generateDocumentViews } from "@/lib/pdf-generator";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -81,6 +81,7 @@ export default function PurchaseProforma() {
  const [pdfHtml, setPdfHtml] = useState("");
  const [pdfOpen, setPdfOpen] = useState(false);
  const [pdfTitle, setPdfTitle] = useState("");
+ const [pdfOpts, setPdfOpts] = useState<any | null>(null);
  // Edit Dialog
  const [editOpen, setEditOpen] = useState(false);
  const [editOrder, setEditOrder] = useState<PurchaseOrder | null>(null);
@@ -373,7 +374,7 @@ export default function PurchaseProforma() {
  const pdfDocTitle = isInvoiced ? "PURCHASE INVOICE" : "PURCHASE ORDER";
  const theme = order.status === "draft" ? "draft" as const : "invoiced" as const;
  setTimeout(() => {
- const html = generatePdfHtml({
+ const __opts_html = ({
  title: pdfDocTitle, documentNumber: order.po_number || order.proforma_number, date: order.date, statusTheme: theme,
  partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
  partyAddress: (order.suppliers as any)?.address || undefined,
@@ -394,7 +395,9 @@ export default function PurchaseProforma() {
  ],
  notes: order.notes || undefined, settings,
  template: getTemplate("purchase_proforma"),
- });
+ } as any);
+ const html = generatePdfHtml(__opts_html);
+ setPdfOpts(__opts_html);
  setPdfHtml(html); setPdfTitle(`${pdfDocTitle} — ${order.po_number || order.proforma_number}`); setPdfOpen(true);
  }, 0);
  };
@@ -425,7 +428,7 @@ export default function PurchaseProforma() {
  let pdfLink: string | undefined;
  try {
  const { uploadSharedDocument } = await import("@/lib/whatsapp-share");
- const html = generatePdfHtml({
+ const __opts_html = ({
  title: order.po_number ? "PURCHASE ORDER" : "PURCHASE PROFORMA",
  documentNumber: order.po_number || order.proforma_number,
  date: order.date, partyLabel: "Supplier", partyName: supName,
@@ -442,7 +445,9 @@ export default function PurchaseProforma() {
  })),
  totals: [{ label: "Total", value: `PKR ${Number(order.total).toLocaleString()}` }],
  settings, template: getTemplate("purchase_order"),
- });
+ } as any);
+ const html = generatePdfHtml(__opts_html);
+ setPdfOpts(__opts_html);
  pdfLink = await uploadSharedDocument(html, order.po_number || order.proforma_number) || undefined;
  } catch (e) { console.error("PDF link error:", e); }
 
@@ -511,7 +516,7 @@ export default function PurchaseProforma() {
 
  // ── PDF ──
  const printOrder = (order: PurchaseOrder) => {
- const html = generatePdfHtml({
+ const __opts_html = ({
  title: "PURCHASE ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
  partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
  partyAddress: (order.suppliers as any)?.address || undefined,
@@ -532,7 +537,9 @@ export default function PurchaseProforma() {
  ],
  notes: order.notes || undefined, settings,
  template: getTemplate("purchase_proforma"),
- });
+ } as any);
+ const html = generatePdfHtml(__opts_html);
+ setPdfOpts(__opts_html);
  setPdfHtml(html); setPdfTitle(`Purchase Order — ${order.proforma_number}`); setPdfOpen(true);
  };
 
@@ -653,7 +660,7 @@ export default function PurchaseProforma() {
    const { data: gi } = await supabase.from("grn_items").select("*").in("grn_id", grns.map(g => g.id));
    grnItems = gi || [];
  }
- const html = generatePdfHtml({
+ const __opts_html = ({
  title: "PURCHASE INVOICE", documentNumber: order.po_number || poData.po_number, date: poData.date, statusTheme: "invoiced" as const,
  partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
  partyAddress: (order.suppliers as any)?.address || undefined,
@@ -685,7 +692,9 @@ export default function PurchaseProforma() {
  { label: "Total", value: `PKR ${Number(poData.total).toLocaleString()}` },
  ],
  settings, template: getTemplate("purchase_order"),
- });
+ } as any);
+ const html = generatePdfHtml(__opts_html);
+ setPdfOpts(__opts_html);
  setPdfHtml(html); setPdfTitle(`Purchase Invoice — ${order.po_number || poData.po_number}`); setPdfOpen(true);
  };
 
@@ -696,7 +705,7 @@ export default function PurchaseProforma() {
  const { data: dn } = await supabase.from("delivery_notes").select("*").eq("reference_id", poId).single();
  if (!dn) { toast.error("Delivery note not found"); return; }
  const dnItems = typeof dn.items === "string" ? JSON.parse(dn.items) : (dn.items as any[]);
- const html = generatePdfHtml({
+ const __opts_html = ({
  title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
  partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
  partyAddress: (order.suppliers as any)?.address || undefined,
@@ -713,7 +722,9 @@ export default function PurchaseProforma() {
  })),
  totals: [],
  settings, template: getTemplate("delivery_note"),
- });
+ } as any);
+ const html = generatePdfHtml(__opts_html);
+ setPdfOpts(__opts_html);
  setPdfHtml(html); setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
  };
 
@@ -845,7 +856,7 @@ export default function PurchaseProforma() {
      action: { label: "Create Print Job", onClick: () => navigate(`/print-jobs?from_grn=1`) },
    });
 
- const grnHtml = generatePdfHtml({
+ const __opts_grnHtml = ({
  title: "GOODS RECEIVED NOTE", documentNumber: grnNumber, date: grn.date, statusTheme: "received" as const,
  partyLabel: "Supplier", partyName: (receivePO.suppliers as any)?.name || "—",
  columns: [
@@ -858,7 +869,9 @@ export default function PurchaseProforma() {
  expiry_date: i.expiry_date || "—", quantity_received: i.quantity_received,
  })),
  settings, template: getTemplate("grn"),
- });
+ } as any);
+ const grnHtml = generatePdfHtml(__opts_grnHtml);
+ setPdfOpts(__opts_grnHtml);
    setPdfHtml(grnHtml); setPdfTitle(`GRN — ${grnNumber}`); setPdfOpen(true);
    setReceiveOpen(false); setReceivedBy(""); setReceiveNotes(""); setReceiving(false); load();
  };
