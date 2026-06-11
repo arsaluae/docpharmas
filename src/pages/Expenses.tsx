@@ -20,6 +20,7 @@ import {
 import { Plus, Search, Receipt, Briefcase, User, Wallet, Pencil, Trash2, BookOpen, ArrowLeft, X } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useFreightProviders } from "@/hooks/useFreightProviders";
 import { BulkActionBar, useBulkSelection, RowCheckbox } from "@/components/BulkActionBar";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -38,6 +39,7 @@ interface Expense {
   id: string; expense_number: string; category: string; description: string | null;
   amount: number; gst_amount: number; payment_method: string; bank_account_id: string | null;
   date: string; notes: string | null; expense_type: string; ledger_id: string | null;
+  freight_provider_id: string | null;
 }
 interface ExpenseLedger {
   id: string; name: string; expense_type: string; description: string | null;
@@ -45,6 +47,7 @@ interface ExpenseLedger {
 
 export default function Expenses() {
   const { settings } = useCompanySettings();
+  const { providers: couriers, reload: reloadCouriers } = useFreightProviders(false);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [ledgers, setLedgers] = useState<ExpenseLedger[]>([]);
@@ -83,6 +86,10 @@ export default function Expenses() {
   const [bankAccountId, setBankAccountId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
+  const [freightProviderId, setFreightProviderId] = useState("");
+  const [newCourierName, setNewCourierName] = useState("");
+  const [addCourierOpen, setAddCourierOpen] = useState(false);
+  const [courierFilter, setCourierFilter] = useState("all");
 
   useEffect(() => { load(); }, [pagination.page, activeTab, selectedLedger]);
 
