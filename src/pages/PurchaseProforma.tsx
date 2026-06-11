@@ -451,16 +451,24 @@ export default function PurchaseProforma() {
  pdfLink = await uploadSharedDocument(html, order.po_number || order.proforma_number) || undefined;
  } catch (e) { console.error("PDF link error:", e); }
 
- const { buildPurchaseOrderMessage, openWhatsApp } = await import("@/lib/whatsapp-share");
- const message = buildPurchaseOrderMessage({
- documentNumber: order.po_number || order.proforma_number,
- companyName, supplierName: supName, supplierPhone: supPhone,
- date: order.date,
- items: (its || []).map((i: any) => ({ product_name: i.products?.name || "Item", quantity: i.quantity_requested, rate: i.rate })),
- total: order.total,
- notes: order.notes || undefined, pdfLink,
- });
- openWhatsApp(supPhone, message);
+  const { sendWhatsAppDoc } = await import("@/lib/whatsapp-templates");
+  await sendWhatsAppDoc({
+  documentType: "sales_order",
+  phone: supPhone,
+  vars: {
+  company_name: companyName,
+  company_phone: (settings as any)?.phone || "",
+  company_email: (settings as any)?.email || "",
+  company_address: (settings as any)?.address || "",
+  customer_name: supName,
+  customer_phone: supPhone,
+  document_type: "Purchase Order",
+  document_number: order.po_number || order.proforma_number,
+  document_date: order.date,
+  document_total: Number(order.total).toLocaleString(),
+  document_link: pdfLink || "",
+  },
+  });
  };
 
  // ── MAKE PAYMENT ──

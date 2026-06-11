@@ -5060,6 +5060,48 @@ export type Database = {
           },
         ]
       }
+      whatsapp_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_type: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          message_body: string
+          template_name: string
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_type: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          message_body: string
+          template_name: string
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_type?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          message_body?: string
+          template_name?: string
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       agent_batch_availability: {

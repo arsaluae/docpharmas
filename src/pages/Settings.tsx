@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
 import { FreightProvidersCard } from "@/components/settings/FreightProvidersCard";
+import { WhatsAppTemplatesCard } from "@/components/settings/WhatsAppTemplatesCard";
 import { CREATABLE_ROLES, ROLE_DESCRIPTION, ROLE_LABEL, type TenantRole } from "@/lib/rbac";
 import { logAudit } from "@/lib/audit";
 
@@ -206,7 +207,7 @@ export default function Settings() {
 
  return (
  <AppLayout title="Settings" subtitle="Company profile, tax configuration, templates & backup" headerActions={headerActions}>
- <div className="max-w-4xl">
+ <div className="max-w-6xl">
  <Tabs defaultValue="company" className="w-full">
  <TabsList className="mb-6">
  <TabsTrigger value="company">Company Profile</TabsTrigger>
@@ -215,6 +216,9 @@ export default function Settings() {
  </TabsTrigger>
  <TabsTrigger value="templates">
  <FileText className="h-4 w-4 mr-1" /> Document Templates
+ </TabsTrigger>
+ <TabsTrigger value="whatsapp">
+ <MessageCircle className="h-4 w-4 mr-1" /> WhatsApp Templates
  </TabsTrigger>
  {tenantRole === "owner" && (
  <TabsTrigger value="team">
@@ -384,6 +388,10 @@ export default function Settings() {
  </Accordion>
  </div>
  )}
+ </TabsContent>
+
+ <TabsContent value="whatsapp" className="max-w-6xl">
+ <WhatsAppTemplatesCard />
  </TabsContent>
 
  {tenantRole === "owner" && (
