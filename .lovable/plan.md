@@ -1,187 +1,113 @@
-## Goal
-Turn the existing `sales_agent` role into a fully usable, locked-down sales workspace by closing the gaps the exploration found, without forking pages. Reuse `/proforma`, `/customers`, `/customers/:id/ledger`, `/delivery-notes` and add two thin agent-only screens: **Stock Availability** and **Record Payment In**. Server-side RLS does the real enforcement; UI tweaks just hide cost/admin chrome.
+# Plan — Courier Expense Accounts + Net Price / MRP Split
 
-## Decisions locked
-- **Pages strategy:** reuse existing pages, scope by RLS, hide cost/admin in UI when role is `sales_agent`.
-- **Payment recording:** new `payment_in` capability + dedicated `/collect-payment` page (no approval workflow in v1).
-- **Customer scope:** tenant default via `company_settings.sales_agent_scope ∈ ('assigned','all')`, default `'assigned'`.
-- **Agent ↔ auth user linkage:** in `SalesAgents` admin, allow both "Link existing team member" and "Invite new agent" (extends `manage-tenant` edge function).
+Two independent changes. Both are additive — no existing records or ledger postings are touched.
 
 ---
 
-## 1. Database migration (single approval)
+## Part A — Courier / Freight Expense Accounts
 
-**New / changed schema**
-- `company_settings.sales_agent_scope text not null default 'assigned'` (`'assigned' | 'all'`).
-- `company_settings.require_payment_in_approval bool default false` (placeholder, unused in v1 UI).
-- `payments.agent_id uuid references sales_agents(id)`.
-- `payments.source text default 'admin'` (`'admin' | 'agent_collection'`) for receipt UI.
-- `delivery_notes.agent_id uuid references sales_agents(id)` + backfill from linked invoice.
-- `sales_agents.user_id`: add **partial unique index** `(tenant_id, user_id) where user_id is not null` (link is one‑to‑one).
-- `role_capabilities` rows for `sales_agent` cleaned up to the matrix below.
+### Goal
+Track transport expenses against specific couriers (NCCS, ADDA, and any future ones the user adds), with a per-courier ledger and a monthly payment report.
 
-**New / updated security definer functions**
-- `current_sales_agent_id()` → resolves `auth.uid()` → `sales_agents.id` in current tenant (cached `stable`). All agent RLS uses this.
-- Update `is_agent_customer(p_customer_id uuid)`:
-  - if `sales_agent_scope='all'` for tenant → `true` for any tenant customer
-  - else → exists row in `agent_customers` for `(current_sales_agent_id(), p_customer_id)`
-- `agent_can_record_payment(p_customer_id uuid)` — wraps `current_user_can('payment_in','create')` + `is_agent_customer(...)`.
-- Auto-stamp triggers (BEFORE INSERT) on `proforma_invoices`, `sales_invoices`, `delivery_notes`, `payments`:
-  - if `current_tenant_role()='sales_agent'` and column null, set `agent_id := current_sales_agent_id()`.
-  - on `payments`, also set `source='agent_collection'`.
+### Data model
+The `freight_providers` table already exists (currently only used for dispatch labels on delivery notes). I will reuse it as the master "Courier" list — no new table needed.
 
-**RLS policies (added/replaced — keyed off role to avoid breaking admins)**
+Migration:
+- Add `expenses.freight_provider_id uuid` (nullable, FK → `freight_providers.id`, ON DELETE SET NULL, index on `(tenant_id, freight_provider_id, date)`).
+- Seed `NCCS` and `ADDA` rows into `freight_providers` for the current tenant (idempotent — skipped if already present).
 
-| Table | Sales-agent policy |
-|---|---|
-| `customers` | SELECT: tenant match AND (`role <> 'sales_agent'` OR `is_agent_customer(id)`) |
-| `proforma_invoices`, `sales_invoices`, `delivery_notes` | SELECT/UPDATE: tenant match AND (`role <> 'sales_agent'` OR `agent_id = current_sales_agent_id()`) |
-| same tables | INSERT (WITH CHECK): tenant match AND `is_agent_customer(customer_id)` AND capability ok |
-| `payments` | INSERT: agent may insert only `type='received'`, `party_type='customer'`, `is_agent_customer(party_id)`, `bank_account_id IS NULL OR via current_user_can('payment_in','create')`; UPDATE/DELETE blocked for agent if `status='approved'` or `created_by <> auth.uid()` |
-| `payments` | SELECT for agent: own collections (`agent_id = current_sales_agent_id()`) OR rows tied to assigned customers (read-only ledger lines) |
-| `sales_invoice_items`, `proforma_invoice_items` | SELECT for agent only if parent invoice passes agent filter; `unit_cost` continues to live in row but UI hides it |
-| `stock_movements`, `grn_items`, `products` | SELECT for agent restricted to non-cost columns via a **view** `agent_stock_availability` (see §4); base tables get a deny policy for `sales_agent` on SELECT |
-| `purchase_*`, `expenses`, `bank_accounts`, `suppliers`, `supplier_*`, `salary_payments`, `chart_of_accounts`, `journal_*`, `additional_costs`, `landed_*`, `stock_audit_log`, `tax_records`, `staff`, `agent_commissions`, `document_templates`, `company_settings` (write), `tenant_users`, `tenants`, `backup_runs`, `audit_log` | SELECT/INSERT/UPDATE/DELETE policies updated to require `current_tenant_role() <> 'sales_agent'` |
+No change to `category` enum — couriers stay under the existing `transport` category, but the new FK pins the expense to a specific courier so the ledger and report can group on it.
 
-**`role_capabilities` for `sales_agent` (replace)**
+### UI changes
+1. **Expenses page (`src/pages/Expenses.tsx`)**
+   - When `category = 'transport'`, show a **Courier** dropdown (lists active `freight_providers` + inline "Add new courier" that writes to the same table). Saved into the new `freight_provider_id` column.
+   - Add a "Courier" filter chip beside the existing category filter.
+   - Show the courier name in the expense list/table when present.
 
-| Resource | r | w | v | a |
-|---|---|---|---|---|
-| `sales` | ✅ | ✅ | — | — |
-| `master` | ✅ | — | — | — |
-| `inventory` | ✅ (read-only via view) | — | — | — |
-| `payment_in` *(new resource)* | ✅ | ✅ | — | — |
-| `reports.sales_agent` *(new)* | ✅ | — | — | — |
-| everything else | — | — | — | — |
+2. **Settings → Couriers card (`FreightProvidersCard.tsx`)**
+   - Already supports add/disable/delete. Add a short helper line: "Used for both dispatch labels and courier expense tracking." No structural change.
 
-All other roles keep their existing rows; `purchase`, `finance`, `settings`, `reports` (admin) remain denied.
+3. **New report — `src/pages/reports/CourierExpenses.tsx`**
+   - Route: `/reports/courier-expenses`, added under Reports hub.
+   - Filters: date range (defaults to current FY), courier multi-select.
+   - Table: month × courier matrix of paid amounts + grand totals row/column.
+   - Drill-down: click a cell → opens dialog with the underlying expenses (date, expense #, description, amount, payment method).
+   - Uses `ReportToolbar` for Excel/CSV/Print/Copy (per project rule). Excludes voided rows per the posted-only rule.
+
+4. **Courier ledger (per-courier statement)**
+   - Add a "View Ledger" action on each row in `FreightProvidersCard`.
+   - Opens a dialog (or `/reports/courier-expenses?provider=<id>`) showing a chronological list of all expenses tagged to that courier with running total.
+
+### RLS / RBAC
+- `freight_providers` already has master read/write policies — no change.
+- New `expenses.freight_provider_id` is just a column on `expenses`; existing expense RLS (accounting role, sa_deny) already covers it.
 
 ---
 
-## 2. Auth ↔ agent linkage (Settings → Sales Agents)
+## Part B — Net Price (ledger) + MRP (display-only) on Products
 
-`src/pages/SalesAgents.tsx`
-- Add **"Linked user"** column.
-- Edit dialog gains two mutually exclusive options:
-  1. **Link existing team member** — dropdown of `tenant_users` where `role='sales_agent'` and `user_id` not already linked. Saves `sales_agents.user_id`.
-  2. **Invite new agent** — name + email; calls extended `manage-tenant` edge function (`action='invite_sales_agent'`) which creates the auth user, inserts `tenant_users(role='sales_agent')`, and returns the new `user_id` which we then write to `sales_agents.user_id` in the same save.
-- Block save if the row has no `user_id` AND has any `agent_customers` rows (warning toast: "Link a login or RLS will hide this agent's data").
+### Current state
+- `products.selling_price` (numeric, NOT NULL) — currently labelled "MRP" in the UI, used everywhere as the sales rate (hits all ledgers, taxes, COGS, GP).
+- `products.mrp` (numeric, NOT NULL, default 0) — column already exists, partly read in `ProformaInvoices.tsx` as a "catalog MRP" hint but mostly unused. Never the basis for any calculation.
 
-`supabase/functions/manage-tenant/index.ts`
-- New action `invite_sales_agent` mirrors existing invite path but pins role to `sales_agent` and returns `{ user_id }`.
+### Decision (matches the user's spec)
+- Rename UI label `selling_price` → **"Net Price"**. This stays the source of truth for every calculation, invoice total, tax, COGS, payment, ledger posting, and report. No DB column rename (would break too much code); rename is **label-only**.
+- Treat `products.mrp` as the true **Market Retail Price** — informational, printed on invoices, never used in math. Backfill: for tenants where `mrp = 0`, leave it at 0 and let the user fill it in (no automatic copy from `selling_price`, because the user said current values are net prices, not MRPs).
 
----
+### UI changes
+1. **Products page (`src/pages/Products.tsx`)**
+   - Form: change "MRP (PKR) *" label → **"Net Price (PKR) *"** (still writes to `selling_price`). Add a second field **"MRP (PKR)"** that writes to `products.mrp` (optional, defaults 0, helper text: "Market retail price — printed on invoices only, not used in any calculation").
+   - Table headers: `Cost | Net Price | MRP` (three columns; MRP shows "—" when 0).
+   - Import templates: add `mrp` as an optional column.
 
-## 3. Navigation, dashboard, route guards
+2. **Quick-create dialog (`QuickCreateProductDialog.tsx`)**
+   - Same relabel + add optional MRP field.
 
-`src/components/AppSidebar.tsx`
-- Replace the static section list with a role-aware build: when `currentTenantRole === 'sales_agent'`, render exactly:
-  - Dashboard (`/`)
-  - Customers (`/customers`)
-  - Sales Orders (`/proforma`)
-  - Sales Invoices (`/warranty-invoices` is admin-only — agents use sales invoice list via `/proforma → convert`; expose a new lightweight list at `/sales-invoices` reusing existing data table component, scoped by RLS)
-  - Delivery Notes (`/delivery-notes`)
-  - Stock Availability (`/stock-availability` — new agent-safe page)
-  - Customer Ledger (`/customers` → row action; same `/customers/:id/ledger`)
-  - Record Payment (`/collect-payment` — new)
-  - My Reports (`/reports/agent` — new hub)
-- Non-agent roles see the existing sidebar untouched.
+3. **Proforma / Sales Invoice / Delivery Note line editors**
+   - Rate input keeps writing to `selling_price`-derived `rate`. Relabel header "Rate" tooltip → "Net Price". The "Above MRP" warning continues to compare `rate` against `products.mrp` (or against `selling_price` when MRP is 0, as a safe fallback).
+   - In editor rows the existing "Catalog MRP" hint becomes authoritative — reads `products.mrp` only (no fallback to `selling_price` when MRP is set).
 
-`src/App.tsx`
-- New routes guarded by capability, not hard-coded role:
-  - `/stock-availability` → `RequireCap resource="inventory" action="read"` (sales_agent now has it)
-  - `/collect-payment` → `RequireCap resource="payment_in" action="create"`
-  - `/sales-invoices` → `RequireCap resource="sales" action="read"`
-  - `/reports/agent` → `RequireCap resource="reports.sales_agent" action="read"`
-- All existing `/purchase*`, `/expenses`, `/bank`, `/salaries`, `/sales-agents`, `/payments`, `/reports/*` (admin), `/settings*`, `/system-health`, `/import`, `/audit-log`, `/insights`, `/credit-notes`, `/debit-notes`, `/products`, `/stock`, `/stock-audit`, `/landed-costs`, `/accounting/*` keep their existing guards (already exclude `sales_agent`). `RequireCap` already redirects with a permission-denied toast — verify the toast text matches the spec ("You do not have permission to access this module.").
+4. **Printed documents (PDFs)**
+   - Proforma / Sales Invoice / Warranty Invoice / Delivery Note PDFs already have an "MRP" column — switch its source to `products.mrp` only. When `mrp = 0` it prints "—" (so legacy products without an MRP entered don't show a misleading net price as MRP).
+   - Add a small footer note on the invoice template: "MRP shown for reference only. All amounts billed at Net Price."
 
-`src/pages/Index.tsx` already routes `sales_agent` → `SalesAgentDashboard`. Extend that dashboard:
-- Add KPI cards: Today's Sales, Month Sales, Collections Today, Outstanding (assigned), Open Sales Orders, Pending Deliveries, Low Stock, Expiring Soon (30d).
-- Sections: My Recent Orders, My Recent Invoices, My Collections, Customers to Follow Up (no invoice in 30d), Stock Alerts, Expiry Alerts.
-- All queries rely on RLS scoping; no client-side `agent_id` filters required (server enforces).
+### Calculations / ledger — explicitly UNCHANGED
+- Sales invoice line `rate`, `amount`, GST, WHT, customer balance, COGS, GP, P&L, receivables, stock value — all continue to use `selling_price` (now relabelled Net Price). No trigger, RPC, or report SQL is modified.
+- `products.mrp` does not appear in any aggregate, ledger, or report query.
+
+### Migration
+- No schema change required for Part B (`products.mrp` already exists). Single tiny migration ensures the column default stays `0` and adds a comment: `COMMENT ON COLUMN products.mrp IS 'Market retail price — display only, never used in calculations'`.
 
 ---
 
-## 4. Stock Availability page (`/stock-availability`)
+## Files touched
 
-- Backed by SQL view `public.agent_stock_availability` (security_invoker) selecting only: `product_id, code, name, category, brand, available_qty, batch_number, expiry_date, location, sale_price, stock_status, expiry_status`. **No cost/landed/profit/supplier columns.**
-- Grant SELECT on the view to `authenticated`; underlying base-table RLS denies the agent direct access, so this view is their only window into stock.
-- Page: searchable table with batch/expiry chips, "expires in N days" badge using same status logic as ProductExpiry report.
+**Migration (single approval)**
+- Add `expenses.freight_provider_id` + index, seed NCCS/ADDA, add MRP column comment.
 
----
+**Code**
+- `src/pages/Expenses.tsx` — courier dropdown, filter, list column.
+- `src/components/settings/FreightProvidersCard.tsx` — helper line + "View Ledger" button.
+- `src/pages/reports/CourierExpenses.tsx` *(new)* — monthly matrix + drill-down + export toolbar.
+- `src/pages/Reports.tsx` — link the new report under "Operations / Expenses".
+- `src/App.tsx` — route `/reports/courier-expenses` (gated by `reports:read`).
+- `src/pages/Products.tsx` + `src/components/QuickCreateProductDialog.tsx` — relabel + add MRP input + table column.
+- `src/pages/ProformaInvoices.tsx` (and the equivalent sales-invoice / delivery-note line editors) — MRP source = `products.mrp` only; footer note.
+- `src/lib/pdf-generator.ts` (or template files under `useDocumentTemplates`) — print MRP from `products.mrp`, footer note.
 
-## 5. Record Payment In (`/collect-payment`)
-
-- Form: customer (searchable, RLS-scoped to assigned), amount, method (cash/cheque/transfer), date, reference, notes, optional receipt image (Supabase Storage bucket `payment-receipts`, agent-write/own-read policy).
-- Insert into `payments`: trigger fills `agent_id`, `source='agent_collection'`, `type='received'`, `party_type='customer'`, `created_by=auth.uid()`, `bank_account_id=null` (cash collections — admin reconciles later).
-- Receipt print uses existing PdfPreviewDialog with a new template id `payment_in_receipt`.
-- List below: agent's own collections, with print + view; edit/delete blocked once `status='approved'` (column already on `payments`).
-
----
-
-## 6. UI tweaks on shared pages
-
-When `currentTenantRole === 'sales_agent'`:
-- `Products.tsx`, `ProductExpiry`, `StockMovements`, all reports — agent never reaches them (route guard), so no changes needed.
-- `ProformaInvoices.tsx`, `SalesInvoices` (new agent list), `SalesInvoiceForm`:
-  - Hide `unit_cost`, profit margin column, "Cost" totals row, supplier badges.
-  - Hide "Approve / Void / Reopen" buttons.
-  - Customer dropdown queries already RLS-scoped; add "(no assigned customers)" empty state with link to ask admin.
-  - Credit-limit warning + customer outstanding chip already render — keep.
-- `Customers.tsx`: hide "Add Customer", "Import", supplier toggle, and "Convert to Supplier" actions for agent.
-- `CustomerLedger.tsx`: hide cost/profit/internal-notes columns; hide bank-balance widgets if any.
-- `DeliveryNotes.tsx`: hide supplier columns; status toggles gated by capability flag `delivery_note.update_status` (already in resource `sales` write).
-
-All hides driven by a single helper `useIsSalesAgent()` (wraps `useRoles().tenantRole`).
+**Out of scope** (will not change unless you ask)
+- Renaming the `selling_price` DB column.
+- Posting MRP to any ledger or report.
+- Auto-populating `mrp` from `selling_price`.
+- Per-courier accounts in `chart_of_accounts` (we use `freight_providers` + `expenses.freight_provider_id` for grouping — simpler and matches how the rest of the app does master-data grouping).
 
 ---
 
-## 7. Cost/profit hardening (defence in depth)
-
-- Even though routes block agents from `/products`, ensure `sales_invoice_items.unit_cost` is **never** sent to the client when role is `sales_agent`: create a view `sales_invoice_items_safe` excluding `unit_cost`, and switch agent-side queries (ProformaInvoices line render, agent SalesInvoices list) to read from the view. RLS on `sales_invoice_items` blocks `sales_agent` SELECT on the base table.
-- Same treatment for `proforma_invoice_items` if it carries a cost column (check during implementation).
-
----
-
-## 8. Dummy-user smoke test (after migration approved)
-
-Use `supabase--insert` to seed in the user's tenant:
-1. Create auth user `agent.test@docpharmas.com` via `manage-tenant invite_sales_agent`.
-2. Create `sales_agents` row, link `user_id`.
-3. Assign 2 existing customers via `agent_customers`.
-4. Manual checklist in the chat for the user to run through (login as the dummy, walk the 18 acceptance items).
-
-Provide the test credentials and checklist as the final deliverable.
-
----
-
-## Files to change
-
-**New**
-- `src/pages/StockAvailability.tsx`
-- `src/pages/CollectPayment.tsx`
-- `src/pages/SalesInvoicesList.tsx` (agent-facing read view)
-- `src/pages/reports/AgentReports.tsx` (hub linking to: My Sales Summary, My Sales Orders, My Sales Invoices, My Collections, My Customers Outstanding, Pending Deliveries, Customer Follow-up — all thin reuse of existing report components scoped by RLS)
-- `src/hooks/useIsSalesAgent.ts`
-- `supabase/migrations/<ts>_sales_agent_workspace.sql` (the big migration in §1)
-
-**Edited**
-- `src/App.tsx` — 4 new routes, guards
-- `src/components/AppSidebar.tsx` — role-aware section list
-- `src/components/dashboard/SalesAgentDashboard.tsx` — full KPI + sections rebuild
-- `src/pages/SalesAgents.tsx` — linked-user UI, invite action
-- `src/pages/ProformaInvoices.tsx` — hide cost/admin chrome for agent; switch to safe view
-- `src/pages/Customers.tsx`, `src/pages/CustomerLedger.tsx`, `src/pages/DeliveryNotes.tsx` — agent UI hides
-- `supabase/functions/manage-tenant/index.ts` — `invite_sales_agent` action
-- `src/lib/rbac.ts` — matrix sync with new `payment_in` and `reports.sales_agent` resources
-
-## Out of scope (explicit)
-- Payment approval workflow (column exists, flag added, but no admin approval queue UI — can be added later).
-- Commission auto-payout from `agent_commissions.payment_id` link.
-- Mobile-specific layouts beyond the existing responsive patterns.
-- Migrating legacy `staff` role users — they continue to work; new agents should be created as `sales_agent`.
-
----
-
-## Acceptance criteria (mapped to your spec)
-Every item in your "FINAL ACCEPTANCE CRITERIA" maps to: §1 (RLS + agent_id stamping + capabilities), §2 (linkage), §3 (sidebar + URL block), §4 (stock view hides cost), §5 (payment in), §6 (UI hides), §7 (cost defence in depth), §8 (dummy-user test). I will not declare done until the dummy-user walkthrough passes all 18 checks.
+## Acceptance checklist
+1. Settings → Couriers shows NCCS + ADDA; new couriers can be added.
+2. Recording a transport expense lets you pick a courier; the expense saves with `freight_provider_id`.
+3. `/reports/courier-expenses` shows month-wise totals per courier, exports to Excel/CSV, drills down to source expenses.
+4. "View Ledger" on a courier opens its chronological statement.
+5. Product form has separate **Net Price** and **MRP** fields; product list shows three columns (Cost / Net Price / MRP).
+6. Sales invoice, proforma, delivery note PDFs print MRP from `products.mrp` only (blank when not set); all totals/taxes/ledger postings remain identical to today.
+7. Voided expenses are excluded from the courier report (posted-only rule).
