@@ -1059,8 +1059,9 @@ export default function ProformaInvoices() {
 
  return (
  <AppLayout title="Sales Orders" subtitle="Create order → assign batches → auto-generate Invoice + Delivery Note"
- headerActions={
-  <Dialog open={createOpen} onOpenChange={(o) => { if (!o) requestCloseComposer(); else setCreateOpen(true); }}>
+  headerActions={
+  <>
+   <Dialog open={createOpen} onOpenChange={(o) => { if (!o) requestCloseComposer(); else setCreateOpen(true); }}>
   <DialogTrigger asChild>
   <Button className="gap-2 shadow-blue-500/25 transition-all">
   <Plus className="h-4 w-4" /> Create Sales Order
