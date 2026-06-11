@@ -462,16 +462,10 @@ export default function ProformaInvoices() {
    const dnBuilt = order.converted_invoice_id ? await buildDeliveryNoteHtml(order) : "";
    const hasInvoice = !!invoiceBuilt;
    const hasDn = !!dnBuilt;
-   const orderWa = generateDocumentViews(orderBuilt.opts).find(v => v.key === "whatsapp")!.html;
-   const invoiceWa = hasInvoice ? generateDocumentViews((invoiceBuilt as any).opts).find(v => v.key === "whatsapp")!.html : "";
-   const dnWa = hasDn ? generateDocumentViews((dnBuilt as any).opts).find(v => v.key === "whatsapp")!.html : "";
    const views = [
      { key: "sales_order",      label: "Sales Order",     color: "bg-amber-500 text-white border-amber-500",   html: orderBuilt.html },
-     { key: "sales_order_wa",   label: "SO · WhatsApp",   color: "bg-emerald-600 text-white border-emerald-600", html: orderWa },
      { key: "sales_invoice",    label: "Sales Invoice",   color: "bg-blue-600 text-white border-blue-600",     html: hasInvoice ? (invoiceBuilt as any).html : "", disabled: !hasInvoice },
-     { key: "sales_invoice_wa", label: "SI · WhatsApp",   color: "bg-emerald-600 text-white border-emerald-600", html: invoiceWa, disabled: !hasInvoice },
      { key: "delivery_note",    label: "Delivery Note",   color: "bg-violet-600 text-white border-violet-600", html: hasDn ? (dnBuilt as any).html : "", disabled: !hasDn },
-     { key: "delivery_note_wa", label: "DN · WhatsApp",   color: "bg-emerald-600 text-white border-emerald-600", html: dnWa, disabled: !hasDn },
    ];
    const def = preferredView && views.find(v => v.key === preferredView && !v.disabled)
      ? preferredView
