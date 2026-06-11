@@ -504,7 +504,7 @@ export default function ProformaInvoices() {
  (u[idx] as any)[field] = value;
  if (field === "product_id") {
  const p = products.find(pr => pr.id === value);
- if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; }
+ if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; u[idx].mrp = Number(p.mrp || p.selling_price || 0); }
  if (editCustomerId && value) {
  const lastRate = await lookupLastPrice(value, editCustomerId);
  u[idx].last_price = lastRate;
