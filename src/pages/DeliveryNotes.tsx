@@ -34,6 +34,7 @@ export default function DeliveryNotes() {
  const { settings } = useCompanySettings();
  const { getTemplate } = useDocumentTemplates();
  const [pdfHtml, setPdfHtml] = useState("");
+ const [pdfViews, setPdfViews] = useState<ReturnType<typeof generateDocumentViews> | undefined>(undefined);
  const [pdfOpen, setPdfOpen] = useState(false);
  const [pdfTitle, setPdfTitle] = useState("");
 
