@@ -1279,6 +1279,10 @@ export default function ProformaInvoices() {
                   <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product…" triggerClassName="h-10 text-[14px]" />
                   <div className="grid grid-cols-2 gap-2">
                     <div>
+                      <Label className="text-[11px] text-muted-foreground">MRP</Label>
+                      <Input type="number" value={item.mrp ?? ""} onChange={e => updateItem(idx, "mrp", e.target.value)} className="h-10 text-right text-[15px] font-mono" placeholder="MRP" />
+                    </div>
+                    <div>
                       <Label className="text-[11px] text-muted-foreground">Qty</Label>
                       <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="h-10 text-right text-[15px] font-mono" />
                     </div>
