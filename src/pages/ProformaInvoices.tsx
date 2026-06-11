@@ -1374,8 +1374,9 @@ export default function ProformaInvoices() {
         <AlertDialogAction onClick={confirmDiscardAndClose}>Discard & Close</AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>
-  </AlertDialog>
- }
+   </AlertDialog>
+   </>
+  }
  >
 
  <div className="space-y-4">
