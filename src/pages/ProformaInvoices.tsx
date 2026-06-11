@@ -359,7 +359,7 @@ export default function ProformaInvoices() {
  (u[idx] as any)[field] = value;
  if (field === "product_id") {
  const p = products.find(pr => pr.id === value);
- if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; u[idx].mrp = Number(p.mrp || p.selling_price || 0); }
+ if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; u[idx].mrp = Number(p.mrp || 0); }
  // ── Territory exclusivity hard-block ──
  if (value && customerId) {
  const conflict = await checkTerritoryLock(value, customerId);
@@ -504,7 +504,7 @@ export default function ProformaInvoices() {
  (u[idx] as any)[field] = value;
  if (field === "product_id") {
  const p = products.find(pr => pr.id === value);
- if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; u[idx].mrp = Number(p.mrp || p.selling_price || 0); }
+ if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; u[idx].mrp = Number(p.mrp || 0); }
  if (editCustomerId && value) {
  const lastRate = await lookupLastPrice(value, editCustomerId);
  u[idx].last_price = lastRate;
@@ -608,7 +608,7 @@ export default function ProformaInvoices() {
         { header: "Amount", key: "amount", align: "right" },
       ],
       rows: pfItems.map((i: any, idx: number) => {
-        const catalogMrp = Number(products.find(p => p.id === i.product_id)?.mrp || products.find(p => p.id === i.product_id)?.selling_price || 0);
+        const catalogMrp = Number(products.find(p => p.id === i.product_id)?.mrp || 0);
         const mrpVal = Number(i.mrp || catalogMrp || 0);
         return { ...i, idx: idx + 1, mrp: mrpVal > 0 ? mrpVal.toLocaleString() : "—", rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(), discount_pct: Number(i.discount_pct || 0) };
       }),
@@ -702,7 +702,7 @@ export default function ProformaInvoices() {
       ],
       rows: items.map((i: any, idx: number) => {
         const exp = i.expiry_date || expiryMap[`${i.product_id}__${i.batch_number}`] || null;
-        const mrp = Number(i.products?.mrp || i.products?.selling_price || 0);
+        const mrp = Number(i.products?.mrp || 0);
         return {
           idx: idx + 1, name: i.products?.name || "Item",
           batch_number: i.batch_number || "—",
@@ -738,7 +738,7 @@ export default function ProformaInvoices() {
     const mrpMap: Record<string, number> = {};
     if (productIds.length > 0) {
        const { data: pr } = await supabase.from("products").select("id, mrp, selling_price").in("id", productIds);
-       (pr || []).forEach((p: any) => { mrpMap[p.id] = Number(p.mrp || p.selling_price || 0); });
+       (pr || []).forEach((p: any) => { mrpMap[p.id] = Number(p.mrp || 0); });
     }
     const missing = dnItems.filter((i: any) => !i.expiry_date && i.product_id && i.batch_number);
     const expiryMap: Record<string, string> = {};
@@ -1224,7 +1224,7 @@ export default function ProformaInvoices() {
                   {items.length === 0 ? (
                     <div className="px-3 py-10 text-center text-[14px] text-muted-foreground">No items yet — click "Add Item" or press <kbd className="px-1.5 py-0.5 rounded border border-border text-[11px] font-mono">Alt + N</kbd></div>
                   ) : items.map((item, idx) => {
-                    const catalogMrp = Number(products.find(p => p.id === item.product_id)?.mrp || products.find(p => p.id === item.product_id)?.selling_price || 0);
+                    const catalogMrp = Number(products.find(p => p.id === item.product_id)?.mrp || 0);
                     const effectiveMrp = Number(item.mrp || catalogMrp || 0);
                     const aboveMrp = effectiveMrp > 0 && Number(item.rate) > effectiveMrp;
                     return (
@@ -1641,7 +1641,7 @@ export default function ProformaInvoices() {
  <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: 17, amount: 0, discount_pct: 0, mrp: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
  </div>
   {editItems.map((item, idx) => {
-  const catalogMrp = Number(products.find(p => p.id === item.product_id)?.mrp || products.find(p => p.id === item.product_id)?.selling_price || 0);
+  const catalogMrp = Number(products.find(p => p.id === item.product_id)?.mrp || 0);
   return (
   <div key={idx} className="grid grid-cols-12 gap-2 items-end">
   <div className="col-span-3">
