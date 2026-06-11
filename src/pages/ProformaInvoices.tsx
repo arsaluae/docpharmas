@@ -1060,129 +1060,320 @@ export default function ProformaInvoices() {
  return (
  <AppLayout title="Sales Orders" subtitle="Create order → assign batches → auto-generate Invoice + Delivery Note"
  headerActions={
- <Dialog open={createOpen} onOpenChange={setCreateOpen}>
- <DialogTrigger asChild>
- <Button className="gap-2 shadow-blue-500/25 transition-all">
- <Plus className="h-4 w-4" /> Create Sales Order
- </Button>
- </DialogTrigger>
- <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
- <DialogHeader><DialogTitle className="font-heading">Create Sales Order</DialogTitle></DialogHeader>
- {existingDraft && !draftDismissed && items.length === 0 && !customerId && (
-   <div className="mt-3 flex items-center justify-between gap-3 border border-border bg-foreground/[0.03] px-3 py-2 text-[12px]">
-     <span className="text-muted-foreground">
-       Unsaved draft · saved{" "}
-       {new Date(existingDraft.savedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
-     </span>
-     <div className="flex gap-2">
-       <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]"
-         onClick={() => {
-           const d = existingDraft.data;
-           setCustomerId(d.customerId || "");
-           setPfDate(d.pfDate || new Date().toISOString().split("T")[0]);
-           setValidityDays(d.validityDays || "30");
-           setPaymentInstructions(d.paymentInstructions || "");
-           setAgentId(d.agentId || "");
-           setItems(d.items || []);
-           setDraftDismissed(true);
-         }}>Restore</Button>
-       <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]"
-         onClick={() => { clearDraft(); setDraftDismissed(true); }}>Discard</Button>
-     </div>
-   </div>
- )}
- <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Customer *</Label>
- <SearchableSelect options={customerOptions} value={customerId} onChange={setCustomerId} placeholder="Select customer..." searchPlaceholder="Search..." />
- </div>
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Sales Agent</Label>
- <SearchableSelect
- options={agentsList.map(a => ({ value: a.id, label: a.name }))}
- value={agentId} onChange={setAgentId} placeholder="Auto / Select..."
- />
- </div>
- <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={pfDate} onChange={e => setPfDate(e.target.value)} /></div>
- <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} /></div>
- </div>
- <div className="mt-3">
- <Label className="text-xs font-medium text-muted-foreground">Payment Instructions</Label>
- <Textarea value={paymentInstructions} onChange={e => setPaymentInstructions(e.target.value)} placeholder="Bank details, payment terms..." rows={2} className="mt-1" />
- </div>
- <Separator className="my-4" />
- <div className="flex items-center justify-between mb-3">
- <Label className="text-sm font-semibold">Items {productFilterActive && <span className="text-[10px] text-muted-foreground font-normal ml-2">(showing products this customer buys)</span>}</Label>
- <div className="flex items-center gap-2">
- {allocatedProductIds && allocatedProductIds.length > 0 && (
- <Button type="button" variant="ghost" size="sm" className="text-[10px] h-7" onClick={() => setShowAllProducts(s => !s)}>
- {showAllProducts ? "Filter to customer" : "Show all products"}
- </Button>
- )}
- <Button variant="outline" size="sm" onClick={addItem} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Item</Button>
- </div>
- </div>
+  <Dialog open={createOpen} onOpenChange={(o) => { if (!o) requestCloseComposer(); else setCreateOpen(true); }}>
+  <DialogTrigger asChild>
+  <Button className="gap-2 shadow-blue-500/25 transition-all">
+  <Plus className="h-4 w-4" /> Create Sales Order
+  </Button>
+  </DialogTrigger>
+  <DialogContent
+    className="w-[95vw] max-w-[1400px] h-[92vh] p-0 gap-0 flex flex-col overflow-hidden sm:rounded-lg"
+  >
+    {/* STICKY HEADER */}
+    <DialogHeader className="px-6 py-4 border-b border-border bg-card flex-row items-center justify-between space-y-0 shrink-0">
+      <div>
+        <DialogTitle className="font-heading text-[24px] leading-tight">Create Sales Order</DialogTitle>
+        <p className="text-[13px] text-muted-foreground mt-0.5">Pharma distribution · Number auto-assigned on save · <kbd className="px-1.5 py-0.5 rounded border border-border text-[11px] font-mono">Alt + N</kbd> add line</p>
+      </div>
+      <div className="flex items-center gap-2">
+        {customerDetail && customerDetail.credit_limit > 0 && (customerDetail.balance + total) > customerDetail.credit_limit && (
+          <Badge variant="destructive" className="text-[11px]">Credit limit exceeded</Badge>
+        )}
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={requestCloseComposer} aria-label="Close">
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    </DialogHeader>
 
- <div className="rounded-xl border border-border overflow-hidden bg-card/50">
- <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
- <div className="col-span-4">Product</div>
- <div className="col-span-2 text-right">Quantity</div>
- <div className="col-span-2 text-right">Price (PKR)</div>
- <div className="col-span-1 text-right">Disc%</div>
- {settings?.gst_enabled && <div className="col-span-1 text-right">GST%</div>}
- <div className={`${settings?.gst_enabled ? "col-span-1" : "col-span-2"} text-right`}>Total</div>
- <div className="col-span-1"></div>
- </div>
- {items.length === 0 ? (
- <div className="px-3 py-6 text-center text-xs text-muted-foreground">No items yet — click "Add Item" to begin</div>
- ) : items.map((item, idx) => (
- <div key={idx} className="grid grid-cols-12 gap-2 px-3 py-2 items-center border-t border-border/60 hover:bg-muted/20">
- <div className="col-span-4 flex items-center gap-2">
- <span className="text-[10px] font-mono text-muted-foreground w-5 shrink-0">#{idx + 1}</span>
- <div className="flex-1"><SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Select product…" triggerClassName="text-xs h-9" /></div>
- </div>
+    {/* BODY: scrollable; two columns on lg+ */}
+    <div className="flex-1 overflow-y-auto px-6 py-5">
+      {existingDraft && !draftDismissed && items.length === 0 && !customerId && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded border border-border bg-foreground/[0.03] px-3 py-2 text-[12px]">
+          <span className="text-muted-foreground">
+            Unsaved draft · saved {new Date(existingDraft.savedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
+          </span>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]"
+              onClick={() => {
+                const d = existingDraft.data;
+                setCustomerId(d.customerId || "");
+                setPfDate(d.pfDate || new Date().toISOString().split("T")[0]);
+                setValidityDays(d.validityDays || "30");
+                setPaymentInstructions(d.paymentInstructions || "");
+                setAgentId(d.agentId || "");
+                setItems(d.items || []);
+                setDraftDismissed(true);
+              }}>Restore</Button>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]"
+              onClick={() => { clearDraft(); setDraftDismissed(true); }}>Discard</Button>
+          </div>
+        </div>
+      )}
 
- <div className="col-span-2">
- <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="text-xs text-right h-9" placeholder="0" />
- </div>
- <div className="col-span-2 relative">
- <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="text-xs text-right h-9" placeholder="0.00" />
- {item.last_price !== undefined && item.last_price !== null && (
- <span className="absolute -bottom-3.5 left-0 text-[9px] text-success font-medium">Last: {Number(item.last_price).toLocaleString()}</span>
- )}
- </div>
- <div className="col-span-1">
- <Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="text-xs text-right h-9" placeholder="0" />
- </div>
- {settings?.gst_enabled && (
- <div className="col-span-1">
- <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="text-xs text-right h-9" placeholder="17" />
- </div>
- )}
- <div className={`${settings?.gst_enabled ? "col-span-1" : "col-span-2"} text-right text-sm font-mono font-semibold text-foreground`}>
- {item.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}
- </div>
- <div className="col-span-1 flex justify-end">
- <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))}>
- <Trash2 className="h-3.5 w-3.5 text-destructive" />
- </Button>
- </div>
- </div>
- ))}
- {items.length > 0 && (
- <div className="px-3 py-2.5 bg-muted/30 border-t border-border space-y-1 text-sm">
- <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{subtotal.toLocaleString()}</span></div>
- {settings?.gst_enabled && <div className="flex justify-between text-muted-foreground"><span>GST</span><span className="font-mono">{gst.toLocaleString()}</span></div>}
- <div className="flex justify-between font-bold text-foreground text-base"><span>Total</span><span className="font-mono">PKR {total.toLocaleString()}</span></div>
- </div>
- )}
- </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+        {/* LEFT COLUMN */}
+        <div className="space-y-6 min-w-0">
+          {/* CUSTOMER SECTION */}
+          <section>
+            <h3 className="text-[18px] font-semibold mb-3 text-foreground">Customer & Order Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div className="xl:col-span-2">
+                <Label className="text-[14px] font-medium text-foreground">Customer <span className="text-destructive">*</span></Label>
+                <div className="mt-1.5">
+                  <SearchableSelect options={customerOptions} value={customerId} onChange={setCustomerId} placeholder="Search by name, company, city…" searchPlaceholder="Search customers…" triggerClassName="h-11 text-[15px]" />
+                </div>
+              </div>
+              <div>
+                <Label className="text-[14px] font-medium text-foreground">Sales Agent</Label>
+                <div className="mt-1.5">
+                  <SearchableSelect
+                    options={agentsList.map(a => ({ value: a.id, label: a.name }))}
+                    value={agentId} onChange={setAgentId} placeholder="Auto / Select…"
+                    triggerClassName="h-11 text-[15px]"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-[14px] font-medium text-foreground">Order Date</Label>
+                <Input type="date" value={pfDate} onChange={e => setPfDate(e.target.value)} className="mt-1.5 h-11 text-[15px]" />
+              </div>
+              <div>
+                <Label className="text-[14px] font-medium text-foreground">Validity (days)</Label>
+                <Input type="number" value={validityDays} onChange={e => setValidityDays(e.target.value)} className="mt-1.5 h-11 text-[15px]" />
+              </div>
+              <div className="md:col-span-2 xl:col-span-3">
+                <Label className="text-[14px] font-medium text-foreground">Payment Instructions</Label>
+                <Textarea value={paymentInstructions} onChange={e => setPaymentInstructions(e.target.value)} placeholder="Bank details, payment terms, special notes…" rows={2} className="mt-1.5 text-[15px]" />
+              </div>
+            </div>
 
- <Button onClick={handleSave} disabled={saving} className="w-full mt-4 h-11 text-sm font-semibold">
- {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create Sales Order
- </Button>
- </DialogContent>
- </Dialog>
+            {/* Customer Summary Card — visible on selection */}
+            {customerDetail && (
+              <div className="mt-4 rounded-lg border border-border bg-muted/30 p-4">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="text-[16px] font-semibold text-foreground">{customerDetail.company || customerDetail.name}</div>
+                    {customerDetail.company && <div className="text-[13px] text-muted-foreground">{customerDetail.name}</div>}
+                    <div className="text-[13px] text-muted-foreground mt-1">
+                      {[customerDetail.city, customerDetail.address].filter(Boolean).join(" · ") || "—"}
+                    </div>
+                    <div className="text-[13px] text-muted-foreground">
+                      {customerDetail.phone ? `Tel: ${customerDetail.phone}` : ""}
+                      {customerDetail.ntn ? `   ·   NTN: ${customerDetail.ntn}` : ""}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-right shrink-0">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Previous Balance</div>
+                      <div className="text-[15px] font-mono font-semibold tabular-nums">PKR {customerDetail.balance.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Credit Limit</div>
+                      <div className="text-[15px] font-mono font-semibold tabular-nums">{customerDetail.credit_limit > 0 ? `PKR ${customerDetail.credit_limit.toLocaleString()}` : "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Available</div>
+                      <div className={`text-[15px] font-mono font-semibold tabular-nums ${customerDetail.credit_limit > 0 && (customerDetail.balance + total) > customerDetail.credit_limit ? "text-destructive" : "text-success"}`}>
+                        {customerDetail.credit_limit > 0 ? `PKR ${Math.max(0, customerDetail.credit_limit - customerDetail.balance - total).toLocaleString()}` : "—"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* ITEMS SECTION */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[18px] font-semibold text-foreground">
+                Items
+                {productFilterActive && <span className="text-[12px] text-muted-foreground font-normal ml-2">(showing products this customer buys)</span>}
+              </h3>
+              <div className="flex items-center gap-2">
+                {allocatedProductIds && allocatedProductIds.length > 0 && (
+                  <Button type="button" variant="ghost" size="sm" className="text-[12px] h-8" onClick={() => setShowAllProducts(s => !s)}>
+                    {showAllProducts ? "Filter to customer" : "Show all products"}
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={addItem} className="gap-1.5 text-[13px] h-8"><Plus className="h-3.5 w-3.5" /> Add Item</Button>
+              </div>
+            </div>
+
+            {/* DESKTOP TABLE */}
+            <div className="hidden md:block rounded-lg border border-border overflow-hidden bg-card">
+              <div className="overflow-x-auto">
+                <div className="min-w-[1000px]">
+                  <div className="grid grid-cols-[36px_minmax(280px,1fr)_90px_110px_90px_90px_90px_140px_44px] gap-2 px-3 py-2.5 bg-muted/50 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
+                    <div>#</div>
+                    <div>Product</div>
+                    <div className="text-right">Qty</div>
+                    <div className="text-right">Rate</div>
+                    <div className="text-right">Disc %</div>
+                    {settings?.gst_enabled ? <div className="text-right">GST %</div> : <div />}
+                    <div className="text-right">Stock</div>
+                    <div className="text-right">Line Total</div>
+                    <div />
+                  </div>
+                  {items.length === 0 ? (
+                    <div className="px-3 py-10 text-center text-[14px] text-muted-foreground">No items yet — click "Add Item" or press <kbd className="px-1.5 py-0.5 rounded border border-border text-[11px] font-mono">Alt + N</kbd></div>
+                  ) : items.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-[36px_minmax(280px,1fr)_90px_110px_90px_90px_90px_140px_44px] gap-2 px-3 py-2.5 items-center border-t border-border/60 hover:bg-muted/20">
+                      <div className="text-[12px] font-mono text-muted-foreground">{idx + 1}</div>
+                      <div className="min-w-0">
+                        <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Search by name, code, supplier…" triggerClassName="h-10 text-[14px]" />
+                        {item.last_price !== undefined && item.last_price !== null && (
+                          <div className="text-[11px] text-success mt-0.5 ml-1">Last: PKR {Number(item.last_price).toLocaleString()}</div>
+                        )}
+                      </div>
+                      <div>
+                        <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="h-10 text-right text-[15px] font-mono tabular-nums" placeholder="0" />
+                      </div>
+                      <div>
+                        <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="h-10 text-right text-[15px] font-mono tabular-nums" placeholder="0.00" />
+                      </div>
+                      <div>
+                        <Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="h-10 text-right text-[15px] font-mono tabular-nums" placeholder="0" />
+                      </div>
+                      {settings?.gst_enabled ? (
+                        <div>
+                          <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="h-10 text-right text-[15px] font-mono tabular-nums" placeholder="17" />
+                        </div>
+                      ) : <div />}
+                      <div className="text-right text-[13px] text-muted-foreground font-mono tabular-nums">—</div>
+                      <div className="text-right text-[16px] font-mono font-semibold text-foreground tabular-nums">
+                        {Number(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                      </div>
+                      <div className="flex justify-end">
+                        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Remove">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* MOBILE CARDS */}
+            <div className="md:hidden space-y-3">
+              {items.length === 0 ? (
+                <div className="rounded-lg border border-border px-3 py-8 text-center text-[14px] text-muted-foreground">No items yet</div>
+              ) : items.map((item, idx) => (
+                <div key={idx} className="rounded-lg border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-mono text-muted-foreground">Line #{idx + 1}</span>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Remove">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                  <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product…" triggerClassName="h-10 text-[14px]" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground">Qty</Label>
+                      <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="h-10 text-right text-[15px] font-mono" />
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground">Rate</Label>
+                      <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="h-10 text-right text-[15px] font-mono" />
+                    </div>
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground">Disc %</Label>
+                      <Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="h-10 text-right text-[15px] font-mono" />
+                    </div>
+                    {settings?.gst_enabled && (
+                      <div>
+                        <Label className="text-[11px] text-muted-foreground">GST %</Label>
+                        <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="h-10 text-right text-[15px] font-mono" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-border">
+                    <span className="text-[12px] uppercase tracking-wider text-muted-foreground">Line Total</span>
+                    <span className="text-[18px] font-mono font-semibold tabular-nums">PKR {Number(item.amount || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* RIGHT COLUMN: Totals card (sticky on lg+) */}
+        <aside className="lg:sticky lg:top-0 self-start">
+          <div className="rounded-lg border border-border bg-card p-5 space-y-3">
+            <div className="text-[12px] uppercase tracking-widest text-muted-foreground font-semibold">Order Summary</div>
+            <div className="space-y-2 text-[14px]">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Subtotal</span>
+                <span className="font-mono tabular-nums text-foreground">{subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              {settings?.gst_enabled && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>GST</span>
+                  <span className="font-mono tabular-nums text-foreground">{gst.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              {customerDetail && customerDetail.balance > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Previous Balance</span>
+                  <span className="font-mono tabular-nums text-foreground">{customerDetail.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
+            </div>
+            <Separator />
+            <div>
+              <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold mb-1">Grand Total</div>
+              <div className="text-[32px] font-mono font-bold tabular-nums leading-none">PKR {total.toLocaleString(undefined, { minimumFractionDigits: 0 })}</div>
+              {customerDetail && (
+                <div className="text-[12px] text-muted-foreground mt-2">
+                  Payable after order: <span className="font-mono tabular-nums text-foreground font-semibold">PKR {(customerDetail.balance + total).toLocaleString()}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[11px] text-muted-foreground">{items.filter(i => i.product_id).length} items</span>
+              <span className="text-[11px] text-muted-foreground">{items.reduce((s, i) => s + (Number(i.quantity) || 0), 0)} units</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    {/* STICKY FOOTER */}
+    <div className="border-t border-border bg-card px-6 py-3 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 shrink-0">
+      <div className="text-[12px] text-muted-foreground">
+        {composerDirty ? "Draft auto-saved" : "No unsaved changes"}
+      </div>
+      <div className="flex flex-wrap items-center gap-2 justify-end">
+        <Button variant="ghost" onClick={requestCloseComposer} className="h-10 text-[14px]">Cancel</Button>
+        <Button variant="outline" disabled={saving} onClick={() => { saveDraft({ customerId, pfDate, validityDays, paymentInstructions, agentId, items }); toast.success("Draft saved"); }} className="h-10 text-[14px]">
+          Save Draft
+        </Button>
+        <Button variant="outline" disabled={saving} onClick={() => { setCreateAndPrint(true); handleSave(); }} className="h-10 text-[14px] gap-2">
+          {saving && createAndPrint && <Loader2 className="h-4 w-4 animate-spin" />}
+          Create & Print
+        </Button>
+        <Button onClick={() => { setCreateAndPrint(false); handleSave(); }} disabled={saving} className="h-10 text-[14px] font-semibold gap-2">
+          {saving && !createAndPrint && <Loader2 className="h-4 w-4 animate-spin" />}
+          Create Sales Order
+        </Button>
+      </div>
+    </div>
+  </DialogContent>
+  </Dialog>
+
+  <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+        <AlertDialogDescription>This sales order has unsaved changes. Your draft is auto-saved and can be restored next time.</AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+        <AlertDialogAction onClick={confirmDiscardAndClose}>Discard & Close</AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
  }
  >
 
