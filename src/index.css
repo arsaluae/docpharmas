@@ -804,10 +804,18 @@
    ────────────────────────────────────────────────────────────── */
 @layer components {
   :root:not(.dark) .mouj-dark-sidebar {
-    background: hsl(var(--sidebar-background));
-    color: hsl(var(--sidebar-foreground));
+    /* Override the dark CSS vars the sidebar primitive reads */
+    --sidebar-background: 220 23% 98%;
+    --sidebar-foreground: 215 14% 34%;
+    --sidebar-accent: 213 26% 94%;
+    --sidebar-accent-foreground: 214 71% 15%;
+    --sidebar-border: 213 26% 91%;
+    --sidebar-primary: 244 100% 68%;
+    background: hsl(var(--sidebar-background)) !important;
+    color: hsl(var(--sidebar-foreground)) !important;
     border-right-color: hsl(var(--sidebar-border)) !important;
   }
+
   :root:not(.dark) .mouj-dark-sidebar .mouj-brand { background: hsl(var(--sidebar-background)); border-bottom-color: hsl(var(--sidebar-border)); padding: 20px 20px; }
   :root:not(.dark) .mouj-dark-sidebar .mouj-wordmark { color: hsl(var(--brand-navy)); font-size: 15px; letter-spacing: 0.12em; }
   :root:not(.dark) .mouj-dark-sidebar .mouj-wordmark-accent { color: hsl(var(--primary)); }
