@@ -159,12 +159,12 @@ export default function Expenses() {
   const addCourierInline = async () => {
     if (!newCourierName.trim()) { toast.error("Courier name required"); return; }
     const code = newCourierName.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12) || `C${Date.now().toString().slice(-4)}`;
-    const { data, error } = await supabase.from("freight_providers" as any).insert({ name: newCourierName.trim(), code, is_active: true } as any).select("id").single();
-    if (error) { toast.error("Failed: " + error.message); return; }
+    const ins: any = await (supabase.from("freight_providers" as any) as any).insert({ name: newCourierName.trim(), code, is_active: true }).select("id").single();
+    if (ins.error) { toast.error("Failed: " + ins.error.message); return; }
     toast.success("Courier added");
     setNewCourierName(""); setAddCourierOpen(false);
     await reloadCouriers();
-    if (data?.id) setFreightProviderId((data as any).id);
+    if (ins.data?.id) setFreightProviderId(ins.data.id);
   };
 
   const handleDelete = async () => {
