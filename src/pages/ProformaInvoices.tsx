@@ -702,7 +702,7 @@ export default function ProformaInvoices() {
       ],
       rows: items.map((i: any, idx: number) => {
         const exp = i.expiry_date || expiryMap[`${i.product_id}__${i.batch_number}`] || null;
-        const mrp = Number(i.products?.selling_price || 0);
+        const mrp = Number(i.products?.mrp || i.products?.selling_price || 0);
         return {
           idx: idx + 1, name: i.products?.name || "Item",
           batch_number: i.batch_number || "—",
