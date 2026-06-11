@@ -173,7 +173,7 @@ export default function PurchaseProforma() {
  const load = async () => {
  setLoading(true);
  const [pp, po, grn, bills, sup, prod] = await Promise.all([
- supabase.from("purchase_proformas").select("*, suppliers(name, company, phone, address)").order("created_at", { ascending: false }),
+ supabase.from("purchase_proformas").select("*, suppliers(supplier_code, name, company, phone, address, city, area)").order("created_at", { ascending: false }),
  supabase.from("purchase_orders").select("id, po_number, status, proforma_id").order("created_at", { ascending: false }),
  supabase.from("goods_received_notes").select("id, grn_number, po_id").order("created_at", { ascending: false }),
  supabase.from("purchase_invoices").select("id, bill_number, grn_id, status, approved_at").order("created_at", { ascending: false }),
