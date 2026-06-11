@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Truck, Package, LogOut, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
   BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown,
-  Banknote, Building2, Keyboard, Moon, Sun,
+  Banknote, Building2, Keyboard, Moon, Sun, BookOpen,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -23,7 +23,7 @@ import {
 import { useTheme } from "@/components/ThemeToggle";
 
 import type { Resource } from "@/lib/rbac";
-import { ROLE_LABEL } from "@/lib/rbac";
+import { ROLE_LABEL, isSalesAgentRole } from "@/lib/rbac";
 import { useRoles } from "@/hooks/useRoles";
 
 type Section = {
@@ -46,10 +46,10 @@ const allSections: Section[] = [
     { title: "Returns", url: "/purchase-returns", icon: RotateCcw, resource: "purchase" },
   ]},
   { label: "Inventory", icon: Package, resource: "inventory", items: [
-    { title: "Products & Stock", url: "/products", icon: Package, resource: "master" },
+    { title: "Products & Stock", url: "/products", icon: Package, resource: "inventory" },
     { title: "Stock Movements", url: "/stock", icon: RotateCcw, resource: "inventory" },
     { title: "Landed Costs", url: "/landed-costs", icon: Banknote, resource: "purchase" },
-    { title: "Printers", url: "/printers", icon: Printer, resource: "master" },
+    { title: "Printers", url: "/printers", icon: Printer, resource: "inventory" },
     { title: "Print Jobs", url: "/print-jobs", icon: ClipboardList, resource: "purchase" },
   ]},
   { label: "Finance", icon: Wallet, resource: "finance", items: [
@@ -59,6 +59,18 @@ const allSections: Section[] = [
     { title: "Staff & Salaries", url: "/salaries", icon: Users, resource: "finance" },
     { title: "Bank Accounts", url: "/bank", icon: Landmark, resource: "finance" },
   ]},
+];
+
+// Sales-agent dedicated flat nav (replaces the section list entirely)
+const salesAgentNav = [
+  { title: "Dashboard",          url: "/dashboard",            icon: LayoutDashboard },
+  { title: "Customers",          url: "/customers",            icon: Users },
+  { title: "Sales Orders",       url: "/proforma",             icon: FileText },
+  { title: "Sales Invoices",     url: "/sales-invoices",       icon: ClipboardList },
+  { title: "Delivery Notes",     url: "/delivery-notes",       icon: Truck },
+  { title: "Stock Availability", url: "/stock-availability",   icon: Package },
+  { title: "Record Payment",     url: "/collect-payment",      icon: Wallet },
+  { title: "My Reports",         url: "/reports/agent",        icon: BarChart3 },
 ];
 
 
