@@ -242,8 +242,9 @@ export default function Customers() {
  </>
  );
 
- const totalBalance = customers.reduce((s, c) => s + Number(c.balance), 0);
- const totalCreditLimit = customers.reduce((s, c) => s + Number(c.credit_limit), 0);
+ const totalBalance = Number(summary.receivables) || 0;
+ const totalCreditLimit = Number(summary.credit_limit) || 0;
+
 
  return (
  <AppLayout title="Customers" subtitle="Manage customer accounts, credit terms & ledgers" headerActions={headerActions}>
