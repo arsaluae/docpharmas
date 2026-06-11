@@ -1638,16 +1638,17 @@ export default function ProformaInvoices() {
  <Separator />
  <div className="flex items-center justify-between">
  <Label className="text-sm font-semibold">Items</Label>
- <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: 17, amount: 0, discount_pct: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
+ <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: 17, amount: 0, discount_pct: 0, mrp: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
  </div>
   {editItems.map((item, idx) => {
-  const mrp = products.find(p => p.id === item.product_id)?.selling_price;
+  const catalogMrp = Number(products.find(p => p.id === item.product_id)?.mrp || products.find(p => p.id === item.product_id)?.selling_price || 0);
   return (
   <div key={idx} className="grid grid-cols-12 gap-2 items-end">
   <div className="col-span-3">
     <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
-    {mrp ? <span className="block text-[10px] text-muted-foreground mt-1 tabular-nums">MRP PKR {Number(mrp).toLocaleString()}</span> : null}
+    {catalogMrp ? <span className="block text-[10px] text-muted-foreground mt-1 tabular-nums">Catalog MRP PKR {catalogMrp.toLocaleString()}</span> : null}
   </div>
+  <div className="col-span-2"><Input type="number" value={item.mrp ?? ""} onChange={e => updateEditItem(idx, "mrp", e.target.value)} className="text-xs tabular-nums" placeholder="MRP" /></div>
   <div className="col-span-1"><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="text-xs tabular-nums" placeholder="Qty" /></div>
   <div className="col-span-2 relative">
   <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs tabular-nums" placeholder="Rate" />
@@ -1656,7 +1657,7 @@ export default function ProformaInvoices() {
   )}
   </div>
   <div className="col-span-1"><Input type="number" value={item.discount_pct || 0} onChange={e => updateEditItem(idx, "discount_pct", e.target.value)} className="text-xs tabular-nums" placeholder="Disc%" /></div>
-  <div className="col-span-3 text-right text-xs font-mono pt-2 tabular-nums">{item.amount.toLocaleString()}</div>
+  <div className="col-span-2 text-right text-xs font-mono pt-2 tabular-nums">{item.amount.toLocaleString()}</div>
   <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
   </div>
   );})}
