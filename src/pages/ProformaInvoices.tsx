@@ -698,13 +698,19 @@ export default function ProformaInvoices() {
         if (g.expiry_date) expiryMap[`${g.product_id}__${g.batch_number}`] = g.expiry_date;
       });
     }
-    { const __o = ({
+    { const __c = (inv.customers as any) || {};
+      const __o = ({
       title: "SALES INVOICE", documentNumber: inv.invoice_number, date: inv.date, statusTheme: "invoiced" as const,
       partyLabel: "Customer",
-      partyName: (inv.customers as any)?.name || "—",
-      partyAddress: (inv.customers as any)?.address || undefined,
-      partyPhone: (inv.customers as any)?.phone || undefined,
-      partyArea: (inv.customers as any)?.area || undefined,
+      partyName: __c.name || "—",
+      partyCode: __c.customer_code || undefined,
+      partyMobile: __c.sms_mobile || undefined,
+      partyPhone: __c.phone || undefined,
+      partyCity: __c.city || undefined,
+      partyArea: __c.area || undefined,
+      partyAddress: __c.address || undefined,
+      partyAccountCode: __c.old_erp_account_code || undefined,
+      paymentTerms: (inv as any).payment_terms || undefined,
       columns: [
         { header: "#", key: "idx" },
         { header: "Product", key: "name" },
