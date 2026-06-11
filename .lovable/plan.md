@@ -1,159 +1,59 @@
-# Wave 1 — Reporting Accuracy Hardening
+# Customers/Suppliers Fixes
 
-Goal: make every existing report mathematically correct against your "posted-only" rule, before we touch missing reports or AI. No new report screens, no AI changes in this wave.
+You have 436 customers (435 missing codes) and 126 suppliers (all missing codes). The "Total 50" issue is a UI bug — the summary card shows the current page count instead of the real DB total.
 
-## The core bug
+## 1. Backfill codes (DB migration)
+- For every existing `customers` row where `customer_code IS NULL`, set `customer_code = generate_document_number('customer')` (tenant-scoped, sequential per tenant: `CUS-0001`, `CUS-0002`…).
+- Same for `suppliers.supplier_code` using `generate_document_number('supplier')`.
+- Add a `BEFORE INSERT` trigger on both tables that auto-fills the code if NULL, so future imports / manual inserts never miss it again.
 
-Most reports under `src/pages/reports/*` query `sales_invoices` / `purchase_invoices` / `sales_returns` / `purchase_returns` / `payments` **without a status filter**, so drafts and voided rows leak into:
+## 2. Fix "Total = 50" + per-page summary cards (`src/pages/Customers.tsx`, `src/pages/Suppliers.tsx`)
+The summary KPIs (Total, Receivables, Credit Limit, Over Limit / Payables, With Balance, Avg Terms) currently sum only the visible 50 rows. Fix by fetching tenant-wide aggregates with a small RPC `customers_summary()` / `suppliers_summary()` (one row, security-definer, tenant-scoped) and binding the KPI cards to those numbers instead of `customers.length`.
 
-- Profit & Loss (`ProfitLoss.tsx`) — counts draft + voided invoices as revenue, COGS, returns.
-- Balance Sheet (`BalanceSheet.tsx`) — same issue for AR, AP, bank.
-- Sales Trend, Product Performance, Customer/Supplier Wise, City/Area, Tax Compliance, Cash Flow, Daily Cash Position, Receivables/Payables Aging (Receivables already filters by status, but ignores `voided`), Vacant Areas.
+## 3. City filter (both pages)
+- Add a city dropdown next to the search box, populated from `DISTINCT city` for the current tenant (small RPC `customers_cities()` / `suppliers_cities()`).
+- When a city is selected, push it into the server query (`.eq("city", city)`) so the filter works across ALL 436 rows, not just the current page.
+- Search box also moves server-side (`.or("name.ilike…,company.ilike…,customer_code.ilike…")`) so searching across 400+ rows works.
 
-Rule we are enforcing everywhere (per your answer): `status NOT IN ('draft','voided','cancelled')` on every invoice/return/payment query that feeds a report. Sales orders / purchase orders / proformas are already separate tables and stay excluded by construction.
+## 4. Sales invoice → ledger (verify)
+`CustomerLedger.tsx` already pulls `sales_invoices` for the customer and renders them as debit entries (line 87). Since there are 0 SIs in the DB today, nothing shows yet — but the wiring is correct. Confirmed working; no change needed unless you want SI drafts excluded too.
 
-## Changes
+## Technical details
 
-### 1. Shared posted-only filter helper
+**Migration**
+```sql
+-- backfill
+DO $$ DECLARE r record; BEGIN
+  FOR r IN SELECT id, tenant_id FROM customers WHERE customer_code IS NULL ORDER BY created_at LOOP
+    UPDATE customers SET customer_code =
+      (SELECT public.generate_document_number_for_tenant('customer', r.tenant_id))
+    WHERE id = r.id;
+  END LOOP;
+END $$;
+-- (same loop for suppliers)
 
-New file `src/lib/reports/posted.ts`:
-
-```ts
-export const POSTED_STATUSES = {
-  sales_invoices:     ["dispatched","unpaid","partial","paid"],
-  purchase_invoices:  ["unpaid","partial","paid"],
-  sales_returns:      ["active","posted"],
-  purchase_returns:   ["active","posted"],
-  payments:           ["active","cleared"],
-  credit_notes:       ["active"],
-  debit_notes:        ["active"],
-} as const;
-export const NOT_POSTED = ["draft","voided","cancelled"];
+-- auto-assign trigger
+CREATE OR REPLACE FUNCTION set_customer_code() RETURNS trigger ...
+  IF NEW.customer_code IS NULL THEN
+    NEW.customer_code := public.generate_document_number('customer');
+  END IF;
+CREATE TRIGGER trg_customer_code BEFORE INSERT ON customers ...
 ```
+(Need a small tenant-aware variant of `generate_document_number` for the backfill loop since it normally relies on `auth.uid()`.)
 
-Plus two tiny helpers `applyPosted(query, table)` (adds `.not("status","in",...)`) and `EXPORT_META` (company, user, generated_at, filters, date range) used by all exports.
+**RPCs**
+- `customers_summary()` → `{ total, receivables, credit_limit, over_limit }`
+- `customers_cities()` → `text[]`
+- Same pair for suppliers.
 
-### 2. Apply the filter to every report query
-
-Edit the following files to chain `applyPosted(...)` on each Supabase query, and also add the missing `voided` exclusion where status is already filtered:
-
-- `src/pages/reports/ProfitLoss.tsx`
-- `src/pages/reports/BalanceSheet.tsx`
-- `src/pages/reports/CashFlow.tsx`
-- `src/pages/reports/DailyCashPosition.tsx`
-- `src/pages/reports/SalesTrend.tsx`
-- `src/pages/reports/ProductPerformance.tsx`
-- `src/pages/reports/ProductCosting.tsx`
-- `src/pages/reports/CustomerWiseReport.tsx`
-- `src/pages/reports/SupplierWiseReport.tsx`
-- `src/pages/reports/SupplierPerformance.tsx`
-- `src/pages/reports/CitywiseSales.tsx`
-- `src/pages/reports/AreaWiseSales.tsx`
-- `src/pages/reports/ItemWiseReport.tsx`
-- `src/pages/reports/BatchWiseReport.tsx`
-- `src/pages/reports/SlowDeadStock.tsx`
-- `src/pages/reports/TaxCompliance.tsx`
-- `src/pages/reports/ReceivablesAging.tsx` (add `voided` exclusion)
-- `src/pages/reports/PayablesAging.tsx` (add `voided` exclusion)
-- `src/pages/reports/VacantAreas.tsx`
-- `src/pages/reports/ProductAllocationReport.tsx`
-
-No UI changes, no schema changes — only query filters.
-
-### 3. SQL RPCs as source of truth for the highest-risk reports
-
-To stop client/server math drift, add `SECURITY DEFINER` RPCs scoped via `get_user_tenant_id()`. Wave 1 covers the four reports most prone to drift:
-
-```text
-public.report_profit_loss(p_from date, p_to date)         returns jsonb
-public.report_sales_summary(p_from, p_to, p_customer uuid, p_product uuid, p_city text)  returns jsonb
-public.report_receivables_aging(p_as_of date)             returns table(...)
-public.report_payables_aging(p_as_of date)                returns table(...)
-```
-
-Each RPC uses the same posted-only rule, joins `sales_invoice_items` for COGS using `COALESCE(NULLIF(sii.unit_cost,0), p.cost_price, 0)` (same formula `dashboard_kpis` already uses, so dashboard and P&L stop disagreeing), and returns totals + breakdown. UI pages render the RPC payload directly. Other reports stay client-side this wave; they will be migrated in Wave 1.5 once these four are validated against your live data.
-
-Migration also adds supporting indexes (only the ones missing today):
-
-```text
-sales_invoices(tenant_id, date, status)
-purchase_invoices(tenant_id, date, status)
-sales_returns(tenant_id, date)
-purchase_returns(tenant_id, date)
-payments(tenant_id, date, status)
-sales_invoice_items(invoice_id, product_id)
-```
-
-### 4. Export to Excel + standard report header
-
-Add `xlsx` (SheetJS) dependency and a single shared exporter `src/lib/reports/excel.ts`:
-
-```text
-exportReportToExcel({
-  title, sheetName, columns, rows, totalsRow,
-  filters,                // {label,value}[]
-  meta: { company, user, generatedAt, dateRange }
-})
-```
-
-Output sheet structure (matches your spec):
-
-```text
-Row 1   <Company name>                          (bold, merged A:end)
-Row 2   <Report title>                          (bold, merged)
-Row 3   Date range: <from> – <to>
-Row 4   Filters: <key=value, ...>
-Row 5   Generated by: <user>   at <ISO ts>
-Row 6   (blank)
-Row 7   Header row                              (bold, frozen)
-Row 8+  Data rows
-Last    Totals row                              (bold)
-```
-
-- Currency columns get `#,##0.00` format, dates `yyyy-mm-dd`, freeze pane on the header row, auto width based on longest cell.
-- Same `columns/rows/totalsRow` shape powers a `exportReportToCsv()` helper so CSV totals match Excel totals exactly.
-- A small `<ReportToolbar/>` component (Export Excel / Export CSV / Print / Copy table) replaces the ad-hoc buttons each report currently has. PDF reuses the existing `PdfPreviewDialog` flow (already in the project) — no new PDF stack.
-
-Wave 1 wires the toolbar into the four RPC-backed reports (P&L, Sales Summary, Receivables Aging, Payables Aging) and leaves the others on their current export buttons; remaining reports get the toolbar in Wave 1.5 alongside their RPC migration.
-
-### 5. Validation tests
-
-Add `src/test/reports.test.ts` (Vitest, runs against a mocked Supabase client) covering:
-
-- Draft sales invoice excluded from P&L revenue.
-- Voided sales invoice excluded from Receivables Aging and Customer Wise.
-- Voided payment does not move bank balance in Cash Flow / Daily Cash.
-- Sales return reduces P&L net revenue by exactly its `total`.
-- Aging buckets sum to `customers.balance` for posted invoices only.
-- Excel/CSV totals row equals on-screen totals (snapshot of the exporter input).
-
-## Out of scope (queued for next waves)
-
-- New reports: Sales Summary screen UI (RPC exists but no new page yet — Wave 2), Sales Detail, Daily Business Summary, Tax Detail, Low Stock screen, Stock Movement filters, Customer/Supplier Aging cities/contacts columns.
-- AI Insights panel per report, Ask Your ERP, AI Alerts — Wave 3.
-- Migrating remaining reports to RPCs and to the new `<ReportToolbar/>` — Wave 1.5.
+**UI**
+- `Customers.tsx` / `Suppliers.tsx`:
+  - Add `const [cityFilter, setCityFilter] = useState<string>("all")`.
+  - `useEffect` deps: `[page, showInactive, cityFilter, debouncedSearch]`.
+  - Move `search` and `city` into the supabase query, drop client-side `.filter()`.
+  - KPI cards read from `summary` state, not `customers.length`.
 
 ## Files touched
-
-```text
-src/lib/reports/posted.ts                  (new)
-src/lib/reports/excel.ts                   (new, uses xlsx)
-src/lib/reports/csv.ts                     (new)
-src/components/reports/ReportToolbar.tsx   (new)
-src/pages/reports/*.tsx                    (status filter on every query, 20 files)
-src/pages/reports/ProfitLoss.tsx           (consume report_profit_loss RPC)
-src/pages/reports/ReceivablesAging.tsx     (consume RPC)
-src/pages/reports/PayablesAging.tsx        (consume RPC)
-src/pages/reports/SalesTrend.tsx           (consume report_sales_summary RPC where applicable)
-supabase/migrations/<ts>_report_rpcs.sql   (4 RPCs + indexes)
-src/test/reports.test.ts                   (new)
-package.json                               (+ xlsx)
-```
-
-## Acceptance for this wave
-
-- Every report page has `status NOT IN ('draft','voided','cancelled')` (or equivalent allow-list) on every transactional query.
-- P&L, Receivables Aging, Payables Aging, and Sales Summary numbers match the new RPC output and match `dashboard_kpis`.
-- Excel export from those four reports opens in Excel with header block, frozen header row, bold totals, currency formatting, and the on-screen totals match the totals row in the file.
-- Vitest suite green.
-- No change to orders/proformas/drafts behaviour; no schema break.
+- new migration: backfill + triggers + 4 RPCs
+- `src/pages/Customers.tsx`
+- `src/pages/Suppliers.tsx`
