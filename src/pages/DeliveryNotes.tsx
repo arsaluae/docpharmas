@@ -49,18 +49,20 @@ export default function DeliveryNotes() {
  useEffect(() => { load(); }, [pagination.page]);
 
  const load = async () => {
- const { data, count } = await supabase.from("delivery_notes").select("*, customers(name), suppliers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
+ const { data, count } = await supabase.from("delivery_notes").select("*, customers(name, phone), suppliers(name, phone)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
  if (data) setNotes(data as any);
  if (count !== null) pagination.setTotalCount(count);
  };
 
  const printDN = (dn: DeliveryNote) => {
  const items = typeof dn.items === "string" ? JSON.parse(dn.items) : dn.items;
- const customerName = (dn as any).customers?.name || undefined;
+ const customerName = (dn as any).customers?.name || (dn as any).suppliers?.name || undefined;
+ const partyPhone = (dn as any).customers?.phone || (dn as any).suppliers?.phone || undefined;
  const html = generatePdfHtml({
  title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date,
  partyLabel: dn.customer_id ? "Customer" : dn.supplier_id ? "Supplier" : undefined,
  partyName: customerName,
+ partyPhone,
  columns: [
  { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
  { header: "Batch #", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
@@ -213,7 +215,7 @@ export default function DeliveryNotes() {
  try {
  const html = generatePdfHtml({
  title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date,
- partyLabel: "Customer", partyName: customerName,
+ partyLabel: "Customer", partyName: customerName, partyPhone: phone || undefined,
  columns: [
  { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
  { header: "Batch", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },

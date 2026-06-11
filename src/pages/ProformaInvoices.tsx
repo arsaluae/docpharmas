@@ -35,8 +35,8 @@ import { useDraftAutosave } from "@/hooks/useDraftAutosave";
 import { useTenant } from "@/hooks/useTenant";
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
-interface Product { id: string; name: string; selling_price: number; gst_rate: number; }
-interface ProformaItem { product_id: string; product_name: string; quantity: number; rate: number; gst_rate: number; amount: number; last_price?: number | null; discount_pct?: number; }
+interface Product { id: string; name: string; selling_price: number; gst_rate: number; mrp?: number | null; }
+interface ProformaItem { product_id: string; product_name: string; quantity: number; rate: number; gst_rate: number; amount: number; last_price?: number | null; discount_pct?: number; mrp?: number; }
 interface DeliveryNoteRow { id: string; dn_number: string; date: string; customer_id: string | null; items: any; status: string; reference_id: string; created_at: string; customer_name?: string; invoice_number?: string; }
 interface SalesAgentOption { id: string; name: string; }
 
@@ -256,7 +256,7 @@ export default function ProformaInvoices() {
  const [pf, cust, prod, agentsRes] = await Promise.all([
  pfQuery,
  supabase.from("customers").select("id, name, company, phone, address, area").eq("is_active", true),
- supabase.from("products").select("id, name, selling_price, gst_rate").eq("is_active", true),
+ supabase.from("products").select("id, name, selling_price, gst_rate, mrp").eq("is_active", true),
  supabase.from("sales_agents").select("id, name").eq("status", "active"),
  ]);
  if (agentsRes.data) setAgentsList(agentsRes.data as SalesAgentOption[]);
@@ -334,7 +334,7 @@ export default function ProformaInvoices() {
  }, [customerId]);
 
  // ── ITEMS HELPERS ──
- const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0, discount_pct: 0 }]);
+ const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0, discount_pct: 0, mrp: 0 }]);
  useEffect(() => { if (createOpen && items.length === 0) addItem(); }, [createOpen]);
 
  const lookupLastPrice = async (productId: string, custId: string): Promise<number | null> => {
@@ -359,7 +359,7 @@ export default function ProformaInvoices() {
  (u[idx] as any)[field] = value;
  if (field === "product_id") {
  const p = products.find(pr => pr.id === value);
- if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; }
+ if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; u[idx].mrp = Number(p.mrp || p.selling_price || 0); }
  // ── Territory exclusivity hard-block ──
  if (value && customerId) {
  const conflict = await checkTerritoryLock(value, customerId);
@@ -504,7 +504,7 @@ export default function ProformaInvoices() {
  (u[idx] as any)[field] = value;
  if (field === "product_id") {
  const p = products.find(pr => pr.id === value);
- if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; }
+ if (p) { u[idx].product_name = p.name; u[idx].rate = Number(p.selling_price); u[idx].gst_rate = settings?.gst_enabled ? Number(p.gst_rate) : 0; u[idx].mrp = Number(p.mrp || p.selling_price || 0); }
  if (editCustomerId && value) {
  const lastRate = await lookupLastPrice(value, editCustomerId);
  u[idx].last_price = lastRate;
@@ -599,14 +599,19 @@ export default function ProformaInvoices() {
      title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
      partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
      meta: [{ label: "Validity", value: `${order.validity_days} days` }],
-     columns: [
-       { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
-       { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
-       { header: "Disc%", key: "discount_pct", align: "right" },
-       ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
-       { header: "Amount", key: "amount", align: "right" },
-     ],
-     rows: pfItems.map((i: any, idx: number) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(), discount_pct: Number(i.discount_pct || 0) })),
+      columns: [
+        { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+        { header: "MRP", key: "mrp", align: "right" },
+        { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+        { header: "Disc%", key: "discount_pct", align: "right" },
+        ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
+        { header: "Amount", key: "amount", align: "right" },
+      ],
+      rows: pfItems.map((i: any, idx: number) => {
+        const catalogMrp = Number(products.find(p => p.id === i.product_id)?.mrp || products.find(p => p.id === i.product_id)?.selling_price || 0);
+        const mrpVal = Number(i.mrp || catalogMrp || 0);
+        return { ...i, idx: idx + 1, mrp: mrpVal > 0 ? mrpVal.toLocaleString() : "—", rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(), discount_pct: Number(i.discount_pct || 0) };
+      }),
      totals: [
        { label: "Subtotal", value: `PKR ${Number(order.subtotal).toLocaleString()}` },
        ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(order.gst).toLocaleString()}` }] : []),
@@ -662,8 +667,8 @@ export default function ProformaInvoices() {
   const buildSalesInvoiceHtml = async (order: SalesOrder): Promise<string> => {
     if (!order.converted_invoice_id) return "";
     const { data: inv } = await supabase.from("sales_invoices").select("*, customers(name, address, phone, area)").eq("id", order.converted_invoice_id).single();
-    const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name, selling_price)").eq("invoice_id", order.converted_invoice_id);
-    if (!inv) return "";
+     const { data: invItems } = await supabase.from("sales_invoice_items").select("*, products(name, mrp, selling_price)").eq("invoice_id", order.converted_invoice_id);
+     if (!inv) return "";
     // Fallback: backfill missing expiry_date from GRN in one batched query (older rows).
     const items = invItems || [];
     const missing = items.filter((i: any) => !i.expiry_date && i.product_id && i.batch_number);
@@ -697,7 +702,7 @@ export default function ProformaInvoices() {
       ],
       rows: items.map((i: any, idx: number) => {
         const exp = i.expiry_date || expiryMap[`${i.product_id}__${i.batch_number}`] || null;
-        const mrp = Number(i.products?.selling_price || 0);
+        const mrp = Number(i.products?.mrp || i.products?.selling_price || 0);
         return {
           idx: idx + 1, name: i.products?.name || "Item",
           batch_number: i.batch_number || "—",
@@ -732,8 +737,8 @@ export default function ProformaInvoices() {
     const productIds = Array.from(new Set(dnItems.map((i: any) => i.product_id).filter(Boolean)));
     const mrpMap: Record<string, number> = {};
     if (productIds.length > 0) {
-      const { data: pr } = await supabase.from("products").select("id, selling_price").in("id", productIds);
-      (pr || []).forEach((p: any) => { mrpMap[p.id] = Number(p.selling_price || 0); });
+       const { data: pr } = await supabase.from("products").select("id, mrp, selling_price").in("id", productIds);
+       (pr || []).forEach((p: any) => { mrpMap[p.id] = Number(p.mrp || p.selling_price || 0); });
     }
     const missing = dnItems.filter((i: any) => !i.expiry_date && i.product_id && i.batch_number);
     const expiryMap: Record<string, string> = {};
@@ -1205,56 +1210,64 @@ export default function ProformaInvoices() {
             <div className="hidden md:block rounded-lg border border-border overflow-hidden bg-card">
               <div className="overflow-x-auto">
                 <div className="min-w-[1000px]">
-                  <div className="grid grid-cols-[36px_minmax(280px,1fr)_90px_110px_90px_90px_90px_140px_44px] gap-2 px-3 py-2.5 bg-muted/50 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <div className="grid grid-cols-[32px_minmax(260px,1fr)_100px_80px_100px_80px_80px_140px_40px] gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
                     <div>#</div>
                     <div>Product</div>
+                    <div className="text-right">MRP</div>
                     <div className="text-right">Qty</div>
                     <div className="text-right">Rate</div>
                     <div className="text-right">Disc %</div>
                     {settings?.gst_enabled ? <div className="text-right">GST %</div> : <div />}
-                    <div className="text-right">Stock</div>
                     <div className="text-right">Line Total</div>
                     <div />
                   </div>
                   {items.length === 0 ? (
                     <div className="px-3 py-10 text-center text-[14px] text-muted-foreground">No items yet — click "Add Item" or press <kbd className="px-1.5 py-0.5 rounded border border-border text-[11px] font-mono">Alt + N</kbd></div>
-                  ) : items.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-[36px_minmax(280px,1fr)_90px_110px_90px_90px_90px_140px_44px] gap-2 px-3 py-2.5 items-center border-t border-border/60 hover:bg-muted/20">
+                  ) : items.map((item, idx) => {
+                    const catalogMrp = Number(products.find(p => p.id === item.product_id)?.mrp || products.find(p => p.id === item.product_id)?.selling_price || 0);
+                    const effectiveMrp = Number(item.mrp || catalogMrp || 0);
+                    const aboveMrp = effectiveMrp > 0 && Number(item.rate) > effectiveMrp;
+                    return (
+                    <div key={idx} className="grid grid-cols-[32px_minmax(260px,1fr)_100px_80px_100px_80px_80px_140px_40px] gap-2 px-3 py-2 items-center border-t border-border/60 hover:bg-muted/20">
                       <div className="text-[12px] font-mono text-muted-foreground">{idx + 1}</div>
                       <div className="min-w-0">
-                        <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Search by name, code, supplier…" triggerClassName="h-10 text-[14px]" />
+                        <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Search by name, code, supplier…" triggerClassName="h-9 text-[14px]" />
                         {item.last_price !== undefined && item.last_price !== null && (
                           <div className="text-[11px] text-success mt-0.5 ml-1">Last: PKR {Number(item.last_price).toLocaleString()}</div>
                         )}
                       </div>
                       <div>
-                        <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="h-10 text-right text-[15px] font-mono tabular-nums" placeholder="0" />
+                        <Input type="number" value={item.mrp ?? ""} onChange={e => updateItem(idx, "mrp", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder={catalogMrp ? String(catalogMrp) : "0"} />
                       </div>
                       <div>
-                        <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className="h-10 text-right text-[15px] font-mono tabular-nums" placeholder="0.00" />
+                        <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="0" />
                       </div>
                       <div>
-                        <Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="h-10 text-right text-[15px] font-mono tabular-nums" placeholder="0" />
+                        <Input type="number" value={item.rate} onChange={e => updateItem(idx, "rate", e.target.value)} className={`h-9 text-right text-[14px] font-mono tabular-nums ${aboveMrp ? "border-warning text-warning" : ""}`} placeholder="0.00" />
+                        {aboveMrp && <div className="text-[10px] text-warning mt-0.5 text-right">Above MRP</div>}
+                      </div>
+                      <div>
+                        <Input type="number" value={item.discount_pct || 0} onChange={e => updateItem(idx, "discount_pct", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="0" />
                       </div>
                       {settings?.gst_enabled ? (
                         <div>
-                          <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="h-10 text-right text-[15px] font-mono tabular-nums" placeholder="17" />
+                          <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="17" />
                         </div>
                       ) : <div />}
-                      <div className="text-right text-[13px] text-muted-foreground font-mono tabular-nums">—</div>
-                      <div className="text-right text-[16px] font-mono font-semibold text-foreground tabular-nums">
+                      <div className="text-right text-[15px] font-mono font-semibold text-foreground tabular-nums">
                         {Number(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </div>
                       <div className="flex justify-end">
-                        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Remove">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Remove">
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
               </div>
             </div>
+
 
             {/* MOBILE CARDS */}
             <div className="md:hidden space-y-3">
@@ -1270,6 +1283,10 @@ export default function ProformaInvoices() {
                   </div>
                   <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product…" triggerClassName="h-10 text-[14px]" />
                   <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground">MRP</Label>
+                      <Input type="number" value={item.mrp ?? ""} onChange={e => updateItem(idx, "mrp", e.target.value)} className="h-10 text-right text-[15px] font-mono" placeholder="MRP" />
+                    </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground">Qty</Label>
                       <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="h-10 text-right text-[15px] font-mono" />
@@ -1621,16 +1638,17 @@ export default function ProformaInvoices() {
  <Separator />
  <div className="flex items-center justify-between">
  <Label className="text-sm font-semibold">Items</Label>
- <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: 17, amount: 0, discount_pct: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
+ <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: 17, amount: 0, discount_pct: 0, mrp: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
  </div>
   {editItems.map((item, idx) => {
-  const mrp = products.find(p => p.id === item.product_id)?.selling_price;
+  const catalogMrp = Number(products.find(p => p.id === item.product_id)?.mrp || products.find(p => p.id === item.product_id)?.selling_price || 0);
   return (
   <div key={idx} className="grid grid-cols-12 gap-2 items-end">
   <div className="col-span-3">
     <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
-    {mrp ? <span className="block text-[10px] text-muted-foreground mt-1 tabular-nums">MRP PKR {Number(mrp).toLocaleString()}</span> : null}
+    {catalogMrp ? <span className="block text-[10px] text-muted-foreground mt-1 tabular-nums">Catalog MRP PKR {catalogMrp.toLocaleString()}</span> : null}
   </div>
+  <div className="col-span-2"><Input type="number" value={item.mrp ?? ""} onChange={e => updateEditItem(idx, "mrp", e.target.value)} className="text-xs tabular-nums" placeholder="MRP" /></div>
   <div className="col-span-1"><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="text-xs tabular-nums" placeholder="Qty" /></div>
   <div className="col-span-2 relative">
   <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs tabular-nums" placeholder="Rate" />
@@ -1639,7 +1657,7 @@ export default function ProformaInvoices() {
   )}
   </div>
   <div className="col-span-1"><Input type="number" value={item.discount_pct || 0} onChange={e => updateEditItem(idx, "discount_pct", e.target.value)} className="text-xs tabular-nums" placeholder="Disc%" /></div>
-  <div className="col-span-3 text-right text-xs font-mono pt-2 tabular-nums">{item.amount.toLocaleString()}</div>
+  <div className="col-span-2 text-right text-xs font-mono pt-2 tabular-nums">{item.amount.toLocaleString()}</div>
   <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
   </div>
   );})}
