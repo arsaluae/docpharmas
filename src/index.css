@@ -83,61 +83,67 @@
   }
 
   .dark {
-    --background: 230 60% 13%;
-    --foreground: 220 30% 96%;
-    --card: 230 55% 17%;
-    --card-foreground: 220 30% 96%;
-    --popover: 230 55% 11%;
-    --popover-foreground: 220 30% 96%;
-    --surface-2: 230 55% 20%;
+    /* ── Premium dark · Stripe-night counterpart ── */
+    --background: 222 24% 7%;             /* deep slate-black canvas */
+    --foreground: 210 30% 96%;
+    --card: 222 22% 9%;
+    --card-foreground: 210 30% 96%;
+    --popover: 222 22% 10%;
+    --popover-foreground: 210 30% 96%;
+    --surface-2: 222 18% 12%;
 
-    --brand-navy: 220 30% 96%;
-    --brand-blue: 239 84% 67%;
-    --primary: 239 84% 67%;
+    --brand-navy: 210 30% 96%;
+    --brand-blue: 243 75% 65%;
+    --primary: 243 75% 65%;
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 239 84% 67%;
-    --ring: 239 84% 67%;
+    --primary-soft: 243 75% 65%;
+    --ring: 243 75% 65%;
 
-    --secondary: 230 50% 22%;
-    --secondary-foreground: 220 25% 92%;
-    --muted: 230 45% 22%;
-    --muted-foreground: 225 18% 68%;
-    --subtle: 226 22% 60%;
-    --accent: 230 50% 22%;
-    --accent-foreground: 220 30% 96%;
+    --secondary: 222 18% 14%;
+    --secondary-foreground: 210 30% 96%;
+    --muted: 222 18% 12%;
+    --muted-foreground: 215 16% 65%;
+    --subtle: 215 14% 55%;
+    --accent: 222 18% 14%;
+    --accent-foreground: 210 30% 96%;
 
-    --destructive: 0 65% 60%;
+    /* Status — ~10% lighter than light mode for dark legibility */
+    --destructive: 349 85% 60%;
     --destructive-foreground: 0 0% 100%;
-    --danger: 0 65% 60%;
-    --warning: 38 92% 55%;
+    --danger: 349 85% 60%;
+    --warning: 35 92% 55%;
     --warning-foreground: 0 0% 100%;
-    --success: 158 64% 48%;
+    --success: 160 70% 48%;
     --success-foreground: 0 0% 100%;
-    --info: 189 94% 55%;
+    --info: 199 89% 60%;
 
-    --border: 232 40% 24%;
-    --border-strong: 232 35% 32%;
-    --input: 230 45% 22%;
-    --tertiary-foreground: 226 22% 60%;
+    --border: 220 14% 18%;
+    --border-strong: 220 14% 26%;
+    --input: 220 14% 16%;
+    --tertiary-foreground: 215 14% 55%;
 
-    --shadow-xs: none;
-    --shadow-sm: none;
-    --shadow-md: none;
-    --shadow-lg: none;
+    /* Elevation — lifted glass: deep shadow + 1px top highlight */
+    --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03);
+    --shadow-sm: 0 2px 6px -1px rgba(0,0,0,0.45), 0 4px 10px -2px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+    --shadow-md: 0 6px 16px -2px rgba(0,0,0,0.5), 0 12px 28px -4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+    --shadow-lg: 0 16px 40px -8px rgba(0,0,0,0.6), 0 6px 16px -2px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
 
-    --sidebar-background: 233 70% 5%;
-    --sidebar-foreground: 226 22% 60%;
-    --sidebar-primary: 239 84% 67%;
+    --sidebar-background: 222 26% 5%;
+    --sidebar-foreground: 215 16% 70%;
+    --sidebar-primary: 243 75% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 232 40% 14%;
-    --sidebar-accent-foreground: 220 30% 96%;
-    --sidebar-border: 232 40% 14%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-accent: 222 20% 11%;
+    --sidebar-accent-foreground: 210 30% 96%;
+    --sidebar-border: 220 14% 16%;
+    --sidebar-ring: 243 75% 65%;
 
-    --pharma-teal: 239 84% 67%;
-    --pharma-violet: 239 84% 67%;
-    --pharma-sage: 158 64% 48%;
+    --pharma-teal: 243 75% 65%;
+    --pharma-violet: 243 75% 65%;
+    --pharma-sage: 160 70% 48%;
+    --medical-cyan: 199 89% 60%;
+    --medical-cyan-foreground: 0 0% 100%;
   }
+
 }
 
 
