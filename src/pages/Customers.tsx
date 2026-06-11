@@ -211,11 +211,10 @@ export default function Customers() {
  setLicenses(data || []);
  };
 
- const filtered = customers.filter(c =>
- c.name.toLowerCase().includes(search.toLowerCase()) ||
- (c.company || "").toLowerCase().includes(search.toLowerCase()) ||
- (c.city || "").toLowerCase().includes(search.toLowerCase())
- );
+ const filtered = customers; // server-side filtering now
+
+ const refreshAfterChange = () => { loadCustomers(); loadAux(); };
+
 
  const headerActions = (
  <>
