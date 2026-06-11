@@ -348,6 +348,7 @@
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
+    box-shadow: var(--shadow-xs);
   }
 
   .glass-kpi,
@@ -361,16 +362,17 @@
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
-    box-shadow: none;
-    transition: background-color 150ms ease-out, border-color 150ms ease-out;
+    box-shadow: var(--shadow-xs);
+    transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out, transform 150ms ease-out;
   }
   .glass-kpi:hover,
   .summary-card:hover,
   .gradient-border:hover,
   .ai-cta-card:hover,
   .quick-action-card:hover {
-    border-color: hsl(var(--primary) / 0.5);
-    transform: none;
+    border-color: hsl(var(--border-strong));
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
   }
 
   .mesh-hero {
@@ -378,9 +380,25 @@
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
-    box-shadow: none;
+    box-shadow: var(--shadow-xs);
     overflow: hidden;
   }
+
+  /* Premium card primitive — Stripe Dashboard chrome */
+  .card-premium {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-xs);
+    transition: box-shadow 150ms ease-out, border-color 150ms ease-out;
+  }
+  .card-premium:hover { box-shadow: var(--shadow-sm); border-color: hsl(var(--border-strong)); }
+
+  .shadow-xs { box-shadow: var(--shadow-xs); }
+  .shadow-sm-soft { box-shadow: var(--shadow-sm); }
+  .shadow-md-soft { box-shadow: var(--shadow-md); }
+  .shadow-lg-soft { box-shadow: var(--shadow-lg); }
+
 
 
   .frosted-header {
