@@ -294,7 +294,7 @@ export default function Products() {
  </TableHeader>
  <TableBody>
  {filtered.length === 0 ? (
- <TableRow><TableCell colSpan={10} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
+ <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
  ) : filtered.map(p => (
  <TableRow key={p.id} className={`${readOnly ? "" : "cursor-pointer"} table-row-hover ${p.is_active === false ? "opacity-50" : ""}`} onClick={() => { if (!readOnly) handleEdit(p); }}>
  <TableCell className="text-xs font-mono text-muted-foreground">{(p as any).product_code || "—"}</TableCell>
@@ -304,6 +304,7 @@ export default function Products() {
  <TableCell className="text-xs">{p.drap_reg_number || "—"}</TableCell>
  <TableCell className="text-right font-mono">{Number(p.cost_price).toLocaleString()}</TableCell>
  <TableCell className="text-right font-mono">{Number(p.selling_price).toLocaleString()}</TableCell>
+ <TableCell className="text-right font-mono text-muted-foreground">{Number(p.mrp || 0) > 0 ? Number(p.mrp).toLocaleString() : "—"}</TableCell>
  <TableCell className="text-right font-mono text-primary">{margin(p)}</TableCell>
  <TableCell className="text-right">
  <span className={Number(p.stock_quantity) <= Number(p.reorder_level) ? "text-destructive font-semibold" : ""}>{Number(p.stock_quantity).toLocaleString()}</span>
