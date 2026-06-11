@@ -600,14 +600,20 @@ export default function ProformaInvoices() {
  // ── HTML BUILDERS (return string; preview wires them through PdfPreviewDialog views) ──
  const buildSalesOrderHtml = (order: SalesOrder): { html: string; opts: any } => {
    const pfItems = getPfItems(order);
-   const custName = (order.customers as any)?.name || "—";
-   const custAddress = (order.customers as any)?.address || undefined;
-   const custPhone = (order.customers as any)?.phone || undefined;
-   const custArea = (order.customers as any)?.area || undefined;
+   const c = (order.customers as any) || {};
    { const __o = ({
      title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
-     partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
-     meta: [{ label: "Validity", value: `${order.validity_days} days` }],
+     partyLabel: "Customer",
+     partyName: c.name || "—",
+     partyCode: c.customer_code || undefined,
+     partyMobile: c.sms_mobile || undefined,
+     partyPhone: c.phone || undefined,
+     partyCity: c.city || undefined,
+     partyArea: c.area || undefined,
+     partyAddress: c.address || undefined,
+     partyAccountCode: c.old_erp_account_code || undefined,
+     validity: `Valid for ${order.validity_days} days`,
+     paymentTerms: order.payment_instructions || undefined,
       columns: [
         { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
         { header: "MRP", key: "mrp", align: "right" },
