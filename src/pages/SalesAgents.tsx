@@ -416,6 +416,7 @@ export default function SalesAgents() {
                     <TableHead>Name</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Linked Login</TableHead>
                     <TableHead>Commission</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center w-32">Actions</TableHead>
@@ -423,14 +424,23 @@ export default function SalesAgents() {
                 </TableHeader>
                 <TableBody>
                   {filteredAgents.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                    <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                       <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />No agents found.
                     </TableCell></TableRow>
-                  ) : filteredAgents.map(a => (
+                  ) : filteredAgents.map(a => {
+                    const linkedEmail = tenantUsers.find(u => u.user_id === a.user_id)?.email;
+                    return (
                     <TableRow key={a.id}>
                       <TableCell className="font-medium">{a.name}</TableCell>
                       <TableCell className="text-muted-foreground font-mono text-xs">{a.phone || "—"}</TableCell>
                       <TableCell className="text-muted-foreground text-xs">{a.email || "—"}</TableCell>
+                      <TableCell className="text-xs">
+                        {a.user_id ? (
+                          <Badge variant="outline" className="text-[10px] gap-1"><LinkIcon className="h-2.5 w-2.5" /> {linkedEmail ?? "linked"}</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-destructive border-destructive/40">Not linked</Badge>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">
                           {a.commission_type === "percentage" ? `${a.commission_rate}%` : `PKR ${Number(a.commission_rate).toLocaleString()}`}
@@ -448,7 +458,7 @@ export default function SalesAgents() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  );})}
                 </TableBody>
               </Table>
             </CardContent>
