@@ -87,15 +87,25 @@ export default function SalesAgents() {
     if (agRes.data) setAgents(agRes.data as any);
     if (custRes.data) setCustomers(custRes.data as any);
     if (allocRes.data) setAllocations(allocRes.data as any);
+    // Load tenant users for linking dropdown (owner-only edge function)
+    if (tenantId) {
+      try {
+        const { data: tuRes } = await supabase.functions.invoke("manage-tenant", {
+          body: { action: "list_tenant_users", tenant_id: tenantId },
+        });
+        if (tuRes?.users) setTenantUsers(tuRes.users);
+      } catch { /* non-owner — ignore */ }
+    }
   };
 
   // Agent CRUD
   const handleSaveAgent = async () => {
     if (!name.trim()) { toast.error("Name is required"); return; }
-    const payload = {
+    const payload: any = {
       name, phone: phone || null, email: email || null, address: address || null,
       commission_type: commType, commission_rate: Number(commRate) || 0,
       status: agentStatus,
+      user_id: linkedUserId || null,
     };
     if (editId) {
       const { error } = await supabase.from("sales_agents").update(payload).eq("id", editId);
@@ -113,6 +123,7 @@ export default function SalesAgents() {
     setEditId(a.id); setName(a.name); setPhone(a.phone || ""); setEmail(a.email || "");
     setAddress(a.address || ""); setCommType(a.commission_type); setCommRate(String(a.commission_rate));
     setAgentStatus(a.status);
+    setLinkedUserId(a.user_id || "");
     setAgentOpen(true);
   };
 
@@ -126,6 +137,31 @@ export default function SalesAgents() {
   const resetForm = () => {
     setAgentOpen(false); setEditId(null); setName(""); setPhone(""); setEmail("");
     setAddress(""); setCommType("percentage"); setCommRate(""); setAgentStatus("active");
+    setLinkedUserId("");
+  };
+
+  const handleInviteAgent = async () => {
+    if (!inviteEmail || !invitePassword || invitePassword.length < 6 || !inviteName.trim()) {
+      toast.error("Name, email and a password (min 6 chars) are required"); return;
+    }
+    if (!tenantId) { toast.error("Tenant not loaded"); return; }
+    setInviteBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-tenant", {
+        body: { action: "owner_create_user", tenant_id: tenantId, email: inviteEmail, password: invitePassword, role: "sales_agent" },
+      });
+      if (error || data?.error) { toast.error(error?.message || data?.error || "Failed to invite"); return; }
+      const newUserId = data?.user_id;
+      // Create the linked sales_agents row in the same step
+      const { error: insErr } = await supabase.from("sales_agents").insert({
+        name: inviteName, email: inviteEmail, user_id: newUserId, status: "active",
+        commission_type: "percentage", commission_rate: 0,
+      } as any);
+      if (insErr) { toast.error(insErr.message); return; }
+      toast.success(`Invited ${inviteName} and linked to ${inviteEmail}`);
+      setInviteOpen(false); setInviteEmail(""); setInvitePassword(""); setInviteName("");
+      load();
+    } finally { setInviteBusy(false); }
   };
 
   // Allocation
