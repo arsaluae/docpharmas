@@ -26,6 +26,9 @@ const reportSections = [
     { title: "Receivables Aging", desc: "Outstanding customer balances", url: "/reports/receivables", icon: Clock, color: "text-warning" },
     { title: "Payables Aging", desc: "Outstanding supplier balances", url: "/reports/payables", icon: Banknote, color: "text-destructive" },
   ]},
+  { label: "Operations", items: [
+    { title: "Courier Expenses", desc: "Monthly transport spend by courier (NCCS, ADDA, …)", url: "/reports/courier-expenses", icon: Truck, color: "text-primary" },
+  ]},
   { label: "Inventory", items: [
     { title: "Product Costing", desc: "Cost analysis & margins", url: "/reports/product-costing", icon: Package, color: "text-warning" },
     { title: "Item-wise Report", desc: "Sales & purchase by item", url: "/reports/item-wise", icon: Layers, color: "text-primary" },

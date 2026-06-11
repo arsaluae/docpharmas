@@ -17,9 +17,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Receipt, Briefcase, User, Wallet, Pencil, Trash2, BookOpen, ArrowLeft, X } from "lucide-react";
+import { Plus, Search, Receipt, Briefcase, User, Wallet, Pencil, Trash2, BookOpen, ArrowLeft, X, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useFreightProviders } from "@/hooks/useFreightProviders";
 import { BulkActionBar, useBulkSelection, RowCheckbox } from "@/components/BulkActionBar";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -38,6 +39,7 @@ interface Expense {
   id: string; expense_number: string; category: string; description: string | null;
   amount: number; gst_amount: number; payment_method: string; bank_account_id: string | null;
   date: string; notes: string | null; expense_type: string; ledger_id: string | null;
+  freight_provider_id: string | null;
 }
 interface ExpenseLedger {
   id: string; name: string; expense_type: string; description: string | null;
@@ -45,6 +47,7 @@ interface ExpenseLedger {
 
 export default function Expenses() {
   const { settings } = useCompanySettings();
+  const { providers: couriers, reload: reloadCouriers } = useFreightProviders(false);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [ledgers, setLedgers] = useState<ExpenseLedger[]>([]);
@@ -83,6 +86,10 @@ export default function Expenses() {
   const [bankAccountId, setBankAccountId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
+  const [freightProviderId, setFreightProviderId] = useState("");
+  const [newCourierName, setNewCourierName] = useState("");
+  const [addCourierOpen, setAddCourierOpen] = useState(false);
+  const [courierFilter, setCourierFilter] = useState("all");
 
   useEffect(() => { load(); }, [pagination.page, activeTab, selectedLedger]);
 
@@ -119,7 +126,8 @@ export default function Expenses() {
         amount: Number(amount), gst_amount: Number(gstAmount) || 0,
         payment_method: paymentMethod, bank_account_id: bankAccountId || null,
         date, notes: notes || null, expense_type: expenseType, ledger_id: ledgerId || null,
-      });
+        freight_provider_id: category === "transport" ? (freightProviderId || null) : null,
+      } as any);
       if (insErr) {
         await supabase.from("expenses").insert({
           expense_number: oldExpense.expense_number, category: oldExpense.category,
@@ -140,11 +148,23 @@ export default function Expenses() {
         amount: Number(amount), gst_amount: Number(gstAmount) || 0,
         payment_method: paymentMethod, bank_account_id: bankAccountId || null,
         date, notes: notes || null, expense_type: expenseType, ledger_id: ledgerId || null,
-      });
+        freight_provider_id: category === "transport" ? (freightProviderId || null) : null,
+      } as any);
       if (error) { toast.error("Failed to save: " + error.message); return; }
       toast.success(`Expense ${expNumber} recorded`);
     }
     resetForm(); load();
+  };
+
+  const addCourierInline = async () => {
+    if (!newCourierName.trim()) { toast.error("Courier name required"); return; }
+    const code = newCourierName.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12) || `C${Date.now().toString().slice(-4)}`;
+    const ins: any = await (supabase.from("freight_providers" as any) as any).insert({ name: newCourierName.trim(), code, is_active: true }).select("id").single();
+    if (ins.error) { toast.error("Failed: " + ins.error.message); return; }
+    toast.success("Courier added");
+    setNewCourierName(""); setAddCourierOpen(false);
+    await reloadCouriers();
+    if (ins.data?.id) setFreightProviderId(ins.data.id);
   };
 
   const handleDelete = async () => {
@@ -161,6 +181,7 @@ export default function Expenses() {
     setGstAmount(String(e.gst_amount)); setPaymentMethod(e.payment_method);
     setBankAccountId(e.bank_account_id || ""); setDate(e.date);
     setNotes(e.notes || ""); setLedgerId(e.ledger_id || "");
+    setFreightProviderId(e.freight_provider_id || "");
     setOpen(true);
   };
 
@@ -170,6 +191,7 @@ export default function Expenses() {
     setExpenseType(activeTab === "personal" ? "personal" : "business");
     setDescription(""); setAmount(""); setGstAmount(""); setLedgerId("");
     setPaymentMethod("cash"); setBankAccountId(""); setNotes("");
+    setFreightProviderId("");
   };
 
   const handleOpenDialog = () => {
@@ -298,6 +320,28 @@ export default function Expenses() {
                   </Select>
                 </div>
               )}
+              {category === "transport" && (
+                <div className="col-span-2 rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                  <Label className="text-xs font-semibold text-primary flex items-center gap-1.5"><Truck className="h-3.5 w-3.5"/> Courier *</Label>
+                  <div className="flex gap-2">
+                    <Select value={freightProviderId} onValueChange={v => { if (v === "__add__") setAddCourierOpen(true); else setFreightProviderId(v); }}>
+                      <SelectTrigger className="flex-1"><SelectValue placeholder="Select courier..." /></SelectTrigger>
+                      <SelectContent>
+                        {couriers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        <SelectItem value="__add__" className="text-primary">+ Add new courier…</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {addCourierOpen && (
+                    <div className="flex gap-2">
+                      <Input value={newCourierName} onChange={e => setNewCourierName(e.target.value)} placeholder="New courier name" autoFocus className="flex-1" />
+                      <Button size="sm" onClick={addCourierInline}>Add</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setAddCourierOpen(false); setNewCourierName(""); }}>Cancel</Button>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">Tracked in Reports → Courier Expenses for monthly per-courier totals.</p>
+                </div>
+              )}
               <div className="col-span-2"><Label>Description</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
               <div><Label>Amount (PKR) *</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} /></div>
               {settings?.gst_enabled && <div><Label>GST Amount</Label><Input type="number" value={gstAmount} onChange={e => setGstAmount(e.target.value)} /></div>}
@@ -394,6 +438,7 @@ export default function Expenses() {
                   <TableHead>Category</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Ledger</TableHead>
+                  <TableHead>Courier</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead>Date</TableHead>
                   {settings?.gst_enabled && <TableHead className="text-right">GST</TableHead>}
@@ -417,6 +462,7 @@ export default function Expenses() {
                     <TableCell className="capitalize">{formatCategory(e.category)}</TableCell>
                     <TableCell className="text-muted-foreground">{e.description || "—"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{e.ledger_id ? ledgerNameMap.get(e.ledger_id) || "—" : "—"}</TableCell>
+                    <TableCell className="text-xs">{e.freight_provider_id ? (couriers.find(c => c.id === e.freight_provider_id)?.name || "—") : <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell className="capitalize text-muted-foreground">{e.payment_method.replace("_", " ")}</TableCell>
                     <TableCell className="text-muted-foreground">{e.date}</TableCell>
                     {settings?.gst_enabled && <TableCell className="text-right text-muted-foreground font-mono">{Number(e.gst_amount).toLocaleString()}</TableCell>}
