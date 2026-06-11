@@ -207,7 +207,7 @@ export default function Settings() {
 
  return (
  <AppLayout title="Settings" subtitle="Company profile, tax configuration, templates & backup" headerActions={headerActions}>
- <div className="max-w-4xl">
+ <div className="max-w-6xl">
  <Tabs defaultValue="company" className="w-full">
  <TabsList className="mb-6">
  <TabsTrigger value="company">Company Profile</TabsTrigger>
