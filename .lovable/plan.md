@@ -1,82 +1,114 @@
-## Dark Mode + Top-Bar Theme Toggle
+## Final Dark Mode Polish
 
-Add an aesthetic, premium dark mode that mirrors the Stripe-style light theme, plus a light/dark switch in the top bar. Theme persists per user and respects system preference on first load.
+Tighten the dark theme into a genuinely premium surface — Linear / Vercel / Attio caliber — by refining tokens, surface layering, accents, borders, and chrome details. No structural changes; pure visual polish.
 
-### 1. Theme tokens (`src/index.css`)
+### 1. Refined token palette (`src/index.css` `.dark`)
 
-Refine the existing `.dark` block so dark mode feels like a true premium counterpart to the light theme (not just inverted):
+Shift from flat slate to a layered neutral with cool blue undertones and proper elevation steps.
 
-- Surfaces
-  - `--background: 222 24% 7%` (deep slate-black, not pure black)
-  - `--card: 222 22% 9%`
-  - `--muted: 222 18% 12%`
-  - `--sidebar: 222 24% 6%` (slightly deeper than bg for layering)
-  - `--popover: 222 22% 10%`
-- Ink
-  - `--foreground: 210 30% 96%`
-  - `--muted-foreground: 215 16% 65%`
-- Lines & focus
-  - `--border: 220 14% 18%` (hairline, low-contrast)
-  - `--input: 220 14% 16%`
-  - `--ring: 243 75% 65%` (indigo glow)
-- Brand & status (slightly desaturated for dark)
-  - `--primary: 243 75% 65%` / `--primary-foreground: 0 0% 100%`
-  - success/warning/danger/info tuned ~10% lighter than light mode
-- Elevation: redefine `--shadow-sm-soft` / `--shadow-md-soft` using `rgba(0,0,0,.35/.5)` plus a 1px inner highlight (`inset 0 1px 0 rgba(255,255,255,.04)`) so cards read as lifted glass.
-- Sidebar override: update `.dark .mouj-dark-sidebar` so it uses the new sidebar token (deeper than bg), indigo active row with subtle left accent, and hairline `--border` dividers — matching the light variant's structure.
+- **Surfaces (4 distinct levels)**
+  - `--background: 222 20% 5%`        — app canvas, deepest
+  - `--sidebar-background: 222 22% 4%` — slightly deeper than canvas
+  - `--card: 222 16% 8%`              — raised surface
+  - `--surface-2 / --muted: 222 14% 11%` — inset wells, table headers
+  - `--popover: 222 16% 10%`          — overlays
+- **Ink**
+  - `--foreground: 210 20% 98%`       — primary text, near-white
+  - `--muted-foreground: 218 11% 65%` — secondary
+  - `--subtle: 220 9% 46%`            — tertiary, captions
+- **Borders — two strengths**
+  - `--border: 220 13% 16%`           — hairline default
+  - `--border-strong: 220 13% 22%`    — hover/active
+  - `--input: 222 14% 12%`            — slightly darker than card
+- **Brand — indigo with proper dark-mode luminance**
+  - `--primary: 239 84% 67%`          — #6366F1 family, vivid on dark
+  - `--ring: 239 84% 67%`             — focus glow
+  - `--primary-soft`: 239 84% 67% (used with `/0.12` alpha for active states)
+- **Status — calibrated for dark legibility**
+  - success `158 70% 52%`, warning `38 92% 58%`, danger `351 83% 65%`, info `199 89% 64%`
 
-### 2. Theme provider
+### 2. Premium elevation system
 
-Add `src/components/theme-provider.tsx` — a tiny context that:
-- Reads stored theme from `localStorage` key `docpharmas-theme` (`light` | `dark` | `system`).
-- Falls back to `prefers-color-scheme` when `system`.
-- Toggles the `.dark` class on `<html>`.
-- Exposes `useTheme()` with `theme` and `setTheme`.
+Three-layer shadow tokens that read as real depth on dark canvas:
 
-Wrap `<App />` in `src/App.tsx` with `<ThemeProvider defaultTheme="light">`. Default stays light (current look) so existing users see no change until they toggle.
-
-### 3. Top-bar toggle
-
-In `src/components/AppLayout.tsx`, add a segmented light/dark switch in the top bar, placed left of the notifications bell:
-
-```text
-[ ☀  ◐ ]   <- 2-segment pill, 28px tall, hairline border, indigo active pill
+```css
+--shadow-xs: 0 1px 2px rgba(0,0,0,0.4),
+             inset 0 1px 0 rgba(255,255,255,0.04);
+--shadow-sm: 0 2px 8px rgba(0,0,0,0.45),
+             0 1px 2px rgba(0,0,0,0.3),
+             inset 0 1px 0 rgba(255,255,255,0.05);
+--shadow-md: 0 8px 24px rgba(0,0,0,0.5),
+             0 2px 6px rgba(0,0,0,0.3),
+             inset 0 1px 0 rgba(255,255,255,0.06);
+--shadow-lg: 0 24px 64px rgba(0,0,0,0.6),
+             0 8px 16px rgba(0,0,0,0.4),
+             inset 0 1px 0 rgba(255,255,255,0.07);
 ```
 
-- Two icons: `Sun` and `Moon` from `lucide-react`.
-- Active segment uses `bg-primary/10 text-primary` with a soft inner shadow.
-- Hover state: `bg-muted`.
-- Accessible: `role="group"`, each button has `aria-label` and `aria-pressed`.
-- Animation: 150ms ease-out background transition, icon scales 0.95→1 on activate.
+The `inset` highlight is the key — it gives every card a 1px luminous top edge so they read as raised glass, not flat rectangles.
 
-No separate settings page — the top-bar control is the single source of truth.
+### 3. Sidebar polish (`.dark .mouj-dark-sidebar` overrides)
 
-### 4. Component QA pass (visual only)
+- Deeper than canvas (`--sidebar-background`) with hairline right border using `--border`
+- Brand block: subtle linear gradient from `transparent` to `primary/4` left-to-right, hairline bottom border
+- Nav rows: 40px tall, 8px radius, icon at 16px @ `muted-foreground`
+- Hover: `bg-foreground/4`, icon → `foreground`
+- Active: `bg-primary/12`, text → `foreground`, icon → `primary`, plus 2px `primary` left rail with 60% opacity glow
+- Group labels: 11px uppercase, `--subtle`, 0.12em tracking
+- Collapse divider: 1px `--border`
 
-After tokens land, sanity-check these surfaces in dark mode and tweak token values if anything reads flat. No structural changes:
-- Sidebar (active row, hover, collapsed state)
-- Top bar + Command Palette overlay (glass should still read as lifted)
-- Dashboard KPI cards, sparkline strokes, AI insight card
-- Sales/Purchase hub tables (zebra off, hairline rows still visible)
-- Status pills (success/warning/danger contrast on dark muted bg)
-- Dialogs / PdfPreviewDialog chrome (PDF body itself stays white — it's a document)
+### 4. Top bar & chrome polish (`AppLayout.tsx` styling only)
 
-### Out of scope
+- Header background: `bg-background/70` + `backdrop-blur-xl` + `saturate-150` (glass effect that reads in dark)
+- Hairline bottom border with `--border` plus a 1px `inset 0 -1px 0 rgba(255,255,255,0.03)` for the luminous edge
+- AI command launcher: `bg-card`, hairline border, `--shadow-xs`; hover lifts to `--shadow-sm` + `border-primary/30`
+- Sparkle icon: gradient text from `primary` to `info` (use `bg-clip-text`)
+- `⌘K` kbd: `bg-muted` with `--border` hairline, mono 11px, `muted-foreground`
+- Bell button: hover ring `--primary / 0.2`; notification dot uses `--danger` with 4px outer ring of `--background` (so it pops cleanly off the card)
+- Date chip: `bg-card`, hairline, mono, slight glow `0 0 0 1px rgba(99,102,241,0.0)` → `0.15` on hover
 
-- No changes to PDF templates (invoices stay light — they're print documents).
-- No auth/profile persistence (localStorage is enough; can move to `profiles.theme` later if requested).
-- No new "system" UI affordance beyond the 2-segment toggle (system is the implicit default before first click).
+### 5. Theme toggle refinement
+
+The current segmented pill stays — small polish:
+- Container: `bg-muted/60`, hairline `--border`, soft inset shadow `inset 0 1px 2px rgba(0,0,0,0.3)`
+- Active segment in dark: `bg-card` + `--shadow-xs` + `text-primary` (raised pill on inset track)
+- Inactive icons: `text-muted-foreground` → hover `text-foreground`
+- 200ms ease-out transition on background, icon scale 0.92 → 1 with `cubic-bezier(0.34, 1.56, 0.64, 1)` for a tactile snap
+
+### 6. Component QA pass (token-driven, no JSX rewrites)
+
+After tokens land, the following inherit automatically — but verify each reads correctly in dark and tweak only token alpha if needed:
+
+- **KPI cards**: `--card` with `--shadow-xs`, hover `--shadow-sm`, hairline border → `border-strong` on hover. Sparkline strokes use `--primary` at full opacity.
+- **Tables**: Header `bg-surface-2`, row hover `bg-foreground/3`, hairline `--border` dividers. Tabular numerals stay foreground.
+- **Status pills**: success/warning/danger keep colored text + `/15` alpha bg + `/30` alpha border. Verify contrast ≥ 4.5:1 on dark.
+- **Dialogs**: `bg-popover`, `--shadow-lg`, hairline border, 1px luminous top edge from inset highlight.
+- **Inputs**: `bg-input`, hairline `--border`, focus → `border-primary` + `0 0 0 3px primary/15` ring.
+- **Command palette overlay**: glass `bg-popover/95` + `backdrop-blur-xl`, `--shadow-lg`.
+- **Scrollbars**: thin (`scrollbar-width: thin`), thumb `--border-strong`, track transparent.
+
+### 7. Subtle delight (low-risk additions)
+
+- Page background gets a single near-invisible radial gradient: `radial-gradient(1200px 600px at 50% -200px, hsl(var(--primary) / 0.06), transparent)` — adds atmosphere without visual noise.
+- Theme switch animation: when toggling, root gets a 220ms cross-fade via `transition: background-color 220ms ease-out, color 220ms ease-out` on `html, body` only (not all elements — too expensive).
 
 ### Files touched
 
-- `src/index.css` — refine `.dark` tokens, shadows, sidebar override
-- `src/components/theme-provider.tsx` — new
-- `src/App.tsx` — wrap with ThemeProvider
-- `src/components/AppLayout.tsx` — add top-bar toggle
+- `src/index.css` — `.dark` token block, `.dark .mouj-dark-sidebar` overrides, shadow tokens, html/body fade transition, optional ambient radial
+- `src/components/AppLayout.tsx` — top bar glass treatment, AI launcher polish, theme toggle inset-track styling, bell ring
+
+### Out of scope
+
+- No changes to light mode tokens or chrome
+- No structural JSX changes — only className refinements on chrome elements
+- PDF templates untouched (they remain light document surfaces)
 
 ### Acceptance
 
-- Toggle in top bar flips entire app between light and dark instantly, with no flash on reload.
-- Dark mode feels premium: layered surfaces, hairline borders visible, indigo accents glow subtly, tabular numbers stay crisp.
-- Light mode is byte-identical to current.
-- Choice persists across reloads; first-time visitors get light by default.
+- Four distinct surface levels are visibly stacked (canvas → sidebar → card → surface-2)
+- Cards have a faint 1px luminous top edge that reads as raised glass
+- Sidebar active row has indigo rail + soft fill + crisp icon tint
+- Top bar is glassy (blur + saturate) and the AI launcher feels like the marquee element
+- Theme toggle reads as a raised pill on an inset track
+- Status pills, focus rings, hover states all pass contrast and feel intentional
+- Light mode is byte-identical

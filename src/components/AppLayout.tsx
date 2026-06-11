@@ -4,7 +4,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { CalendarDays, Search, ChevronRight, Sparkles, Bell, Sun, Moon } from "lucide-react";
 import { useGlobalShortcuts } from "@/components/KeyboardShortcuts";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/hooks/use-theme";
 
 const RECENT_KEY = "lovable:recent-pages";
 const MAX_RECENT = 5;
@@ -79,9 +79,9 @@ export function AppLayout({ title, subtitle, children, headerActions }: AppLayou
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <main className="flex-1 overflow-auto">
-          {/* Top bar — premium light chrome */}
-          <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border px-4 sm:px-6 h-14 flex items-center gap-3">
-            <SidebarTrigger className="hover:bg-muted transition-colors rounded-md text-muted-foreground h-8 w-8 inline-flex items-center justify-center" />
+          {/* Top bar — glass chrome, premium in both themes */}
+          <header className="sticky top-0 z-20 bg-background/70 backdrop-blur-xl saturate-150 border-b border-border px-4 sm:px-6 h-14 flex items-center gap-3 shadow-[inset_0_-1px_0_rgba(255,255,255,0.03)]">
+            <SidebarTrigger className="hover:bg-muted transition-colors rounded-md text-muted-foreground hover:text-foreground h-8 w-8 inline-flex items-center justify-center" />
 
             {/* Breadcrumb */}
             <div className="hidden md:flex items-center gap-1.5 min-w-0">
@@ -108,55 +108,56 @@ export function AppLayout({ title, subtitle, children, headerActions }: AppLayou
             </div>
 
             {/* Right cluster */}
-            {/* Theme switch — segmented light/dark pill */}
+            {/* Theme switch — raised pill on inset track */}
             <div
               role="group"
               aria-label="Theme"
-              className="hidden sm:inline-flex h-9 items-center gap-0.5 rounded-md border border-border bg-card p-0.5"
+              className="hidden sm:inline-flex h-9 items-center gap-0.5 rounded-lg border border-border bg-muted/60 p-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.18)] dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]"
             >
               <button
                 type="button"
                 onClick={() => setTheme("light")}
                 aria-label="Light mode"
                 aria-pressed={theme === "light"}
-                className={`h-7 w-8 inline-flex items-center justify-center rounded-[5px] transition-all duration-150 ease-out ${
+                className={`h-7 w-8 inline-flex items-center justify-center rounded-md transition-all duration-200 ease-out ${
                   theme === "light"
-                    ? "bg-primary/10 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-card text-primary shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Sun className="h-3.5 w-3.5" strokeWidth={2} />
+                <Sun className={`h-3.5 w-3.5 transition-transform duration-200 ${theme === "light" ? "scale-100" : "scale-90"}`} strokeWidth={2} />
               </button>
               <button
                 type="button"
                 onClick={() => setTheme("dark")}
                 aria-label="Dark mode"
                 aria-pressed={theme === "dark"}
-                className={`h-7 w-8 inline-flex items-center justify-center rounded-[5px] transition-all duration-150 ease-out ${
+                className={`h-7 w-8 inline-flex items-center justify-center rounded-md transition-all duration-200 ease-out ${
                   theme === "dark"
-                    ? "bg-primary/15 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-card text-primary shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Moon className="h-3.5 w-3.5" strokeWidth={2} />
+                <Moon className={`h-3.5 w-3.5 transition-transform duration-200 ${theme === "dark" ? "scale-100" : "scale-90"}`} strokeWidth={2} />
               </button>
             </div>
 
             <button
               onClick={() => openPalette("alerts")}
-              className="relative h-9 w-9 rounded-md border border-border bg-card hover:border-primary/40 hover:bg-muted/40 transition-colors inline-flex items-center justify-center text-muted-foreground"
+              className="relative h-9 w-9 rounded-md border border-border bg-card hover:border-primary/40 hover:bg-muted/60 transition-all duration-150 inline-flex items-center justify-center text-muted-foreground hover:text-foreground shadow-xs"
               aria-label="Open alerts"
               title="Alerts"
             >
               <Bell className="h-4 w-4" strokeWidth={1.75} />
-              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-danger" />
+              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-danger ring-2 ring-background" />
             </button>
 
-            <span className="hidden lg:inline-flex items-center text-[11px] font-mono text-muted-foreground tabular-nums tracking-wider uppercase h-9 px-2.5 rounded-md border border-border bg-card">
+            <span className="hidden lg:inline-flex items-center text-[11px] font-mono text-muted-foreground tabular-nums tracking-wider uppercase h-9 px-2.5 rounded-md border border-border bg-card shadow-xs">
               <CalendarDays className="h-3.5 w-3.5 mr-1.5 opacity-60" strokeWidth={1.5} />
               {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
             </span>
           </header>
+
 
           {/* Page header band — premium title */}
           {(title || headerActions) && (
