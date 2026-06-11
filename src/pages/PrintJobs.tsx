@@ -706,7 +706,7 @@ export default function PrintJobs() {
  </DialogContent>
  </Dialog>
 
-  <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} title={pdfTitle} />
+  <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} views={pdfOpts ? generateDocumentViews(pdfOpts) : undefined} title={pdfTitle} />
 
   {/* Record Rejection Dialog */}
   <Dialog open={!!rejectJob} onOpenChange={o => { if (!o) setRejectJob(null); }}>
