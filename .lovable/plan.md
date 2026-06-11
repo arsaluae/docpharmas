@@ -1,59 +1,59 @@
-# Customers/Suppliers Fixes
+# Sales Order / Invoice Form Redesign
 
-You have 436 customers (435 missing codes) and 126 suppliers (all missing codes). The "Total 50" issue is a UI bug — the summary card shows the current page count instead of the real DB total.
+Rebuilds the "Create Sales Order" dialog in `src/pages/ProformaInvoices.tsx` (currently `max-w-2xl` cramped modal at lines 1020–1142) into a production-grade ERP composer, and upgrades the matching print template. Sales Invoice in this app is auto-generated from the same Sales Order data path, so one composer + one print template covers both.
 
-## 1. Backfill codes (DB migration)
-- For every existing `customers` row where `customer_code IS NULL`, set `customer_code = generate_document_number('customer')` (tenant-scoped, sequential per tenant: `CUS-0001`, `CUS-0002`…).
-- Same for `suppliers.supplier_code` using `generate_document_number('supplier')`.
-- Add a `BEFORE INSERT` trigger on both tables that auto-fills the code if NULL, so future imports / manual inserts never miss it again.
+## What changes (user-visible)
 
-## 2. Fix "Total = 50" + per-page summary cards (`src/pages/Customers.tsx`, `src/pages/Suppliers.tsx`)
-The summary KPIs (Total, Receivables, Credit Limit, Over Limit / Payables, With Balance, Avg Terms) currently sum only the visible 50 rows. Fix by fetching tenant-wide aggregates with a small RPC `customers_summary()` / `suppliers_summary()` (one row, security-definer, tenant-scoped) and binding the KPI cards to those numbers instead of `customers.length`.
+1. **Full-screen composer** — replaces the small modal. Sticky header (title + doc#), scrollable body, sticky footer (totals + actions). 90vw / max 1400px on desktop, full-screen on mobile.
+2. **Premium customer panel** — large customer search; on select, shows business name, city, address, phone, sales agent, payment terms, current balance, credit limit, outstanding. Visible warning chip if outstanding > credit limit.
+3. **Wide item table** — columns: #, Product Code, Product Name (wide), Batch, Expiry, Available Stock, Qty, Rate, Disc %, Tax %, Line Total, Action. Product search by name/code/supplier/batch. Batch dropdown auto-fills expiry & available stock; blocks save if qty > stock or required batch missing.
+4. **Sticky totals card** — right rail on desktop / bottom bar on mobile: Subtotal, Discount, Tax, Net Total, Previous Balance, Grand Payable. Grand total in 32px bold.
+5. **Actions** — Save Draft · Create Sales Order · Create & Print · Cancel (with unsaved-changes confirm).
+6. **Mobile** — item rows collapse to stacked cards instead of horizontal table.
+7. **Print template** — A4-tuned layout in `src/lib/pdf-generator.ts` with the required field set, larger type scale, amount in words, terms, signature block. Used by both Sales Order and Sales Invoice (shared template path).
 
-## 3. City filter (both pages)
-- Add a city dropdown next to the search box, populated from `DISTINCT city` for the current tenant (small RPC `customers_cities()` / `suppliers_cities()`).
-- When a city is selected, push it into the server query (`.eq("city", city)`) so the filter works across ALL 436 rows, not just the current page.
-- Search box also moves server-side (`.or("name.ilike…,company.ilike…,customer_code.ilike…")`) so searching across 400+ rows works.
-
-## 4. Sales invoice → ledger (verify)
-`CustomerLedger.tsx` already pulls `sales_invoices` for the customer and renders them as debit entries (line 87). Since there are 0 SIs in the DB today, nothing shows yet — but the wiring is correct. Confirmed working; no change needed unless you want SI drafts excluded too.
-
-## Technical details
-
-**Migration**
-```sql
--- backfill
-DO $$ DECLARE r record; BEGIN
-  FOR r IN SELECT id, tenant_id FROM customers WHERE customer_code IS NULL ORDER BY created_at LOOP
-    UPDATE customers SET customer_code =
-      (SELECT public.generate_document_number_for_tenant('customer', r.tenant_id))
-    WHERE id = r.id;
-  END LOOP;
-END $$;
--- (same loop for suppliers)
-
--- auto-assign trigger
-CREATE OR REPLACE FUNCTION set_customer_code() RETURNS trigger ...
-  IF NEW.customer_code IS NULL THEN
-    NEW.customer_code := public.generate_document_number('customer');
-  END IF;
-CREATE TRIGGER trg_customer_code BEFORE INSERT ON customers ...
-```
-(Need a small tenant-aware variant of `generate_document_number` for the backfill loop since it normally relies on `auth.uid()`.)
-
-**RPCs**
-- `customers_summary()` → `{ total, receivables, credit_limit, over_limit }`
-- `customers_cities()` → `text[]`
-- Same pair for suppliers.
-
-**UI**
-- `Customers.tsx` / `Suppliers.tsx`:
-  - Add `const [cityFilter, setCityFilter] = useState<string>("all")`.
-  - `useEffect` deps: `[page, showInactive, cityFilter, debouncedSearch]`.
-  - Move `search` and `city` into the supabase query, drop client-side `.filter()`.
-  - KPI cards read from `summary` state, not `customers.length`.
+## Typography tokens (form)
+Title 26px · Section 18px · Label 14px · Input 16px · Table header 14px · Table body 15px · Grand total 32px bold.
 
 ## Files touched
-- new migration: backfill + triggers + 4 RPCs
-- `src/pages/Customers.tsx`
-- `src/pages/Suppliers.tsx`
+
+- `src/pages/ProformaInvoices.tsx` — extract the create dialog into a new component and switch the trigger to open it full-screen.
+- `src/components/sales/SalesOrderComposer.tsx` *(new)* — the full composer (header, customer panel, item table, totals rail, footer, mobile card view, validation, unsaved-changes guard, keyboard shortcut `Alt+N` to add row).
+- `src/components/sales/CustomerSummaryCard.tsx` *(new)* — read-only panel populated on customer select (balance/credit/outstanding pulled from existing customer query already in the page).
+- `src/components/sales/ItemRow.tsx` *(new)* — desktop row + mobile card variants; batch & expiry selectors wired to existing `src/lib/batches.ts`.
+- `src/lib/pdf-generator.ts` — extend `PdfOptions` with `batch`/`expiry`/`discount`/`tax` per row already supported via aliases; bump print type scale (company 22, title 20, body 13, grand total 22) and ensure A4 layout for sales-order/invoice themes.
+- No DB / RPC / accounting logic changes. Save handler, totals math, draft autosave, and downstream invoice generation stay identical — this is a UI/UX refactor only.
+
+## Technical notes
+
+- Use existing `Dialog` with `DialogContent className="max-w-[1400px] w-[95vw] h-[92vh] p-0 flex flex-col"` so we keep the existing open/close state, focus trap, and ESC handling rather than introducing a new Drawer primitive.
+- Layout inside content:
+  ```text
+  ┌─ sticky header (title, doc#, close) ──────────────┐
+  │ customer panel (4-col grid)  | summary chips      │
+  ├──────────────────────────────┬────────────────────┤
+  │ items table (scroll-y)       │ sticky totals card │
+  ├──────────────────────────────┴────────────────────┤
+  │ sticky footer: Cancel · Save Draft · Create · Print│
+  └────────────────────────────────────────────────────┘
+  ```
+- Customer summary reads from the customer row already fetched for `customerOptions`; outstanding comes from the existing receivables query path (no new RPC).
+- Batch + available-stock data uses `src/lib/batches.ts` helpers already in the codebase.
+- Validation: block submit with inline field errors when (a) no customer, (b) zero items, (c) qty > available stock, (d) batch required but missing, (e) credit limit exceeded → confirm dialog.
+- Unsaved-changes guard wraps the existing `setCreateOpen(false)`.
+
+## Out of scope (ask first if you want these)
+
+- Changing how Sales Invoice is generated from Sales Order (data flow stays).
+- Accounting/ledger logic, RPCs, or migrations.
+- Redesigning the Sales Order **list** table on the page (only the create/edit composer).
+
+## Acceptance
+
+- Composer opens at 95vw / 1400px max, sticky header+footer, no inner page scroll except item list.
+- Product name column never truncates above 1024px.
+- Customer details visible immediately after select; credit warning visible when exceeded.
+- Grand total renders at 32px bold in the totals card.
+- Print preview renders clean on A4 with the full field set and amount-in-words.
+- Mobile shows stacked item cards; tablet shows horizontally scrollable table.
+- Existing save / draft / print / payment flows still work unchanged.
