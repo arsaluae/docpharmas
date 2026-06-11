@@ -96,6 +96,10 @@ const DeliveryNotes = lazy(() => import("./pages/DeliveryNotes"));
 const Couriers = lazy(() => import("./pages/Couriers"));
 const AccountingPeriods = lazy(() => import("./pages/AccountingPeriods"));
 const AuditLog = lazy(() => import("./pages/AuditLog"));
+const StockAvailability = lazy(() => import("./pages/StockAvailability"));
+const CollectPayment = lazy(() => import("./pages/CollectPayment"));
+const SalesInvoicesList = lazy(() => import("./pages/SalesInvoicesList"));
+const AgentReports = lazy(() => import("./pages/AgentReports"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -164,6 +168,18 @@ const App = () => (
                   <Route path="/sales-returns" element={<SalesReturns />} />
                   <Route path="/warranty-invoices" element={<WarrantyInvoices />} />
                   <Route path="/delivery-notes" element={<DeliveryNotes />} />
+                  <Route path="/sales-invoices" element={<SalesInvoicesList />} />
+                </Route>
+
+                {/* Sales-agent workspace */}
+                <Route element={<RequireCap resource="inventory" />}>
+                  <Route path="/stock-availability" element={<StockAvailability />} />
+                </Route>
+                <Route element={<RequireCap resource="payment_in" action="write" />}>
+                  <Route path="/collect-payment" element={<CollectPayment />} />
+                </Route>
+                <Route element={<RequireCap resource="reports.sales_agent" />}>
+                  <Route path="/reports/agent" element={<AgentReports />} />
                 </Route>
 
                 {/* Purchase */}
