@@ -1589,6 +1589,7 @@ export type Database = {
           description: string | null
           expense_number: string
           expense_type: string
+          freight_provider_id: string | null
           gst_amount: number
           id: string
           ledger_id: string | null
@@ -1610,6 +1611,7 @@ export type Database = {
           description?: string | null
           expense_number: string
           expense_type?: string
+          freight_provider_id?: string | null
           gst_amount?: number
           id?: string
           ledger_id?: string | null
@@ -1631,6 +1633,7 @@ export type Database = {
           description?: string | null
           expense_number?: string
           expense_type?: string
+          freight_provider_id?: string | null
           gst_amount?: number
           id?: string
           ledger_id?: string | null
@@ -1655,6 +1658,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_freight_provider_id_fkey"
+            columns: ["freight_provider_id"]
+            isOneToOne: false
+            referencedRelation: "freight_providers"
             referencedColumns: ["id"]
           },
           {
