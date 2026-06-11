@@ -320,6 +320,28 @@ export default function Expenses() {
                   </Select>
                 </div>
               )}
+              {category === "transport" && (
+                <div className="col-span-2 rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                  <Label className="text-xs font-semibold text-primary flex items-center gap-1.5"><Truck className="h-3.5 w-3.5"/> Courier *</Label>
+                  <div className="flex gap-2">
+                    <Select value={freightProviderId} onValueChange={v => { if (v === "__add__") setAddCourierOpen(true); else setFreightProviderId(v); }}>
+                      <SelectTrigger className="flex-1"><SelectValue placeholder="Select courier..." /></SelectTrigger>
+                      <SelectContent>
+                        {couriers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        <SelectItem value="__add__" className="text-primary">+ Add new courier…</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {addCourierOpen && (
+                    <div className="flex gap-2">
+                      <Input value={newCourierName} onChange={e => setNewCourierName(e.target.value)} placeholder="New courier name" autoFocus className="flex-1" />
+                      <Button size="sm" onClick={addCourierInline}>Add</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setAddCourierOpen(false); setNewCourierName(""); }}>Cancel</Button>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">Tracked in Reports → Courier Expenses for monthly per-courier totals.</p>
+                </div>
+              )}
               <div className="col-span-2"><Label>Description</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
               <div><Label>Amount (PKR) *</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} /></div>
               {settings?.gst_enabled && <div><Label>GST Amount</Label><Input type="number" value={gstAmount} onChange={e => setGstAmount(e.target.value)} /></div>}
