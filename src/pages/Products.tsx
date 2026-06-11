@@ -27,7 +27,7 @@ const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", 
 interface Product {
  id: string; name: string; sku: string | null; category: string; drap_reg_number: string | null;
  pack_size: string | null; unit: string; cost_price: number; selling_price: number; gst_rate: number;
- stock_quantity: number; reorder_level: number; created_at: string; is_active?: boolean;
+ stock_quantity: number; reorder_level: number; created_at: string; is_active?: boolean; mrp?: number | null;
 }
 
 interface StockMovement {
@@ -37,7 +37,7 @@ interface StockMovement {
 
 const emptyForm = {
  name: "", sku: "", category: "tablet" as string, drap_reg_number: "", pack_size: "", unit: "pcs",
- cost_price: "0", selling_price: "0", gst_rate: "17", stock_quantity: "0", reorder_level: "0",
+ cost_price: "0", selling_price: "0", mrp: "0", gst_rate: "17", stock_quantity: "0", reorder_level: "0",
 };
 
 export default function Products() {
@@ -97,12 +97,13 @@ export default function Products() {
   if (!form.name.trim()) { toast.error("Product name required"); return; }
   // Stock quantity is intentionally NOT in update payload — all stock changes must
   // flow through stock_movements so triggers, audit, and negative-stock guard fire.
-  const basePayload = {
-  name: form.name, sku: form.sku || null, category: form.category,
-  drap_reg_number: form.drap_reg_number || null, pack_size: form.pack_size || null, unit: form.unit,
-  cost_price: Number(form.cost_price), selling_price: Number(form.selling_price),
-  gst_rate: Number(form.gst_rate), reorder_level: Number(form.reorder_level),
-  };
+   const basePayload = {
+   name: form.name, sku: form.sku || null, category: form.category,
+   drap_reg_number: form.drap_reg_number || null, pack_size: form.pack_size || null, unit: form.unit,
+   cost_price: Number(form.cost_price), selling_price: Number(form.selling_price),
+   mrp: Number(form.mrp) || 0,
+   gst_rate: Number(form.gst_rate), reorder_level: Number(form.reorder_level),
+   };
   if (editId) {
   await supabase.from("products").update(basePayload).eq("id", editId);
   toast.success("Product updated");
@@ -136,6 +137,7 @@ export default function Products() {
  setForm({
  name: p.name, sku: p.sku || "", category: p.category, drap_reg_number: p.drap_reg_number || "",
  pack_size: p.pack_size || "", unit: p.unit, cost_price: String(p.cost_price), selling_price: String(p.selling_price),
+ mrp: String(p.mrp ?? 0),
  gst_rate: String(p.gst_rate), stock_quantity: String(p.stock_quantity), reorder_level: String(p.reorder_level),
  });
  setOpen(true);
@@ -247,7 +249,8 @@ export default function Products() {
  <div><Label>Unit</Label><Input value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} /></div>
  {settings?.gst_enabled && <div><Label>GST Rate (%)</Label><Input type="number" value={form.gst_rate} onChange={e => setForm({...form, gst_rate: e.target.value})} /></div>}
  <div><Label>Cost Price (PKR)</Label><Input type="number" value={form.cost_price} onChange={e => setForm({...form, cost_price: e.target.value})} /></div>
- <div><Label>MRP (PKR)</Label><Input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} placeholder="Printed on every sales invoice" /></div>
+ <div><Label>Net Price (PKR) *</Label><Input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} placeholder="Hits all ledgers" /><p className="text-[10px] text-muted-foreground mt-1">Used for every calculation, tax, COGS & ledger posting.</p></div>
+ <div><Label>MRP (PKR)</Label><Input type="number" value={form.mrp} onChange={e => setForm({...form, mrp: e.target.value})} placeholder="Display only" /><p className="text-[10px] text-muted-foreground mt-1">Market Retail Price — shown on invoices for reference only, never used in math.</p></div>
  {!editId && <div><Label>Opening Stock</Label><Input type="number" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} placeholder="0" /><p className="text-xs text-muted-foreground mt-1">Only set on creation. Use Stock Movements to adjust later.</p></div>}
  <div><Label>Reorder Level</Label><Input type="number" value={form.reorder_level} onChange={e => setForm({...form, reorder_level: e.target.value})} /></div>
  </div>
@@ -284,7 +287,7 @@ export default function Products() {
  <TableHeader>
  <TableRow>
  <TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>SKU</TableHead><TableHead>Category</TableHead><TableHead>DRAP</TableHead>
- <TableHead className="text-right">Cost</TableHead><TableHead className="text-right">MRP</TableHead>
+ <TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Net Price</TableHead><TableHead className="text-right">MRP</TableHead>
  <TableHead className="text-right">Margin</TableHead><TableHead className="text-right">Stock</TableHead>
  <TableHead className="text-center">Actions</TableHead>
  </TableRow>
