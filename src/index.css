@@ -83,32 +83,30 @@
   }
 
   .dark {
-    /* ── Final polished dark · Linear / Vercel / Attio caliber ── */
-    /* 4 distinct surface levels, cool-neutral undertone */
-    --background: 222 20% 5%;             /* app canvas, deepest */
-    --foreground: 210 20% 98%;
-    --card: 222 16% 8%;                   /* raised surface */
-    --card-foreground: 210 20% 98%;
-    --popover: 222 16% 10%;
-    --popover-foreground: 210 20% 98%;
-    --surface-2: 222 14% 11%;             /* inset wells, table headers */
+    /* Midnight obsidian — Linear / Attio / Raycast caliber */
+    --background: 240 6% 4%;
+    --foreground: 0 0% 98%;
+    --card: 240 5% 7%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 5% 9%;
+    --popover-foreground: 0 0% 98%;
+    --surface-2: 240 5% 11%;
 
-    --brand-navy: 210 20% 98%;
+    --brand-navy: 0 0% 98%;
     --brand-blue: 239 84% 67%;
-    --primary: 239 84% 67%;               /* vivid indigo on dark */
+    --primary: 239 84% 67%;
     --primary-foreground: 0 0% 100%;
     --primary-soft: 239 84% 67%;
     --ring: 239 84% 67%;
 
-    --secondary: 222 14% 13%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 222 14% 11%;
-    --muted-foreground: 218 11% 65%;
-    --subtle: 220 9% 46%;
-    --accent: 222 14% 13%;
-    --accent-foreground: 210 20% 98%;
+    --secondary: 240 5% 12%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 5% 10%;
+    --muted-foreground: 240 5% 65%;
+    --subtle: 240 4% 46%;
+    --accent: 240 5% 12%;
+    --accent-foreground: 0 0% 98%;
 
-    /* Status — calibrated for dark legibility (≥ 4.5:1) */
     --destructive: 351 83% 65%;
     --destructive-foreground: 0 0% 100%;
     --danger: 351 83% 65%;
@@ -118,25 +116,23 @@
     --success-foreground: 0 0% 100%;
     --info: 199 89% 64%;
 
-    --border: 220 13% 16%;                /* hairline default */
-    --border-strong: 220 13% 22%;         /* hover/active */
-    --input: 222 14% 12%;
-    --tertiary-foreground: 220 9% 46%;
+    --border: 240 5% 16%;
+    --border-strong: 240 5% 24%;
+    --input: 240 5% 12%;
+    --tertiary-foreground: 240 4% 46%;
 
-    /* Premium elevation — luminous top edge for raised-glass effect */
-    --shadow-xs: 0 1px 2px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
-    --shadow-sm: 0 2px 8px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
-    --shadow-md: 0 8px 24px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
-    --shadow-lg: 0 24px 64px rgba(0,0,0,0.6), 0 8px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07);
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.55), 0 1px 2px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+    --shadow-md: 0 12px 32px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+    --shadow-lg: 0 32px 80px rgba(0,0,0,0.7), 0 8px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07);
 
-    /* Sidebar — slightly deeper than canvas */
-    --sidebar-background: 222 22% 4%;
-    --sidebar-foreground: 218 11% 65%;
+    --sidebar-background: 240 6% 3%;
+    --sidebar-foreground: 240 5% 65%;
     --sidebar-primary: 239 84% 67%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 16% 10%;
-    --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 220 13% 14%;
+    --sidebar-accent: 240 5% 9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 5% 11%;
     --sidebar-ring: 239 84% 67%;
 
     --pharma-teal: 239 84% 67%;
@@ -146,22 +142,30 @@
     --medical-cyan-foreground: 0 0% 100%;
   }
 
-  /* Theme cross-fade — only on root chrome, not all elements */
   html, body {
     transition: background-color 220ms ease-out, color 220ms ease-out;
   }
 
-  /* Ambient atmosphere in dark — single near-invisible radial */
+  /* Ambient atmosphere — soft indigo halos top-corners, fade quickly */
   .dark body {
-    background-image: radial-gradient(1200px 600px at 50% -200px, hsl(var(--primary) / 0.06), transparent 70%);
+    background-image:
+      radial-gradient(900px 500px at 85% -180px, hsl(var(--primary) / 0.10), transparent 60%),
+      radial-gradient(700px 400px at 8% -120px, hsl(220 80% 50% / 0.05), transparent 70%);
     background-attachment: fixed;
   }
 
-  /* Refined dark scrollbars */
+  /* Card sheen — luminous top edge + elevation on every card surface */
+  .dark [style*="hsl(var(--card))"] {
+    background-image: linear-gradient(180deg, hsl(0 0% 100% / 0.022), transparent 45%);
+    box-shadow: var(--shadow-sm);
+  }
+
   .dark ::-webkit-scrollbar { width: 10px; height: 10px; }
   .dark ::-webkit-scrollbar-track { background: transparent; }
   .dark ::-webkit-scrollbar-thumb { background: hsl(var(--border-strong)); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
-  .dark ::-webkit-scrollbar-thumb:hover { background: hsl(220 13% 30%); background-clip: padding-box; border: 2px solid transparent; }
+  .dark ::-webkit-scrollbar-thumb:hover { background: hsl(240 5% 32%); background-clip: padding-box; border: 2px solid transparent; }
+
+  .dark ::selection { background: hsl(var(--primary) / 0.35); color: hsl(var(--foreground)); }
 
 
 }
