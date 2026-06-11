@@ -99,25 +99,31 @@ export default function CourierExpenses() {
   }, [drillKey, rows]);
 
   // Export structure
+  const exportColumns = useMemo(() => [
+    { header: "Courier", key: "courier" },
+    ...months.map(mk => ({ header: monthLabel(mk), key: mk, align: "right" as const })),
+    { header: "Total", key: "total", align: "right" as const },
+  ], [months]);
+
   const exportData = useMemo(() => providerList.map(p => {
-    const row: Record<string, any> = { Courier: p.name };
-    months.forEach(mk => { row[monthLabel(mk)] = matrix[p.id]?.[mk] || 0; });
-    row["Total"] = providerTotals[p.id] || 0;
+    const row: Record<string, any> = { courier: p.name };
+    months.forEach(mk => { row[mk] = matrix[p.id]?.[mk] || 0; });
+    row.total = providerTotals[p.id] || 0;
     return row;
   }), [providerList, months, matrix, providerTotals]);
 
-  const totalsRow: Record<string, any> = { Courier: "TOTAL" };
-  months.forEach(mk => { totalsRow[monthLabel(mk)] = monthTotals[mk] || 0; });
-  totalsRow["Total"] = grandTotal;
+  const totalsRow: Record<string, any> = { courier: "TOTAL" };
+  months.forEach(mk => { totalsRow[mk] = monthTotals[mk] || 0; });
+  totalsRow.total = grandTotal;
 
   const headerActions = (
     <ReportToolbar
-      reportTitle="Courier Expenses"
-      dateRange={{ from, to }}
-      filters={{ Couriers: providerList.length || "All" }}
+      title="Courier Expenses"
+      columns={exportColumns}
       rows={exportData}
       totalsRow={totalsRow}
-      filename="courier-expenses"
+      dateRange={{ from, to }}
+      filters={[{ label: "Couriers", value: providerList.length ? `${providerList.length} couriers` : "All" }]}
     />
   );
 
