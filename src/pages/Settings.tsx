@@ -390,6 +390,10 @@ export default function Settings() {
  )}
  </TabsContent>
 
+ <TabsContent value="whatsapp" className="max-w-6xl">
+ <WhatsAppTemplatesCard />
+ </TabsContent>
+
  {tenantRole === "owner" && (
  <TabsContent value="team" className="max-w-2xl">
  <TeamAccessCard />
