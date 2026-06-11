@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RequireCap } from "@/components/RequireCap";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Loader2 } from "lucide-react";
 
 // Lazy with auto-reload on stale chunk (post-deploy hash mismatch).
@@ -121,122 +122,124 @@ const RouteFallback = () => (
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+    <ThemeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Protected routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<Index />} />
+              {/* Protected routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard" element={<Index />} />
 
-              {/* Master data — customers always readable; supplier/product/printer scoped tighter */}
-              <Route element={<RequireCap resource="master" />}>
-                <Route path="/customers" element={<Customers />} />
-                <Route path="/customers/:id/ledger" element={<CustomerLedger />} />
-              </Route>
-              {/* Suppliers + their ledger live in the purchase scope (sales agents can't see) */}
-              <Route element={<RequireCap resource="purchase" />}>
-                <Route path="/suppliers" element={<Suppliers />} />
-                <Route path="/suppliers/:id/ledger" element={<SupplierLedger />} />
-              </Route>
-              {/* Products + printers + sales-agents admin live in inventory/finance scope */}
-              <Route element={<RequireCap resource="inventory" />}>
-                <Route path="/products" element={<Products />} />
-                <Route path="/printers" element={<Printers />} />
-                <Route path="/printers/:id/ledger" element={<PrinterLedger />} />
-              </Route>
-              <Route element={<RequireCap resource="finance" />}>
-                <Route path="/sales-agents" element={<SalesAgents />} />
+                {/* Master data — customers always readable; supplier/product/printer scoped tighter */}
+                <Route element={<RequireCap resource="master" />}>
+                  <Route path="/customers" element={<Customers />} />
+                  <Route path="/customers/:id/ledger" element={<CustomerLedger />} />
+                </Route>
+                {/* Suppliers + their ledger live in the purchase scope (sales agents can't see) */}
+                <Route element={<RequireCap resource="purchase" />}>
+                  <Route path="/suppliers" element={<Suppliers />} />
+                  <Route path="/suppliers/:id/ledger" element={<SupplierLedger />} />
+                </Route>
+                {/* Products + printers + sales-agents admin live in inventory/finance scope */}
+                <Route element={<RequireCap resource="inventory" />}>
+                  <Route path="/products" element={<Products />} />
+                  <Route path="/printers" element={<Printers />} />
+                  <Route path="/printers/:id/ledger" element={<PrinterLedger />} />
+                </Route>
+                <Route element={<RequireCap resource="finance" />}>
+                  <Route path="/sales-agents" element={<SalesAgents />} />
+                </Route>
+
+                {/* Sales */}
+                <Route element={<RequireCap resource="sales" />}>
+                  <Route path="/proforma" element={<ProformaInvoices />} />
+                  <Route path="/sales-returns" element={<SalesReturns />} />
+                  <Route path="/warranty-invoices" element={<WarrantyInvoices />} />
+                  <Route path="/delivery-notes" element={<DeliveryNotes />} />
+                </Route>
+
+                {/* Purchase */}
+                <Route element={<RequireCap resource="purchase" />}>
+                  <Route path="/purchase-proforma" element={<PurchaseProforma />} />
+                  <Route path="/purchase-returns" element={<PurchaseReturns />} />
+                  <Route path="/landed-costs" element={<LandedCosts />} />
+                  <Route path="/print-jobs" element={<PrintJobs />} />
+                  <Route path="/couriers" element={<Couriers />} />
+                </Route>
+
+                {/* Finance */}
+                <Route element={<RequireCap resource="finance" />}>
+                  <Route path="/payments" element={<Payments />} />
+                  <Route path="/expenses" element={<Expenses />} />
+                  <Route path="/bank" element={<BankAccounts />} />
+                  <Route path="/salaries" element={<Salaries />} />
+                  <Route path="/credit-notes" element={<CreditNotes />} />
+                  <Route path="/debit-notes" element={<DebitNotes />} />
+                </Route>
+
+                {/* Inventory */}
+                <Route element={<RequireCap resource="inventory" />}>
+                  <Route path="/stock" element={<StockMovements />} />
+                  <Route path="/stock-audit" element={<StockAudit />} />
+                </Route>
+
+                {/* Accounting */}
+                <Route element={<RequireCap resource="accounting" />}>
+                  <Route path="/accounting/periods" element={<AccountingPeriods />} />
+                </Route>
+
+                {/* Settings & admin (owner-only sub-routes guard internally) */}
+                <Route element={<RequireCap resource="settings" />}>
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/import" element={<DataImport />} />
+                  <Route path="/import/wizard" element={<MigrationWizard />} />
+                  <Route path="/import/history" element={<ImportHistory />} />
+                  <Route path="/system-health" element={<SystemHealth />} />
+                  <Route path="/settings/backups" element={<Backups />} />
+                  <Route path="/audit-log" element={<AuditLog />} />
+                </Route>
+
+                {/* Reports */}
+                <Route element={<RequireCap resource="reports" />}>
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/reports/pl" element={<ProfitLoss />} />
+                  <Route path="/reports/balance-sheet" element={<BalanceSheet />} />
+                  <Route path="/reports/cash-flow" element={<CashFlow />} />
+                  <Route path="/reports/receivables" element={<ReceivablesAging />} />
+                  <Route path="/reports/payables" element={<PayablesAging />} />
+                  <Route path="/reports/product-costing" element={<ProductCosting />} />
+                  <Route path="/reports/tax" element={<TaxCompliance />} />
+                  <Route path="/reports/item-wise" element={<ItemWiseReport />} />
+                  <Route path="/reports/batch-wise" element={<BatchWiseReport />} />
+                  <Route path="/reports/customer-wise" element={<CustomerWiseReport />} />
+                  <Route path="/reports/supplier-wise" element={<SupplierWiseReport />} />
+                  <Route path="/reports/allocations" element={<ProductAllocationReport />} />
+                  <Route path="/reports/vacant-areas" element={<VacantAreas />} />
+                  <Route path="/reports/sales-trend" element={<SalesTrend />} />
+                  <Route path="/reports/product-performance" element={<ProductPerformance />} />
+                  <Route path="/reports/supplier-performance" element={<SupplierPerformance />} />
+                  <Route path="/reports/slow-dead-stock" element={<SlowDeadStock />} />
+                  <Route path="/reports/citywise-sales" element={<CitywiseSales />} />
+                  <Route path="/reports/area-sales" element={<AreaWiseSales />} />
+                  <Route path="/reports/daily-cash" element={<DailyCashPosition />} />
+                  <Route path="/insights" element={<AIInsights />} />
+                </Route>
               </Route>
 
-              {/* Sales */}
-              <Route element={<RequireCap resource="sales" />}>
-                <Route path="/proforma" element={<ProformaInvoices />} />
-                <Route path="/sales-returns" element={<SalesReturns />} />
-                <Route path="/warranty-invoices" element={<WarrantyInvoices />} />
-                <Route path="/delivery-notes" element={<DeliveryNotes />} />
-              </Route>
-
-              {/* Purchase */}
-              <Route element={<RequireCap resource="purchase" />}>
-                <Route path="/purchase-proforma" element={<PurchaseProforma />} />
-                <Route path="/purchase-returns" element={<PurchaseReturns />} />
-                <Route path="/landed-costs" element={<LandedCosts />} />
-                <Route path="/print-jobs" element={<PrintJobs />} />
-                <Route path="/couriers" element={<Couriers />} />
-              </Route>
-
-              {/* Finance */}
-              <Route element={<RequireCap resource="finance" />}>
-                <Route path="/payments" element={<Payments />} />
-                <Route path="/expenses" element={<Expenses />} />
-                <Route path="/bank" element={<BankAccounts />} />
-                <Route path="/salaries" element={<Salaries />} />
-                <Route path="/credit-notes" element={<CreditNotes />} />
-                <Route path="/debit-notes" element={<DebitNotes />} />
-              </Route>
-
-              {/* Inventory */}
-              <Route element={<RequireCap resource="inventory" />}>
-                <Route path="/stock" element={<StockMovements />} />
-                <Route path="/stock-audit" element={<StockAudit />} />
-              </Route>
-
-              {/* Accounting */}
-              <Route element={<RequireCap resource="accounting" />}>
-                <Route path="/accounting/periods" element={<AccountingPeriods />} />
-              </Route>
-
-              {/* Settings & admin (owner-only sub-routes guard internally) */}
-              <Route element={<RequireCap resource="settings" />}>
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/import" element={<DataImport />} />
-                <Route path="/import/wizard" element={<MigrationWizard />} />
-                <Route path="/import/history" element={<ImportHistory />} />
-                <Route path="/system-health" element={<SystemHealth />} />
-                <Route path="/settings/backups" element={<Backups />} />
-                <Route path="/audit-log" element={<AuditLog />} />
-              </Route>
-
-              {/* Reports */}
-              <Route element={<RequireCap resource="reports" />}>
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/reports/pl" element={<ProfitLoss />} />
-                <Route path="/reports/balance-sheet" element={<BalanceSheet />} />
-                <Route path="/reports/cash-flow" element={<CashFlow />} />
-                <Route path="/reports/receivables" element={<ReceivablesAging />} />
-                <Route path="/reports/payables" element={<PayablesAging />} />
-                <Route path="/reports/product-costing" element={<ProductCosting />} />
-                <Route path="/reports/tax" element={<TaxCompliance />} />
-                <Route path="/reports/item-wise" element={<ItemWiseReport />} />
-                <Route path="/reports/batch-wise" element={<BatchWiseReport />} />
-                <Route path="/reports/customer-wise" element={<CustomerWiseReport />} />
-                <Route path="/reports/supplier-wise" element={<SupplierWiseReport />} />
-                <Route path="/reports/allocations" element={<ProductAllocationReport />} />
-                <Route path="/reports/vacant-areas" element={<VacantAreas />} />
-                <Route path="/reports/sales-trend" element={<SalesTrend />} />
-                <Route path="/reports/product-performance" element={<ProductPerformance />} />
-                <Route path="/reports/supplier-performance" element={<SupplierPerformance />} />
-                <Route path="/reports/slow-dead-stock" element={<SlowDeadStock />} />
-                <Route path="/reports/citywise-sales" element={<CitywiseSales />} />
-                <Route path="/reports/area-sales" element={<AreaWiseSales />} />
-                <Route path="/reports/daily-cash" element={<DailyCashPosition />} />
-                <Route path="/insights" element={<AIInsights />} />
-              </Route>
-            </Route>
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </TooltipProvider>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
