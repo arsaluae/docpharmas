@@ -261,6 +261,7 @@ export function AppSidebar() {
             )}
           </>
         )}
+        </>)}
       </SidebarContent>
 
 
