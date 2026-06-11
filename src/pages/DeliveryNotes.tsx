@@ -215,7 +215,7 @@ export default function DeliveryNotes() {
  try {
  const html = generatePdfHtml({
  title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date,
- partyLabel: "Customer", partyName: customerName,
+ partyLabel: "Customer", partyName: customerName, partyPhone: phone || undefined,
  columns: [
  { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
  { header: "Batch", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
