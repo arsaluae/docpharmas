@@ -566,7 +566,8 @@ export default function WarrantyInvoices() {
  </Button>
  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async (e) => {
  e.stopPropagation();
- const { buildWarrantyInvoiceMessage, openWhatsApp, uploadSharedDocument } = await import("@/lib/whatsapp-share");
+  const { uploadSharedDocument } = await import("@/lib/whatsapp-share");
+  const { sendWhatsAppDoc } = await import("@/lib/whatsapp-templates");
  const wiItems = Array.isArray(inv.items) ? inv.items as any[] : [];
  // Get customer phone
  let phone = "";
