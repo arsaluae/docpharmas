@@ -153,7 +153,8 @@ const App = () => (
                   <Route path="/suppliers/:id/ledger" element={<SupplierLedger />} />
                 </Route>
                 {/* Products + printers + sales-agents admin live in inventory/finance scope */}
-                <Route element={<RequireCap resource="inventory" />}>
+                {/* Products + printers — write capability required (sales_agent has read-only, scoped to view) */}
+                <Route element={<RequireCap resource="inventory" action="write" />}>
                   <Route path="/products" element={<Products />} />
                   <Route path="/printers" element={<Printers />} />
                   <Route path="/printers/:id/ledger" element={<PrinterLedger />} />
@@ -201,8 +202,8 @@ const App = () => (
                   <Route path="/debit-notes" element={<DebitNotes />} />
                 </Route>
 
-                {/* Inventory */}
-                <Route element={<RequireCap resource="inventory" />}>
+                {/* Inventory write — stock movements + adjustments hidden from sales_agent */}
+                <Route element={<RequireCap resource="inventory" action="write" />}>
                   <Route path="/stock" element={<StockMovements />} />
                   <Route path="/stock-audit" element={<StockAudit />} />
                 </Route>
