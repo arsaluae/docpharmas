@@ -773,7 +773,16 @@ export default function ProformaInvoices() {
 
     { const __o = ({
       title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
-      partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
+      partyLabel: "Customer",
+      partyName: c.name || "—",
+      partyCode: c.customer_code || undefined,
+      partyMobile: c.sms_mobile || undefined,
+      partyPhone: c.phone || undefined,
+      partyCity: c.city || undefined,
+      partyArea: c.area || undefined,
+      partyAddress: c.address || undefined,
+      partyAccountCode: c.old_erp_account_code || undefined,
+      deliveryStatus: dn.status,
       columns: [
         { header: "#", key: "idx" },
         { header: "Product", key: "product_name" },
