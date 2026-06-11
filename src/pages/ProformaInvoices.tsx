@@ -599,14 +599,19 @@ export default function ProformaInvoices() {
      title: "SALES ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
      partyLabel: "Customer", partyName: custName, partyAddress: custAddress, partyPhone: custPhone, partyArea: custArea,
      meta: [{ label: "Validity", value: `${order.validity_days} days` }],
-     columns: [
-       { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
-       { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
-       { header: "Disc%", key: "discount_pct", align: "right" },
-       ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
-       { header: "Amount", key: "amount", align: "right" },
-     ],
-     rows: pfItems.map((i: any, idx: number) => ({ ...i, idx: idx + 1, rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(), discount_pct: Number(i.discount_pct || 0) })),
+      columns: [
+        { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+        { header: "MRP", key: "mrp", align: "right" },
+        { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+        { header: "Disc%", key: "discount_pct", align: "right" },
+        ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
+        { header: "Amount", key: "amount", align: "right" },
+      ],
+      rows: pfItems.map((i: any, idx: number) => {
+        const catalogMrp = Number(products.find(p => p.id === i.product_id)?.mrp || products.find(p => p.id === i.product_id)?.selling_price || 0);
+        const mrpVal = Number(i.mrp || catalogMrp || 0);
+        return { ...i, idx: idx + 1, mrp: mrpVal > 0 ? mrpVal.toLocaleString() : "—", rate: Number(i.rate).toLocaleString(), amount: Number(i.amount).toLocaleString(), discount_pct: Number(i.discount_pct || 0) };
+      }),
      totals: [
        { label: "Subtotal", value: `PKR ${Number(order.subtotal).toLocaleString()}` },
        ...(settings?.gst_enabled ? [{ label: "GST", value: `PKR ${Number(order.gst).toLocaleString()}` }] : []),
