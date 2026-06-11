@@ -193,8 +193,8 @@ export default function Suppliers() {
  </>
  );
 
- const totalBalance = suppliers.reduce((s, sup) => s + Number(sup.balance), 0);
- const totalPayable = suppliers.filter(s => Number(s.balance) > 0).length;
+ const totalBalance = Number(summary.payables) || 0;
+ const totalPayable = Number(summary.with_balance) || 0;
 
  return (
  <AppLayout title="Suppliers" subtitle="RM & packing material suppliers with WHT tracking" headerActions={headerActions}>
