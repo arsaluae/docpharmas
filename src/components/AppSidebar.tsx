@@ -119,7 +119,7 @@ export function AppSidebar() {
   const reportsActive = location.pathname.startsWith("/reports") || location.pathname === "/insights";
 
   return (
-    <Sidebar collapsible="icon" className="mouj-dark-sidebar border-r" style={{ borderColor: "#1F1F3D" }}>
+    <Sidebar collapsible="icon" className="mouj-dark-sidebar border-r">
       {/* Brand header — wordmark */}
       <div className="mouj-brand">
         {collapsed ? (
