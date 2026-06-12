@@ -68,6 +68,7 @@ const salesAgentNav = [
   { title: "Sales Orders",       url: "/proforma",             icon: FileText },
   { title: "Sales Invoices",     url: "/sales-invoices",       icon: ClipboardList },
   { title: "Delivery Notes",     url: "/delivery-notes",       icon: Truck },
+  { title: "Products",           url: "/products",             icon: Package },
   { title: "Stock Availability", url: "/stock-availability",   icon: Package },
   { title: "Record Payment",     url: "/collect-payment",      icon: Wallet },
   { title: "My Reports",         url: "/reports/agent",        icon: BarChart3 },
