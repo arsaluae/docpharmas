@@ -2,6 +2,7 @@ import { ReactNode, useState, useEffect, useCallback, lazy, Suspense } from "rea
 import { useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { SandboxBanner } from "@/components/SandboxBanner";
 import { CalendarDays, Search, ChevronRight, Sparkles, Bell, Sun, Moon } from "lucide-react";
 import { useGlobalShortcuts } from "@/components/KeyboardShortcuts";
 import { useTheme } from "@/hooks/use-theme";
@@ -79,6 +80,7 @@ export function AppLayout({ title, subtitle, children, headerActions }: AppLayou
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <main className="flex-1 overflow-auto">
+          <SandboxBanner />
           {/* Top bar — glass chrome, premium in both themes */}
           <header className="sticky top-0 z-20 bg-background/70 backdrop-blur-xl saturate-150 border-b border-border px-4 sm:px-6 h-14 flex items-center gap-3 shadow-[inset_0_-1px_0_rgba(255,255,255,0.03)]">
             <SidebarTrigger className="hover:bg-muted transition-colors rounded-md text-muted-foreground hover:text-foreground h-8 w-8 inline-flex items-center justify-center" />

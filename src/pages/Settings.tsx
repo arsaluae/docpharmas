@@ -18,6 +18,8 @@ import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescript
 import * as XLSX from "xlsx";
 import { FreightProvidersCard } from "@/components/settings/FreightProvidersCard";
 import { WhatsAppTemplatesCard } from "@/components/settings/WhatsAppTemplatesCard";
+import { SandboxTestingTab } from "@/components/settings/SandboxTestingTab";
+import { FlaskConical } from "lucide-react";
 import { CREATABLE_ROLES, ROLE_DESCRIPTION, ROLE_LABEL, type TenantRole } from "@/lib/rbac";
 import { logAudit } from "@/lib/audit";
 
@@ -238,10 +240,16 @@ export default function Settings() {
  <Users className="h-4 w-4 mr-1" /> Team & Access
  </TabsTrigger>
  )}
- <TabsTrigger value="backup">
- <Database className="h-4 w-4 mr-1" /> Data Backup
- </TabsTrigger>
- </TabsList>
+				<TabsTrigger value="backup">
+					<Database className="h-4 w-4 mr-1" /> Data Backup
+				</TabsTrigger>
+				{tenantRole === "owner" && (
+					<TabsTrigger value="testing">
+						<FlaskConical className="h-4 w-4 mr-1" /> Testing
+					</TabsTrigger>
+				)}
+				</TabsList>
+
 
  <TabsContent value="operations" className="space-y-6 max-w-3xl">
  <Card className="glass-card">
@@ -499,8 +507,14 @@ export default function Settings() {
  </Card>
 
  <DangerZoneCard />
- </TabsContent>
- </Tabs>
+				</TabsContent>
+
+				{tenantRole === "owner" && (
+					<TabsContent value="testing">
+						<SandboxTestingTab />
+					</TabsContent>
+				)}
+				</Tabs>
  </div>
  </AppLayout>
  );
