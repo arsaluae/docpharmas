@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Printer, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-// @ts-expect-error - html2pdf.js ships without types
+// html2pdf.js ships without bundled types
 import html2pdf from "html2pdf.js";
 
 export interface PdfView {
@@ -89,8 +89,7 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
           image: { type: "jpeg", quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: { mode: ["css", "legacy"] },
-        })
+        } as any)
         .from(container)
         .save();
     } finally {
@@ -152,7 +151,10 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
           )}
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handlePrint}>
-              <Download className="h-3.5 w-3.5" /> Download / Print
+              <Printer className="h-3.5 w-3.5" /> Print
+            </Button>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={handleDownloadPdf}>
+              <Download className="h-3.5 w-3.5" /> Save as PDF
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" />
