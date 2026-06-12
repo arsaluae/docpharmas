@@ -329,16 +329,47 @@ export default function SalesAgents() {
         <DialogTrigger asChild>
           <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Agent</Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editId ? "Edit Agent" : "Add Sales Agent"}</DialogTitle>
-            <DialogDescription>Manage your sales commission agents. Link to a login so RLS can scope their data.</DialogDescription>
+            <DialogDescription>Manage your sales commission agents. Link to a login so RLS can scope their data. The Warranty Declaration fields print on warranty notes signed by this rep.</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3 mt-2">
-            <div><Label>Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+            <div><Label>Full Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+            <div><Label>Father Name</Label><Input value={fatherName} onChange={e => setFatherName(e.target.value)} /></div>
             <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
             <div><Label>Email</Label><Input value={email} onChange={e => setEmail(e.target.value)} /></div>
-            <div><Label>Address</Label><Input value={address} onChange={e => setAddress(e.target.value)} /></div>
+            <div className="col-span-2"><Label>Address</Label><Input value={address} onChange={e => setAddress(e.target.value)} /></div>
+
+            <div className="col-span-2 pt-3 mt-1 border-t border-border">
+              <p className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground mb-2">Warranty Declaration Details</p>
+            </div>
+            <div><Label>CNIC</Label><Input value={cnic} onChange={e => setCnic(e.target.value)} placeholder="35202-1234567-1" /></div>
+            <div><Label>Agent License Number</Label><Input value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} placeholder="PUN-DSL-12345" /></div>
+            <div><Label>Agent License Expiry</Label><Input type="date" value={licenseExpiry} onChange={e => setLicenseExpiry(e.target.value)} /></div>
+            <div />
+            <div>
+              <Label>Signature Image</Label>
+              <Input type="file" accept="image/*" disabled={uploadBusy} onChange={async (e) => {
+                const f = e.target.files?.[0]; if (!f) return;
+                const url = await uploadAgentAsset(f, "signature");
+                if (url) { setSignatureUrl(url); toast.success("Signature uploaded"); }
+              }} />
+              {signatureUrl && <img src={signatureUrl} alt="signature" className="mt-2 h-12 object-contain border border-border rounded bg-muted/30 p-1" />}
+            </div>
+            <div>
+              <Label>Official Stamp</Label>
+              <Input type="file" accept="image/*" disabled={uploadBusy} onChange={async (e) => {
+                const f = e.target.files?.[0]; if (!f) return;
+                const url = await uploadAgentAsset(f, "stamp");
+                if (url) { setStampUrl(url); toast.success("Stamp uploaded"); }
+              }} />
+              {stampUrl && <img src={stampUrl} alt="stamp" className="mt-2 h-12 object-contain border border-border rounded bg-muted/30 p-1" />}
+            </div>
+
+            <div className="col-span-2 pt-3 mt-1 border-t border-border">
+              <p className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground mb-2">Account & Commission</p>
+            </div>
             <div className="col-span-2">
               <Label className="flex items-center gap-1.5"><LinkIcon className="h-3 w-3" /> Linked Login (required for agent to see their data)</Label>
               <Select value={linkedUserId || "__none"} onValueChange={v => setLinkedUserId(v === "__none" ? "" : v)}>
@@ -377,7 +408,7 @@ export default function SalesAgents() {
               </Select>
             </div>
           </div>
-          <Button onClick={handleSaveAgent} className="w-full mt-4">{editId ? "Update" : "Add"} Agent</Button>
+          <Button onClick={handleSaveAgent} disabled={uploadBusy} className="w-full mt-4">{editId ? "Update" : "Add"} Agent</Button>
         </DialogContent>
       </Dialog>
     </div>
