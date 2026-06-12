@@ -185,10 +185,41 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Auto-provision sales_agents row so RLS scoping works immediately
+      if (resolvedRole === "sales_agent" || resolvedRole === "staff") {
+        // Try to attach to an existing unlinked agent record with the same email first
+        const { data: existingAgent } = await supabaseAdmin
+          .from("sales_agents")
+          .select("id, user_id")
+          .eq("tenant_id", tenant_id)
+          .ilike("email", email)
+          .is("user_id", null)
+          .limit(1)
+          .maybeSingle();
+        if (existingAgent?.id) {
+          await supabaseAdmin
+            .from("sales_agents")
+            .update({ user_id: newUser.user.id, is_active: true, status: "active" })
+            .eq("id", existingAgent.id);
+        } else {
+          await supabaseAdmin.from("sales_agents").insert({
+            tenant_id,
+            user_id: newUser.user.id,
+            name: email.split("@")[0] || "Sales Agent",
+            email,
+            status: "active",
+            is_active: true,
+            commission_type: "percentage",
+            commission_rate: 0,
+          });
+        }
+      }
+
       return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // toggle_user_active: owners can deactivate / reactivate their own sub-users
     if (action === "toggle_user_active") {
