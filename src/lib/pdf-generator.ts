@@ -171,8 +171,8 @@ function buildA4Html(opts: PdfOptions): string {
 
   /* ── HEADER: logo left · company right ── */
   const logoHtml = s?.logo_url
-    ? `<img src="${s.logo_url}" alt="${escapeHtml(companyName)}" style="max-height:110px;max-width:220px;object-fit:contain;display:block;" />`
-    : `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.5px;">${escapeHtml(companyName)}</div>`;
+    ? `<img src="${s.logo_url}" alt="${escapeHtml(companyName)}" style="max-height:140px;max-width:300px;object-fit:contain;display:block;" />`
+    : `<div style="font-size:30px;font-weight:800;color:${C.text};letter-spacing:-0.5px;">${escapeHtml(companyName)}</div>`;
 
   const addressLine = [s?.address, (s as any)?.city].filter(Boolean).join(", ");
   const phoneLine = [s?.phone ? `Tel: ${s.phone}` : null, (s as any)?.whatsapp_number ? `Mob: ${(s as any).whatsapp_number}` : null].filter(Boolean).join("  ·  ");
