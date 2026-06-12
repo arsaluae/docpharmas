@@ -158,6 +158,14 @@ export default function WarrantyInvoices() {
  const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
  const [formNotes, setFormNotes] = useState("");
  const [addDistOpen, setAddDistOpen] = useState(false);
+ // Cache of active batches per product id (FEFO ordered).
+ const [batchCache, setBatchCache] = useState<Record<string, ActiveBatch[]>>({});
+
+ const loadBatchesFor = async (productId: string) => {
+   if (!productId || batchCache[productId]) return;
+   const list = await getActiveBatches(productId);
+   setBatchCache(prev => ({ ...prev, [productId]: list }));
+ };
 
 
 
