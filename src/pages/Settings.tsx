@@ -381,6 +381,33 @@ export default function Settings() {
  </div>
  <Switch checked={form.fbr_enabled} onCheckedChange={v => setForm({...form, fbr_enabled: v})} />
  </div>
+
+ <div className="border-t border-border" />
+
+ <div className="space-y-3">
+ <div>
+ <p className="font-medium text-sm">Document Preferences</p>
+ <p className="text-xs text-muted-foreground">Choose which contact numbers appear on printed Sales/Purchase documents. All off by default.</p>
+ </div>
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+ <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+ <span className="text-sm">Show customer mobile on documents</span>
+ <Switch checked={form.show_customer_mobile_on_docs} onCheckedChange={v => setForm({...form, show_customer_mobile_on_docs: v})} />
+ </label>
+ <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+ <span className="text-sm">Show customer phone on documents</span>
+ <Switch checked={form.show_customer_phone_on_docs} onCheckedChange={v => setForm({...form, show_customer_phone_on_docs: v})} />
+ </label>
+ <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+ <span className="text-sm">Show supplier mobile on documents</span>
+ <Switch checked={form.show_supplier_mobile_on_docs} onCheckedChange={v => setForm({...form, show_supplier_mobile_on_docs: v})} />
+ </label>
+ <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+ <span className="text-sm">Show supplier phone on documents</span>
+ <Switch checked={form.show_supplier_phone_on_docs} onCheckedChange={v => setForm({...form, show_supplier_phone_on_docs: v})} />
+ </label>
+ </div>
+ </div>
  </CardContent>
  </Card>
  </TabsContent>
