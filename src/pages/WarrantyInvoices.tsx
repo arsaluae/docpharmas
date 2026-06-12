@@ -378,7 +378,16 @@ export default function WarrantyInvoices() {
  setSelectedInvoiceId(inv.source_invoice_id || "");
  setSelectedDistributorId(inv.distributor_id || "");
  setSelectedSalesRepId(inv.sales_agent_id || "");
- setItems(Array.isArray(inv.items) ? inv.items as any : []);
+ const invItems = Array.isArray(inv.items) ? inv.items as any : [];
+ setItems(invItems);
+ // Load distributors for the customer (so the edit form shows the picker)
+ if (inv.customer_id) {
+   supabase.from("customer_distributors").select("*").eq("customer_id", inv.customer_id).order("name")
+     .then(({ data }) => setDistributors((data || []) as any));
+ }
+ // Prefetch batches for every product on the invoice.
+ const uniq = Array.from(new Set(invItems.map((l: any) => l.product_id).filter(Boolean))) as string[];
+ uniq.forEach(pid => { loadBatchesFor(pid); });
  setDiscountType(inv.discount_percent > 0 ? "percent" : "amount");
  setDiscountValue(inv.discount_percent > 0 ? inv.discount_percent : inv.discount_amount);
  setFormDate(inv.date);
