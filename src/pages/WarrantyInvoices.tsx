@@ -639,19 +639,52 @@ export default function WarrantyInvoices() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item, idx) => (
+                {items.map((item, idx) => {
+                  const batches = batchCache[item.product_id] || [];
+                  const hasTracked = batches.length > 0;
+                  const pickedTracked = hasTracked && batches.some(b => b.batch_number === item.batch_number);
+                  const pickedBatch = batches.find(b => b.batch_number === item.batch_number);
+                  return (
                   <TableRow key={idx}>
-                    <TableCell className="text-sm font-medium">{item.product_name}</TableCell>
-                    <TableCell><Input className="h-8 text-sm w-24" value={item.batch_number} onChange={e => updateItem(idx, "batch_number", e.target.value)} /></TableCell>
-                    <TableCell><Input className="h-8 text-sm w-32" type="date" value={item.expiry_date} onChange={e => updateItem(idx, "expiry_date", e.target.value)} /></TableCell>
-                    <TableCell><Input className="h-8 text-sm w-16" type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", Number(e.target.value))} /></TableCell>
-                    <TableCell><Input className="h-8 text-sm w-20" type="number" value={item.mrp} onChange={e => updateItem(idx, "mrp", Number(e.target.value))} /></TableCell>
-                    <TableCell className="font-mono text-sm tabular-nums">{item.tp_rate.toLocaleString()}</TableCell>
-                    <TableCell><Input className="h-8 text-sm w-16" type="number" value={item.discount} onChange={e => updateItem(idx, "discount", Number(e.target.value))} /></TableCell>
-                    <TableCell className="text-right font-mono text-sm tabular-nums">{item.amount.toLocaleString()}</TableCell>
-                    <TableCell><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(idx)}><X className="h-3.5 w-3.5" /></Button></TableCell>
+                    <TableCell className="text-sm font-medium align-top pt-3">{item.product_name}</TableCell>
+                    <TableCell className="align-top">
+                      {hasTracked ? (
+                        <div className="space-y-1 min-w-[180px]">
+                          <Select value={item.batch_number || ""} onValueChange={(v) => pickBatch(idx, v)}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Pick batch..." /></SelectTrigger>
+                            <SelectContent>
+                              {batches.map(b => (
+                                <SelectItem key={b.batch_number} value={b.batch_number}>
+                                  <span className="font-mono text-xs">{b.batch_number}</span>
+                                  <span className="text-muted-foreground"> · on-hand {b.on_hand}</span>
+                                  {b.expiry_date ? <span className="text-muted-foreground"> · exp {b.expiry_date.slice(2,7).replace("-","/")}</span> : null}
+                                  {b.status === "expired" ? <span className="text-destructive"> · EXPIRED</span> : b.status === "expiring" ? <span className="text-amber-600"> · expiring</span> : null}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {pickedBatch?.status === "expired" && <p className="text-[10px] text-destructive">⚠ Batch expired</p>}
+                          {pickedBatch?.status === "expiring" && <p className="text-[10px] text-amber-600">⚠ Batch expiring within 90 days</p>}
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <Input className="h-8 text-sm w-24" value={item.batch_number} onChange={e => updateItem(idx, "batch_number", e.target.value)} placeholder="Batch #" />
+                          <p className="text-[10px] text-muted-foreground">No tracked batches</p>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <Input className="h-8 text-sm w-32" type="date" value={item.expiry_date} onChange={e => updateItem(idx, "expiry_date", e.target.value)} readOnly={pickedTracked} />
+                    </TableCell>
+                    <TableCell className="align-top"><Input className="h-8 text-sm w-16" type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", Number(e.target.value))} /></TableCell>
+                    <TableCell className="align-top"><Input className="h-8 text-sm w-20" type="number" value={item.mrp} onChange={e => updateItem(idx, "mrp", Number(e.target.value))} /></TableCell>
+                    <TableCell className="font-mono text-sm tabular-nums align-top pt-3">{item.tp_rate.toLocaleString()}</TableCell>
+                    <TableCell className="align-top"><Input className="h-8 text-sm w-16" type="number" value={item.discount} onChange={e => updateItem(idx, "discount", Number(e.target.value))} /></TableCell>
+                    <TableCell className="text-right font-mono text-sm tabular-nums align-top pt-3">{item.amount.toLocaleString()}</TableCell>
+                    <TableCell className="align-top"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(idx)}><X className="h-3.5 w-3.5" /></Button></TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
