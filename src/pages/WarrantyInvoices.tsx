@@ -423,23 +423,45 @@ export default function WarrantyInvoices() {
     setStep("edit_items");
   };
 
-  const addProductRow = (productId: string) => {
+  const addProductRow = async (productId: string) => {
     if (!productId) return;
     const p = products.find(x => x.id === productId);
     if (!p) return;
     const mrp = Number(p.mrp || p.selling_price || 0);
     const tp = Math.round(mrp * 0.85 * 100) / 100;
-    setItems([...items, {
+    // Auto-pick FEFO batch when available so expiry is filled out of the box.
+    let batches = batchCache[p.id];
+    if (!batches) {
+      batches = await getActiveBatches(p.id);
+      setBatchCache(prev => ({ ...prev, [p.id]: batches! }));
+    }
+    const first = batches[0];
+    setItems(prev => [...prev, {
       product_id: p.id,
       product_name: p.name,
-      batch_number: "",
-      expiry_date: "",
+      batch_number: first?.batch_number || "",
+      expiry_date: first?.expiry_date || "",
       quantity: 1,
       mrp,
       tp_rate: tp,
       discount: 0,
       amount: tp,
     }]);
+  };
+
+  /** Pick a tracked batch — auto-fills expiry from grn_items. */
+  const pickBatch = (idx: number, batchNumber: string) => {
+    const item = items[idx];
+    if (!item) return;
+    const list = batchCache[item.product_id] || [];
+    const found = list.find(b => b.batch_number === batchNumber);
+    const updated = [...items];
+    updated[idx] = {
+      ...item,
+      batch_number: batchNumber,
+      expiry_date: found?.expiry_date || item.expiry_date || "",
+    };
+    setItems(updated);
   };
 
   const selectedDist = distributors.find(d => d.id === selectedDistributorId) || null;
