@@ -693,19 +693,19 @@ export default function WarrantyInvoices() {
  </div>
  <ShieldCheck className="h-6 w-6 opacity-90" />
  </div>
- {/* Stats */}
+ {/* Stats — non-financial only */}
  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
  <div className="p-4 rounded-xl border border-border bg-card">
  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Issued</p>
  <p className="text-2xl font-bold font-heading text-primary mt-1">{issuedCount}</p>
  </div>
- <div className="p-4 rounded-xl border border-border bg-primary">
- <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Total Invoices</p>
+ <div className="p-4 rounded-xl border border-border bg-card">
+ <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Total Notes</p>
  <p className="text-2xl font-bold font-heading text-primary mt-1">{invoices.length}</p>
  </div>
  <div className="p-4 rounded-xl border border-border bg-card">
- <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Total Value</p>
- <p className="text-2xl font-bold font-heading text-success mt-1">PKR {totalValue.toLocaleString()}</p>
+ <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Draft</p>
+ <p className="text-2xl font-bold font-heading text-amber-600 mt-1">{invoices.filter(i => i.status === "draft").length}</p>
  </div>
  </div>
 
