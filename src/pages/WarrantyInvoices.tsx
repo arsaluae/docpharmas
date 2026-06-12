@@ -116,11 +116,35 @@ export default function WarrantyInvoices() {
   };
 
 
+  const validateForPdf = async (inv: WarrantyInvoice): Promise<string[]> => {
+    const errs: string[] = [];
+    const s = settings as any;
+    if (!s) return errs;
+    let dist: Distributor | null = null;
+    if (inv.distributor_id) {
+      const { data } = await supabase.from("customer_distributors").select("*").eq("id", inv.distributor_id).single() as { data: Distributor | null };
+      dist = data;
+    }
+    if (s.warranty_require_mobile !== false && !dist?.phone) errs.push("Warranty Address mobile is missing");
+    if (s.warranty_require_address !== false && !dist?.address && !inv.pharmacy_address) errs.push("Warranty Address is missing");
+    if (s.warranty_require_license_no !== false && !dist?.license_number && !inv.pharmacy_license_no) errs.push("Distributor licence number is missing");
+    if (s.warranty_require_license_expiry !== false && !dist?.license_expiry) errs.push("Distributor licence expiry is missing");
+    const items = Array.isArray(inv.items) ? inv.items as any[] : [];
+    if (s.warranty_require_batch_number !== false && items.some(i => !i.batch_number)) errs.push("One or more items are missing a Batch Number");
+    if (s.warranty_require_batch_expiry !== false && items.some(i => !i.expiry_date)) errs.push("One or more items are missing a Batch Expiry");
+    return errs;
+  };
+
   const openPdf = async (inv: WarrantyInvoice) => {
+    const errs = await validateForPdf(inv);
+    if (errs.length) {
+      toast.error("Cannot download Warranty Note", { description: errs.join(" · ") });
+      return;
+    }
     const opts = await buildWarrantyOpts(inv);
     setPdfOpts(opts);
     setPdfHtml(generateWarrantyNoteHtml(opts));
-    setPdfTitle(`Warranty Note — ${inv.warranty_number}`);
+    setPdfTitle(`Warranty-Note-${inv.warranty_number}-${(inv.customers?.name || inv.pharmacy_name || "Customer").replace(/[^a-z0-9-_]+/gi, "-")}`);
     setPdfOpen(true);
   };
 
