@@ -1,6 +1,6 @@
 import type { CompanySettings } from "@/hooks/useCompanySettings";
 import type { DocumentTemplate } from "@/hooks/useDocumentTemplates";
-import { DEFAULT_WARRANTY_DECLARATION } from "@/lib/warranty-declaration";
+import { WARRANTY_NOTE_TEXT } from "@/lib/warranty-declaration";
 
 export interface PdfColumn { header: string; key: string; align?: "left" | "right" | "center"; }
 export interface PdfMeta { label: string; value: string; }
