@@ -920,6 +920,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "customer_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
+          },
+          {
             foreignKeyName: "customer_products_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1535,6 +1542,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "drap_registrations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
+          },
+          {
             foreignKeyName: "drap_registrations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1850,6 +1864,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grn_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "grn_items_tenant_id_fkey"
@@ -2686,6 +2707,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "print_jobs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
+          },
+          {
             foreignKeyName: "print_jobs_purchase_order_id_fkey"
             columns: ["purchase_order_id"]
             isOneToOne: false
@@ -3366,6 +3394,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
+          },
+          {
             foreignKeyName: "purchase_order_items_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -3562,6 +3597,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchase_proforma_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
+          },
+          {
             foreignKeyName: "purchase_proforma_items_proforma_id_fkey"
             columns: ["proforma_id"]
             isOneToOne: false
@@ -3701,6 +3743,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_return_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "purchase_return_items_return_id_fkey"
@@ -3886,6 +3935,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reorder_alerts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
+          },
+          {
             foreignKeyName: "reorder_alerts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -4048,7 +4104,10 @@ export type Database = {
           id: string
           import_batch_id: string | null
           invoice_id: string
+          mrp: number | null
+          product_code: string | null
           product_id: string | null
+          product_name: string | null
           quantity: number
           rate: number
           tenant_id: string | null
@@ -4063,7 +4122,10 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           invoice_id: string
+          mrp?: number | null
+          product_code?: string | null
           product_id?: string | null
+          product_name?: string | null
           quantity?: number
           rate?: number
           tenant_id?: string | null
@@ -4078,7 +4140,10 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           invoice_id?: string
+          mrp?: number | null
+          product_code?: string | null
           product_id?: string | null
+          product_name?: string | null
           quantity?: number
           rate?: number
           tenant_id?: string | null
@@ -4105,6 +4170,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "sales_invoice_items_tenant_id_fkey"
@@ -4260,6 +4332,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_return_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "sales_return_items_return_id_fkey"
@@ -4501,6 +4580,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
+          },
+          {
             foreignKeyName: "stock_movements_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -4548,6 +4634,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "supplier_products_supplier_id_fkey"
@@ -5132,6 +5225,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "grn_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
+          },
+          {
             foreignKeyName: "grn_items_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -5143,51 +5243,28 @@ export type Database = {
       agent_stock_availability: {
         Row: {
           available_qty: number | null
+          batch_count: number | null
           brand: string | null
           category: string | null
+          generic_name: string | null
           gst_rate: number | null
+          low_stock_level: number | null
           mrp: number | null
           name: string | null
+          nearest_expiry: string | null
           pack_size: string | null
           product_code: string | null
           product_id: string | null
+          product_name: string | null
           reorder_level: number | null
+          sale_price: number | null
           selling_price: number | null
+          sku: string | null
           stock_status: string | null
+          sub_category: string | null
+          supplier_name: string | null
           tenant_id: string | null
           unit: string | null
-        }
-        Insert: {
-          available_qty?: number | null
-          brand?: string | null
-          category?: string | null
-          gst_rate?: never
-          mrp?: number | null
-          name?: string | null
-          pack_size?: string | null
-          product_code?: string | null
-          product_id?: string | null
-          reorder_level?: number | null
-          selling_price?: number | null
-          stock_status?: never
-          tenant_id?: string | null
-          unit?: string | null
-        }
-        Update: {
-          available_qty?: number | null
-          brand?: string | null
-          category?: string | null
-          gst_rate?: never
-          mrp?: number | null
-          name?: string | null
-          pack_size?: string | null
-          product_code?: string | null
-          product_id?: string | null
-          reorder_level?: number | null
-          selling_price?: number | null
-          stock_status?: never
-          tenant_id?: string | null
-          unit?: string | null
         }
         Relationships: [
           {
@@ -5221,6 +5298,42 @@ export type Database = {
           },
           {
             foreignKeyName: "journal_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_product_catalog_view: {
+        Row: {
+          available_qty: number | null
+          batch_count: number | null
+          brand: string | null
+          category: string | null
+          generic_name: string | null
+          gst_rate: number | null
+          low_stock_level: number | null
+          mrp: number | null
+          name: string | null
+          nearest_expiry: string | null
+          pack_size: string | null
+          product_code: string | null
+          product_id: string | null
+          product_name: string | null
+          reorder_level: number | null
+          sale_price: number | null
+          selling_price: number | null
+          sku: string | null
+          stock_status: string | null
+          sub_category: string | null
+          supplier_name: string | null
+          tenant_id: string | null
+          unit: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

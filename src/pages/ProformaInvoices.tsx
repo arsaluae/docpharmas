@@ -259,8 +259,8 @@ export default function ProformaInvoices() {
  // Sales agents cannot read the products base table (cost columns hidden by RLS).
  // Use the cost-free agent_stock_availability view instead — same live data, no cost exposure.
  const prodQuery = isSalesAgent
-   ? supabase.from("agent_stock_availability").select("product_id, name, selling_price, gst_rate, mrp")
-   : supabase.from("products").select("id, name, selling_price, gst_rate, mrp").eq("is_active", true);
+   ? supabase.from("sales_product_catalog_view").select("product_id, name, product_code, selling_price, gst_rate, mrp, available_qty, nearest_expiry, supplier_name")
+   : supabase.from("products").select("id, name, product_code, selling_price, gst_rate, mrp").eq("is_active", true);
  const [pf, cust, prod, agentsRes] = await Promise.all([
  pfQuery,
  supabase.from("customers").select("id, name, company, phone, address, area").eq("is_active", true),
@@ -321,7 +321,7 @@ export default function ProformaInvoices() {
  setOrders(allOrders);
  if (pf.count !== null && pf.count !== undefined) pagination.setTotalCount(pf.count);
  if (cust.data) setCustomers(cust.data as any);
- if (prod.data) setProducts((prod.data as any[]).map((p: any) => ({ id: p.id ?? p.product_id, name: p.name, selling_price: p.selling_price, gst_rate: p.gst_rate, mrp: p.mrp })));
+ if (prod.data) setProducts((prod.data as any[]).map((p: any) => ({ id: p.id ?? p.product_id, name: p.name, product_code: p.product_code, selling_price: p.selling_price, gst_rate: p.gst_rate, mrp: p.mrp })) as any);
  setLoading(false);
  };
 
@@ -917,13 +917,20 @@ export default function ProformaInvoices() {
 
   if (invErr || !inv) { toast.error("Failed to create invoice: " + (invErr?.message || "Unknown error")); setSubmitting(false); return; }
   logAudit({ action: "invoice_generated", entity_type: "sales_invoice", entity_id: inv.id, entity_number: invNumber, changes: { from_order: submitOrder.proforma_number, total: submitOrder.total } });
- const lineItems = submitItems.map((i: any) => ({
- invoice_id: inv.id, product_id: i.product_id || null,
- quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
- amount: i.amount,
- batch_number: i.batch_number || null,
- expiry_date: i.product_id && i.batch_number ? expiryFor(i.product_id, i.batch_number) : null,
- }));
+ const lineItems = submitItems.map((i: any) => {
+   const prod = products.find(p => p.id === i.product_id) as any;
+   return {
+     invoice_id: inv.id, product_id: i.product_id || null,
+     quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
+     amount: i.amount,
+     batch_number: i.batch_number || null,
+     expiry_date: i.product_id && i.batch_number ? expiryFor(i.product_id, i.batch_number) : null,
+     // Historical snapshot — survives later edits to product master
+     product_name: i.product_name || prod?.name || null,
+     product_code: prod?.product_code || null,
+     mrp: prod?.mrp ?? null,
+   };
+ });
  const { error: itemsErr } = await supabase.from("sales_invoice_items").insert(lineItems);
  if (itemsErr) {
  // Rollback: remove the orphan invoice header so no data is left in an inconsistent state

@@ -77,13 +77,30 @@ export default function Products() {
  let moveQuery = supabase.from("stock_movements").select("*", { count: "exact" }).order("created_at", { ascending: false });
  if (moveTypeFilter !== "all") moveQuery = moveQuery.eq("movement_type", moveTypeFilter);
  moveQuery = moveQuery.range(movementPagination.from, movementPagination.to);
- let prodQuery = supabase.from("products").select("*", { count: "exact" }).order("created_at", { ascending: false });
- if (!showInactive) prodQuery = prodQuery.eq("is_active", true);
+ // Sales agents read from the cost-free catalog view (sa_deny_products blocks direct reads).
+ let prodQuery: any = hideCost
+   ? supabase.from("sales_product_catalog_view").select("*", { count: "exact" }).order("product_name", { ascending: true })
+   : supabase.from("products").select("*", { count: "exact" }).order("created_at", { ascending: false });
+ if (!hideCost && !showInactive) prodQuery = prodQuery.eq("is_active", true);
  const [prodRes, moveRes] = await Promise.all([
  prodQuery.range(productPagination.from, productPagination.to),
  moveQuery,
  ]);
- if (prodRes.data) setProducts(prodRes.data);
+ if (prodRes.data) {
+   // Normalize view rows → Product-shaped objects (no cost data exposed)
+   const rows = hideCost
+     ? (prodRes.data as any[]).map((r) => ({
+         id: r.product_id, name: r.product_name ?? r.name, sku: r.sku, product_code: r.product_code,
+         category: r.category, pack_size: r.pack_size, unit: r.unit,
+         cost_price: 0, selling_price: r.selling_price ?? r.sale_price ?? 0, mrp: r.mrp ?? 0,
+         gst_rate: r.gst_rate ?? 0, stock_quantity: r.available_qty ?? 0,
+         reorder_level: r.reorder_level ?? 0, is_active: true,
+         drap_reg_number: null, generic_name: r.generic_name, brand: r.brand,
+         supplier_name: r.supplier_name, batch_count: r.batch_count, nearest_expiry: r.nearest_expiry,
+       }))
+     : prodRes.data;
+   setProducts(rows as any);
+ }
  if (prodRes.count !== null) productPagination.setTotalCount(prodRes.count);
  if (moveRes.data) setMovements(moveRes.data);
  if (moveRes.count !== null) movementPagination.setTotalCount(moveRes.count);
