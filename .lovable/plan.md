@@ -1,25 +1,28 @@
-# Fix empty product picker for sales agents
+# Fix product picker, sales order prefix, and agent invoice header
 
-## Root cause
-The new `agent_stock_availability` and `sales_product_catalog_view` views were created `WITH (security_invoker=on)`. That makes the views execute RLS as the **caller**. Sales agents have a RESTRICTIVE policy on `products`:
+## Root causes found (verified in the database)
 
-```
-sa_deny_products: RESTRICTIVE ALL → current_tenant_role() <> 'sales_agent'
-```
+**1. Products still don't show** — the three agent-facing views (`sales_product_catalog_view`, `agent_stock_availability`, `agent_batch_availability`) have **no GRANTs at all**. The previous fix removed `security_invoker`, but nobody can SELECT from them — every query returns a permission error, so the picker is empty for everyone using it.
 
-So when an agent queries the view, the underlying `products` SELECT is blocked → the view returns **zero rows** → empty product list in Sales Orders / Products page.
+**2. Sales order number shows "PI-"** — the `document_counters` row for sales orders has prefix `PI-`, and the `generate_document_number` function defaults to `PI-` for this document type.
 
-`agent_batch_availability` has the same flag and the same problem (it joins `products`).
+**3. Company name missing on agent's invoice template** — `company_settings` (and `document_templates`) are protected by a restrictive policy requiring the `settings:read` capability. The `sales_agent` role has **no settings capability row**, so the template query returns zero rows for agents → "Company Name" placeholder.
 
-## Fix (single small migration)
-Drop `security_invoker` from all three agent-facing views so they execute as their owner (postgres) and bypass the restrictive policy. Tenant isolation is preserved by the `WHERE tenant_id = public.get_user_tenant_id()` predicate already in each view. Cost columns are still absent from the view → agents still cannot read cost data.
+## Fix (one migration, no frontend changes)
 
-Steps:
-1. `ALTER VIEW public.agent_stock_availability   RESET (security_invoker);`
-2. `ALTER VIEW public.sales_product_catalog_view RESET (security_invoker);`
-3. `ALTER VIEW public.agent_batch_availability   RESET (security_invoker);`
+1. **Grant view access**
+   - `GRANT SELECT` on all three views to `authenticated` (and `ALL` to `service_role`). Tenant isolation stays enforced inside each view via `tenant_id = get_user_tenant_id()`. Cost columns remain excluded, so agents still cannot see cost/profit data.
 
-No frontend changes — the picker code is already pointing at `sales_product_catalog_view`.
+2. **Sales order prefix → SO-**
+   - Update the existing counter row: prefix `PI-` → `SO-` (next order will be `SO-0006`; existing documents keep their old numbers).
+   - Update the default in `generate_document_number` so new tenants also get `SO-`.
+
+3. **Let agents read company branding**
+   - Insert `role_capabilities` rows: `(sales_agent, settings, read-only)` and `(staff, settings, read-only)`.
+   - This is server-side only — the client-side menu matrix is unchanged, so agents still don't see the Settings page; they just get the company name/address/logo on printed documents.
 
 ## Verification
-After migration, agent reloads Sales Orders → product picker populates with name, MRP, sale price, available qty, nearest expiry. Direct `from('products')` still returns zero rows for agents (cost stays hidden).
+- Open Create Sales Order as agent and as admin → product picker lists products with MRP, rate, stock, batches, expiry.
+- Create a new sales order → number starts with `SO-`.
+- Open a document preview as a sales agent → company name, address, phone, and logo appear in the header.
+- Confirm agents still get zero rows querying `products` directly (cost stays hidden).
