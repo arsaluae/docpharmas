@@ -8,21 +8,24 @@ import { can as canCheck, type TenantRole, type Resource, type Action } from "@/
  * Server-side RLS + void_document RPC re-enforce all of this.
  */
 export function useRoles() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [role, setRole] = useState<TenantRole | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [roleLoading, setRoleLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
-    if (!user) { setRole(null); setLoading(false); return; }
-    setLoading(true);
+    if (authLoading) return; // wait for session restore before deciding anything
+    if (!user) { setRole(null); setRoleLoading(false); return; }
+    setRoleLoading(true);
     (supabase.rpc as any)("current_tenant_role").then(({ data }: any) => {
       if (!active) return;
       setRole((data as TenantRole) ?? null);
-      setLoading(false);
+      setRoleLoading(false);
     });
     return () => { active = false; };
-  }, [user]);
+  }, [user, authLoading]);
+
+  const loading = authLoading || roleLoading;
 
   const can = useCallback(
     (resource: Resource, action: Action) => canCheck(role, resource, action),
