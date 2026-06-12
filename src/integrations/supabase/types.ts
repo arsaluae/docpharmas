@@ -5145,6 +5145,7 @@ export type Database = {
           available_qty: number | null
           brand: string | null
           category: string | null
+          gst_rate: number | null
           mrp: number | null
           name: string | null
           pack_size: string | null
@@ -5160,6 +5161,7 @@ export type Database = {
           available_qty?: number | null
           brand?: string | null
           category?: string | null
+          gst_rate?: never
           mrp?: number | null
           name?: string | null
           pack_size?: string | null
@@ -5175,6 +5177,7 @@ export type Database = {
           available_qty?: number | null
           brand?: string | null
           category?: string | null
+          gst_rate?: never
           mrp?: number | null
           name?: string | null
           pack_size?: string | null
