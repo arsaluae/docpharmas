@@ -210,9 +210,18 @@ function buildA4Html(opts: PdfOptions): string {
       <span style="color:${C.text};font-weight:600;flex:1;">${escapeHtml(r.value)}</span>
     </div>`).join("");
 
+  // Gate party phone/mobile by Document Preferences (default OFF, supplier phone hard-off)
+  const isSupplierParty = /supplier|printer|pharmacy|vendor/i.test(opts.partyLabel || "");
+  const isCustomerParty = !isSupplierParty;
+  const showMobile = isCustomerParty
+    ? (s as any)?.show_customer_mobile_on_docs === true
+    : (s as any)?.show_supplier_mobile_on_docs === true;
+  const showPhone = isCustomerParty
+    ? (s as any)?.show_customer_phone_on_docs === true
+    : (s as any)?.show_supplier_phone_on_docs === true;
   const phoneBits: string[] = [];
-  if (opts.partyMobile) phoneBits.push(`📱 ${escapeHtml(opts.partyMobile)}`);
-  if (opts.partyPhone && opts.partyPhone !== opts.partyMobile) phoneBits.push(`☎ ${escapeHtml(opts.partyPhone)}`);
+  if (showMobile && opts.partyMobile) phoneBits.push(`📱 ${escapeHtml(opts.partyMobile)}`);
+  if (showPhone && opts.partyPhone && opts.partyPhone !== opts.partyMobile) phoneBits.push(`☎ ${escapeHtml(opts.partyPhone)}`);
   const cityArea = [opts.partyCity, opts.partyArea].filter(Boolean).join(" · ");
 
   const partyHtml = `
