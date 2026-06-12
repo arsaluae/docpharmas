@@ -50,6 +50,14 @@ export default function SalesAgents() {
   const [linkedUserId, setLinkedUserId] = useState<string>("");
   const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  // Warranty declaration fields
+  const [fatherName, setFatherName] = useState("");
+  const [cnic, setCnic] = useState("");
+  const [licenseNumber, setLicenseNumber] = useState("");
+  const [licenseExpiry, setLicenseExpiry] = useState("");
+  const [signatureUrl, setSignatureUrl] = useState("");
+  const [stampUrl, setStampUrl] = useState("");
+  const [uploadBusy, setUploadBusy] = useState(false);
   const { tenantId } = useTenant();
 
   // Invite-new-agent flow
