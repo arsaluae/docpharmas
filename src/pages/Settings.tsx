@@ -119,6 +119,10 @@ export default function Settings() {
  wht_enabled: (data as any).wht_enabled || false,
  default_wht_rate: String((data as any).default_wht_rate ?? 4.5),
  whatsapp_number: (data as any).whatsapp_number || "",
+ show_customer_mobile_on_docs: !!(data as any).show_customer_mobile_on_docs,
+ show_customer_phone_on_docs: !!(data as any).show_customer_phone_on_docs,
+ show_supplier_mobile_on_docs: !!(data as any).show_supplier_mobile_on_docs,
+ show_supplier_phone_on_docs: !!(data as any).show_supplier_phone_on_docs,
  });
  }
  setLoading(false);
