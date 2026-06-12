@@ -1222,6 +1222,36 @@ function TeamAccessCard() {
  )}
  </CardContent>
  </Card>
+
+ <AlertDialog open={!!deleteFor} onOpenChange={(v) => { if (!v) { setDeleteFor(null); setDeleteConfirm(""); } }}>
+   <AlertDialogContent>
+     <AlertDialogHeader>
+       <AlertDialogTitle className="text-destructive">Delete user?</AlertDialogTitle>
+       <AlertDialogDescription>
+         Are you sure? This action may affect audit history. If this user has any business records,
+         deletion will be refused and you should deactivate them instead.
+         Type <strong>{deleteFor?.email ?? "their email"}</strong> below to confirm.
+       </AlertDialogDescription>
+     </AlertDialogHeader>
+     <Input
+       autoFocus
+       value={deleteConfirm}
+       onChange={(e) => setDeleteConfirm(e.target.value)}
+       placeholder={deleteFor?.email ?? ""}
+     />
+     <AlertDialogFooter>
+       <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+       <Button
+         variant="destructive"
+         disabled={deleting || deleteConfirm.trim().toLowerCase() !== (deleteFor?.email ?? "").trim().toLowerCase()}
+         onClick={handleDelete}
+       >
+         {deleting ? "Deleting…" : "Delete user"}
+       </Button>
+     </AlertDialogFooter>
+   </AlertDialogContent>
+ </AlertDialog>
  </div>
  );
 }
+
