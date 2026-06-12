@@ -23,6 +23,7 @@ import { generateWarrantyNoteHtml, generateWarrantyNoteViews, type WarrantyNoteO
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { AddDistributorDialog } from "@/components/AddDistributorDialog";
+import { getActiveBatches, type ActiveBatch } from "@/lib/batches";
 
 
 interface Customer { id: string; name: string; company: string | null; }
@@ -157,6 +158,14 @@ export default function WarrantyInvoices() {
  const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
  const [formNotes, setFormNotes] = useState("");
  const [addDistOpen, setAddDistOpen] = useState(false);
+ // Cache of active batches per product id (FEFO ordered).
+ const [batchCache, setBatchCache] = useState<Record<string, ActiveBatch[]>>({});
+
+ const loadBatchesFor = async (productId: string) => {
+   if (!productId || batchCache[productId]) return;
+   const list = await getActiveBatches(productId);
+   setBatchCache(prev => ({ ...prev, [productId]: list }));
+ };
 
 
 
@@ -265,6 +274,9 @@ export default function WarrantyInvoices() {
  };
  });
  setItems(lineItems);
+ // Prefetch batches for every product on the invoice.
+ const uniq = Array.from(new Set(lineItems.map(l => l.product_id).filter(Boolean)));
+ uniq.forEach(pid => { loadBatchesFor(pid); });
  }
  setStep("edit_items");
  };
@@ -306,6 +318,18 @@ export default function WarrantyInvoices() {
 
  const handleSave = async () => {
  if (items.length === 0) { toast.error("Add at least one item"); return; }
+ if (!selectedSalesRepId) { toast.error("Select a Sales Representative — they sign the warranty declaration"); return; }
+ const rep = salesReps.find(r => r.id === selectedSalesRepId);
+ if (!rep) { toast.error("Selected sales rep not found"); return; }
+ const missing: string[] = [];
+ if (!rep.father_name) missing.push("father name");
+ if (!rep.cnic) missing.push("CNIC");
+ if (!rep.license_number) missing.push("license #");
+ if (!rep.license_expiry) missing.push("license expiry");
+ if (missing.length) {
+   toast.error(`Sales rep profile incomplete — missing: ${missing.join(", ")}. Edit the agent under Sales Agents to fix.`);
+   return;
+ }
 
  const dist = distributors.find(d => d.id === selectedDistributorId);
  const pharmacyName = dist?.name || "N/A";
@@ -354,7 +378,16 @@ export default function WarrantyInvoices() {
  setSelectedInvoiceId(inv.source_invoice_id || "");
  setSelectedDistributorId(inv.distributor_id || "");
  setSelectedSalesRepId(inv.sales_agent_id || "");
- setItems(Array.isArray(inv.items) ? inv.items as any : []);
+ const invItems = Array.isArray(inv.items) ? inv.items as any : [];
+ setItems(invItems);
+ // Load distributors for the customer (so the edit form shows the picker)
+ if (inv.customer_id) {
+   supabase.from("customer_distributors").select("*").eq("customer_id", inv.customer_id).order("name")
+     .then(({ data }) => setDistributors((data || []) as any));
+ }
+ // Prefetch batches for every product on the invoice.
+ const uniq = Array.from(new Set(invItems.map((l: any) => l.product_id).filter(Boolean))) as string[];
+ uniq.forEach(pid => { loadBatchesFor(pid); });
  setDiscountType(inv.discount_percent > 0 ? "percent" : "amount");
  setDiscountValue(inv.discount_percent > 0 ? inv.discount_percent : inv.discount_amount);
  setFormDate(inv.date);
@@ -390,23 +423,45 @@ export default function WarrantyInvoices() {
     setStep("edit_items");
   };
 
-  const addProductRow = (productId: string) => {
+  const addProductRow = async (productId: string) => {
     if (!productId) return;
     const p = products.find(x => x.id === productId);
     if (!p) return;
     const mrp = Number(p.mrp || p.selling_price || 0);
     const tp = Math.round(mrp * 0.85 * 100) / 100;
-    setItems([...items, {
+    // Auto-pick FEFO batch when available so expiry is filled out of the box.
+    let batches = batchCache[p.id];
+    if (!batches) {
+      batches = await getActiveBatches(p.id);
+      setBatchCache(prev => ({ ...prev, [p.id]: batches! }));
+    }
+    const first = batches[0];
+    setItems(prev => [...prev, {
       product_id: p.id,
       product_name: p.name,
-      batch_number: "",
-      expiry_date: "",
+      batch_number: first?.batch_number || "",
+      expiry_date: first?.expiry_date || "",
       quantity: 1,
       mrp,
       tp_rate: tp,
       discount: 0,
       amount: tp,
     }]);
+  };
+
+  /** Pick a tracked batch — auto-fills expiry from grn_items. */
+  const pickBatch = (idx: number, batchNumber: string) => {
+    const item = items[idx];
+    if (!item) return;
+    const list = batchCache[item.product_id] || [];
+    const found = list.find(b => b.batch_number === batchNumber);
+    const updated = [...items];
+    updated[idx] = {
+      ...item,
+      batch_number: batchNumber,
+      expiry_date: found?.expiry_date || item.expiry_date || "",
+    };
+    setItems(updated);
   };
 
   const selectedDist = distributors.find(d => d.id === selectedDistributorId) || null;
@@ -584,19 +639,52 @@ export default function WarrantyInvoices() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item, idx) => (
+                {items.map((item, idx) => {
+                  const batches = batchCache[item.product_id] || [];
+                  const hasTracked = batches.length > 0;
+                  const pickedTracked = hasTracked && batches.some(b => b.batch_number === item.batch_number);
+                  const pickedBatch = batches.find(b => b.batch_number === item.batch_number);
+                  return (
                   <TableRow key={idx}>
-                    <TableCell className="text-sm font-medium">{item.product_name}</TableCell>
-                    <TableCell><Input className="h-8 text-sm w-24" value={item.batch_number} onChange={e => updateItem(idx, "batch_number", e.target.value)} /></TableCell>
-                    <TableCell><Input className="h-8 text-sm w-32" type="date" value={item.expiry_date} onChange={e => updateItem(idx, "expiry_date", e.target.value)} /></TableCell>
-                    <TableCell><Input className="h-8 text-sm w-16" type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", Number(e.target.value))} /></TableCell>
-                    <TableCell><Input className="h-8 text-sm w-20" type="number" value={item.mrp} onChange={e => updateItem(idx, "mrp", Number(e.target.value))} /></TableCell>
-                    <TableCell className="font-mono text-sm tabular-nums">{item.tp_rate.toLocaleString()}</TableCell>
-                    <TableCell><Input className="h-8 text-sm w-16" type="number" value={item.discount} onChange={e => updateItem(idx, "discount", Number(e.target.value))} /></TableCell>
-                    <TableCell className="text-right font-mono text-sm tabular-nums">{item.amount.toLocaleString()}</TableCell>
-                    <TableCell><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(idx)}><X className="h-3.5 w-3.5" /></Button></TableCell>
+                    <TableCell className="text-sm font-medium align-top pt-3">{item.product_name}</TableCell>
+                    <TableCell className="align-top">
+                      {hasTracked ? (
+                        <div className="space-y-1 min-w-[180px]">
+                          <Select value={item.batch_number || ""} onValueChange={(v) => pickBatch(idx, v)}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Pick batch..." /></SelectTrigger>
+                            <SelectContent>
+                              {batches.map(b => (
+                                <SelectItem key={b.batch_number} value={b.batch_number}>
+                                  <span className="font-mono text-xs">{b.batch_number}</span>
+                                  <span className="text-muted-foreground"> · on-hand {b.on_hand}</span>
+                                  {b.expiry_date ? <span className="text-muted-foreground"> · exp {b.expiry_date.slice(2,7).replace("-","/")}</span> : null}
+                                  {b.status === "expired" ? <span className="text-destructive"> · EXPIRED</span> : b.status === "expiring" ? <span className="text-amber-600"> · expiring</span> : null}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {pickedBatch?.status === "expired" && <p className="text-[10px] text-destructive">⚠ Batch expired</p>}
+                          {pickedBatch?.status === "expiring" && <p className="text-[10px] text-amber-600">⚠ Batch expiring within 90 days</p>}
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <Input className="h-8 text-sm w-24" value={item.batch_number} onChange={e => updateItem(idx, "batch_number", e.target.value)} placeholder="Batch #" />
+                          <p className="text-[10px] text-muted-foreground">No tracked batches</p>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <Input className="h-8 text-sm w-32" type="date" value={item.expiry_date} onChange={e => updateItem(idx, "expiry_date", e.target.value)} readOnly={pickedTracked} />
+                    </TableCell>
+                    <TableCell className="align-top"><Input className="h-8 text-sm w-16" type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", Number(e.target.value))} /></TableCell>
+                    <TableCell className="align-top"><Input className="h-8 text-sm w-20" type="number" value={item.mrp} onChange={e => updateItem(idx, "mrp", Number(e.target.value))} /></TableCell>
+                    <TableCell className="font-mono text-sm tabular-nums align-top pt-3">{item.tp_rate.toLocaleString()}</TableCell>
+                    <TableCell className="align-top"><Input className="h-8 text-sm w-16" type="number" value={item.discount} onChange={e => updateItem(idx, "discount", Number(e.target.value))} /></TableCell>
+                    <TableCell className="text-right font-mono text-sm tabular-nums align-top pt-3">{item.amount.toLocaleString()}</TableCell>
+                    <TableCell className="align-top"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(idx)}><X className="h-3.5 w-3.5" /></Button></TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

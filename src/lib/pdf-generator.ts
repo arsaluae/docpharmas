@@ -1,6 +1,6 @@
 import type { CompanySettings } from "@/hooks/useCompanySettings";
 import type { DocumentTemplate } from "@/hooks/useDocumentTemplates";
-import { renderDeclaration, DEFAULT_WARRANTY_DECLARATION } from "@/lib/warranty-declaration";
+import { DEFAULT_WARRANTY_DECLARATION } from "@/lib/warranty-declaration";
 
 export interface PdfColumn { header: string; key: string; align?: "left" | "right" | "center"; }
 export interface PdfMeta { label: string; value: string; }
@@ -557,17 +557,26 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   const declarationTemplate = (s?.warranty_note_text && s.warranty_note_text.trim())
     || opts.noteText
     || DEFAULT_WARRANTY_DECLARATION;
-  const declarationText = renderDeclaration(declarationTemplate, {
-    company_name:         s?.company_name,
-    sales_rep_name:       rep?.name,
-    father_name:          rep?.fatherName,
-    sales_rep_cnic:       rep?.cnic,
-    agent_license_number: rep?.licenseNumber,
-    agent_license_expiry: rep?.licenseExpiry,
-    relation,
-  });
-  // Render numbered points as a real <ol> with hanging indent; intro/outro paragraphs stay as <p>.
-  const declarationBlocks = declarationText
+
+  // Resolve variables ourselves so we can wrap resolved values in <strong>
+  // and fall back to a fixed-width blank when a value is missing.
+  const declVars: Record<string, string> = {
+    company_name:         (s?.company_name || "").trim(),
+    sales_rep_name:       (rep?.name || "").trim(),
+    father_name:          (rep?.fatherName || "").trim(),
+    sales_rep_cnic:       (rep?.cnic || "").trim(),
+    agent_license_number: (rep?.licenseNumber || "").trim(),
+    agent_license_expiry: (rep?.licenseExpiry || "").trim(),
+    relation:             (relation || "S/O").trim() || "S/O",
+  };
+  const renderInline = (tpl: string) =>
+    escapeHtml(tpl).replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (_m, k) => {
+      const v = declVars[String(k).toLowerCase()];
+      if (v) return `<strong style="color:#0f172a;font-weight:700;">${escapeHtml(v)}</strong>`;
+      return `<span style="display:inline-block;min-width:90px;border-bottom:1px solid #475569;height:1em;vertical-align:bottom;"></span>`;
+    });
+
+  const declarationBlocks = declarationTemplate
     .split(/\n{2,}/)
     .map(p => p.trim())
     .filter(Boolean);
@@ -576,15 +585,15 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     if (m) {
       return `<div style="display:flex;gap:10px;margin:6px 0;">
         <span style="font-weight:700;min-width:18px;">${m[1]}.</span>
-        <span style="flex:1;">${escapeHtml(m[2])}</span>
+        <span style="flex:1;">${renderInline(m[2])}</span>
       </div>`;
     }
-    return `<p style="margin:6px 0;">${escapeHtml(block)}</p>`;
+    return `<p style="margin:6px 0;">${renderInline(block)}</p>`;
   }).join("");
   const declarationHtml = declarationEnabled
     ? `<div style="margin-top:18px;padding-top:12px;border-top:1px solid #cbd5e1;">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;color:#475569;margin-bottom:8px;">Warranty Declaration</div>
-        <div style="font-size:12.5px;line-height:1.85;color:#0f172a;text-align:justify;font-family:'Inter',sans-serif;">${declarationInner}</div>
+        <div style="font-size:13px;line-height:1.9;color:#0f172a;text-align:justify;font-family:'Inter',sans-serif;">${declarationInner}</div>
       </div>`
     : "";
 
