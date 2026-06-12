@@ -226,17 +226,17 @@ function buildA4Html(opts: PdfOptions): string {
 
   const partyHtml = `
     <div style="border:1px solid ${C.border};border-radius:4px;overflow:hidden;background:#fff;">
-      <div style="background:${C.cardBg};padding:6px 14px;border-bottom:1px solid ${C.border};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;color:${C.primary};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(opts.partyLabel || "Bill To")}</div>
-      <div style="padding:12px 14px;">
-        ${opts.partyName ? `<div style="font-size:18px;font-weight:700;color:${C.text};line-height:1.25;">${escapeHtml(opts.partyName)}</div>` : ""}
-        ${opts.partyCode ? `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${C.textMuted};margin-top:2px;letter-spacing:0.4px;">${escapeHtml(opts.partyCode)}</div>` : ""}
-        ${phoneBits.length ? `<div style="font-size:14px;color:${C.text};margin-top:8px;font-weight:600;">${phoneBits.join("  ·  ")}</div>` : ""}
-        ${cityArea ? `<div style="font-size:14px;color:${C.text};margin-top:4px;">${escapeHtml(cityArea)}</div>` : ""}
-        ${opts.partyAddress ? `<div style="font-size:14px;color:${C.textMuted};margin-top:4px;line-height:1.5;">${escapeHtml(opts.partyAddress)}</div>` : ""}
-        ${opts.partyNtn ? `<div style="font-size:12px;color:${C.textMuted};margin-top:6px;">NTN: ${escapeHtml(opts.partyNtn)}</div>` : ""}
-        ${t?.show_party_license && opts.partyLicense ? `<div style="font-size:12px;color:${C.textMuted};">License: ${escapeHtml(opts.partyLicense)}</div>` : ""}
-        ${t?.show_party_cnic && opts.partyCnic ? `<div style="font-size:12px;color:${C.textMuted};">CNIC: ${escapeHtml(opts.partyCnic)}</div>` : ""}
-        ${opts.partyAccountCode ? `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${C.textLight};margin-top:6px;">A/C: ${escapeHtml(opts.partyAccountCode)}</div>` : ""}
+      <div style="background:${C.cardBg};padding:8px 16px;border-bottom:1px solid ${C.border};font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;color:${C.primary};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(opts.partyLabel || "Bill To")}</div>
+      <div style="padding:14px 16px;">
+        ${opts.partyName ? `<div style="font-size:19px;font-weight:700;color:${C.text};line-height:1.25;">${escapeHtml(opts.partyName)}</div>` : ""}
+        ${opts.partyCode ? `<div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${C.textMuted};margin-top:3px;letter-spacing:0.4px;">${escapeHtml(opts.partyCode)}</div>` : ""}
+        ${phoneBits.length ? `<div style="font-size:15px;color:${C.text};margin-top:9px;font-weight:600;">${phoneBits.join("  ·  ")}</div>` : ""}
+        ${cityArea ? `<div style="font-size:15px;color:${C.text};margin-top:5px;">${escapeHtml(cityArea)}</div>` : ""}
+        ${opts.partyAddress ? `<div style="font-size:15px;color:${C.textMuted};margin-top:5px;line-height:1.55;">${escapeHtml(opts.partyAddress)}</div>` : ""}
+        ${opts.partyNtn ? `<div style="font-size:13px;color:${C.textMuted};margin-top:7px;">NTN: ${escapeHtml(opts.partyNtn)}</div>` : ""}
+        ${t?.show_party_license && opts.partyLicense ? `<div style="font-size:13px;color:${C.textMuted};">License: ${escapeHtml(opts.partyLicense)}</div>` : ""}
+        ${t?.show_party_cnic && opts.partyCnic ? `<div style="font-size:13px;color:${C.textMuted};">CNIC: ${escapeHtml(opts.partyCnic)}</div>` : ""}
+        ${opts.partyAccountCode ? `<div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${C.textLight};margin-top:7px;">A/C: ${escapeHtml(opts.partyAccountCode)}</div>` : ""}
       </div>
     </div>`;
 
