@@ -95,6 +95,7 @@ export default function Settings() {
     show_customer_mobile_on_docs: false, show_customer_phone_on_docs: false,
     show_supplier_mobile_on_docs: false, show_supplier_phone_on_docs: false,
     warranty_note_text: "",
+    warranty_declaration_enabled: true,
   });
 
  const { templates, loading: templatesLoading, updateTemplate } = useDocumentTemplates();
