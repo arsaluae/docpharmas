@@ -2,6 +2,7 @@ import { ReactNode, useState, useEffect, useCallback, lazy, Suspense } from "rea
 import { useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { SandboxBanner } from "@/components/SandboxBanner";
 import { CalendarDays, Search, ChevronRight, Sparkles, Bell, Sun, Moon } from "lucide-react";
 import { useGlobalShortcuts } from "@/components/KeyboardShortcuts";
 import { useTheme } from "@/hooks/use-theme";
