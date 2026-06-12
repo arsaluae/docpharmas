@@ -142,8 +142,9 @@ export default function Settings() {
  show_customer_mobile_on_docs: form.show_customer_mobile_on_docs,
  show_customer_phone_on_docs: form.show_customer_phone_on_docs,
  show_supplier_mobile_on_docs: form.show_supplier_mobile_on_docs,
- show_supplier_phone_on_docs: form.show_supplier_phone_on_docs,
- };
+      show_supplier_phone_on_docs: form.show_supplier_phone_on_docs,
+      warranty_note_text: form.warranty_note_text || null,
+    };
  if (settingsId) {
  await supabase.from("company_settings").update(payload as any).eq("id", settingsId);
  } else {
