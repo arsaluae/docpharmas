@@ -553,6 +553,7 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   // ── Warranty Declaration (editable via Settings, variables resolved here) ──
   const declarationEnabled = s?.warranty_declaration_enabled !== false;
   const rep = opts.salesRep || null;
+  const relation = (rep as any)?.gender === "female" ? "D/O" : "S/O";
   const declarationTemplate = (s?.warranty_note_text && s.warranty_note_text.trim())
     || opts.noteText
     || DEFAULT_WARRANTY_DECLARATION;
@@ -563,11 +564,27 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     sales_rep_cnic:       rep?.cnic,
     agent_license_number: rep?.licenseNumber,
     agent_license_expiry: rep?.licenseExpiry,
+    relation,
   });
+  // Render numbered points as a real <ol> with hanging indent; intro/outro paragraphs stay as <p>.
+  const declarationBlocks = declarationText
+    .split(/\n{2,}/)
+    .map(p => p.trim())
+    .filter(Boolean);
+  const declarationInner = declarationBlocks.map(block => {
+    const m = block.match(/^(\d+)\.\s+([\s\S]+)$/);
+    if (m) {
+      return `<div style="display:flex;gap:10px;margin:6px 0;">
+        <span style="font-weight:700;min-width:18px;">${m[1]}.</span>
+        <span style="flex:1;">${escapeHtml(m[2])}</span>
+      </div>`;
+    }
+    return `<p style="margin:6px 0;">${escapeHtml(block)}</p>`;
+  }).join("");
   const declarationHtml = declarationEnabled
-    ? `<div style="margin-top:18px;border:1px solid #cbd5e1;padding:16px 18px;border-radius:4px;background:#f8fafc;">
-        <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#475569;margin-bottom:8px;">Warranty Declaration</div>
-        <div style="font-size:12.5px;line-height:1.75;color:#0f172a;white-space:pre-wrap;text-align:justify;">${escapeHtml(declarationText)}</div>
+    ? `<div style="margin-top:18px;padding-top:12px;border-top:1px solid #cbd5e1;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;color:#475569;margin-bottom:8px;">Warranty Declaration</div>
+        <div style="font-size:12.5px;line-height:1.85;color:#0f172a;text-align:justify;font-family:'Inter',sans-serif;">${declarationInner}</div>
       </div>`
     : "";
 
@@ -579,29 +596,28 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     ? `<img src="${rep.signatureUrl}" alt="Signature" style="max-height:60px;max-width:200px;object-fit:contain;" />`
     : `<div style="height:60px;"></div>`;
   const repName = rep?.name || "";
-  const repLicense = rep?.licenseNumber || "";
 
   const signatureHtml = `
-    <div style="margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:36px;">
+    <div style="margin-top:32px;display:grid;grid-template-columns:1fr 1fr;gap:48px;">
       <div style="text-align:center;">
         ${stampImg}
-        <div style="border-top:1px solid #0f172a;margin-top:6px;padding-top:6px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#475569;">Company Stamp</div>
+        <div style="border-top:1px solid #0f172a;margin-top:6px;padding-top:6px;font-size:12px;font-weight:700;color:#0f172a;">${escapeHtml(repName || "Sales Rep")}</div>
+        <div style="font-size:10.5px;color:#64748b;margin-top:2px;">Sales Representative</div>
       </div>
       <div style="text-align:center;">
         ${sigImg}
-        <div style="border-top:1px solid #0f172a;margin-top:6px;padding-top:6px;font-size:12.5px;font-weight:700;color:#0f172a;">${escapeHtml(repName || "Sales Representative")}</div>
-        ${repLicense ? `<div style="font-size:11px;color:#475569;margin-top:2px;">License: ${escapeHtml(repLicense)}</div>` : ""}
-        <div style="font-size:10.5px;color:#94a3b8;margin-top:2px;text-transform:uppercase;letter-spacing:0.08em;">Authorized Sales Representative</div>
+        <div style="border-top:1px solid #0f172a;margin-top:6px;padding-top:6px;font-size:12px;font-weight:700;color:#0f172a;">Prepared By</div>
+        <div style="font-size:10.5px;color:#64748b;margin-top:2px;">Authorized Signature</div>
       </div>
     </div>`;
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Warranty Note — ${escapeHtml(opts.invoiceNumber)}</title>
 <style>
-  @page { size: A4; margin: 11mm; }
+  @page { size: A4; margin: 0; }
   * { box-sizing: border-box; }
   body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color:#0f172a; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   table { border-collapse: collapse; }
-  .page { padding: 4mm 2mm; }
+  .page { padding: 12mm 10mm; }
 </style></head><body><div class="page">
   <!-- HEADER: logo + company (left) | meta (right) -->
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;">
@@ -656,10 +672,6 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   ${declarationHtml}
 
   ${signatureHtml}
-
-  <div style="margin-top:18px;text-align:center;font-size:10.5px;color:#94a3b8;font-style:italic;">
-    System generated warranty note · ${escapeHtml(opts.invoiceNumber)}
-  </div>
 </div></body></html>`;
 }
 
