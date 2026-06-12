@@ -1111,6 +1111,9 @@ function TeamAccessCard() {
  </div>
  <p className="text-xs text-muted-foreground mt-0.5">
  Joined {new Date(m.created_at).toLocaleDateString()}
+ {m.last_sign_in_at
+   ? ` · Last login ${new Date(m.last_sign_in_at).toLocaleDateString()}`
+   : " · Never signed in"}
  </p>
  </div>
  <div className="flex items-center gap-2 shrink-0">
@@ -1128,6 +1131,17 @@ function TeamAccessCard() {
  </Button>
  );
  })()}
+ {m.user_id !== meId && (() => {
+   const activeAdmins = members.filter(x => x.role === "owner" && x.is_active).length;
+   const isLastAdmin = m.role === "owner" && activeAdmins <= 1;
+   if (isLastAdmin) return null;
+   return (
+     <Button size="sm" variant="destructive" onClick={() => { setDeleteFor(m); setDeleteConfirm(""); }}>
+       Delete
+     </Button>
+   );
+ })()}
+
  </div>
  </div>
  {resetFor === m.user_id && (
