@@ -590,6 +590,12 @@ export type Database = {
           updated_at: string
           warranty_declaration_enabled: boolean
           warranty_note_text: string | null
+          warranty_require_address: boolean
+          warranty_require_batch_expiry: boolean
+          warranty_require_batch_number: boolean
+          warranty_require_license_expiry: boolean
+          warranty_require_license_no: boolean
+          warranty_require_mobile: boolean
           website: string | null
           whatsapp_number: string | null
           wht_enabled: boolean
@@ -622,6 +628,12 @@ export type Database = {
           updated_at?: string
           warranty_declaration_enabled?: boolean
           warranty_note_text?: string | null
+          warranty_require_address?: boolean
+          warranty_require_batch_expiry?: boolean
+          warranty_require_batch_number?: boolean
+          warranty_require_license_expiry?: boolean
+          warranty_require_license_no?: boolean
+          warranty_require_mobile?: boolean
           website?: string | null
           whatsapp_number?: string | null
           wht_enabled?: boolean
@@ -654,6 +666,12 @@ export type Database = {
           updated_at?: string
           warranty_declaration_enabled?: boolean
           warranty_note_text?: string | null
+          warranty_require_address?: boolean
+          warranty_require_batch_expiry?: boolean
+          warranty_require_batch_number?: boolean
+          warranty_require_license_expiry?: boolean
+          warranty_require_license_no?: boolean
+          warranty_require_mobile?: boolean
           website?: string | null
           whatsapp_number?: string | null
           wht_enabled?: boolean

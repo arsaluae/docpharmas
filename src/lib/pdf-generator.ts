@@ -479,176 +479,219 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   const company = s?.company_name || "Company Name";
   const companyLines = [
     s?.address,
-    s?.phone ? `Mobile : ${s.phone}` : null,
+    s?.phone ? `Mobile: ${s.phone}` : null,
+    s?.email ? s.email : null,
     s?.ntn ? `NTN: ${s.ntn}` : null,
   ].filter(Boolean) as string[];
 
   const logo = s?.logo_url
-    ? `<img src="${s.logo_url}" alt="${escapeHtml(company)}" style="max-height:120px;max-width:260px;object-fit:contain;display:block;" />`
+    ? `<img src="${s.logo_url}" alt="${escapeHtml(company)}" style="max-height:80px;max-width:180px;object-fit:contain;display:block;" />`
     : "";
 
   const d = opts.distributor;
-  // Left labels block
   const leftPairs: [string, string][] = [
-    ["Mobile", d.phone || ""],
-    ["NTN", d.ntn || ""],
-    ["CNIC", d.cnic || ""],
-    ["License Number", d.licenseNumber || ""],
-    ["Expiry", d.licenseExpiry || ""],
+    ["Mobile", d.phone || "—"],
+    ["Warranty Address", [d.name, d.address].filter(Boolean).join(" — ") || "—"],
+    ["Licence No", d.licenseNumber || "—"],
+    ["Licence Valid Up To", d.licenseExpiry || "—"],
+    ["NTN", d.ntn || "—"],
+    ["CNIC", d.cnic || "—"],
   ];
   const leftBlock = leftPairs.map(([k, v]) => `
-    <div style="display:flex;gap:10px;font-size:13px;line-height:1.7;">
-      <span style="min-width:120px;color:#475569;font-weight:600;">${escapeHtml(k)}</span>
-      <span style="color:#0f172a;">${escapeHtml(v || "—")}</span>
-    </div>`).join("");
+    <tr>
+      <td style="padding:3pt 8pt 3pt 0;color:#475569;font-weight:600;font-size:9.5pt;white-space:nowrap;vertical-align:top;">${escapeHtml(k)}</td>
+      <td style="padding:3pt 0;color:#0f172a;font-size:9.5pt;word-break:break-word;">${escapeHtml(v)}</td>
+    </tr>`).join("");
 
-  // Right "Warranty Address" block — distributor
-  const distLicense = d.licenseNumber ? `Licence No: ${d.licenseNumber}${d.licenseExpiry ? ` &nbsp; Valid up to: ${d.licenseExpiry}` : ""}` : "";
-  const rightBlock = `
-    <div style="font-size:13px;line-height:1.65;color:#0f172a;">
-      <div style="font-weight:700;color:#475569;text-transform:uppercase;font-size:11.5px;letter-spacing:0.12em;margin-bottom:6px;">Warranty Address</div>
-      <div style="font-weight:700;font-size:14.5px;">${escapeHtml(d.name || "—")}</div>
-      ${d.address ? `<div style="margin-top:2px;">${escapeHtml(d.address)}</div>` : ""}
-      ${distLicense ? `<div style="margin-top:4px;color:#475569;">${distLicense}</div>` : ""}
-    </div>`;
-
-  // Right-top meta (Inv, Date, etc.)
-  const metaRows: [string, string][] = [
-    ["Inv No.", opts.invoiceNumber],
+  const rightPairs: [string, string][] = [
+    ["Warranty Note No.", opts.invoiceNumber],
     ["Date", opts.date],
     ["Due Date", opts.dueDate || opts.date],
   ];
-  if (opts.createdBy) metaRows.push(["Created By", opts.createdBy]);
-  const metaBlock = metaRows.map(([k, v]) => `
+  if (opts.createdBy) rightPairs.push(["Created By", opts.createdBy]);
+  const rightBlock = rightPairs.map(([k, v]) => `
     <tr>
-      <td style="padding:3px 8px 3px 0;color:#475569;font-weight:600;font-size:13px;">${escapeHtml(k)}</td>
-      <td style="padding:3px 0;color:#0f172a;font-size:13px;">${escapeHtml(v)}</td>
+      <td style="padding:3pt 8pt 3pt 0;color:#475569;font-weight:600;font-size:9.5pt;white-space:nowrap;vertical-align:top;">${escapeHtml(k)}</td>
+      <td style="padding:3pt 0;color:#0f172a;font-size:9.5pt;font-weight:600;word-break:break-word;">${escapeHtml(v)}</td>
     </tr>`).join("");
 
-  // Items table — exact columns from sample
-  const tableHeaders = ["SrNo", "Product Name", "Product Description", "Quantity", "Rate", "Batch No.", "Batch Expiry", "Discount", "Amount", "MRP Inc. Tax"];
-  const aligns = ["center", "left", "left", "center", "right", "center", "center", "right", "right", "right"];
-  const headerCells = tableHeaders.map((h, i) => `<th style="background:#0f172a;color:#fff;padding:9px 8px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;text-align:${aligns[i]};border:1px solid #0f172a;">${escapeHtml(h)}</th>`).join("");
+  const cols = [
+    { h: "Sr",           w: "7%",  a: "center" },
+    { h: "Product Name", w: "18%", a: "left"   },
+    { h: "Description",  w: "22%", a: "left"   },
+    { h: "Qty",          w: "8%",  a: "center" },
+    { h: "Rate",         w: "8%",  a: "right"  },
+    { h: "Batch No.",    w: "9%",  a: "center" },
+    { h: "Batch Expiry", w: "9%",  a: "center" },
+    { h: "Disc.",        w: "7%",  a: "right"  },
+    { h: "Amount",       w: "8%",  a: "right"  },
+    { h: "MRP Inc. Tax", w: "8%",  a: "right"  },
+  ];
+  const colgroup = `<colgroup>${cols.map(c => `<col style="width:${c.w};" />`).join("")}</colgroup>`;
+  const headerCells = cols.map(c =>
+    `<th style="background:#0f172a;color:#fff;padding:7pt 5pt;font-size:9pt;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;text-align:${c.a};border:0.5pt solid #0f172a;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.h)}</th>`
+  ).join("");
 
   const rows = opts.items.map((it, idx) => {
     const desc = it.product_description && it.product_description !== it.product_name ? it.product_description : it.product_name;
     const mrp = Number(it.mrp || 0);
+    const wrap = "word-break:break-word;white-space:normal;";
+    const num = "font-variant-numeric:tabular-nums;font-family:'JetBrains Mono','Courier New',monospace;";
     const cells = [
-      String(idx + 1),
-      it.product_name || "",
-      desc || "",
-      String(it.quantity ?? ""),
-      fmtMoney(Number(it.tp_rate || 0)),
-      it.batch_number || "",
-      fmtExpiryMMYY(it.expiry_date),
-      fmtMoney(Number(it.discount || 0)),
-      fmtMoney(Number(it.amount || 0)),
-      mrp > 0 ? fmtMoney(mrp) : "—",
+      { v: String(idx + 1), s: num },
+      { v: it.product_name || "", s: `font-weight:600;${wrap}` },
+      { v: desc || "", s: wrap },
+      { v: String(it.quantity ?? ""), s: num },
+      { v: fmtMoney(Number(it.tp_rate || 0)), s: num },
+      { v: it.batch_number || "", s: num + wrap },
+      { v: fmtExpiryMMYY(it.expiry_date), s: num },
+      { v: fmtMoney(Number(it.discount || 0)), s: num },
+      { v: fmtMoney(Number(it.amount || 0)), s: num + "font-weight:600;" },
+      { v: mrp > 0 ? fmtMoney(mrp) : "—", s: num },
     ];
-    return `<tr>${cells.map((c, i) => `<td style="padding:8px 8px;font-size:12.5px;color:#0f172a;text-align:${aligns[i]};border:1px solid #cbd5e1;font-variant-numeric:tabular-nums;${i === 1 || i === 2 ? "font-weight:600;" : ""}">${escapeHtml(String(c))}</td>`).join("")}</tr>`;
+    return `<tr>${cells.map((c, i) =>
+      `<td style="padding:6pt 5pt;font-size:9pt;color:#0f172a;text-align:${cols[i].a};border:0.5pt solid #cbd5e1;${c.s}">${escapeHtml(String(c.v))}</td>`
+    ).join("")}</tr>`;
   }).join("");
 
   const totalWords = numberToWords(opts.total);
 
-  // ── Warranty Declaration — HARDCODED text, rendered verbatim ──
   const declarationEnabled = s?.warranty_declaration_enabled !== false;
-  const declarationBlocks = WARRANTY_NOTE_TEXT
+  const declarationSource = (s?.warranty_note_text && s.warranty_note_text.trim()) || WARRANTY_NOTE_TEXT;
+  const declarationBlocks = declarationSource
     .split(/\n{2,}/)
     .map(p => p.trim())
     .filter(Boolean);
   const declarationInner = declarationBlocks.map(block => {
     const m = block.match(/^(\d+)\.\s+([\s\S]+)$/);
     if (m) {
-      return `<div style="display:flex;gap:10px;margin:6px 0;">
-        <span style="font-weight:700;min-width:18px;">${m[1]}.</span>
+      return `<div style="display:flex;gap:8pt;margin:4pt 0;text-align:justify;">
+        <span style="font-weight:700;min-width:14pt;flex-shrink:0;">${m[1]}.</span>
         <span style="flex:1;">${escapeHtml(m[2])}</span>
       </div>`;
     }
-    return `<p style="margin:6px 0;">${escapeHtml(block)}</p>`;
+    return `<p style="margin:5pt 0;text-align:justify;">${escapeHtml(block)}</p>`;
   }).join("");
-  const declarationHtml = declarationEnabled
-    ? `<div style="margin-top:18px;padding-top:12px;border-top:1px solid #cbd5e1;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;color:#475569;margin-bottom:8px;">Warranty Declaration</div>
-        <div style="font-size:12.5px;line-height:1.7;color:#0f172a;text-align:justify;font-family:'Inter',sans-serif;">${declarationInner}</div>
-      </div>`
-    : "";
+  const declarationHtml = declarationEnabled ? `
+    <section class="no-break" data-pdf-section="declaration" style="margin-top:10pt;padding:8pt 10pt;border:0.5pt solid #cbd5e1;border-left:2pt solid #0f172a;">
+      <div style="font-size:8.5pt;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:#475569;margin-bottom:5pt;">Warranty Declaration</div>
+      <div style="font-size:9.5pt;line-height:1.5;color:#0f172a;font-family:'Inter',sans-serif;">${declarationInner}</div>
+    </section>` : "";
 
-
-  // ── Signature + Stamp block (no sales-rep linkage) ──
   const signatureHtml = `
-    <div style="margin-top:32px;display:grid;grid-template-columns:1fr 1fr;gap:48px;">
-      <div style="text-align:center;">
-        <div style="height:80px;"></div>
-        <div style="border-top:1px solid #0f172a;margin-top:6px;padding-top:6px;font-size:12px;font-weight:700;color:#0f172a;">Sales Rep</div>
-      </div>
-      <div style="text-align:center;">
-        <div style="height:60px;"></div>
-        <div style="border-top:1px solid #0f172a;margin-top:6px;padding-top:6px;font-size:12px;font-weight:700;color:#0f172a;">Prepared By</div>
-      </div>
-    </div>`;
-
+    <section class="no-break" data-pdf-section="signatures" style="margin-top:18pt;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="width:50%;padding-right:16pt;vertical-align:bottom;">
+            <div style="height:36pt;"></div>
+            <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-align:center;text-transform:uppercase;letter-spacing:0.08em;">Prepared By</div>
+          </td>
+          <td style="width:50%;padding-left:16pt;vertical-align:bottom;">
+            <div style="height:36pt;"></div>
+            <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-align:center;text-transform:uppercase;letter-spacing:0.08em;">Stamp / Authorised Signature</div>
+          </td>
+        </tr>
+      </table>
+    </section>`;
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Warranty Note — ${escapeHtml(opts.invoiceNumber)}</title>
 <style>
-  @page { size: A4; margin: 0; }
+  @page { size: A4 portrait; margin: 10mm; }
   * { box-sizing: border-box; }
-  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color:#0f172a; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  html, body { margin:0; padding:0; background:#fff; color:#0f172a;
+    font-family:'Inter','Segoe UI',sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    -webkit-font-smoothing:antialiased;
+  }
+  .warranty-document {
+    width: 190mm;
+    max-width: 190mm;
+    margin: 0 auto;
+    padding: 0;
+    overflow: visible;
+    box-sizing: border-box;
+  }
   table { border-collapse: collapse; }
-  .page { padding: 12mm 10mm; }
-</style></head><body><div class="page">
-  <!-- HEADER: logo + company (left) | meta (right) -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;">
-    <div style="display:flex;gap:16px;align-items:flex-start;flex:1;min-width:0;">
-      ${logo}
-      <div>
-        <div style="font-size:24px;font-weight:800;letter-spacing:-0.3px;color:#0f172a;">${escapeHtml(company)}</div>
-        ${companyLines.map(l => `<div style="font-size:13px;color:#475569;line-height:1.55;margin-top:2px;">${escapeHtml(l)}</div>`).join("")}
-      </div>
-    </div>
-    <table style="font-size:13px;">${metaBlock}</table>
-  </div>
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    page-break-inside: auto;
+  }
+  .items-table tr { page-break-inside: avoid; page-break-after: auto; }
+  .items-table thead { display: table-header-group; }
+  .items-table tfoot { display: table-footer-group; }
+  .no-break { page-break-inside: avoid; }
+  @media print {
+    html, body { width: 210mm; margin:0; padding:0; overflow:visible; }
+    .warranty-document { width: 190mm; max-width: 190mm; margin:0 auto; }
+  }
+</style></head><body><div class="warranty-document">
 
-  <!-- TITLE -->
-  <div style="text-align:center;margin:18px 0 14px;padding:10px 0;border-top:2px solid #0f172a;border-bottom:2px solid #0f172a;">
-    <div style="font-size:22px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;">Warranty Note</div>
-  </div>
-
-  <!-- PARTY BLOCKS -->
-  <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:24px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:4px;background:#fff;margin-bottom:12px;">
-    <div>${leftBlock}</div>
-    <div style="border-left:1px solid #e2e8f0;padding-left:18px;">${rightBlock}</div>
-  </div>
-
-  <!-- ITEMS -->
-  <table style="width:100%;margin-top:6px;">
-    <thead><tr>${headerCells}</tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
-
-  <!-- TOTAL -->
-  <div style="margin-top:12px;display:flex;justify-content:flex-end;">
-    <table>
-      ${opts.discountAmount && opts.discountAmount > 0 ? `
+  <section data-pdf-section="header" class="no-break">
+    <table style="width:100%;border-collapse:collapse;">
       <tr>
-        <td style="padding:4px 16px 4px 0;font-size:13px;color:#475569;text-align:right;">${escapeHtml(opts.discountLabel || "Discount")}:</td>
-        <td style="padding:4px 0;font-size:14px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums;">- Rs. ${fmtMoney(opts.discountAmount)}</td>
-      </tr>` : ""}
-      <tr>
-        <td style="padding:8px 16px 8px 0;font-size:15px;font-weight:700;text-align:right;color:#0f172a;border-top:2px solid #0f172a;">Total:</td>
-        <td style="padding:8px 0;font-size:20px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;border-top:2px solid #0f172a;">Rs. ${fmtMoney(opts.total)}</td>
+        <td style="width:35%;vertical-align:top;">${logo}</td>
+        <td style="width:65%;vertical-align:top;text-align:right;">
+          <div style="font-size:18pt;font-weight:800;letter-spacing:-0.3px;color:#0f172a;line-height:1.15;">${escapeHtml(company)}</div>
+          ${companyLines.map(l => `<div style="font-size:9pt;color:#475569;line-height:1.5;margin-top:1pt;">${escapeHtml(l)}</div>`).join("")}
+        </td>
       </tr>
     </table>
-  </div>
+  </section>
 
-  <!-- WORDS -->
-  <div style="margin-top:10px;font-size:12.5px;line-height:1.7;">
-    <div><span style="color:#475569;font-weight:600;">Total in Words:</span> <span>${escapeHtml(totalWords)}.</span></div>
-    <div><span style="color:#475569;font-weight:600;">Inv Balance in Words:</span> <span>${escapeHtml(totalWords)}.</span></div>
-  </div>
+  <section data-pdf-section="title" class="no-break" style="margin:10pt 0 8pt;padding:6pt 0;border-top:1.5pt solid #0f172a;border-bottom:1.5pt solid #0f172a;text-align:center;">
+    <div style="font-size:18pt;font-weight:800;letter-spacing:1.4pt;text-transform:uppercase;color:#0f172a;">Warranty Note</div>
+  </section>
+
+  <section data-pdf-section="details" class="no-break" style="margin-bottom:8pt;">
+    <table style="width:100%;border-collapse:collapse;border:0.5pt solid #cbd5e1;">
+      <tr>
+        <td style="width:60%;padding:8pt 10pt;vertical-align:top;border-right:0.5pt solid #cbd5e1;">
+          <table style="width:100%;border-collapse:collapse;">${leftBlock}</table>
+        </td>
+        <td style="width:40%;padding:8pt 10pt;vertical-align:top;background:#f8fafc;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+          <table style="width:100%;border-collapse:collapse;">${rightBlock}</table>
+        </td>
+      </tr>
+    </table>
+  </section>
+
+  <section data-pdf-section="products">
+    <table class="items-table">
+      ${colgroup}
+      <thead><tr>${headerCells}</tr></thead>
+      <tbody>${rows || `<tr><td colspan="${cols.length}" style="padding:12pt;text-align:center;color:#94a3b8;font-style:italic;font-size:9pt;border:0.5pt solid #cbd5e1;">No items</td></tr>`}</tbody>
+    </table>
+  </section>
+
+  <section data-pdf-section="totals" class="no-break" style="margin-top:8pt;display:flex;justify-content:flex-end;">
+    <table style="border-collapse:collapse;min-width:200pt;">
+      ${opts.discountAmount && opts.discountAmount > 0 ? `
+      <tr>
+        <td style="padding:3pt 14pt 3pt 0;font-size:9.5pt;color:#475569;text-align:right;">${escapeHtml(opts.discountLabel || "Discount")}:</td>
+        <td style="padding:3pt 0;font-size:10pt;font-weight:600;text-align:right;font-variant-numeric:tabular-nums;font-family:'JetBrains Mono',monospace;">- Rs. ${fmtMoney(opts.discountAmount)}</td>
+      </tr>` : ""}
+      <tr>
+        <td style="padding:6pt 14pt 6pt 0;font-size:11pt;font-weight:700;text-align:right;color:#0f172a;border-top:1.5pt solid #0f172a;">Total:</td>
+        <td style="padding:6pt 0;font-size:13pt;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;font-family:'JetBrains Mono',monospace;border-top:1.5pt solid #0f172a;">Rs. ${fmtMoney(opts.total)}</td>
+      </tr>
+    </table>
+  </section>
 
   ${declarationHtml}
 
+  <section data-pdf-section="words" class="no-break" style="margin-top:8pt;font-size:9pt;line-height:1.55;">
+    <div><span style="color:#475569;font-weight:600;">Total in Words:</span> <span style="color:#0f172a;">${escapeHtml(totalWords)}.</span></div>
+    <div style="margin-top:2pt;"><span style="color:#475569;font-weight:600;">Invoice Balance in Words:</span> <span style="color:#0f172a;">${escapeHtml(totalWords)}.</span></div>
+  </section>
+
   ${signatureHtml}
+
+  <section data-pdf-section="footer" class="no-break" style="margin-top:14pt;padding-top:6pt;border-top:0.5pt solid #cbd5e1;text-align:center;">
+    <div style="font-size:8pt;color:#94a3b8;font-style:italic;">This is a system generated document and does not require any signatures.</div>
+  </section>
+
 </div></body></html>`;
 }
 

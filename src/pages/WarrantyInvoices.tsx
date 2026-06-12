@@ -116,11 +116,35 @@ export default function WarrantyInvoices() {
   };
 
 
+  const validateForPdf = async (inv: WarrantyInvoice): Promise<string[]> => {
+    const errs: string[] = [];
+    const s = settings as any;
+    if (!s) return errs;
+    let dist: Distributor | null = null;
+    if (inv.distributor_id) {
+      const { data } = await supabase.from("customer_distributors").select("*").eq("id", inv.distributor_id).single() as { data: Distributor | null };
+      dist = data;
+    }
+    if (s.warranty_require_mobile !== false && !dist?.phone) errs.push("Warranty Address mobile is missing");
+    if (s.warranty_require_address !== false && !dist?.address && !inv.pharmacy_address) errs.push("Warranty Address is missing");
+    if (s.warranty_require_license_no !== false && !dist?.license_number && !inv.pharmacy_license_no) errs.push("Distributor licence number is missing");
+    if (s.warranty_require_license_expiry !== false && !dist?.license_expiry) errs.push("Distributor licence expiry is missing");
+    const items = Array.isArray(inv.items) ? inv.items as any[] : [];
+    if (s.warranty_require_batch_number !== false && items.some(i => !i.batch_number)) errs.push("One or more items are missing a Batch Number");
+    if (s.warranty_require_batch_expiry !== false && items.some(i => !i.expiry_date)) errs.push("One or more items are missing a Batch Expiry");
+    return errs;
+  };
+
   const openPdf = async (inv: WarrantyInvoice) => {
+    const errs = await validateForPdf(inv);
+    if (errs.length) {
+      toast.error("Cannot download Warranty Note", { description: errs.join(" · ") });
+      return;
+    }
     const opts = await buildWarrantyOpts(inv);
     setPdfOpts(opts);
     setPdfHtml(generateWarrantyNoteHtml(opts));
-    setPdfTitle(`Warranty Note — ${inv.warranty_number}`);
+    setPdfTitle(`Warranty-Note-${inv.warranty_number}-${(inv.customers?.name || inv.pharmacy_name || "Customer").replace(/[^a-z0-9-_]+/gi, "-")}`);
     setPdfOpen(true);
   };
 
@@ -693,19 +717,19 @@ export default function WarrantyInvoices() {
  </div>
  <ShieldCheck className="h-6 w-6 opacity-90" />
  </div>
- {/* Stats */}
+ {/* Stats — non-financial only */}
  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
  <div className="p-4 rounded-xl border border-border bg-card">
  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Issued</p>
  <p className="text-2xl font-bold font-heading text-primary mt-1">{issuedCount}</p>
  </div>
- <div className="p-4 rounded-xl border border-border bg-primary">
- <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Total Invoices</p>
+ <div className="p-4 rounded-xl border border-border bg-card">
+ <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Total Notes</p>
  <p className="text-2xl font-bold font-heading text-primary mt-1">{invoices.length}</p>
  </div>
  <div className="p-4 rounded-xl border border-border bg-card">
- <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Total Value</p>
- <p className="text-2xl font-bold font-heading text-success mt-1">PKR {totalValue.toLocaleString()}</p>
+ <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Draft</p>
+ <p className="text-2xl font-bold font-heading text-amber-600 mt-1">{invoices.filter(i => i.status === "draft").length}</p>
  </div>
  </div>
 
@@ -732,16 +756,17 @@ export default function WarrantyInvoices() {
  <Table>
  <TableHeader>
  <TableRow>
- <TableHead>WI #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead>
- <TableHead>Pharmacy</TableHead><TableHead className="text-right">Total</TableHead>
+ <TableHead>Warranty Note #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead>
+ <TableHead>Warranty Address</TableHead><TableHead className="text-center">Products</TableHead>
+ <TableHead className="text-center">Status</TableHead>
  <TableHead className="text-center">Actions</TableHead>
  </TableRow>
  </TableHeader>
  <TableBody>
  {filtered.length === 0 ? (
  <TableRow>
- <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
- <ShieldCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No warranty invoices yet.
+ <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+ <ShieldCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No warranty notes yet.
  </TableCell>
  </TableRow>
  ) : filtered.map(inv => (
@@ -750,7 +775,8 @@ export default function WarrantyInvoices() {
  <TableCell>{inv.date}</TableCell>
  <TableCell>{inv.customers?.name || "—"}</TableCell>
  <TableCell>{inv.pharmacy_name}</TableCell>
- <TableCell className="text-right font-mono">{Number(inv.total).toLocaleString()}</TableCell>
+ <TableCell className="text-center font-mono tabular-nums">{Array.isArray(inv.items) ? inv.items.length : 0}</TableCell>
+ <TableCell className="text-center"><Badge variant="outline" className="capitalize">{inv.status}</Badge></TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                               <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => openPdf(inv)}>
