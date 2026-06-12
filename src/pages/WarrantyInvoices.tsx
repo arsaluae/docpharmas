@@ -293,6 +293,7 @@ export default function WarrantyInvoices() {
  setSelectedCustomerId("");
  setSelectedInvoiceId("");
  setSelectedDistributorId("");
+ setSelectedSalesRepId("");
  setItems([]);
  setDiscountType("percent");
  setDiscountValue(0);
@@ -323,6 +324,7 @@ export default function WarrantyInvoices() {
  pharmacy_address: dist?.address || null,
  pharmacy_license_no: dist?.license_number || null,
  distributor_id: selectedDistributorId || null,
+ sales_agent_id: selectedSalesRepId || null,
  items: items as any,
  subtotal,
  discount_percent: discountType === "percent" ? discountValue : 0,
@@ -335,7 +337,7 @@ export default function WarrantyInvoices() {
 
  if (editId) {
  const { warranty_number, ...updatePayload } = payload;
- await supabase.from("warranty_invoices").update(updatePayload).eq("id", editId);
+ await supabase.from("warranty_invoices").update(updatePayload as any).eq("id", editId);
  toast.success("Warranty invoice updated");
  } else {
  await supabase.from("warranty_invoices").insert(payload as any);
@@ -349,6 +351,7 @@ export default function WarrantyInvoices() {
  setSelectedCustomerId(inv.customer_id || "");
  setSelectedInvoiceId(inv.source_invoice_id || "");
  setSelectedDistributorId(inv.distributor_id || "");
+ setSelectedSalesRepId(inv.sales_agent_id || "");
  setItems(Array.isArray(inv.items) ? inv.items as any : []);
  setDiscountType(inv.discount_percent > 0 ? "percent" : "amount");
  setDiscountValue(inv.discount_percent > 0 ? inv.discount_percent : inv.discount_amount);
@@ -357,6 +360,7 @@ export default function WarrantyInvoices() {
  setStep("edit_items");
  setOpen(true);
  };
+
 
  const handleDelete = async (id: string, e: React.MouseEvent) => {
  e.stopPropagation();
