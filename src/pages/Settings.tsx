@@ -885,10 +885,12 @@ function TeamAccessCard() {
       setMembers((emailData.users as any[]).map(u => ({
         user_id: u.user_id, role: u.role, is_active: u.is_active,
         created_at: u.created_at, email: u.email ?? undefined,
+        last_sign_in_at: u.last_sign_in_at ?? null,
       })));
       setLoading(false);
       return;
     }
+
   } catch { /* fall through */ }
 
   // Fallback (non-owner): direct query, RLS limits to own row
