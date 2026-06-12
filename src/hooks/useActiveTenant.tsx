@@ -26,7 +26,7 @@ export function useActiveTenant() {
 
   const refresh = useCallback(async () => {
     const { data } = await supabase.rpc("sandbox_session_info");
-    const i = (data as SandboxInfo) ?? { exists: false, can_use: false, prod_tenant_id: null };
+    const i = ((data as unknown) as SandboxInfo) ?? { exists: false, can_use: false, prod_tenant_id: null };
     setInfo(i);
     // Honour persisted choice — but only if it still corresponds to a real sandbox.
     const stored = localStorage.getItem(STORAGE_KEY);
