@@ -89,9 +89,10 @@ export default function Settings() {
  logo_url: "", fbr_enabled: false, ntn: "", strn: "",
  gst_enabled: false, default_gst_rate: "17", wht_enabled: false, default_wht_rate: "4.5",
  whatsapp_number: "",
- show_customer_mobile_on_docs: false, show_customer_phone_on_docs: false,
- show_supplier_mobile_on_docs: false, show_supplier_phone_on_docs: false,
- });
+    show_customer_mobile_on_docs: false, show_customer_phone_on_docs: false,
+    show_supplier_mobile_on_docs: false, show_supplier_phone_on_docs: false,
+    warranty_note_text: "",
+  });
 
  const { templates, loading: templatesLoading, updateTemplate } = useDocumentTemplates();
 
