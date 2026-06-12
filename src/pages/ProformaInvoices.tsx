@@ -1156,8 +1156,11 @@ export default function ProformaInvoices() {
               <div className="xl:col-span-2">
                 <Label className="text-[14px] font-medium text-foreground">Customer <span className="text-destructive">*</span></Label>
                 <div className="mt-1.5">
-                  <SearchableSelect options={customerOptions} value={customerId} onChange={setCustomerId} placeholder="Search by name, company, city…" searchPlaceholder="Search customers…" triggerClassName="h-11 text-[15px]" />
+                  <SearchableSelect options={customerOptions} value={customerId} onChange={setCustomerId} placeholder={loading ? "Loading customers…" : (customers.length === 0 ? "No customers available" : "Search by name, company, city…")} searchPlaceholder="Search customers…" emptyMessage={loading ? "Loading…" : "No customers assigned to you. Ask your admin to assign customers in Settings → Sales Agent Scope."} triggerClassName="h-11 text-[15px]" />
                 </div>
+                {!loading && customers.length === 0 && (
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">No customers visible. If you're a sales agent, ask your admin to assign customers (Settings → Sales Agent Scope).</p>
+                )}
               </div>
               <div>
                 <Label className="text-[14px] font-medium text-foreground">Sales Agent</Label>
