@@ -917,13 +917,20 @@ export default function ProformaInvoices() {
 
   if (invErr || !inv) { toast.error("Failed to create invoice: " + (invErr?.message || "Unknown error")); setSubmitting(false); return; }
   logAudit({ action: "invoice_generated", entity_type: "sales_invoice", entity_id: inv.id, entity_number: invNumber, changes: { from_order: submitOrder.proforma_number, total: submitOrder.total } });
- const lineItems = submitItems.map((i: any) => ({
- invoice_id: inv.id, product_id: i.product_id || null,
- quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
- amount: i.amount,
- batch_number: i.batch_number || null,
- expiry_date: i.product_id && i.batch_number ? expiryFor(i.product_id, i.batch_number) : null,
- }));
+ const lineItems = submitItems.map((i: any) => {
+   const prod = products.find(p => p.id === i.product_id) as any;
+   return {
+     invoice_id: inv.id, product_id: i.product_id || null,
+     quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
+     amount: i.amount,
+     batch_number: i.batch_number || null,
+     expiry_date: i.product_id && i.batch_number ? expiryFor(i.product_id, i.batch_number) : null,
+     // Historical snapshot — survives later edits to product master
+     product_name: i.product_name || prod?.name || null,
+     product_code: prod?.product_code || null,
+     mrp: prod?.mrp ?? null,
+   };
+ });
  const { error: itemsErr } = await supabase.from("sales_invoice_items").insert(lineItems);
  if (itemsErr) {
  // Rollback: remove the orphan invoice header so no data is left in an inconsistent state
