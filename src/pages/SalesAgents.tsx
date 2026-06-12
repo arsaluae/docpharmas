@@ -24,6 +24,7 @@ interface SalesAgent {
   father_name: string | null; cnic: string | null;
   license_number: string | null; license_expiry: string | null;
   signature_url: string | null; stamp_url: string | null;
+  gender: string | null;
 }
 interface AgentCustomer { id: string; agent_id: string; customer_id: string; }
 interface Customer { id: string; name: string; company: string | null; }
@@ -57,6 +58,7 @@ export default function SalesAgents() {
   const [licenseExpiry, setLicenseExpiry] = useState("");
   const [signatureUrl, setSignatureUrl] = useState("");
   const [stampUrl, setStampUrl] = useState("");
+  const [gender, setGender] = useState<string>("");
   const [uploadBusy, setUploadBusy] = useState(false);
   const { tenantId } = useTenant();
 
@@ -123,6 +125,7 @@ export default function SalesAgents() {
       license_expiry: licenseExpiry || null,
       signature_url: signatureUrl || null,
       stamp_url: stampUrl || null,
+      gender: gender || null,
     };
     if (editId) {
       const { error } = await supabase.from("sales_agents").update(payload).eq("id", editId);
@@ -144,6 +147,7 @@ export default function SalesAgents() {
     setFatherName(a.father_name || ""); setCnic(a.cnic || "");
     setLicenseNumber(a.license_number || ""); setLicenseExpiry(a.license_expiry || "");
     setSignatureUrl(a.signature_url || ""); setStampUrl(a.stamp_url || "");
+    setGender((a as any).gender || "");
     setAgentOpen(true);
   };
 
@@ -160,6 +164,7 @@ export default function SalesAgents() {
     setLinkedUserId("");
     setFatherName(""); setCnic(""); setLicenseNumber(""); setLicenseExpiry("");
     setSignatureUrl(""); setStampUrl("");
+    setGender("");
   };
 
   const uploadAgentAsset = async (file: File, kind: "signature" | "stamp"): Promise<string | null> => {
@@ -345,9 +350,19 @@ export default function SalesAgents() {
               <p className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground mb-2">Warranty Declaration Details</p>
             </div>
             <div><Label>CNIC</Label><Input value={cnic} onChange={e => setCnic(e.target.value)} placeholder="35202-1234567-1" /></div>
+            <div>
+              <Label>Gender (for S/O · D/O on certificate)</Label>
+              <Select value={gender || "unset"} onValueChange={(v) => setGender(v === "unset" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="— Defaults to S/O —" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unset">— Defaults to S/O —</SelectItem>
+                  <SelectItem value="male">Male (S/O)</SelectItem>
+                  <SelectItem value="female">Female (D/O)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>Agent License Number</Label><Input value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} placeholder="PUN-DSL-12345" /></div>
             <div><Label>Agent License Expiry</Label><Input type="date" value={licenseExpiry} onChange={e => setLicenseExpiry(e.target.value)} /></div>
-            <div />
             <div>
               <Label>Signature Image</Label>
               <Input type="file" accept="image/*" disabled={uploadBusy} onChange={async (e) => {

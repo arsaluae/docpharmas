@@ -35,6 +35,7 @@ interface SalesRep {
  father_name: string | null; cnic: string | null;
  license_number: string | null; license_expiry: string | null;
  signature_url: string | null; stamp_url: string | null;
+ gender: string | null;
 }
 
 interface LineItem {
@@ -88,7 +89,7 @@ export default function WarrantyInvoices() {
     }
     let rep: SalesRep | null = null;
     if (inv.sales_agent_id) {
-      const { data } = await supabase.from("sales_agents").select("id, name, father_name, cnic, license_number, license_expiry, signature_url, stamp_url").eq("id", inv.sales_agent_id).single() as { data: SalesRep | null };
+      const { data } = await supabase.from("sales_agents").select("id, name, father_name, cnic, license_number, license_expiry, signature_url, stamp_url, gender").eq("id", inv.sales_agent_id).single() as { data: SalesRep | null };
       rep = data;
     }
     const items = Array.isArray(inv.items) ? inv.items as any[] : [];
@@ -127,7 +128,8 @@ export default function WarrantyInvoices() {
         licenseExpiry: rep.license_expiry ? fmtDate(rep.license_expiry) : null,
         signatureUrl: rep.signature_url,
         stampUrl: rep.stamp_url,
-      } : null,
+        gender: rep.gender,
+      } as any : null,
       settings,
     };
   };
@@ -195,7 +197,7 @@ export default function WarrantyInvoices() {
  supabase.from("warranty_invoices").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to),
  supabase.from("customers").select("id, name, company").eq("is_active", true).order("name"),
  supabase.from("products").select("id, name, selling_price, mrp").eq("is_active", true).order("name"),
- supabase.from("sales_agents").select("id, name, father_name, cnic, license_number, license_expiry, signature_url, stamp_url").eq("status", "active").order("name"),
+ supabase.from("sales_agents").select("id, name, father_name, cnic, license_number, license_expiry, signature_url, stamp_url, gender").eq("status", "active").order("name"),
  ]);
  if (inv.data) setInvoices(inv.data as any);
  if (inv.count !== null && inv.count !== undefined) pagination.setTotalCount(inv.count);

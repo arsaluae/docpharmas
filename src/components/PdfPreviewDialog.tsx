@@ -1,8 +1,10 @@
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, X } from "lucide-react";
+import { Download, Printer, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+// html2pdf.js ships without bundled types
+import html2pdf from "html2pdf.js";
 
 export interface PdfView {
   key: string;
@@ -49,6 +51,49 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
       win.document.close();
       win.onload = () => { win.print(); };
       setTimeout(() => { try { win.print(); } catch(e) {} }, 600);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    // Build a detached container so html2pdf can rasterise the document at A4.
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-10000px";
+    container.style.top = "0";
+    container.style.width = "210mm";
+    container.style.background = "#fff";
+    // Strip the screen toolbar/page-frame shadow; html2pdf paginates the body.
+    const cleanedHtml = activeHtml
+      .replace(/<div class="toolbar">[\s\S]*?<\/div>\s*(?=\s*<div class="page-frame")/, "")
+      .replace(/<\/head>/, `<style>
+        body { margin:0 !important; padding:0 !important; background:#fff !important; }
+        .page-frame, .page { box-shadow:none !important; border:none !important; margin:0 !important; }
+        .page-frame::before, .corner { display:none !important; }
+      </style></head>`);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(cleanedHtml, "text/html");
+    container.innerHTML = doc.body.innerHTML;
+    // Carry over inline <style> blocks from <head> so layout/colours render.
+    doc.head.querySelectorAll("style").forEach((s) => {
+      const clone = document.createElement("style");
+      clone.textContent = s.textContent || "";
+      container.appendChild(clone);
+    });
+    document.body.appendChild(container);
+    const filename = `${(title || "Document").replace(/[^a-z0-9\-_.]+/gi, "-")}.pdf`;
+    try {
+      await html2pdf()
+        .set({
+          margin: 0,
+          filename,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        } as any)
+        .from(container)
+        .save();
+    } finally {
+      container.remove();
     }
   };
 
@@ -106,7 +151,10 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
           )}
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handlePrint}>
-              <Download className="h-3.5 w-3.5" /> Download / Print
+              <Printer className="h-3.5 w-3.5" /> Print
+            </Button>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={handleDownloadPdf}>
+              <Download className="h-3.5 w-3.5" /> Save as PDF
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" />

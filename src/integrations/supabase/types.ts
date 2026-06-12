@@ -4068,6 +4068,7 @@ export type Database = {
           created_at: string
           email: string | null
           father_name: string | null
+          gender: string | null
           id: string
           is_active: boolean
           license_expiry: string | null
@@ -4088,6 +4089,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           father_name?: string | null
+          gender?: string | null
           id?: string
           is_active?: boolean
           license_expiry?: string | null
@@ -4108,6 +4110,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           father_name?: string | null
+          gender?: string | null
           id?: string
           is_active?: boolean
           license_expiry?: string | null
