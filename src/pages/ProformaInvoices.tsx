@@ -1114,13 +1114,10 @@ export default function ProformaInvoices() {
         <DialogTitle className="font-heading text-[24px] leading-tight">Create Sales Order</DialogTitle>
         <p className="text-[13px] text-muted-foreground mt-0.5">Pharma distribution · Number auto-assigned on save · <kbd className="px-1.5 py-0.5 rounded border border-border text-[11px] font-mono">Alt + N</kbd> add line</p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 pr-8">
         {customerDetail && customerDetail.credit_limit > 0 && (customerDetail.balance + total) > customerDetail.credit_limit && (
           <Badge variant="destructive" className="text-[11px]">Credit limit exceeded</Badge>
         )}
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={requestCloseComposer} aria-label="Close">
-          <X className="h-4 w-4" />
-        </Button>
       </div>
     </DialogHeader>
 
@@ -1159,8 +1156,11 @@ export default function ProformaInvoices() {
               <div className="xl:col-span-2">
                 <Label className="text-[14px] font-medium text-foreground">Customer <span className="text-destructive">*</span></Label>
                 <div className="mt-1.5">
-                  <SearchableSelect options={customerOptions} value={customerId} onChange={setCustomerId} placeholder="Search by name, company, city…" searchPlaceholder="Search customers…" triggerClassName="h-11 text-[15px]" />
+                  <SearchableSelect options={customerOptions} value={customerId} onChange={setCustomerId} placeholder={loading ? "Loading customers…" : (customers.length === 0 ? "No customers available" : "Search by name, company, city…")} searchPlaceholder="Search customers…" emptyMessage={loading ? "Loading…" : "No customers assigned to you. Ask your admin to assign customers in Settings → Sales Agent Scope."} triggerClassName="h-11 text-[15px]" />
                 </div>
+                {!loading && customers.length === 0 && (
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">No customers visible. If you're a sales agent, ask your admin to assign customers (Settings → Sales Agent Scope).</p>
+                )}
               </div>
               <div>
                 <Label className="text-[14px] font-medium text-foreground">Sales Agent</Label>
