@@ -162,6 +162,12 @@ export default function Settings() {
       show_supplier_phone_on_docs: form.show_supplier_phone_on_docs,
        warranty_note_text: form.warranty_note_text || null,
        warranty_declaration_enabled: form.warranty_declaration_enabled,
+       warranty_require_mobile: form.warranty_require_mobile,
+       warranty_require_address: form.warranty_require_address,
+       warranty_require_license_no: form.warranty_require_license_no,
+       warranty_require_license_expiry: form.warranty_require_license_expiry,
+       warranty_require_batch_number: form.warranty_require_batch_number,
+       warranty_require_batch_expiry: form.warranty_require_batch_expiry,
      };
  if (settingsId) {
  await supabase.from("company_settings").update(payload as any).eq("id", settingsId);
