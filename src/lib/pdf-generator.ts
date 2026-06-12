@@ -549,13 +549,51 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   }).join("");
 
   const totalWords = numberToWords(opts.total);
-  const noteParagraph = (opts.noteText || s?.warranty_note_text || "").trim();
-  const noteHtml = noteParagraph
-    ? `<div style="margin-top:18px;border:1px solid #cbd5e1;padding:14px 16px;border-radius:4px;background:#f8fafc;">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#475569;margin-bottom:6px;">Note</div>
-        <div style="font-size:12.5px;line-height:1.7;color:#0f172a;white-space:pre-wrap;">${escapeHtml(noteParagraph)}</div>
+
+  // ── Warranty Declaration (editable via Settings, variables resolved here) ──
+  const declarationEnabled = s?.warranty_declaration_enabled !== false;
+  const rep = opts.salesRep || null;
+  const declarationTemplate = (s?.warranty_note_text && s.warranty_note_text.trim())
+    || opts.noteText
+    || DEFAULT_WARRANTY_DECLARATION;
+  const declarationText = renderDeclaration(declarationTemplate, {
+    company_name:         s?.company_name,
+    sales_rep_name:       rep?.name,
+    father_name:          rep?.fatherName,
+    sales_rep_cnic:       rep?.cnic,
+    agent_license_number: rep?.licenseNumber,
+    agent_license_expiry: rep?.licenseExpiry,
+  });
+  const declarationHtml = declarationEnabled
+    ? `<div style="margin-top:18px;border:1px solid #cbd5e1;padding:16px 18px;border-radius:4px;background:#f8fafc;">
+        <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#475569;margin-bottom:8px;">Warranty Declaration</div>
+        <div style="font-size:12.5px;line-height:1.75;color:#0f172a;white-space:pre-wrap;text-align:justify;">${escapeHtml(declarationText)}</div>
       </div>`
     : "";
+
+  // ── Signature + Stamp block ──
+  const stampImg = rep?.stampUrl
+    ? `<img src="${rep.stampUrl}" alt="Stamp" style="max-height:80px;max-width:160px;object-fit:contain;" />`
+    : `<div style="height:80px;"></div>`;
+  const sigImg = rep?.signatureUrl
+    ? `<img src="${rep.signatureUrl}" alt="Signature" style="max-height:60px;max-width:200px;object-fit:contain;" />`
+    : `<div style="height:60px;"></div>`;
+  const repName = rep?.name || "";
+  const repLicense = rep?.licenseNumber || "";
+
+  const signatureHtml = `
+    <div style="margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:36px;">
+      <div style="text-align:center;">
+        ${stampImg}
+        <div style="border-top:1px solid #0f172a;margin-top:6px;padding-top:6px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#475569;">Company Stamp</div>
+      </div>
+      <div style="text-align:center;">
+        ${sigImg}
+        <div style="border-top:1px solid #0f172a;margin-top:6px;padding-top:6px;font-size:12.5px;font-weight:700;color:#0f172a;">${escapeHtml(repName || "Sales Representative")}</div>
+        ${repLicense ? `<div style="font-size:11px;color:#475569;margin-top:2px;">License: ${escapeHtml(repLicense)}</div>` : ""}
+        <div style="font-size:10.5px;color:#94a3b8;margin-top:2px;text-transform:uppercase;letter-spacing:0.08em;">Authorized Sales Representative</div>
+      </div>
+    </div>`;
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Warranty Note — ${escapeHtml(opts.invoiceNumber)}</title>
 <style>
@@ -615,16 +653,12 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     <div><span style="color:#475569;font-weight:600;">Inv Balance in Words:</span> <span>${escapeHtml(totalWords)}.</span></div>
   </div>
 
-  ${noteHtml}
+  ${declarationHtml}
 
-  <!-- SIGNATURE + FOOTER -->
-  <div style="margin-top:36px;display:flex;justify-content:flex-end;">
-    <div style="text-align:center;min-width:240px;">
-      <div style="border-top:1px solid #0f172a;padding-top:6px;font-size:12.5px;font-weight:600;">Sales Rep / Prepared By</div>
-    </div>
-  </div>
-  <div style="margin-top:24px;text-align:center;font-size:11px;color:#94a3b8;font-style:italic;">
-    This is a system generated invoice and does not require any signatures.
+  ${signatureHtml}
+
+  <div style="margin-top:18px;text-align:center;font-size:10.5px;color:#94a3b8;font-style:italic;">
+    System generated warranty note · ${escapeHtml(opts.invoiceNumber)}
   </div>
 </div></body></html>`;
 }
@@ -638,4 +672,5 @@ export function generateWarrantyNoteViews(opts: WarrantyNoteOptions): PdfViewSpe
     { key: "a4", label: "A4 Print", color: "bg-slate-900 text-white border-slate-900", html: buildWarrantyNoteHtml(opts) },
   ];
 }
+
 
