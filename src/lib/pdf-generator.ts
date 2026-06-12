@@ -421,3 +421,218 @@ export function generatePdf(opts: PdfOptions) {
   const win = window.open("", "_blank");
   if (win) { win.document.write(html); win.document.close(); }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   WARRANTY NOTE — DEDICATED RENDERER (matches statutory Pakistani format)
+════════════════════════════════════════════════════════════════════════════ */
+export interface WarrantyNoteItem {
+  product_name: string;
+  product_description?: string;
+  batch_number?: string;
+  expiry_date?: string;
+  quantity: number;
+  tp_rate: number;
+  mrp?: number;
+  discount?: number;
+  amount: number;
+}
+
+export interface WarrantyNoteOptions {
+  invoiceNumber: string;
+  date: string;
+  dueDate?: string;
+  createdBy?: string;
+  /** Distributor (Warranty Address) — NEVER the customer's own address */
+  distributor: {
+    name: string;
+    address?: string | null;
+    phone?: string | null;
+    licenseNumber?: string | null;
+    licenseExpiry?: string | null;
+    ntn?: string | null;
+    cnic?: string | null;
+  };
+  items: WarrantyNoteItem[];
+  subtotal: number;
+  discountLabel?: string;
+  discountAmount?: number;
+  total: number;
+  noteText?: string | null;
+  settings: CompanySettings | null;
+}
+
+function fmtMoney(n: number): string {
+  return Number(n || 0).toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtExpiryMMYY(iso?: string): string {
+  if (!iso) return "";
+  const m = iso.match(/^(\d{4})-(\d{2})/);
+  if (!m) return iso;
+  return `${m[2]}-${m[1].slice(2)}`;
+}
+
+function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
+  const s = opts.settings;
+  const company = s?.company_name || "Company Name";
+  const companyLines = [
+    s?.address,
+    s?.phone ? `Mobile : ${s.phone}` : null,
+    s?.ntn ? `NTN: ${s.ntn}` : null,
+  ].filter(Boolean) as string[];
+
+  const logo = s?.logo_url
+    ? `<img src="${s.logo_url}" alt="${escapeHtml(company)}" style="max-height:120px;max-width:260px;object-fit:contain;display:block;" />`
+    : "";
+
+  const d = opts.distributor;
+  // Left labels block
+  const leftPairs: [string, string][] = [
+    ["Mobile", d.phone || ""],
+    ["NTN", d.ntn || ""],
+    ["CNIC", d.cnic || ""],
+    ["License Number", d.licenseNumber || ""],
+    ["Expiry", d.licenseExpiry || ""],
+  ];
+  const leftBlock = leftPairs.map(([k, v]) => `
+    <div style="display:flex;gap:10px;font-size:13px;line-height:1.7;">
+      <span style="min-width:120px;color:#475569;font-weight:600;">${escapeHtml(k)}</span>
+      <span style="color:#0f172a;">${escapeHtml(v || "—")}</span>
+    </div>`).join("");
+
+  // Right "Warranty Address" block — distributor
+  const distLicense = d.licenseNumber ? `Licence No: ${d.licenseNumber}${d.licenseExpiry ? ` &nbsp; Valid up to: ${d.licenseExpiry}` : ""}` : "";
+  const rightBlock = `
+    <div style="font-size:13px;line-height:1.65;color:#0f172a;">
+      <div style="font-weight:700;color:#475569;text-transform:uppercase;font-size:11.5px;letter-spacing:0.12em;margin-bottom:6px;">Warranty Address</div>
+      <div style="font-weight:700;font-size:14.5px;">${escapeHtml(d.name || "—")}</div>
+      ${d.address ? `<div style="margin-top:2px;">${escapeHtml(d.address)}</div>` : ""}
+      ${distLicense ? `<div style="margin-top:4px;color:#475569;">${distLicense}</div>` : ""}
+    </div>`;
+
+  // Right-top meta (Inv, Date, etc.)
+  const metaRows: [string, string][] = [
+    ["Inv No.", opts.invoiceNumber],
+    ["Date", opts.date],
+    ["Due Date", opts.dueDate || opts.date],
+  ];
+  if (opts.createdBy) metaRows.push(["Created By", opts.createdBy]);
+  const metaBlock = metaRows.map(([k, v]) => `
+    <tr>
+      <td style="padding:3px 8px 3px 0;color:#475569;font-weight:600;font-size:13px;">${escapeHtml(k)}</td>
+      <td style="padding:3px 0;color:#0f172a;font-size:13px;">${escapeHtml(v)}</td>
+    </tr>`).join("");
+
+  // Items table — exact columns from sample
+  const tableHeaders = ["SrNo", "Product Name", "Product Description", "Quantity", "Rate", "Batch No.", "Batch Expiry", "Discount", "Amount", "MRP Inc. Tax"];
+  const aligns = ["center", "left", "left", "center", "right", "center", "center", "right", "right", "right"];
+  const headerCells = tableHeaders.map((h, i) => `<th style="background:#0f172a;color:#fff;padding:9px 8px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;text-align:${aligns[i]};border:1px solid #0f172a;">${escapeHtml(h)}</th>`).join("");
+
+  const rows = opts.items.map((it, idx) => {
+    const desc = it.product_description && it.product_description !== it.product_name ? it.product_description : it.product_name;
+    const mrp = Number(it.mrp || 0);
+    const cells = [
+      String(idx + 1),
+      it.product_name || "",
+      desc || "",
+      String(it.quantity ?? ""),
+      fmtMoney(Number(it.tp_rate || 0)),
+      it.batch_number || "",
+      fmtExpiryMMYY(it.expiry_date),
+      fmtMoney(Number(it.discount || 0)),
+      fmtMoney(Number(it.amount || 0)),
+      mrp > 0 ? fmtMoney(mrp) : "—",
+    ];
+    return `<tr>${cells.map((c, i) => `<td style="padding:8px 8px;font-size:12.5px;color:#0f172a;text-align:${aligns[i]};border:1px solid #cbd5e1;font-variant-numeric:tabular-nums;${i === 1 || i === 2 ? "font-weight:600;" : ""}">${escapeHtml(String(c))}</td>`).join("")}</tr>`;
+  }).join("");
+
+  const totalWords = numberToWords(opts.total);
+  const noteParagraph = (opts.noteText || s?.warranty_note_text || "").trim();
+  const noteHtml = noteParagraph
+    ? `<div style="margin-top:18px;border:1px solid #cbd5e1;padding:14px 16px;border-radius:4px;background:#f8fafc;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#475569;margin-bottom:6px;">Note</div>
+        <div style="font-size:12.5px;line-height:1.7;color:#0f172a;white-space:pre-wrap;">${escapeHtml(noteParagraph)}</div>
+      </div>`
+    : "";
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Warranty Note — ${escapeHtml(opts.invoiceNumber)}</title>
+<style>
+  @page { size: A4; margin: 11mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color:#0f172a; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  table { border-collapse: collapse; }
+  .page { padding: 4mm 2mm; }
+</style></head><body><div class="page">
+  <!-- HEADER: logo + company (left) | meta (right) -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;">
+    <div style="display:flex;gap:16px;align-items:flex-start;flex:1;min-width:0;">
+      ${logo}
+      <div>
+        <div style="font-size:24px;font-weight:800;letter-spacing:-0.3px;color:#0f172a;">${escapeHtml(company)}</div>
+        ${companyLines.map(l => `<div style="font-size:13px;color:#475569;line-height:1.55;margin-top:2px;">${escapeHtml(l)}</div>`).join("")}
+      </div>
+    </div>
+    <table style="font-size:13px;">${metaBlock}</table>
+  </div>
+
+  <!-- TITLE -->
+  <div style="text-align:center;margin:18px 0 14px;padding:10px 0;border-top:2px solid #0f172a;border-bottom:2px solid #0f172a;">
+    <div style="font-size:22px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;">Warranty Note</div>
+  </div>
+
+  <!-- PARTY BLOCKS -->
+  <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:24px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:4px;background:#fff;margin-bottom:12px;">
+    <div>${leftBlock}</div>
+    <div style="border-left:1px solid #e2e8f0;padding-left:18px;">${rightBlock}</div>
+  </div>
+
+  <!-- ITEMS -->
+  <table style="width:100%;margin-top:6px;">
+    <thead><tr>${headerCells}</tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <!-- TOTAL -->
+  <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+    <table>
+      ${opts.discountAmount && opts.discountAmount > 0 ? `
+      <tr>
+        <td style="padding:4px 16px 4px 0;font-size:13px;color:#475569;text-align:right;">${escapeHtml(opts.discountLabel || "Discount")}:</td>
+        <td style="padding:4px 0;font-size:14px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums;">- Rs. ${fmtMoney(opts.discountAmount)}</td>
+      </tr>` : ""}
+      <tr>
+        <td style="padding:8px 16px 8px 0;font-size:15px;font-weight:700;text-align:right;color:#0f172a;border-top:2px solid #0f172a;">Total:</td>
+        <td style="padding:8px 0;font-size:20px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;border-top:2px solid #0f172a;">Rs. ${fmtMoney(opts.total)}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- WORDS -->
+  <div style="margin-top:10px;font-size:12.5px;line-height:1.7;">
+    <div><span style="color:#475569;font-weight:600;">Total in Words:</span> <span>${escapeHtml(totalWords)}.</span></div>
+    <div><span style="color:#475569;font-weight:600;">Inv Balance in Words:</span> <span>${escapeHtml(totalWords)}.</span></div>
+  </div>
+
+  ${noteHtml}
+
+  <!-- SIGNATURE + FOOTER -->
+  <div style="margin-top:36px;display:flex;justify-content:flex-end;">
+    <div style="text-align:center;min-width:240px;">
+      <div style="border-top:1px solid #0f172a;padding-top:6px;font-size:12.5px;font-weight:600;">Sales Rep / Prepared By</div>
+    </div>
+  </div>
+  <div style="margin-top:24px;text-align:center;font-size:11px;color:#94a3b8;font-style:italic;">
+    This is a system generated invoice and does not require any signatures.
+  </div>
+</div></body></html>`;
+}
+
+export function generateWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
+  return buildWarrantyNoteHtml(opts);
+}
+
+export function generateWarrantyNoteViews(opts: WarrantyNoteOptions): PdfViewSpec[] {
+  return [
+    { key: "a4", label: "A4 Print", color: "bg-slate-900 text-white border-slate-900", html: buildWarrantyNoteHtml(opts) },
+  ];
+}
+
