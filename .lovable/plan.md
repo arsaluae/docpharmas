@@ -1,46 +1,54 @@
-## What's broken
+# Fix Sales Agent module: data visibility + safe product catalog
 
-1. **Duplicate close (X) button** on the Create Sales Order dialog. The shadcn `DialogContent` already renders an X in the top-right corner; `ProformaInvoices.tsx` (line 1121) adds a second custom X next to it.
-2. **Sales agent sees no customers / no products / no existing sales orders or invoices.** Root cause is a mix of issues, not a single bug:
-   - One of the two agent users (`role = 'staff'`, legacy alias) has **no `sales_agents` row** — backfill missed them, so `current_sales_agent_id()` returns NULL and triggers/RLS can't stamp them.
-   - All 5 existing proforma invoices and 1 sales invoice were created **before** the `agent_id` triggers existed, so `agent_id IS NULL` on every legacy record. The "All customers" scope hides this, but the moment the admin flips scope to "Assigned customers only" those records vanish.
-   - `ProformaInvoices.tsx` loads customers with `.eq("is_active", true)` and products with `.eq("is_active", true)`. The tenant has 187 active customers, so the dropdown *should* populate — but the dialog mounts before `load()` finishes when an agent opens the page fresh and `customers` state stays empty until the first list query returns. There's no skeleton/loader on the dropdown to make this visible.
+## Root cause (confirmed in the database)
 
-## Fix plan
+Two **restrictive `ALL` policies** block the sales agent at the database level, regardless of scope settings or backfills:
 
-### A. Duplicate close button
-- `src/pages/ProformaInvoices.tsx`: delete the custom `<Button …><X/></Button>` at line 1121–1123. Keep the existing `Badge` for credit-limit warning. Wire close-confirmation by intercepting the built-in shadcn close via the existing `onOpenChange` (already done at line 1102). No other dialog in the project has the same duplicate.
+1. `sa_restrict_customers_modify` on `customers` — written to block *edits*, but because it's an `ALL` restrictive policy it also blocks **SELECT**. Result: agent sees **zero customers**, even with scope = "All customers".
+2. `sa_deny_products` on `products` — blocks **all** product reads for agents. Result: empty product dropdown everywhere.
 
-### B. Sales-agent end-to-end sync (single migration)
-- **Backfill `sales_agents` for every `tenant_users` row whose `role IN ('sales_agent','staff')` that doesn't already have one** (covers the missing `staff` user and any future drift).
-- **Backfill `agent_id` on legacy documents** (`proforma_invoices`, `sales_invoices`, `delivery_notes`, `sales_returns`, `warranty_invoices`, `payments` where `party_type='customer'`) where `agent_id IS NULL`:
-  - If exactly one `sales_agents` row exists for the tenant → stamp that agent.
-  - Else if `agent_customers` has a row for the document's customer → stamp the mapped agent.
-  - Else leave NULL (admin-created, no owner).
-- **Make the auto-stamp triggers also fire for `role='staff'`** (currently they only fire when `current_tenant_role() = 'sales_agent'`, so the legacy `staff` user creates orphan rows).
-- **Add a one-row `company_settings` upsert** to guarantee `sales_agent_scope` defaults to `'all'` for tenants that never set it (so a brand-new agent isn't greeted with an empty list).
+Everything else (tenant scoping, `agent_id` stamping, historical backfill, `sales_agent_scope='all'`) is already correct.
 
-### C. Frontend visibility polish
-- `ProformaInvoices.tsx`: show "Loading customers…" placeholder in the `SearchableSelect` while `customers.length === 0 && loading`, instead of the current "No results found." which looks like a permissions error.
-- Same treatment for the product picker on each line row.
-- Add a one-line empty-state hint under the customer picker when the agent truly has zero assigned customers: *"No customers assigned to you yet. Ask your admin to assign customers in Settings → Team."*
+## Plan
 
-### D. Verification (manual after migration)
-1. Log in as the sales-agent user → Sales Orders → click **Create Sales Order**. Confirm:
-   - Only **one** X button in the top-right.
-   - Customer dropdown lists all 187 active customers.
-   - Product dropdown lists products on row add.
-   - The 5 existing proforma orders and 1 sales invoice appear in the list pages.
-2. Create a new sales order → confirm `agent_id` is auto-stamped to the agent's `sales_agents.id` (works for both `sales_agent` and `staff` roles).
-3. In Settings → Sales Agent Scope, toggle to "Assigned only" → confirm only customers in `agent_customers` remain visible, and toggle back to "All" → full list returns.
+### 1. Database migration
 
-## Files touched
+**Customers — restore read, keep writes locked:**
+- Drop `sa_restrict_customers_modify` and recreate it as write-only restrictions (INSERT / UPDATE / DELETE), so the existing SELECT policies (`sa_restrict_customers_select` + `agent_scope_customers`) govern reads. Agent immediately sees all company customers (or assigned-only when scope is switched) — same live `customers` table, no duplicates.
 
-- `src/pages/ProformaInvoices.tsx` — remove duplicate X, add loading/empty-state copy on customer + product pickers.
-- New migration `supabase/migrations/<timestamp>_sales_agent_sync.sql` — backfill `sales_agents`, backfill `agent_id` on legacy docs, extend stamp triggers to `staff`, default `company_settings.sales_agent_scope`.
+**Products — keep cost data hidden, expose a safe catalog:**
+- Keep `sa_deny_products` (this is what guarantees agents can never read `cost_price` / purchase cost at DB level).
+- Reuse/extend the existing safe views (these already exclude all cost fields and are tenant-filtered server-side):
+  - `agent_stock_availability` → product_id, code, name, category, brand, unit, pack size, sale price, MRP, available stock, stock status
+  - `agent_batch_availability` → batch number, expiry date, expiry status, per-batch available qty, sale price
+- Add `location` to the catalog view if present on products, and verify SELECT grants for `authenticated` on both views.
 
-## Out of scope
+No new tables. Customers, orders, invoices, delivery notes, payments all stay on the same shared tables — admin and agent see the same live rows instantly.
 
-- No change to RLS policies (they already handle scope='all' correctly).
-- No change to `manage-tenant` edge function — provisioning of new agents already works; this plan only repairs historical data.
-- No change to other dialogs — only `ProformaInvoices` has the duplicate X.
+### 2. Frontend changes
+
+**`ProformaInvoices.tsx` (sales order / invoice form):**
+- When the user is a sales agent, load the product picker from `agent_stock_availability` instead of `products`; load batch options + expiry from `agent_batch_availability`.
+- After selecting a customer, show a detail strip: mobile, city, address, current outstanding, credit limit (data now flows since customers are readable).
+- After selecting a product: show code, sale price, available stock, batch/expiry options.
+- Empty states with the exact copy requested ("Customers are not visible because customer access is restricted…", "Products are not visible because product access is restricted or stock is unavailable.").
+
+**`Products.tsx`:** when agent, source the read-only list from `agent_stock_availability` (cost/margin columns already hidden in UI; this makes the data load again).
+
+**Other agent-reachable pages that query `products` directly** (Delivery Notes, Sales Returns, customer profile dialog): switch to the safe view when the role is agent.
+
+No changes needed for orders/invoices/payments sync — agents' documents already carry `agent_id`/`created_by` and appear in admin lists, and admin-created data is on the same tables.
+
+### 3. Verification (against your test list)
+
+Using SQL session simulation of the agent user:
+1. Agent SELECT on customers returns all 435 company customers with phone, city, address, balance, credit limit.
+2. Agent SELECT on the catalog view returns 187 products with stock, batch, expiry, sale price — and **no** cost columns exist in the view.
+3. Agent direct SELECT on `products`/`purchase_invoices`/`expenses`/`bank_accounts` returns zero rows (denied).
+4. In the preview: agent creates a sales order → appears in admin list with agent stamped; invoice posting reduces stock and updates the customer ledger (existing triggers, unchanged).
+5. Admin edits a customer → agent sees the update on refresh (same table).
+
+## Technical notes
+
+- The fix is ~90% one migration (policy correction) + targeted frontend data-source swaps; no schema or trigger changes.
+- The `staff` login in your workspace is currently deactivated (`is_active=false`); the active `sales_agent` login is the one being fixed.
