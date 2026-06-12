@@ -279,50 +279,70 @@ export default function Suppliers() {
  <TableHeader>
  <TableRow>
  <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && selectedIds.size === filtered.length} onCheckedChange={toggleAll} /></TableHead>
- <TableHead>Code</TableHead><TableHead>Company Name</TableHead><TableHead>Contact</TableHead><TableHead>City</TableHead>
- <TableHead>License #</TableHead>
- {settings?.wht_enabled && <TableHead>WHT %</TableHead>}<TableHead className="text-right">Balance</TableHead>
- <TableHead>Terms</TableHead><TableHead className="text-center">Actions</TableHead>
+ <TableHead>Code</TableHead>
+ <TableHead>Supplier</TableHead>
+ <TableHead>Mobile / Phone</TableHead>
+ <TableHead>City / Area</TableHead>
+ <TableHead className="min-w-[220px]">Address</TableHead>
+ <TableHead>Payment Terms</TableHead>
+ <TableHead className="text-right">Outstanding</TableHead>
+ <TableHead className="text-center">Actions</TableHead>
  </TableRow>
  </TableHeader>
  <TableBody>
  {filtered.length === 0 ? (
- <TableRow><TableCell colSpan={settings?.wht_enabled ? 10 : 9} className="text-center py-12 text-muted-foreground"><Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />No suppliers yet.</TableCell></TableRow>
- ) : filtered.map(s => (
- <TableRow key={s.id} className={`cursor-pointer hover:bg-accent/50 ${!s.is_active ? "opacity-50" : ""}`} onClick={() => handleEdit(s)}>
+ <TableRow><TableCell colSpan={10} className="text-center py-12 text-muted-foreground"><Truck className="h-8 w-8 mx-auto mb-2 opacity-40" />No suppliers yet.</TableCell></TableRow>
+ ) : filtered.map(s => {
+ const phones = (s.phone || "").split(",").map(p => p.trim()).filter(Boolean);
+ const mobile = phones[0] || "";
+ const phone2 = phones.slice(1).join(", ");
+ const isOverdue = Number(s.balance) > 0 && (() => {
+   const due = new Date(s.created_at); due.setDate(due.getDate() + s.payment_terms_days); return due < new Date();
+ })();
+ return (
+ <TableRow key={s.id} className={`cursor-pointer table-row-hover ${!s.is_active ? "opacity-50" : ""}`} onClick={() => handleEdit(s)}>
  <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selectedIds.has(s.id)} onCheckedChange={() => toggleSelect(s.id)} /></TableCell>
- <TableCell className="text-xs font-mono text-muted-foreground">{s.supplier_code || "—"}</TableCell>
- <TableCell className="font-medium">{s.name}</TableCell>
- <TableCell>{s.company || "—"}</TableCell>
- <TableCell>{s.city || "—"}</TableCell>
- <TableCell className="text-xs">
-   {s.license_number || "—"}
-   {s.license_expiry_date && (() => {
-     const daysLeft = Math.floor((new Date(s.license_expiry_date).getTime() - Date.now()) / 86400000);
-     if (daysLeft < 0) return <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-destructive/15 text-destructive">EXPIRED</span>;
-     if (daysLeft <= 30) return <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-warning/15 text-warning">{daysLeft}d</span>;
-     return null;
-   })()}
+ <TableCell className="font-mono text-[13px] text-muted-foreground whitespace-nowrap">{s.supplier_code || "—"}</TableCell>
+ <TableCell className="cursor-pointer" onClick={(e) => { e.stopPropagation(); setProfileSupplier(s); setProfileOpen(true); }}>
+ <div className="font-semibold text-foreground hover:text-primary hover:underline leading-tight">{s.name}</div>
+ {s.company && <div className="text-[12.5px] text-muted-foreground mt-0.5 leading-tight">{s.company}</div>}
+ {s.license_number && (
+   <div className="text-[12px] text-muted-foreground mt-1 font-mono">
+     Lic: {s.license_number}
+     {s.license_expiry_date && (() => {
+       const daysLeft = Math.floor((new Date(s.license_expiry_date!).getTime() - Date.now()) / 86400000);
+       if (daysLeft < 0) return <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-destructive/15 text-destructive">EXPIRED</span>;
+       if (daysLeft <= 30) return <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-warning/15 text-warning">{daysLeft}d</span>;
+       return null;
+     })()}
+   </div>
+ )}
  </TableCell>
- {settings?.wht_enabled && <TableCell><span className="status-pill bg-warning/10 text-warning">{s.wht_rate}%</span></TableCell>}
- <TableCell className="text-right font-mono">{Number(s.balance).toLocaleString()}</TableCell>
- <TableCell className="text-muted-foreground">
- {s.payment_terms_days}d
- {Number(s.balance) > 0 && (() => {
- const dueDate = new Date(s.created_at);
- dueDate.setDate(dueDate.getDate() + s.payment_terms_days);
- const isOverdue = dueDate < new Date();
- return isOverdue ? <span className="ml-1 text-destructive text-[10px] font-semibold">OVERDUE</span> : null;
- })()}
+ <TableCell className="whitespace-nowrap">
+ <div className="font-mono text-[13.5px] text-foreground leading-tight">{mobile || "—"}</div>
+ {phone2 && <div className="font-mono text-[12.5px] text-muted-foreground mt-0.5 leading-tight">{phone2}</div>}
  </TableCell>
+ <TableCell className="whitespace-nowrap">
+ <div className="text-foreground leading-tight">{s.city || "—"}</div>
+ {s.area && <div className="text-[12.5px] text-muted-foreground mt-0.5 leading-tight">{s.area}</div>}
+ </TableCell>
+ <TableCell className="max-w-[280px]">
+ <div className="text-[13.5px] text-muted-foreground leading-snug whitespace-normal break-words">{s.address || "—"}</div>
+ </TableCell>
+ <TableCell className="whitespace-nowrap">
+ <div className="text-foreground leading-tight">Net {s.payment_terms_days} days</div>
+ {settings?.wht_enabled && <div className="text-[12px] text-muted-foreground mt-0.5">WHT {s.wht_rate}%</div>}
+ {isOverdue && <div className="text-[11px] text-destructive font-bold mt-0.5">OVERDUE</div>}
+ </TableCell>
+ <TableCell className="text-right font-mono tabular-nums whitespace-nowrap">{Number(s.balance).toLocaleString()}</TableCell>
  <TableCell className="text-center">
  <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
- <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(s)} title="Edit Supplier"><Edit className="h-3.5 w-3.5" /></Button>
- <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setProfileSupplier(s); setProfileOpen(true); }} title="Profile & Products"><Store className="h-3.5 w-3.5" /></Button>
- <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/suppliers/${s.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
- <Button variant="ghost" size="icon" className={`h-7 w-7 ${s.is_active ? "text-warning" : "text-success"}`} onClick={(e) => toggleActive(s, e)} title={s.is_active ? "Deactivate" : "Reactivate"}><Power className="h-3.5 w-3.5" /></Button>
+ <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(s)} title="Edit Supplier"><Edit className="h-4 w-4" /></Button>
+ <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setProfileSupplier(s); setProfileOpen(true); }} title="Profile & Products"><Store className="h-4 w-4" /></Button>
+ <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/suppliers/${s.id}/ledger`)} title="View Ledger"><BookOpen className="h-4 w-4" /></Button>
+ <Button variant="ghost" size="icon" className={`h-8 w-8 ${s.is_active ? "text-warning" : "text-success"}`} onClick={(e) => toggleActive(s, e)} title={s.is_active ? "Deactivate" : "Reactivate"}><Power className="h-4 w-4" /></Button>
  <AlertDialog>
- <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+ <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
  <AlertDialogContent>
  <AlertDialogHeader><AlertDialogTitle>Delete {s.name}?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this supplier.</AlertDialogDescription></AlertDialogHeader>
  <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => handleDelete(s.id, e)}>Delete</AlertDialogAction></AlertDialogFooter>
@@ -331,7 +351,8 @@ export default function Suppliers() {
  </div>
  </TableCell>
  </TableRow>
- ))}
+ );
+ })}
  </TableBody>
  </Table>
  <PaginationControls
