@@ -395,10 +395,12 @@ export default function Settings() {
  </TabsContent>
 
  {tenantRole === "owner" && (
- <TabsContent value="team" className="max-w-2xl">
+ <TabsContent value="team" className="max-w-2xl space-y-6">
  <TeamAccessCard />
+ <SalesAgentScopeCard />
  </TabsContent>
  )}
+
 
  <TabsContent value="backup" className="max-w-2xl space-y-6">
  <Card className="glass-card">
@@ -852,7 +854,9 @@ interface TenantMember {
  is_active: boolean;
  created_at: string;
  email?: string;
+ last_sign_in_at?: string | null;
 }
+
 
 function TeamAccessCard() {
  const { tenantId } = useTenant();
@@ -867,6 +871,10 @@ function TeamAccessCard() {
  const [resetFor, setResetFor] = useState<string | null>(null);
  const [resetPwd, setResetPwd] = useState("");
  const [resetting, setResetting] = useState(false);
+ const [deleteFor, setDeleteFor] = useState<TenantMember | null>(null);
+ const [deleteConfirm, setDeleteConfirm] = useState("");
+ const [deleting, setDeleting] = useState(false);
+
 
  const load = async () => {
  if (!tenantId) return;
@@ -883,10 +891,12 @@ function TeamAccessCard() {
       setMembers((emailData.users as any[]).map(u => ({
         user_id: u.user_id, role: u.role, is_active: u.is_active,
         created_at: u.created_at, email: u.email ?? undefined,
+        last_sign_in_at: u.last_sign_in_at ?? null,
       })));
       setLoading(false);
       return;
     }
+
   } catch { /* fall through */ }
 
   // Fallback (non-owner): direct query, RLS limits to own row
@@ -1010,6 +1020,52 @@ function TeamAccessCard() {
     }
   };
 
+ const handleDelete = async () => {
+   if (!tenantId || !deleteFor) return;
+   if (deleteConfirm.trim().toLowerCase() !== (deleteFor.email ?? "").trim().toLowerCase()) {
+     toast.error("Type the user's email to confirm");
+     return;
+   }
+   setDeleting(true);
+   try {
+     const { data, error } = await supabase.functions.invoke("manage-tenant", {
+       body: { action: "delete_tenant_user", tenant_id: tenantId, user_id: deleteFor.user_id },
+     });
+     if (error) {
+       let serverMsg = error.message;
+       let serverCode: string | null = null;
+       try {
+         const b = await (error as any).context?.json?.();
+         if (b?.error) serverMsg = b.message || b.error;
+         if (b?.error === "user_has_history") serverCode = "user_has_history";
+       } catch {}
+       if (serverCode === "user_has_history") {
+         toast.error("User has business records. Deactivate them instead — history must stay intact.");
+         setDeleteFor(null); setDeleteConfirm("");
+         return;
+       }
+       throw new Error(serverMsg);
+     }
+     if (data?.error) throw new Error(data.error);
+     toast.success("User deleted");
+     void logAudit({
+       action: "member_deleted",
+       entity_type: "tenant_member",
+       entity_id: deleteFor.user_id,
+       entity_number: deleteFor.email ?? null,
+       changes: { role: deleteFor.role },
+     });
+     setDeleteFor(null); setDeleteConfirm("");
+     await load();
+   } catch (err: any) {
+     toast.error(err.message);
+   } finally {
+     setDeleting(false);
+   }
+ };
+
+
+
 
  return (
  <div className="space-y-6">
@@ -1057,6 +1113,9 @@ function TeamAccessCard() {
  </div>
  <p className="text-xs text-muted-foreground mt-0.5">
  Joined {new Date(m.created_at).toLocaleDateString()}
+ {m.last_sign_in_at
+   ? ` · Last login ${new Date(m.last_sign_in_at).toLocaleDateString()}`
+   : " · Never signed in"}
  </p>
  </div>
  <div className="flex items-center gap-2 shrink-0">
@@ -1074,6 +1133,17 @@ function TeamAccessCard() {
  </Button>
  );
  })()}
+ {m.user_id !== meId && (() => {
+   const activeAdmins = members.filter(x => x.role === "owner" && x.is_active).length;
+   const isLastAdmin = m.role === "owner" && activeAdmins <= 1;
+   if (isLastAdmin) return null;
+   return (
+     <Button size="sm" variant="destructive" onClick={() => { setDeleteFor(m); setDeleteConfirm(""); }}>
+       Delete
+     </Button>
+   );
+ })()}
+
  </div>
  </div>
  {resetFor === m.user_id && (
@@ -1154,6 +1224,113 @@ function TeamAccessCard() {
  )}
  </CardContent>
  </Card>
+
+ <AlertDialog open={!!deleteFor} onOpenChange={(v) => { if (!v) { setDeleteFor(null); setDeleteConfirm(""); } }}>
+   <AlertDialogContent>
+     <AlertDialogHeader>
+       <AlertDialogTitle className="text-destructive">Delete user?</AlertDialogTitle>
+       <AlertDialogDescription>
+         Are you sure? This action may affect audit history. If this user has any business records,
+         deletion will be refused and you should deactivate them instead.
+         Type <strong>{deleteFor?.email ?? "their email"}</strong> below to confirm.
+       </AlertDialogDescription>
+     </AlertDialogHeader>
+     <Input
+       autoFocus
+       value={deleteConfirm}
+       onChange={(e) => setDeleteConfirm(e.target.value)}
+       placeholder={deleteFor?.email ?? ""}
+     />
+     <AlertDialogFooter>
+       <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+       <Button
+         variant="destructive"
+         disabled={deleting || deleteConfirm.trim().toLowerCase() !== (deleteFor?.email ?? "").trim().toLowerCase()}
+         onClick={handleDelete}
+       >
+         {deleting ? "Deleting…" : "Delete user"}
+       </Button>
+     </AlertDialogFooter>
+   </AlertDialogContent>
+ </AlertDialog>
  </div>
  );
 }
+
+function SalesAgentScopeCard() {
+  const { tenantId } = useTenant();
+  const [scope, setScope] = useState<"all" | "assigned">("all");
+  const [assignmentCount, setAssignmentCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    const { data: cs } = await (supabase as any).from("company_settings")
+      .select("sales_agent_scope").eq("tenant_id", tenantId).maybeSingle();
+    const { count } = await (supabase as any).from("agent_customers")
+      .select("agent_id", { count: "exact", head: true }).eq("tenant_id", tenantId);
+    setScope((cs?.sales_agent_scope as any) ?? "all");
+    setAssignmentCount(count ?? 0);
+    setLoading(false);
+  };
+  useEffect(() => { void load(); }, [tenantId]);
+
+  const save = async (next: "all" | "assigned") => {
+    if (!tenantId) return;
+    setSaving(true);
+    const { error } = await (supabase as any).from("company_settings")
+      .update({ sales_agent_scope: next }).eq("tenant_id", tenantId);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    setScope(next);
+    toast.success("Sales agent scope updated");
+  };
+
+  return (
+    <Card className="glass-card">
+      <CardHeader>
+        <CardTitle className="text-lg">Sales Agent Customer Scope</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Controls which customers a Sales Agent can see, edit and sell to. You currently have{" "}
+              <strong>{assignmentCount}</strong> agent-customer assignment{assignmentCount === 1 ? "" : "s"}.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => save("all")}
+                className={`text-left rounded-md border px-3 py-2 transition-colors ${scope === "all" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
+              >
+                <div className="text-sm font-medium">All customers</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  Every sales agent sees every customer in the workspace. Recommended when you haven't set up assignments yet.
+                </div>
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => save("assigned")}
+                className={`text-left rounded-md border px-3 py-2 transition-colors ${scope === "assigned" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
+              >
+                <div className="text-sm font-medium">Assigned customers only</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  Each agent only sees customers explicitly assigned to them on the Sales Agents page.
+                </div>
+              </button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+

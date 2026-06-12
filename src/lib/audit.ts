@@ -23,6 +23,8 @@ export type AuditAction =
   | "member_removed"
   | "member_reactivated"
   | "member_password_reset"
+  | "member_deleted"
+
   | "backup_created"
   | "backup_failed"
   | "backup_restored"

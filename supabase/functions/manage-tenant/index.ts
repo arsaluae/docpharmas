@@ -185,10 +185,41 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Auto-provision sales_agents row so RLS scoping works immediately
+      if (resolvedRole === "sales_agent" || resolvedRole === "staff") {
+        // Try to attach to an existing unlinked agent record with the same email first
+        const { data: existingAgent } = await supabaseAdmin
+          .from("sales_agents")
+          .select("id, user_id")
+          .eq("tenant_id", tenant_id)
+          .ilike("email", email)
+          .is("user_id", null)
+          .limit(1)
+          .maybeSingle();
+        if (existingAgent?.id) {
+          await supabaseAdmin
+            .from("sales_agents")
+            .update({ user_id: newUser.user.id, is_active: true, status: "active" })
+            .eq("id", existingAgent.id);
+        } else {
+          await supabaseAdmin.from("sales_agents").insert({
+            tenant_id,
+            user_id: newUser.user.id,
+            name: email.split("@")[0] || "Sales Agent",
+            email,
+            status: "active",
+            is_active: true,
+            commission_type: "percentage",
+            commission_rate: 0,
+          });
+        }
+      }
+
       return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // toggle_user_active: owners can deactivate / reactivate their own sub-users
     if (action === "toggle_user_active") {
@@ -233,10 +264,16 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Mirror active status onto sales_agents so RLS scoping flips immediately
+      await supabaseAdmin.from("sales_agents")
+        .update({ is_active, status: is_active ? "active" : "inactive" })
+        .eq("tenant_id", tenant_id).eq("user_id", target_user_id);
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // list_tenant_users: return { user_id, email } for current tenant (owner-only)
     if (action === "list_tenant_users") {
@@ -258,15 +295,113 @@ Deno.serve(async (req) => {
       const { data: tus } = await supabaseAdmin
         .from("tenant_users").select("user_id, role, is_active, created_at").eq("tenant_id", tenant_id)
         .order("created_at", { ascending: true });
-      const results: { user_id: string; email: string | null; role: string; is_active: boolean; created_at: string }[] = [];
+      const results: { user_id: string; email: string | null; role: string; is_active: boolean; created_at: string; last_sign_in_at: string | null }[] = [];
       for (const t of tus || []) {
         const { data: au } = await supabaseAdmin.auth.admin.getUserById(t.user_id);
-        results.push({ user_id: t.user_id, email: au?.user?.email ?? null, role: t.role, is_active: t.is_active, created_at: t.created_at });
+        results.push({
+          user_id: t.user_id,
+          email: au?.user?.email ?? null,
+          role: t.role,
+          is_active: t.is_active,
+          created_at: t.created_at,
+          last_sign_in_at: (au?.user as any)?.last_sign_in_at ?? null,
+        });
       }
       return new Response(JSON.stringify({ users: results }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // delete_tenant_user: owner-only. Refuses if user has business records.
+    if (action === "delete_tenant_user") {
+      const { tenant_id, user_id: target_user_id } = body;
+      if (!tenant_id || !target_user_id) {
+        return new Response(JSON.stringify({ error: "Missing required fields" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: isAdminD } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      const { data: ownerD } = await supabaseAdmin
+        .from("tenant_users").select("role")
+        .eq("user_id", user.id).eq("tenant_id", tenant_id).eq("is_active", true).single();
+      if (!isAdminD && ownerD?.role !== "owner") {
+        return new Response(JSON.stringify({ error: "Only tenant owners can delete users" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (target_user_id === user.id) {
+        return new Response(JSON.stringify({ error: "You cannot delete your own account" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Confirm target is in this tenant
+      const { data: targetTU } = await supabaseAdmin
+        .from("tenant_users").select("role, is_active")
+        .eq("tenant_id", tenant_id).eq("user_id", target_user_id).maybeSingle();
+      if (!targetTU) {
+        return new Response(JSON.stringify({ error: "User is not part of this workspace" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Prevent deleting the last active owner
+      if (targetTU.role === "owner") {
+        const { count: activeOwners } = await supabaseAdmin
+          .from("tenant_users")
+          .select("user_id", { count: "exact", head: true })
+          .eq("tenant_id", tenant_id).eq("role", "owner").eq("is_active", true);
+        if ((activeOwners ?? 0) <= 1) {
+          return new Response(JSON.stringify({ error: "Cannot delete the last active owner" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      // Check for business records authored by this user in this tenant
+      const tablesToProbe = [
+        "sales_invoices","proforma_invoices","purchase_invoices","payments",
+        "delivery_notes","sales_returns","purchase_returns","journal_entries",
+        "expenses","stock_movements","credit_notes","debit_notes","warranty_invoices",
+      ];
+      let hasHistory = false;
+      for (const t of tablesToProbe) {
+        const { count } = await supabaseAdmin
+          .from(t).select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenant_id).eq("created_by", target_user_id);
+        if ((count ?? 0) > 0) { hasHistory = true; break; }
+      }
+      if (hasHistory) {
+        return new Response(JSON.stringify({
+          error: "user_has_history",
+          message: "This user has business records. Deactivate them instead — historical data must stay intact.",
+        }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Safe to delete — remove tenant link, unlink sales_agents, then delete auth user
+      await supabaseAdmin.from("sales_agents").delete()
+        .eq("tenant_id", tenant_id).eq("user_id", target_user_id);
+      const { error: tuDelErr } = await supabaseAdmin.from("tenant_users").delete()
+        .eq("tenant_id", tenant_id).eq("user_id", target_user_id);
+      if (tuDelErr) {
+        return new Response(JSON.stringify({ error: tuDelErr.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // If the user belongs to no other tenant, delete the auth user entirely
+      const { count: otherTenants } = await supabaseAdmin
+        .from("tenant_users")
+        .select("user_id", { count: "exact", head: true })
+        .eq("user_id", target_user_id);
+      if ((otherTenants ?? 0) === 0) {
+        await supabaseAdmin.auth.admin.deleteUser(target_user_id);
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
 
     // owner_reset_password: owner-only; set a sub-user's password
     if (action === "owner_reset_password") {
