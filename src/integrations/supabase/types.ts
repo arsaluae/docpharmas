@@ -581,6 +581,10 @@ export type Database = {
           phone: string | null
           require_payment_in_approval: boolean
           sales_agent_scope: string
+          show_customer_mobile_on_docs: boolean
+          show_customer_phone_on_docs: boolean
+          show_supplier_mobile_on_docs: boolean
+          show_supplier_phone_on_docs: boolean
           strn: string | null
           tenant_id: string | null
           updated_at: string
@@ -607,6 +611,10 @@ export type Database = {
           phone?: string | null
           require_payment_in_approval?: boolean
           sales_agent_scope?: string
+          show_customer_mobile_on_docs?: boolean
+          show_customer_phone_on_docs?: boolean
+          show_supplier_mobile_on_docs?: boolean
+          show_supplier_phone_on_docs?: boolean
           strn?: string | null
           tenant_id?: string | null
           updated_at?: string
@@ -633,6 +641,10 @@ export type Database = {
           phone?: string | null
           require_payment_in_approval?: boolean
           sales_agent_scope?: string
+          show_customer_mobile_on_docs?: boolean
+          show_customer_phone_on_docs?: boolean
+          show_supplier_mobile_on_docs?: boolean
+          show_supplier_phone_on_docs?: boolean
           strn?: string | null
           tenant_id?: string | null
           updated_at?: string
