@@ -19,6 +19,10 @@ export interface CompanySettings {
   whatsapp_number: string | null;
   invoice_delete_grace_hours: number;
   auto_create_missing_suppliers: boolean;
+  show_customer_mobile_on_docs?: boolean;
+  show_customer_phone_on_docs?: boolean;
+  show_supplier_mobile_on_docs?: boolean;
+  show_supplier_phone_on_docs?: boolean;
 }
 
 export function useCompanySettings() {
