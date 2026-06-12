@@ -321,7 +321,7 @@ export default function ProformaInvoices() {
  setOrders(allOrders);
  if (pf.count !== null && pf.count !== undefined) pagination.setTotalCount(pf.count);
  if (cust.data) setCustomers(cust.data as any);
- if (prod.data) setProducts((prod.data as any[]).map((p: any) => ({ id: p.id ?? p.product_id, name: p.name, selling_price: p.selling_price, gst_rate: p.gst_rate, mrp: p.mrp })));
+ if (prod.data) setProducts((prod.data as any[]).map((p: any) => ({ id: p.id ?? p.product_id, name: p.name, product_code: p.product_code, selling_price: p.selling_price, gst_rate: p.gst_rate, mrp: p.mrp })) as any);
  setLoading(false);
  };
 
