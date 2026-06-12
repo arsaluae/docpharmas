@@ -13,6 +13,7 @@ import { Save, Upload, FileText, Plus, Trash2, MessageCircle, Download, Database
 import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { useDocumentTemplates, DocumentTemplate } from "@/hooks/useDocumentTemplates";
+import { DECLARATION_VARIABLES, DEFAULT_WARRANTY_DECLARATION, renderDeclaration } from "@/lib/warranty-declaration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
