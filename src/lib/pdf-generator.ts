@@ -210,20 +210,10 @@ function buildA4Html(opts: PdfOptions): string {
       <span style="color:${C.text};font-weight:600;flex:1;">${escapeHtml(r.value)}</span>
     </div>`).join("");
 
-  // Gate party phone/mobile by Document Preferences.
-  // Customer mobile defaults ON for SO/SI/DN — distributors expect it auto-printed.
-  const isSupplierParty = /supplier|printer|pharmacy|vendor/i.test(opts.partyLabel || "");
-  const isCustomerParty = !isSupplierParty;
-  const customerMobileFlag = (s as any)?.show_customer_mobile_on_docs;
-  const showMobile = isCustomerParty
-    ? (customerMobileFlag === false ? false : true) // default ON unless explicitly disabled
-    : (s as any)?.show_supplier_mobile_on_docs === true;
-  const showPhone = isCustomerParty
-    ? (s as any)?.show_customer_phone_on_docs === true
-    : (s as any)?.show_supplier_phone_on_docs === true;
+  // Always show mobile + phone from the party record when available.
   const phoneBits: string[] = [];
-  if (showMobile && opts.partyMobile) phoneBits.push(`📱 ${escapeHtml(opts.partyMobile)}`);
-  if (showPhone && opts.partyPhone && opts.partyPhone !== opts.partyMobile) phoneBits.push(`☎ ${escapeHtml(opts.partyPhone)}`);
+  if (opts.partyMobile) phoneBits.push(`📱 ${escapeHtml(opts.partyMobile)}`);
+  if (opts.partyPhone && opts.partyPhone !== opts.partyMobile) phoneBits.push(`☎ ${escapeHtml(opts.partyPhone)}`);
   const cityArea = [opts.partyCity, opts.partyArea].filter(Boolean).join(" · ");
 
   const partyHtml = `
@@ -231,7 +221,6 @@ function buildA4Html(opts: PdfOptions): string {
       <div style="background:${C.cardBg};padding:8px 16px;border-bottom:1px solid ${C.border};font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;color:${C.primary};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(opts.partyLabel || "Bill To")}</div>
       <div style="padding:14px 16px;word-wrap:break-word;overflow-wrap:anywhere;">
         ${opts.partyName ? `<div style="font-size:19px;font-weight:700;color:${C.text};line-height:1.25;">${escapeHtml(opts.partyName)}</div>` : ""}
-        ${opts.partyCode ? `<div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${C.textMuted};margin-top:3px;letter-spacing:0.4px;">${escapeHtml(opts.partyCode)}</div>` : ""}
         ${phoneBits.length ? `<div style="font-size:15px;color:${C.text};margin-top:9px;font-weight:600;">${phoneBits.join("  ·  ")}</div>` : ""}
         ${cityArea ? `<div style="font-size:15px;color:${C.text};margin-top:5px;">${escapeHtml(cityArea)}</div>` : ""}
         ${opts.partyAddress ? `<div style="font-size:15px;color:${C.textMuted};margin-top:5px;line-height:1.55;">${escapeHtml(opts.partyAddress)}</div>` : ""}

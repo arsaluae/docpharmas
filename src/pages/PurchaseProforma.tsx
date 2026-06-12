@@ -378,6 +378,7 @@ export default function PurchaseProforma() {
  title: pdfDocTitle, documentNumber: order.po_number || order.proforma_number, date: order.date, statusTheme: theme,
  partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
  partyAddress: (order.suppliers as any)?.address || undefined,
+ partyMobile: (order.suppliers as any)?.mobile || (order.suppliers as any)?.sms_mobile || undefined,
  partyPhone: (order.suppliers as any)?.phone || undefined,
  columns: [
  { header: "#", key: "idx" }, { header: "Product", key: "name" },
@@ -528,6 +529,7 @@ export default function PurchaseProforma() {
  title: "PURCHASE ORDER", documentNumber: order.proforma_number, date: order.date, statusTheme: "draft" as const,
  partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
  partyAddress: (order.suppliers as any)?.address || undefined,
+ partyMobile: (order.suppliers as any)?.mobile || (order.suppliers as any)?.sms_mobile || undefined,
  partyPhone: (order.suppliers as any)?.phone || undefined,
  columns: [
  { header: "#", key: "idx" }, { header: "Product", key: "name" },
@@ -672,6 +674,7 @@ export default function PurchaseProforma() {
  title: "PURCHASE INVOICE", documentNumber: order.po_number || poData.po_number, date: poData.date, statusTheme: "invoiced" as const,
  partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
  partyAddress: (order.suppliers as any)?.address || undefined,
+ partyMobile: (order.suppliers as any)?.mobile || (order.suppliers as any)?.sms_mobile || undefined,
  partyPhone: (order.suppliers as any)?.phone || undefined,
  columns: [
  { header: "#", key: "idx" }, { header: "Product", key: "name" },
@@ -717,6 +720,7 @@ export default function PurchaseProforma() {
  title: "DELIVERY NOTE", documentNumber: dn.dn_number, date: dn.date, statusTheme: "dispatched" as const,
  partyLabel: "Supplier", partyName: (order.suppliers as any)?.name || "—",
  partyAddress: (order.suppliers as any)?.address || undefined,
+ partyMobile: (order.suppliers as any)?.mobile || (order.suppliers as any)?.sms_mobile || undefined,
  partyPhone: (order.suppliers as any)?.phone || undefined,
  columns: [
  { header: "#", key: "idx" },
