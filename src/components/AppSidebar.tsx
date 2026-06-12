@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Truck, Package, LogOut, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
   BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown,
-  Banknote, Building2, Keyboard, Moon, Sun, BookOpen,
+  Banknote, Building2, Keyboard, Moon, Sun, BookOpen, Shield,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -37,13 +37,16 @@ const allSections: Section[] = [
   { label: "Sales", icon: FileText, resource: "sales", items: [
     { title: "Customers", url: "/customers", icon: Users, resource: "master" },
     { title: "Sales Orders", url: "/proforma", icon: FileText, resource: "sales" },
-    { title: "Warranty Invoices", url: "/warranty-invoices", icon: ClipboardList, resource: "sales" },
-    { title: "Returns", url: "/sales-returns", icon: RotateCcw, resource: "sales" },
+    { title: "Sales Invoices", url: "/sales-invoices", icon: ClipboardList, resource: "sales" },
+    { title: "Delivery Notes", url: "/delivery-notes", icon: Truck, resource: "sales" },
+    { title: "Sales Returns", url: "/sales-returns", icon: RotateCcw, resource: "sales" },
+    { title: "Payments In", url: "/payments?tab=received", icon: Wallet, resource: "finance" },
+    { title: "Warranty Invoices", url: "/warranty-invoices", icon: Shield, resource: "sales" },
   ]},
   { label: "Purchase", icon: Truck, resource: "purchase", items: [
     { title: "Suppliers", url: "/suppliers", icon: Truck, resource: "master" },
     { title: "Purchase Orders", url: "/purchase-proforma", icon: FileText, resource: "purchase" },
-    { title: "Returns", url: "/purchase-returns", icon: RotateCcw, resource: "purchase" },
+    { title: "Purchase Returns", url: "/purchase-returns", icon: RotateCcw, resource: "purchase" },
   ]},
   { label: "Inventory", icon: Package, resource: "inventory", items: [
     { title: "Products & Stock", url: "/products", icon: Package, resource: "inventory" },
@@ -53,11 +56,12 @@ const allSections: Section[] = [
     { title: "Print Jobs", url: "/print-jobs", icon: ClipboardList, resource: "purchase" },
   ]},
   { label: "Finance", icon: Wallet, resource: "finance", items: [
-    { title: "Payments", url: "/payments", icon: Wallet, resource: "finance" },
+    { title: "Receivables", url: "/payments?tab=received", icon: Wallet, resource: "finance" },
+    { title: "Payables", url: "/payments?tab=made", icon: CreditCard, resource: "finance" },
+    { title: "Bank Accounts", url: "/bank", icon: Landmark, resource: "finance" },
     { title: "Credit Notes", url: "/credit-notes", icon: FileText, resource: "finance" },
     { title: "Expenses", url: "/expenses", icon: CreditCard, resource: "finance" },
     { title: "Staff & Salaries", url: "/salaries", icon: Users, resource: "finance" },
-    { title: "Bank Accounts", url: "/bank", icon: Landmark, resource: "finance" },
   ]},
 ];
 
@@ -133,12 +137,18 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="mouj-dark-sidebar border-r">
-      {/* Brand header — wordmark */}
+      {/* Brand header — wordmark + tenant + fiscal year */}
       <div className="mouj-brand">
         {collapsed ? (
           <span className="mouj-wordmark-short">M</span>
         ) : (
-          <span className="mouj-wordmark">MOUJ <span className="mouj-wordmark-accent">PHARMA</span></span>
+          <>
+            <span className="mouj-wordmark">MOUJ <span className="mouj-wordmark-accent">PHARMA</span></span>
+            <div className="mouj-brand-meta">
+              <span className="mouj-brand-tenant">{tenantName || "My Company"}</span>
+              <span className="mouj-brand-fy">FY {new Date().getFullYear()} · {(ROLE_LABEL as any)[tenantRole as any] ?? (tenantRole === "owner" ? "Admin" : "Staff")}</span>
+            </div>
+          </>
         )}
       </div>
 

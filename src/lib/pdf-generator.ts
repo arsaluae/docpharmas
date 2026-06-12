@@ -171,8 +171,8 @@ function buildA4Html(opts: PdfOptions): string {
 
   /* ── HEADER: logo left · company right ── */
   const logoHtml = s?.logo_url
-    ? `<img src="${s.logo_url}" alt="${escapeHtml(companyName)}" style="max-height:140px;max-width:300px;object-fit:contain;display:block;" />`
-    : `<div style="font-size:30px;font-weight:800;color:${C.text};letter-spacing:-0.5px;">${escapeHtml(companyName)}</div>`;
+    ? `<img src="${s.logo_url}" alt="${escapeHtml(companyName)}" style="max-height:210px;max-width:440px;object-fit:contain;display:block;" />`
+    : `<div style="font-size:42px;font-weight:800;color:${C.text};letter-spacing:-0.5px;">${escapeHtml(companyName)}</div>`;
 
   const addressLine = [s?.address, (s as any)?.city].filter(Boolean).join(", ");
   const phoneLine = [s?.phone ? `Tel: ${s.phone}` : null, (s as any)?.whatsapp_number ? `Mob: ${(s as any).whatsapp_number}` : null].filter(Boolean).join("  ·  ");
@@ -210,11 +210,13 @@ function buildA4Html(opts: PdfOptions): string {
       <span style="color:${C.text};font-weight:600;flex:1;">${escapeHtml(r.value)}</span>
     </div>`).join("");
 
-  // Gate party phone/mobile by Document Preferences (default OFF, supplier phone hard-off)
+  // Gate party phone/mobile by Document Preferences.
+  // Customer mobile defaults ON for SO/SI/DN — distributors expect it auto-printed.
   const isSupplierParty = /supplier|printer|pharmacy|vendor/i.test(opts.partyLabel || "");
   const isCustomerParty = !isSupplierParty;
+  const customerMobileFlag = (s as any)?.show_customer_mobile_on_docs;
   const showMobile = isCustomerParty
-    ? (s as any)?.show_customer_mobile_on_docs === true
+    ? (customerMobileFlag === false ? false : true) // default ON unless explicitly disabled
     : (s as any)?.show_supplier_mobile_on_docs === true;
   const showPhone = isCustomerParty
     ? (s as any)?.show_customer_phone_on_docs === true

@@ -76,19 +76,19 @@ export function MetricCard({
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        <span className="text-[12.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           {label}
         </span>
         {Icon && (
-          <Icon className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={1.25} />
+          <Icon className="h-4 w-4 text-muted-foreground/60" strokeWidth={1.25} />
         )}
       </div>
 
       <div className="flex items-end gap-2">
-        <span className="font-mono text-[26px] font-light leading-none tracking-[-0.02em] text-foreground tabular-nums">
-          {prefix && <span className="text-muted-foreground/70 mr-1 text-[18px]">{prefix}</span>}
+        <span className="font-mono text-[34px] font-light leading-none tracking-[-0.02em] text-foreground tabular-nums">
+          {prefix && <span className="text-muted-foreground/70 mr-1 text-[20px]">{prefix}</span>}
           {display}
-          {suffix && <span className="text-muted-foreground/70 ml-1 text-[16px]">{suffix}</span>}
+          {suffix && <span className="text-muted-foreground/70 ml-1 text-[18px]">{suffix}</span>}
         </span>
       </div>
 
