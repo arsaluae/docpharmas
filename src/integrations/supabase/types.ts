@@ -4444,6 +4444,86 @@ export type Database = {
           },
         ]
       }
+      sandbox_uat_runs: {
+        Row: {
+          failed_count: number
+          finished_at: string | null
+          id: string
+          passed_count: number
+          started_at: string
+          status: string
+          summary: Json | null
+          tenant_id: string
+          triggered_by: string | null
+        }
+        Insert: {
+          failed_count?: number
+          finished_at?: string | null
+          id?: string
+          passed_count?: number
+          started_at?: string
+          status?: string
+          summary?: Json | null
+          tenant_id?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          failed_count?: number
+          finished_at?: string | null
+          id?: string
+          passed_count?: number
+          started_at?: string
+          status?: string
+          summary?: Json | null
+          tenant_id?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
+      sandbox_uat_steps: {
+        Row: {
+          created_at: string
+          details: Json | null
+          id: string
+          latency_ms: number | null
+          run_id: string
+          status: string
+          step_name: string
+          step_no: number
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          latency_ms?: number | null
+          run_id: string
+          status: string
+          step_name: string
+          step_no: number
+          tenant_id?: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          latency_ms?: number | null
+          run_id?: string
+          status?: string
+          step_name?: string
+          step_no?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sandbox_uat_steps_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "sandbox_uat_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff: {
         Row: {
           created_at: string
@@ -4968,6 +5048,7 @@ export type Database = {
       }
       tenant_users: {
         Row: {
+          can_use_sandbox: boolean
           created_at: string | null
           id: string
           is_active: boolean | null
@@ -4976,6 +5057,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          can_use_sandbox?: boolean
           created_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -4984,6 +5066,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          can_use_sandbox?: boolean
           created_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -5007,10 +5090,15 @@ export type Database = {
           created_at: string | null
           id: string
           is_active: boolean | null
+          is_sandbox: boolean
           max_users: number | null
           owner_email: string | null
+          parent_tenant_id: string | null
           phone: string | null
           plan: string | null
+          sandbox_created_at: string | null
+          sandbox_created_by: string | null
+          sandbox_session_id: string | null
           setup_paid: boolean | null
           subscription_ends_at: string | null
           subscription_status: string | null
@@ -5021,10 +5109,15 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_sandbox?: boolean
           max_users?: number | null
           owner_email?: string | null
+          parent_tenant_id?: string | null
           phone?: string | null
           plan?: string | null
+          sandbox_created_at?: string | null
+          sandbox_created_by?: string | null
+          sandbox_session_id?: string | null
           setup_paid?: boolean | null
           subscription_ends_at?: string | null
           subscription_status?: string | null
@@ -5035,16 +5128,29 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_sandbox?: boolean
           max_users?: number | null
           owner_email?: string | null
+          parent_tenant_id?: string | null
           phone?: string | null
           plan?: string | null
+          sandbox_created_at?: string | null
+          sandbox_created_by?: string | null
+          sandbox_session_id?: string | null
           setup_paid?: boolean | null
           subscription_ends_at?: string | null
           subscription_status?: string | null
           trial_starts_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tenants_parent_tenant_id_fkey"
+            columns: ["parent_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -5388,6 +5494,7 @@ export type Database = {
     }
     Functions: {
       _backup_cron_secret: { Args: never; Returns: string }
+      _sandbox_wipe_data: { Args: { p_tenant: string }; Returns: Json }
       agent_can_see_customer: {
         Args: { p_customer_id: string }
         Returns: boolean
@@ -5547,9 +5654,23 @@ export type Database = {
           stored: number
         }[]
       }
+      sandbox_can_use: { Args: never; Returns: boolean }
+      sandbox_create_session: { Args: never; Returns: string }
+      sandbox_current_for_user: { Args: never; Returns: string }
+      sandbox_delete_session: {
+        Args: { p_sandbox_tenant: string }
+        Returns: Json
+      }
+      sandbox_rollback_session: {
+        Args: { p_sandbox_tenant: string }
+        Returns: Json
+      }
+      sandbox_session_info: { Args: never; Returns: Json }
+      set_active_tenant: { Args: { p_tenant: string }; Returns: undefined }
       suppliers_cities: { Args: never; Returns: string[] }
       suppliers_summary: { Args: never; Returns: Json }
       table_resource: { Args: { p_table: string }; Returns: string }
+      user_prod_tenant_id: { Args: never; Returns: string }
       void_document: {
         Args: { p_id: string; p_reason: string; p_table: string }
         Returns: undefined
