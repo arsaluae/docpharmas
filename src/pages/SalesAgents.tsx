@@ -117,6 +117,12 @@ export default function SalesAgents() {
       commission_type: commType, commission_rate: Number(commRate) || 0,
       status: agentStatus,
       user_id: linkedUserId || null,
+      father_name: fatherName || null,
+      cnic: cnic || null,
+      license_number: licenseNumber || null,
+      license_expiry: licenseExpiry || null,
+      signature_url: signatureUrl || null,
+      stamp_url: stampUrl || null,
     };
     if (editId) {
       const { error } = await supabase.from("sales_agents").update(payload).eq("id", editId);
@@ -135,6 +141,9 @@ export default function SalesAgents() {
     setAddress(a.address || ""); setCommType(a.commission_type); setCommRate(String(a.commission_rate));
     setAgentStatus(a.status);
     setLinkedUserId(a.user_id || "");
+    setFatherName(a.father_name || ""); setCnic(a.cnic || "");
+    setLicenseNumber(a.license_number || ""); setLicenseExpiry(a.license_expiry || "");
+    setSignatureUrl(a.signature_url || ""); setStampUrl(a.stamp_url || "");
     setAgentOpen(true);
   };
 
@@ -149,6 +158,21 @@ export default function SalesAgents() {
     setAgentOpen(false); setEditId(null); setName(""); setPhone(""); setEmail("");
     setAddress(""); setCommType("percentage"); setCommRate(""); setAgentStatus("active");
     setLinkedUserId("");
+    setFatherName(""); setCnic(""); setLicenseNumber(""); setLicenseExpiry("");
+    setSignatureUrl(""); setStampUrl("");
+  };
+
+  const uploadAgentAsset = async (file: File, kind: "signature" | "stamp"): Promise<string | null> => {
+    if (!tenantId) { toast.error("Tenant not loaded"); return null; }
+    setUploadBusy(true);
+    try {
+      const ext = (file.name.split(".").pop() || "png").toLowerCase();
+      const path = `${tenantId}/agents/${kind}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true, contentType: file.type });
+      if (error) { toast.error("Upload failed"); return null; }
+      const { data: { publicUrl } } = supabase.storage.from("company-assets").getPublicUrl(path);
+      return publicUrl;
+    } finally { setUploadBusy(false); }
   };
 
   const handleInviteAgent = async () => {
