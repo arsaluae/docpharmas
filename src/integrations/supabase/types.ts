@@ -588,6 +588,7 @@ export type Database = {
           strn: string | null
           tenant_id: string | null
           updated_at: string
+          warranty_note_text: string | null
           website: string | null
           whatsapp_number: string | null
           wht_enabled: boolean
@@ -618,6 +619,7 @@ export type Database = {
           strn?: string | null
           tenant_id?: string | null
           updated_at?: string
+          warranty_note_text?: string | null
           website?: string | null
           whatsapp_number?: string | null
           wht_enabled?: boolean
@@ -648,6 +650,7 @@ export type Database = {
           strn?: string | null
           tenant_id?: string | null
           updated_at?: string
+          warranty_note_text?: string | null
           website?: string | null
           whatsapp_number?: string | null
           wht_enabled?: boolean
