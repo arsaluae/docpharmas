@@ -132,7 +132,7 @@ export default function WarrantyInvoices() {
  const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
  const [distributors, setDistributors] = useState<Distributor[]>([]);
  const [selectedDistributorId, setSelectedDistributorId] = useState("");
- const [selectedSalesRepId, setSelectedSalesRepId] = useState("");
+ 
  const [items, setItems] = useState<LineItem[]>([]);
  const [discountType, setDiscountType] = useState<"percent" | "amount">("percent");
  const [discountValue, setDiscountValue] = useState(0);
