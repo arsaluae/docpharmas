@@ -409,8 +409,20 @@ export default function Settings() {
  <span className="text-sm">Show supplier phone on documents</span>
  <Switch checked={form.show_supplier_phone_on_docs} onCheckedChange={v => setForm({...form, show_supplier_phone_on_docs: v})} />
  </label>
- </div>
- </div>
+                </div>
+
+                <div className="pt-2">
+                  <Label htmlFor="warranty_note_text" className="text-sm">Warranty Note — Legal Paragraph</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Printed verbatim on every Warranty Note. Include your authorized agent name, CNIC, license number and expiry so each warranty note carries the correct statutory wording.</p>
+                  <Textarea
+                    id="warranty_note_text"
+                    rows={6}
+                    value={form.warranty_note_text}
+                    onChange={e => setForm({ ...form, warranty_note_text: e.target.value })}
+                    placeholder="It is hereby certified that..."
+                  />
+                </div>
+              </div>
  </CardContent>
  </Card>
  </TabsContent>
