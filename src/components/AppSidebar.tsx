@@ -137,12 +137,18 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="mouj-dark-sidebar border-r">
-      {/* Brand header — wordmark */}
+      {/* Brand header — wordmark + tenant + fiscal year */}
       <div className="mouj-brand">
         {collapsed ? (
           <span className="mouj-wordmark-short">M</span>
         ) : (
-          <span className="mouj-wordmark">MOUJ <span className="mouj-wordmark-accent">PHARMA</span></span>
+          <>
+            <span className="mouj-wordmark">MOUJ <span className="mouj-wordmark-accent">PHARMA</span></span>
+            <div className="mouj-brand-meta">
+              <span className="mouj-brand-tenant">{tenantName || "My Company"}</span>
+              <span className="mouj-brand-fy">FY {new Date().getFullYear()} · {(ROLE_LABEL as any)[tenantRole as any] ?? (tenantRole === "owner" ? "Admin" : "Staff")}</span>
+            </div>
+          </>
         )}
       </div>
 
