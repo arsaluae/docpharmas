@@ -33,6 +33,7 @@ import { useFreightProviders } from "@/hooks/useFreightProviders";
 import { SalesReturnDialog } from "@/components/sales/SalesReturnDialog";
 import { useDraftAutosave } from "@/hooks/useDraftAutosave";
 import { useTenant } from "@/hooks/useTenant";
+import { useIsSalesAgent } from "@/hooks/useIsSalesAgent";
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; mrp?: number | null; }
@@ -254,10 +255,15 @@ export default function ProformaInvoices() {
  else pfQuery = pfQuery.neq("status", "draft"); // simplified for server-side
  }
  pfQuery = pfQuery.range(pagination.from, pagination.to);
+ // Sales agents cannot read the products base table (cost columns hidden by RLS).
+ // Use the cost-free agent_stock_availability view instead — same live data, no cost exposure.
+ const prodQuery = isSalesAgent
+   ? supabase.from("agent_stock_availability").select("product_id, name, selling_price, gst_rate, mrp")
+   : supabase.from("products").select("id, name, selling_price, gst_rate, mrp").eq("is_active", true);
  const [pf, cust, prod, agentsRes] = await Promise.all([
  pfQuery,
  supabase.from("customers").select("id, name, company, phone, address, area").eq("is_active", true),
- supabase.from("products").select("id, name, selling_price, gst_rate, mrp").eq("is_active", true),
+ prodQuery,
  supabase.from("sales_agents").select("id, name").eq("status", "active"),
  ]);
  if (agentsRes.data) setAgentsList(agentsRes.data as SalesAgentOption[]);
