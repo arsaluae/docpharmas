@@ -240,10 +240,16 @@ export default function Settings() {
  <Users className="h-4 w-4 mr-1" /> Team & Access
  </TabsTrigger>
  )}
- <TabsTrigger value="backup">
- <Database className="h-4 w-4 mr-1" /> Data Backup
- </TabsTrigger>
- </TabsList>
+				<TabsTrigger value="backup">
+					<Database className="h-4 w-4 mr-1" /> Data Backup
+				</TabsTrigger>
+				{tenantRole === "owner" && (
+					<TabsTrigger value="testing">
+						<FlaskConical className="h-4 w-4 mr-1" /> Testing
+					</TabsTrigger>
+				)}
+				</TabsList>
+
 
  <TabsContent value="operations" className="space-y-6 max-w-3xl">
  <Card className="glass-card">
