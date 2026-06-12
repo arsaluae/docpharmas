@@ -395,10 +395,12 @@ export default function Settings() {
  </TabsContent>
 
  {tenantRole === "owner" && (
- <TabsContent value="team" className="max-w-2xl">
+ <TabsContent value="team" className="max-w-2xl space-y-6">
  <TeamAccessCard />
+ <SalesAgentScopeCard />
  </TabsContent>
  )}
+
 
  <TabsContent value="backup" className="max-w-2xl space-y-6">
  <Card className="glass-card">
