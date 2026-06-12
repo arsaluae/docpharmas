@@ -221,7 +221,6 @@ function buildA4Html(opts: PdfOptions): string {
       <div style="background:${C.cardBg};padding:8px 16px;border-bottom:1px solid ${C.border};font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;color:${C.primary};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(opts.partyLabel || "Bill To")}</div>
       <div style="padding:14px 16px;word-wrap:break-word;overflow-wrap:anywhere;">
         ${opts.partyName ? `<div style="font-size:19px;font-weight:700;color:${C.text};line-height:1.25;">${escapeHtml(opts.partyName)}</div>` : ""}
-        ${opts.partyCode ? `<div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${C.textMuted};margin-top:3px;letter-spacing:0.4px;">${escapeHtml(opts.partyCode)}</div>` : ""}
         ${phoneBits.length ? `<div style="font-size:15px;color:${C.text};margin-top:9px;font-weight:600;">${phoneBits.join("  ·  ")}</div>` : ""}
         ${cityArea ? `<div style="font-size:15px;color:${C.text};margin-top:5px;">${escapeHtml(cityArea)}</div>` : ""}
         ${opts.partyAddress ? `<div style="font-size:15px;color:${C.textMuted};margin-top:5px;line-height:1.55;">${escapeHtml(opts.partyAddress)}</div>` : ""}
