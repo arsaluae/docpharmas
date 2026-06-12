@@ -210,11 +210,13 @@ function buildA4Html(opts: PdfOptions): string {
       <span style="color:${C.text};font-weight:600;flex:1;">${escapeHtml(r.value)}</span>
     </div>`).join("");
 
-  // Gate party phone/mobile by Document Preferences (default OFF, supplier phone hard-off)
+  // Gate party phone/mobile by Document Preferences.
+  // Customer mobile defaults ON for SO/SI/DN — distributors expect it auto-printed.
   const isSupplierParty = /supplier|printer|pharmacy|vendor/i.test(opts.partyLabel || "");
   const isCustomerParty = !isSupplierParty;
+  const customerMobileFlag = (s as any)?.show_customer_mobile_on_docs;
   const showMobile = isCustomerParty
-    ? (s as any)?.show_customer_mobile_on_docs === true
+    ? (customerMobileFlag === false ? false : true) // default ON unless explicitly disabled
     : (s as any)?.show_supplier_mobile_on_docs === true;
   const showPhone = isCustomerParty
     ? (s as any)?.show_customer_phone_on_docs === true
