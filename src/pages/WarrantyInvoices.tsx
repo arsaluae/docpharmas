@@ -346,7 +346,7 @@ export default function WarrantyInvoices() {
  setSelectedCustomerId(inv.customer_id || "");
  setSelectedInvoiceId(inv.source_invoice_id || "");
  setSelectedDistributorId(inv.distributor_id || "");
- setSelectedSalesRepId(inv.sales_agent_id || "");
+ 
  const invItems = Array.isArray(inv.items) ? inv.items as any : [];
  setItems(invItems);
  // Load distributors for the customer (so the edit form shows the picker)
