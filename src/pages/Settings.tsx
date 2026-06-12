@@ -137,6 +137,10 @@ export default function Settings() {
  gst_enabled: form.gst_enabled, default_gst_rate: Number(form.default_gst_rate),
  wht_enabled: form.wht_enabled, default_wht_rate: Number(form.default_wht_rate),
  whatsapp_number: form.whatsapp_number || null,
+ show_customer_mobile_on_docs: form.show_customer_mobile_on_docs,
+ show_customer_phone_on_docs: form.show_customer_phone_on_docs,
+ show_supplier_mobile_on_docs: form.show_supplier_mobile_on_docs,
+ show_supplier_phone_on_docs: form.show_supplier_phone_on_docs,
  };
  if (settingsId) {
  await supabase.from("company_settings").update(payload as any).eq("id", settingsId);
