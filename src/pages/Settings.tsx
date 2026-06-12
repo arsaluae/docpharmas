@@ -18,6 +18,8 @@ import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescript
 import * as XLSX from "xlsx";
 import { FreightProvidersCard } from "@/components/settings/FreightProvidersCard";
 import { WhatsAppTemplatesCard } from "@/components/settings/WhatsAppTemplatesCard";
+import { SandboxTestingTab } from "@/components/settings/SandboxTestingTab";
+import { FlaskConical } from "lucide-react";
 import { CREATABLE_ROLES, ROLE_DESCRIPTION, ROLE_LABEL, type TenantRole } from "@/lib/rbac";
 import { logAudit } from "@/lib/audit";
 
