@@ -852,7 +852,9 @@ interface TenantMember {
  is_active: boolean;
  created_at: string;
  email?: string;
+ last_sign_in_at?: string | null;
 }
+
 
 function TeamAccessCard() {
  const { tenantId } = useTenant();
