@@ -25,6 +25,12 @@ export interface CompanySettings {
   show_supplier_phone_on_docs?: boolean;
   warranty_note_text?: string | null;
   warranty_declaration_enabled?: boolean;
+  warranty_require_mobile?: boolean;
+  warranty_require_address?: boolean;
+  warranty_require_license_no?: boolean;
+  warranty_require_license_expiry?: boolean;
+  warranty_require_batch_number?: boolean;
+  warranty_require_batch_expiry?: boolean;
 }
 
 export function useCompanySettings() {
