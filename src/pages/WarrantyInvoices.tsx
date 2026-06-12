@@ -732,16 +732,17 @@ export default function WarrantyInvoices() {
  <Table>
  <TableHeader>
  <TableRow>
- <TableHead>WI #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead>
- <TableHead>Pharmacy</TableHead><TableHead className="text-right">Total</TableHead>
+ <TableHead>Warranty Note #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead>
+ <TableHead>Warranty Address</TableHead><TableHead className="text-center">Products</TableHead>
+ <TableHead className="text-center">Status</TableHead>
  <TableHead className="text-center">Actions</TableHead>
  </TableRow>
  </TableHeader>
  <TableBody>
  {filtered.length === 0 ? (
  <TableRow>
- <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
- <ShieldCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No warranty invoices yet.
+ <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+ <ShieldCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />No warranty notes yet.
  </TableCell>
  </TableRow>
  ) : filtered.map(inv => (
@@ -750,7 +751,8 @@ export default function WarrantyInvoices() {
  <TableCell>{inv.date}</TableCell>
  <TableCell>{inv.customers?.name || "—"}</TableCell>
  <TableCell>{inv.pharmacy_name}</TableCell>
- <TableCell className="text-right font-mono">{Number(inv.total).toLocaleString()}</TableCell>
+ <TableCell className="text-center font-mono tabular-nums">{Array.isArray(inv.items) ? inv.items.length : 0}</TableCell>
+ <TableCell className="text-center"><Badge variant="outline" className="capitalize">{inv.status}</Badge></TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                               <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => openPdf(inv)}>
