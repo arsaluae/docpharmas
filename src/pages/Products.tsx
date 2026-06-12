@@ -20,6 +20,8 @@ import { ProductBatchProfileDialog } from "@/components/ProductBatchProfileDialo
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useTenant } from "@/hooks/useTenant";
+import { useRoles } from "@/hooks/useRoles";
+import { isSalesAgentRole } from "@/lib/rbac";
 
 const categories = ["tablet", "capsule", "syrup", "injection", "cream", "ointment", "drops", "sachet", "other"] as const;
 const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", "return_out", "adjustment", "adjustment_in", "adjustment_out", "opening", "damage", "expired"];
@@ -44,6 +46,8 @@ export default function Products() {
  const navigate = useNavigate();
  const { settings } = useCompanySettings();
  const { tenantRole, isAdmin } = useTenant();
+ const { role } = useRoles();
+ const hideCost = isSalesAgentRole(role);
  const readOnly = tenantRole === "staff" && !isAdmin;
  const [products, setProducts] = useState<Product[]>([]);
  const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -248,7 +252,7 @@ export default function Products() {
  <div><Label>Pack Size</Label><Input value={form.pack_size} onChange={e => setForm({...form, pack_size: e.target.value})} placeholder="e.g. 10x10" /></div>
  <div><Label>Unit</Label><Input value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} /></div>
  {settings?.gst_enabled && <div><Label>GST Rate (%)</Label><Input type="number" value={form.gst_rate} onChange={e => setForm({...form, gst_rate: e.target.value})} /></div>}
- <div><Label>Cost Price (PKR)</Label><Input type="number" value={form.cost_price} onChange={e => setForm({...form, cost_price: e.target.value})} /></div>
+ {!hideCost && <div><Label>Cost Price (PKR)</Label><Input type="number" value={form.cost_price} onChange={e => setForm({...form, cost_price: e.target.value})} /></div>}
  <div><Label>Net Price (PKR) *</Label><Input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} placeholder="Hits all ledgers" /><p className="text-[10px] text-muted-foreground mt-1">Used for every calculation, tax, COGS & ledger posting.</p></div>
  <div><Label>MRP (PKR)</Label><Input type="number" value={form.mrp} onChange={e => setForm({...form, mrp: e.target.value})} placeholder="Display only" /><p className="text-[10px] text-muted-foreground mt-1">Market Retail Price — shown on invoices for reference only, never used in math.</p></div>
  {!editId && <div><Label>Opening Stock</Label><Input type="number" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} placeholder="0" /><p className="text-xs text-muted-foreground mt-1">Only set on creation. Use Stock Movements to adjust later.</p></div>}
@@ -287,14 +291,14 @@ export default function Products() {
  <TableHeader>
  <TableRow>
  <TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>SKU</TableHead><TableHead>Category</TableHead><TableHead>DRAP</TableHead>
- <TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Net Price</TableHead><TableHead className="text-right">MRP</TableHead>
- <TableHead className="text-right">Margin</TableHead><TableHead className="text-right">Stock</TableHead>
+ {!hideCost && <TableHead className="text-right">Cost</TableHead>}<TableHead className="text-right">Net Price</TableHead><TableHead className="text-right">MRP</TableHead>
+ {!hideCost && <TableHead className="text-right">Margin</TableHead>}<TableHead className="text-right">Stock</TableHead>
  <TableHead className="text-center">Actions</TableHead>
  </TableRow>
  </TableHeader>
  <TableBody>
  {filtered.length === 0 ? (
- <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
+ <TableRow><TableCell colSpan={hideCost ? 9 : 11} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
  ) : filtered.map(p => (
  <TableRow key={p.id} className={`${readOnly ? "" : "cursor-pointer"} table-row-hover ${p.is_active === false ? "opacity-50" : ""}`} onClick={() => { if (!readOnly) handleEdit(p); }}>
  <TableCell className="text-xs font-mono text-muted-foreground">{(p as any).product_code || "—"}</TableCell>
@@ -302,10 +306,10 @@ export default function Products() {
  <TableCell className="text-xs text-muted-foreground">{p.sku || "—"}</TableCell>
  <TableCell><span className="status-pill bg-primary/10 text-primary capitalize">{p.category}</span></TableCell>
  <TableCell className="text-xs">{p.drap_reg_number || "—"}</TableCell>
- <TableCell className="text-right font-mono">{Number(p.cost_price).toLocaleString()}</TableCell>
+ {!hideCost && <TableCell className="text-right font-mono">{Number(p.cost_price).toLocaleString()}</TableCell>}
  <TableCell className="text-right font-mono">{Number(p.selling_price).toLocaleString()}</TableCell>
  <TableCell className="text-right font-mono text-muted-foreground">{Number(p.mrp || 0) > 0 ? Number(p.mrp).toLocaleString() : "—"}</TableCell>
- <TableCell className="text-right font-mono text-primary">{margin(p)}</TableCell>
+ {!hideCost && <TableCell className="text-right font-mono text-primary">{margin(p)}</TableCell>}
  <TableCell className="text-right">
  <span className={Number(p.stock_quantity) <= Number(p.reorder_level) ? "text-destructive font-semibold" : ""}>{Number(p.stock_quantity).toLocaleString()}</span>
  </TableCell>
@@ -347,11 +351,13 @@ export default function Products() {
 
  {/* STOCK OVERVIEW TAB */}
  <TabsContent value="stock">
- <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+ <div className={`grid grid-cols-2 ${hideCost ? "md:grid-cols-3" : "md:grid-cols-4"} gap-4 mb-4`}>
+ {!hideCost && (
  <Card className="glass-card"><CardContent className="p-4">
  <p className="text-xs text-muted-foreground">Total Stock Value</p>
  <p className="text-xl font-bold font-heading text-foreground">PKR {totalStockValue.toLocaleString()}</p>
  </CardContent></Card>
+ )}
  <Card className="glass-card"><CardContent className="p-4">
  <p className="text-xs text-muted-foreground">Total Retail Value</p>
  <p className="text-xl font-bold font-heading text-foreground">PKR {totalRetailValue.toLocaleString()}</p>
@@ -373,17 +379,17 @@ export default function Products() {
  <TableRow>
  <TableHead>Product</TableHead>
  <TableHead className="text-right">Stock</TableHead>
- <TableHead className="text-right">Cost Price</TableHead>
+ {!hideCost && <TableHead className="text-right">Cost Price</TableHead>}
  <TableHead className="text-right">Sell Price</TableHead>
- <TableHead className="text-right">Stock Value</TableHead>
- <TableHead className="text-right">Margin</TableHead>
+ {!hideCost && <TableHead className="text-right">Stock Value</TableHead>}
+ {!hideCost && <TableHead className="text-right">Margin</TableHead>}
  <TableHead className="text-right">Reorder</TableHead>
  <TableHead className="text-center">Status</TableHead>
  </TableRow>
  </TableHeader>
  <TableBody>
  {products.length === 0 ? (
- <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">No products yet.</TableCell></TableRow>
+ <TableRow><TableCell colSpan={hideCost ? 5 : 8} className="text-center py-12 text-muted-foreground">No products yet.</TableCell></TableRow>
  ) : products.map(p => {
  const qty = Number(p.stock_quantity);
  const cost = Number(p.cost_price);
@@ -394,10 +400,10 @@ export default function Products() {
  <TableRow key={p.id} className={isOut ? "bg-destructive/5" : isLow ? "bg-warning/5" : ""}>
  <TableCell className="font-medium">{p.name}</TableCell>
  <TableCell className="text-right font-mono">{qty.toLocaleString()}</TableCell>
- <TableCell className="text-right font-mono">{cost.toLocaleString()}</TableCell>
+ {!hideCost && <TableCell className="text-right font-mono">{cost.toLocaleString()}</TableCell>}
  <TableCell className="text-right font-mono">{sell.toLocaleString()}</TableCell>
- <TableCell className="text-right font-mono font-semibold">{(qty * cost).toLocaleString()}</TableCell>
- <TableCell className="text-right font-mono text-primary">{margin(p)}</TableCell>
+ {!hideCost && <TableCell className="text-right font-mono font-semibold">{(qty * cost).toLocaleString()}</TableCell>}
+ {!hideCost && <TableCell className="text-right font-mono text-primary">{margin(p)}</TableCell>}
  <TableCell className="text-right font-mono text-muted-foreground">{Number(p.reorder_level)}</TableCell>
  <TableCell className="text-center">{stockStatus(p)}</TableCell>
  </TableRow>
