@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Truck, Package, LogOut, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
   BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown,
-  Banknote, Building2, Keyboard, Moon, Sun, BookOpen,
+  Banknote, Building2, Keyboard, Moon, Sun, BookOpen, Shield,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
