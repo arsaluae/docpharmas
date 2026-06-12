@@ -29,13 +29,30 @@ export default function Auth() {
     setLoading(true);
     try {
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
           setFailedAttempts((n) => n + 1);
           throw error;
         }
+        // Block deactivated users from entering the app
+        const uid = signInData.user?.id;
+        if (uid) {
+          const { data: tu } = await (supabase as any)
+            .from("tenant_users")
+            .select("is_active")
+            .eq("user_id", uid)
+            .eq("is_active", true)
+            .limit(1)
+            .maybeSingle();
+          if (!tu) {
+            await supabase.auth.signOut();
+            setFailedAttempts(0);
+            throw new Error("Your account has been deactivated. Please contact your administrator.");
+          }
+        }
         setFailedAttempts(0);
         navigate("/dashboard");
+
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
