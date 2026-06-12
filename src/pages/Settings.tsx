@@ -89,6 +89,8 @@ export default function Settings() {
  logo_url: "", fbr_enabled: false, ntn: "", strn: "",
  gst_enabled: false, default_gst_rate: "17", wht_enabled: false, default_wht_rate: "4.5",
  whatsapp_number: "",
+ show_customer_mobile_on_docs: false, show_customer_phone_on_docs: false,
+ show_supplier_mobile_on_docs: false, show_supplier_phone_on_docs: false,
  });
 
  const { templates, loading: templatesLoading, updateTemplate } = useDocumentTemplates();
@@ -117,6 +119,10 @@ export default function Settings() {
  wht_enabled: (data as any).wht_enabled || false,
  default_wht_rate: String((data as any).default_wht_rate ?? 4.5),
  whatsapp_number: (data as any).whatsapp_number || "",
+ show_customer_mobile_on_docs: !!(data as any).show_customer_mobile_on_docs,
+ show_customer_phone_on_docs: !!(data as any).show_customer_phone_on_docs,
+ show_supplier_mobile_on_docs: !!(data as any).show_supplier_mobile_on_docs,
+ show_supplier_phone_on_docs: !!(data as any).show_supplier_phone_on_docs,
  });
  }
  setLoading(false);
@@ -131,6 +137,10 @@ export default function Settings() {
  gst_enabled: form.gst_enabled, default_gst_rate: Number(form.default_gst_rate),
  wht_enabled: form.wht_enabled, default_wht_rate: Number(form.default_wht_rate),
  whatsapp_number: form.whatsapp_number || null,
+ show_customer_mobile_on_docs: form.show_customer_mobile_on_docs,
+ show_customer_phone_on_docs: form.show_customer_phone_on_docs,
+ show_supplier_mobile_on_docs: form.show_supplier_mobile_on_docs,
+ show_supplier_phone_on_docs: form.show_supplier_phone_on_docs,
  };
  if (settingsId) {
  await supabase.from("company_settings").update(payload as any).eq("id", settingsId);
@@ -370,6 +380,33 @@ export default function Settings() {
  <p className="text-xs text-muted-foreground">When enabled, FBR QR column appears on sales invoices</p>
  </div>
  <Switch checked={form.fbr_enabled} onCheckedChange={v => setForm({...form, fbr_enabled: v})} />
+ </div>
+
+ <div className="border-t border-border" />
+
+ <div className="space-y-3">
+ <div>
+ <p className="font-medium text-sm">Document Preferences</p>
+ <p className="text-xs text-muted-foreground">Choose which contact numbers appear on printed Sales/Purchase documents. All off by default.</p>
+ </div>
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+ <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+ <span className="text-sm">Show customer mobile on documents</span>
+ <Switch checked={form.show_customer_mobile_on_docs} onCheckedChange={v => setForm({...form, show_customer_mobile_on_docs: v})} />
+ </label>
+ <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+ <span className="text-sm">Show customer phone on documents</span>
+ <Switch checked={form.show_customer_phone_on_docs} onCheckedChange={v => setForm({...form, show_customer_phone_on_docs: v})} />
+ </label>
+ <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+ <span className="text-sm">Show supplier mobile on documents</span>
+ <Switch checked={form.show_supplier_mobile_on_docs} onCheckedChange={v => setForm({...form, show_supplier_mobile_on_docs: v})} />
+ </label>
+ <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+ <span className="text-sm">Show supplier phone on documents</span>
+ <Switch checked={form.show_supplier_phone_on_docs} onCheckedChange={v => setForm({...form, show_supplier_phone_on_docs: v})} />
+ </label>
+ </div>
  </div>
  </CardContent>
  </Card>

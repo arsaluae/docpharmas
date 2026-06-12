@@ -171,8 +171,8 @@ function buildA4Html(opts: PdfOptions): string {
 
   /* ── HEADER: logo left · company right ── */
   const logoHtml = s?.logo_url
-    ? `<img src="${s.logo_url}" alt="${escapeHtml(companyName)}" style="max-height:110px;max-width:220px;object-fit:contain;display:block;" />`
-    : `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.5px;">${escapeHtml(companyName)}</div>`;
+    ? `<img src="${s.logo_url}" alt="${escapeHtml(companyName)}" style="max-height:140px;max-width:300px;object-fit:contain;display:block;" />`
+    : `<div style="font-size:30px;font-weight:800;color:${C.text};letter-spacing:-0.5px;">${escapeHtml(companyName)}</div>`;
 
   const addressLine = [s?.address, (s as any)?.city].filter(Boolean).join(", ");
   const phoneLine = [s?.phone ? `Tel: ${s.phone}` : null, (s as any)?.whatsapp_number ? `Mob: ${(s as any).whatsapp_number}` : null].filter(Boolean).join("  ·  ");
@@ -181,16 +181,16 @@ function buildA4Html(opts: PdfOptions): string {
 
   const companyBlock = `
     <div style="text-align:right;">
-      ${s?.logo_url ? `<div style="font-size:22px;font-weight:700;color:${C.text};letter-spacing:-0.2px;line-height:1.2;">${escapeHtml(companyName)}</div>` : ""}
-      ${tagline ? `<div style="font-size:12px;font-style:italic;color:${C.textMuted};margin-top:2px;">${escapeHtml(tagline)}</div>` : ""}
-      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:12px;color:${C.textMuted};line-height:1.6;margin-top:1px;">${escapeHtml(l)}</div>`).join("")}
+      ${s?.logo_url ? `<div style="font-size:24px;font-weight:700;color:${C.text};letter-spacing:-0.2px;line-height:1.2;">${escapeHtml(companyName)}</div>` : ""}
+      ${tagline ? `<div style="font-size:14px;font-style:italic;color:${C.textMuted};margin-top:3px;">${escapeHtml(tagline)}</div>` : ""}
+      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:14px;color:${C.textMuted};line-height:1.65;margin-top:2px;">${escapeHtml(l)}</div>`).join("")}
     </div>`;
 
   /* ── DOCUMENT TITLE (centered) ── */
   const titleBlock = `
-    <div style="text-align:center;margin-top:18px;padding-top:14px;border-top:2px solid ${C.text};">
-      <div style="font-size:24px;font-weight:800;color:${C.text};letter-spacing:1px;text-transform:uppercase;">${escapeHtml(docTitle)}</div>
-      <div style="height:2px;width:80px;background:${C.primary};margin:6px auto 0;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div>
+    <div style="text-align:center;margin-top:22px;padding-top:16px;border-top:2px solid ${C.text};">
+      <div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:1.2px;text-transform:uppercase;">${escapeHtml(docTitle)}</div>
+      <div style="height:2px;width:90px;background:${C.primary};margin:7px auto 0;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div>
     </div>`;
 
   /* ── DOC INFO (left) + CUSTOMER (right) ── */
@@ -210,24 +210,33 @@ function buildA4Html(opts: PdfOptions): string {
       <span style="color:${C.text};font-weight:600;flex:1;">${escapeHtml(r.value)}</span>
     </div>`).join("");
 
+  // Gate party phone/mobile by Document Preferences (default OFF, supplier phone hard-off)
+  const isSupplierParty = /supplier|printer|pharmacy|vendor/i.test(opts.partyLabel || "");
+  const isCustomerParty = !isSupplierParty;
+  const showMobile = isCustomerParty
+    ? (s as any)?.show_customer_mobile_on_docs === true
+    : (s as any)?.show_supplier_mobile_on_docs === true;
+  const showPhone = isCustomerParty
+    ? (s as any)?.show_customer_phone_on_docs === true
+    : (s as any)?.show_supplier_phone_on_docs === true;
   const phoneBits: string[] = [];
-  if (opts.partyMobile) phoneBits.push(`📱 ${escapeHtml(opts.partyMobile)}`);
-  if (opts.partyPhone && opts.partyPhone !== opts.partyMobile) phoneBits.push(`☎ ${escapeHtml(opts.partyPhone)}`);
+  if (showMobile && opts.partyMobile) phoneBits.push(`📱 ${escapeHtml(opts.partyMobile)}`);
+  if (showPhone && opts.partyPhone && opts.partyPhone !== opts.partyMobile) phoneBits.push(`☎ ${escapeHtml(opts.partyPhone)}`);
   const cityArea = [opts.partyCity, opts.partyArea].filter(Boolean).join(" · ");
 
   const partyHtml = `
     <div style="border:1px solid ${C.border};border-radius:4px;overflow:hidden;background:#fff;">
-      <div style="background:${C.cardBg};padding:6px 14px;border-bottom:1px solid ${C.border};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;color:${C.primary};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(opts.partyLabel || "Bill To")}</div>
-      <div style="padding:12px 14px;">
-        ${opts.partyName ? `<div style="font-size:18px;font-weight:700;color:${C.text};line-height:1.25;">${escapeHtml(opts.partyName)}</div>` : ""}
-        ${opts.partyCode ? `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${C.textMuted};margin-top:2px;letter-spacing:0.4px;">${escapeHtml(opts.partyCode)}</div>` : ""}
-        ${phoneBits.length ? `<div style="font-size:14px;color:${C.text};margin-top:8px;font-weight:600;">${phoneBits.join("  ·  ")}</div>` : ""}
-        ${cityArea ? `<div style="font-size:14px;color:${C.text};margin-top:4px;">${escapeHtml(cityArea)}</div>` : ""}
-        ${opts.partyAddress ? `<div style="font-size:14px;color:${C.textMuted};margin-top:4px;line-height:1.5;">${escapeHtml(opts.partyAddress)}</div>` : ""}
-        ${opts.partyNtn ? `<div style="font-size:12px;color:${C.textMuted};margin-top:6px;">NTN: ${escapeHtml(opts.partyNtn)}</div>` : ""}
-        ${t?.show_party_license && opts.partyLicense ? `<div style="font-size:12px;color:${C.textMuted};">License: ${escapeHtml(opts.partyLicense)}</div>` : ""}
-        ${t?.show_party_cnic && opts.partyCnic ? `<div style="font-size:12px;color:${C.textMuted};">CNIC: ${escapeHtml(opts.partyCnic)}</div>` : ""}
-        ${opts.partyAccountCode ? `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${C.textLight};margin-top:6px;">A/C: ${escapeHtml(opts.partyAccountCode)}</div>` : ""}
+      <div style="background:${C.cardBg};padding:8px 16px;border-bottom:1px solid ${C.border};font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;color:${C.primary};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(opts.partyLabel || "Bill To")}</div>
+      <div style="padding:14px 16px;">
+        ${opts.partyName ? `<div style="font-size:19px;font-weight:700;color:${C.text};line-height:1.25;">${escapeHtml(opts.partyName)}</div>` : ""}
+        ${opts.partyCode ? `<div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${C.textMuted};margin-top:3px;letter-spacing:0.4px;">${escapeHtml(opts.partyCode)}</div>` : ""}
+        ${phoneBits.length ? `<div style="font-size:15px;color:${C.text};margin-top:9px;font-weight:600;">${phoneBits.join("  ·  ")}</div>` : ""}
+        ${cityArea ? `<div style="font-size:15px;color:${C.text};margin-top:5px;">${escapeHtml(cityArea)}</div>` : ""}
+        ${opts.partyAddress ? `<div style="font-size:15px;color:${C.textMuted};margin-top:5px;line-height:1.55;">${escapeHtml(opts.partyAddress)}</div>` : ""}
+        ${opts.partyNtn ? `<div style="font-size:13px;color:${C.textMuted};margin-top:7px;">NTN: ${escapeHtml(opts.partyNtn)}</div>` : ""}
+        ${t?.show_party_license && opts.partyLicense ? `<div style="font-size:13px;color:${C.textMuted};">License: ${escapeHtml(opts.partyLicense)}</div>` : ""}
+        ${t?.show_party_cnic && opts.partyCnic ? `<div style="font-size:13px;color:${C.textMuted};">CNIC: ${escapeHtml(opts.partyCnic)}</div>` : ""}
+        ${opts.partyAccountCode ? `<div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${C.textLight};margin-top:7px;">A/C: ${escapeHtml(opts.partyAccountCode)}</div>` : ""}
       </div>
     </div>`;
 
@@ -288,18 +297,18 @@ function buildA4Html(opts: PdfOptions): string {
   const totalAmount = grandTotal ? parseFloat(grandTotal.value.replace(/[^0-9.]/g, "")) : 0;
 
   const totalsCard = totals.length ? `
-    <div style="display:flex;margin-top:18px;">
+    <div style="display:flex;margin-top:22px;">
       <div style="flex:1;"></div>
-      <div style="width:340px;max-width:55%;border:1px solid ${C.border};border-radius:3px;overflow:hidden;background:#fff;">
+      <div style="width:380px;max-width:58%;border:1px solid ${C.border};border-radius:3px;overflow:hidden;background:#fff;">
         ${subRows.map(r => `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;font-size:14px;border-bottom:1px solid ${C.borderLight};">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;font-size:15px;border-bottom:1px solid ${C.borderLight};">
             <span style="color:${C.textMuted};">${escapeHtml(r.label)}</span>
-            <span style="color:${C.text};font-family:'JetBrains Mono',monospace;font-weight:600;font-size:15px;">${escapeHtml(r.value)}</span>
+            <span style="color:${C.text};font-family:'JetBrains Mono',monospace;font-weight:600;font-size:16px;">${escapeHtml(r.value)}</span>
           </div>`).join("")}
         ${grandTotal ? `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:${C.text};color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
-            <span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;">${escapeHtml(grandTotal.label || "Grand Total")}</span>
-            <span style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:800;letter-spacing:0.4px;">${escapeHtml(grandTotal.value)}</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 18px;background:${C.text};color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+            <span style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.6px;">${escapeHtml(grandTotal.label || "Grand Total")}</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:800;letter-spacing:0.4px;">${escapeHtml(grandTotal.value)}</span>
           </div>` : ""}
       </div>
     </div>` : "";
