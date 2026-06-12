@@ -71,6 +71,7 @@ const daysUntil = (iso?: string | null): number | null => {
 
 export default function ProformaInvoices() {
  const navigate = useNavigate();
+ const isSalesAgent = useIsSalesAgent();
  const [searchParams] = useSearchParams();
  const [orders, setOrders] = useState<SalesOrder[]>([]);
  const [customers, setCustomers] = useState<Customer[]>([]);
