@@ -588,6 +588,7 @@ export type Database = {
           strn: string | null
           tenant_id: string | null
           updated_at: string
+          warranty_declaration_enabled: boolean
           warranty_note_text: string | null
           website: string | null
           whatsapp_number: string | null
@@ -619,6 +620,7 @@ export type Database = {
           strn?: string | null
           tenant_id?: string | null
           updated_at?: string
+          warranty_declaration_enabled?: boolean
           warranty_note_text?: string | null
           website?: string | null
           whatsapp_number?: string | null
@@ -650,6 +652,7 @@ export type Database = {
           strn?: string | null
           tenant_id?: string | null
           updated_at?: string
+          warranty_declaration_enabled?: boolean
           warranty_note_text?: string | null
           website?: string | null
           whatsapp_number?: string | null
@@ -4059,42 +4062,60 @@ export type Database = {
       sales_agents: {
         Row: {
           address: string | null
+          cnic: string | null
           commission_rate: number
           commission_type: string
           created_at: string
           email: string | null
+          father_name: string | null
           id: string
           is_active: boolean
+          license_expiry: string | null
+          license_number: string | null
           name: string
           phone: string | null
+          signature_url: string | null
+          stamp_url: string | null
           status: string
           tenant_id: string | null
           user_id: string | null
         }
         Insert: {
           address?: string | null
+          cnic?: string | null
           commission_rate?: number
           commission_type?: string
           created_at?: string
           email?: string | null
+          father_name?: string | null
           id?: string
           is_active?: boolean
+          license_expiry?: string | null
+          license_number?: string | null
           name: string
           phone?: string | null
+          signature_url?: string | null
+          stamp_url?: string | null
           status?: string
           tenant_id?: string | null
           user_id?: string | null
         }
         Update: {
           address?: string | null
+          cnic?: string | null
           commission_rate?: number
           commission_type?: string
           created_at?: string
           email?: string | null
+          father_name?: string | null
           id?: string
           is_active?: boolean
+          license_expiry?: string | null
+          license_number?: string | null
           name?: string
           phone?: string | null
+          signature_url?: string | null
+          stamp_url?: string | null
           status?: string
           tenant_id?: string | null
           user_id?: string | null
@@ -5185,6 +5206,7 @@ export type Database = {
           pharmacy_address: string | null
           pharmacy_license_no: string | null
           pharmacy_name: string
+          sales_agent_id: string | null
           source_invoice_id: string | null
           status: string
           subtotal: number
@@ -5209,6 +5231,7 @@ export type Database = {
           pharmacy_address?: string | null
           pharmacy_license_no?: string | null
           pharmacy_name: string
+          sales_agent_id?: string | null
           source_invoice_id?: string | null
           status?: string
           subtotal?: number
@@ -5233,6 +5256,7 @@ export type Database = {
           pharmacy_address?: string | null
           pharmacy_license_no?: string | null
           pharmacy_name?: string
+          sales_agent_id?: string | null
           source_invoice_id?: string | null
           status?: string
           subtotal?: number
@@ -5256,6 +5280,13 @@ export type Database = {
             columns: ["distributor_id"]
             isOneToOne: false
             referencedRelation: "customer_distributors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warranty_invoices_sales_agent_id_fkey"
+            columns: ["sales_agent_id"]
+            isOneToOne: false
+            referencedRelation: "sales_agents"
             referencedColumns: ["id"]
           },
           {

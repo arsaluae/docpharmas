@@ -30,6 +30,12 @@ interface Product { id: string; name: string; selling_price: number; mrp: number
 interface SalesInvoice { id: string; invoice_number: string; date: string; total: number; status: string; }
 interface SalesInvoiceItem { id: string; product_id: string | null; quantity: number; rate: number; amount: number; batch_number: string | null; gst_rate: number; discount_percent: number; }
 interface Distributor { id: string; customer_id: string; name: string; address: string | null; license_number: string | null; license_expiry: string | null; phone: string | null; }
+interface SalesRep {
+ id: string; name: string;
+ father_name: string | null; cnic: string | null;
+ license_number: string | null; license_expiry: string | null;
+ signature_url: string | null; stamp_url: string | null;
+}
 
 interface LineItem {
  product_id: string; product_name: string; batch_number: string;
@@ -43,6 +49,7 @@ interface WarrantyInvoice {
  notes: string | null; status: string; created_at: string;
  source_invoice_id: string | null; discount_percent: number; discount_amount: number;
  distributor_id: string | null;
+ sales_agent_id: string | null;
  customers?: { name: string } | null;
 }
 
@@ -70,6 +77,7 @@ export default function WarrantyInvoices() {
     return `${d}/${m}/${y}`;
   };
 
+  const [salesReps, setSalesReps] = useState<SalesRep[]>([]);
   // Build the warranty-note options payload from a saved invoice, fetching the
   // full distributor record so phone / license expiry / address are accurate.
   const buildWarrantyOpts = async (inv: WarrantyInvoice): Promise<WarrantyNoteOptions> => {
@@ -77,6 +85,11 @@ export default function WarrantyInvoices() {
     if (inv.distributor_id) {
       const { data } = await supabase.from("customer_distributors").select("*").eq("id", inv.distributor_id).single() as { data: Distributor | null };
       dist = data;
+    }
+    let rep: SalesRep | null = null;
+    if (inv.sales_agent_id) {
+      const { data } = await supabase.from("sales_agents").select("id, name, father_name, cnic, license_number, license_expiry, signature_url, stamp_url").eq("id", inv.sales_agent_id).single() as { data: SalesRep | null };
+      rep = data;
     }
     const items = Array.isArray(inv.items) ? inv.items as any[] : [];
     return {
@@ -106,7 +119,15 @@ export default function WarrantyInvoices() {
       discountAmount: Number(inv.discount_amount || 0),
       discountLabel: Number(inv.discount_percent || 0) > 0 ? `Discount (${inv.discount_percent}%)` : "Discount",
       total: Number(inv.total || 0),
-      noteText: settings?.warranty_note_text || null,
+      salesRep: rep ? {
+        name: rep.name,
+        fatherName: rep.father_name,
+        cnic: rep.cnic,
+        licenseNumber: rep.license_number,
+        licenseExpiry: rep.license_expiry ? fmtDate(rep.license_expiry) : null,
+        signatureUrl: rep.signature_url,
+        stampUrl: rep.stamp_url,
+      } : null,
       settings,
     };
   };
@@ -127,6 +148,7 @@ export default function WarrantyInvoices() {
  const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
  const [distributors, setDistributors] = useState<Distributor[]>([]);
  const [selectedDistributorId, setSelectedDistributorId] = useState("");
+ const [selectedSalesRepId, setSelectedSalesRepId] = useState("");
  const [items, setItems] = useState<LineItem[]>([]);
  const [discountType, setDiscountType] = useState<"percent" | "amount">("percent");
  const [discountValue, setDiscountValue] = useState(0);
@@ -169,14 +191,16 @@ export default function WarrantyInvoices() {
 
 
  const load = async () => {
- const [inv, cust, prod] = await Promise.all([
+ const [inv, cust, prod, reps] = await Promise.all([
  supabase.from("warranty_invoices").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to),
  supabase.from("customers").select("id, name, company").eq("is_active", true).order("name"),
  supabase.from("products").select("id, name, selling_price, mrp").eq("is_active", true).order("name"),
+ supabase.from("sales_agents").select("id, name, father_name, cnic, license_number, license_expiry, signature_url, stamp_url").eq("status", "active").order("name"),
  ]);
  if (inv.data) setInvoices(inv.data as any);
  if (inv.count !== null && inv.count !== undefined) pagination.setTotalCount(inv.count);
  if (cust.data) setCustomers(cust.data);
+ if (reps.data) setSalesReps(reps.data as any);
  if (prod.data) setProducts(prod.data as any);
  };
 
@@ -269,6 +293,7 @@ export default function WarrantyInvoices() {
  setSelectedCustomerId("");
  setSelectedInvoiceId("");
  setSelectedDistributorId("");
+ setSelectedSalesRepId("");
  setItems([]);
  setDiscountType("percent");
  setDiscountValue(0);
@@ -299,6 +324,7 @@ export default function WarrantyInvoices() {
  pharmacy_address: dist?.address || null,
  pharmacy_license_no: dist?.license_number || null,
  distributor_id: selectedDistributorId || null,
+ sales_agent_id: selectedSalesRepId || null,
  items: items as any,
  subtotal,
  discount_percent: discountType === "percent" ? discountValue : 0,
@@ -311,7 +337,7 @@ export default function WarrantyInvoices() {
 
  if (editId) {
  const { warranty_number, ...updatePayload } = payload;
- await supabase.from("warranty_invoices").update(updatePayload).eq("id", editId);
+ await supabase.from("warranty_invoices").update(updatePayload as any).eq("id", editId);
  toast.success("Warranty invoice updated");
  } else {
  await supabase.from("warranty_invoices").insert(payload as any);
@@ -325,6 +351,7 @@ export default function WarrantyInvoices() {
  setSelectedCustomerId(inv.customer_id || "");
  setSelectedInvoiceId(inv.source_invoice_id || "");
  setSelectedDistributorId(inv.distributor_id || "");
+ setSelectedSalesRepId(inv.sales_agent_id || "");
  setItems(Array.isArray(inv.items) ? inv.items as any : []);
  setDiscountType(inv.discount_percent > 0 ? "percent" : "amount");
  setDiscountValue(inv.discount_percent > 0 ? inv.discount_percent : inv.discount_amount);
@@ -333,6 +360,7 @@ export default function WarrantyInvoices() {
  setStep("edit_items");
  setOpen(true);
  };
+
 
  const handleDelete = async (id: string, e: React.MouseEvent) => {
  e.stopPropagation();
@@ -482,6 +510,34 @@ export default function WarrantyInvoices() {
             </Select>
           </div>
         </div>
+
+        <div>
+          <Label>Sales Representative (signs the declaration)</Label>
+          <Select value={selectedSalesRepId} onValueChange={setSelectedSalesRepId}>
+            <SelectTrigger><SelectValue placeholder={salesReps.length === 0 ? "No active sales reps — add one under Sales Agents" : "Select sales representative..."} /></SelectTrigger>
+            <SelectContent>
+              {salesReps.map(r => (
+                <SelectItem key={r.id} value={r.id}>
+                  {r.name}{r.license_number ? ` — Lic ${r.license_number}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedSalesRepId && (() => {
+            const r = salesReps.find(x => x.id === selectedSalesRepId);
+            if (!r) return null;
+            const missing: string[] = [];
+            if (!r.cnic) missing.push("CNIC");
+            if (!r.license_number) missing.push("License #");
+            if (!r.license_expiry) missing.push("License expiry");
+            if (!r.signature_url) missing.push("Signature");
+            if (!r.stamp_url) missing.push("Stamp");
+            return missing.length > 0
+              ? <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">Missing on profile: {missing.join(", ")}. Edit the agent to complete the warranty declaration.</p>
+              : <p className="text-[11px] text-success mt-1">All warranty declaration fields are filled.</p>;
+          })()}
+        </div>
+
 
         {/* Distributor preview (Warranty Address) */}
         {selectedDist && (

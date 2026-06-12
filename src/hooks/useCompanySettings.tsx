@@ -24,6 +24,7 @@ export interface CompanySettings {
   show_supplier_mobile_on_docs?: boolean;
   show_supplier_phone_on_docs?: boolean;
   warranty_note_text?: string | null;
+  warranty_declaration_enabled?: boolean;
 }
 
 export function useCompanySettings() {

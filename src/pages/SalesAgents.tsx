@@ -21,6 +21,9 @@ interface SalesAgent {
   id: string; name: string; phone: string | null; email: string | null;
   address: string | null; status: string; commission_type: string; commission_rate: number;
   user_id: string | null;
+  father_name: string | null; cnic: string | null;
+  license_number: string | null; license_expiry: string | null;
+  signature_url: string | null; stamp_url: string | null;
 }
 interface AgentCustomer { id: string; agent_id: string; customer_id: string; }
 interface Customer { id: string; name: string; company: string | null; }
@@ -47,6 +50,14 @@ export default function SalesAgents() {
   const [linkedUserId, setLinkedUserId] = useState<string>("");
   const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  // Warranty declaration fields
+  const [fatherName, setFatherName] = useState("");
+  const [cnic, setCnic] = useState("");
+  const [licenseNumber, setLicenseNumber] = useState("");
+  const [licenseExpiry, setLicenseExpiry] = useState("");
+  const [signatureUrl, setSignatureUrl] = useState("");
+  const [stampUrl, setStampUrl] = useState("");
+  const [uploadBusy, setUploadBusy] = useState(false);
   const { tenantId } = useTenant();
 
   // Invite-new-agent flow
@@ -106,6 +117,12 @@ export default function SalesAgents() {
       commission_type: commType, commission_rate: Number(commRate) || 0,
       status: agentStatus,
       user_id: linkedUserId || null,
+      father_name: fatherName || null,
+      cnic: cnic || null,
+      license_number: licenseNumber || null,
+      license_expiry: licenseExpiry || null,
+      signature_url: signatureUrl || null,
+      stamp_url: stampUrl || null,
     };
     if (editId) {
       const { error } = await supabase.from("sales_agents").update(payload).eq("id", editId);
@@ -124,6 +141,9 @@ export default function SalesAgents() {
     setAddress(a.address || ""); setCommType(a.commission_type); setCommRate(String(a.commission_rate));
     setAgentStatus(a.status);
     setLinkedUserId(a.user_id || "");
+    setFatherName(a.father_name || ""); setCnic(a.cnic || "");
+    setLicenseNumber(a.license_number || ""); setLicenseExpiry(a.license_expiry || "");
+    setSignatureUrl(a.signature_url || ""); setStampUrl(a.stamp_url || "");
     setAgentOpen(true);
   };
 
@@ -138,6 +158,21 @@ export default function SalesAgents() {
     setAgentOpen(false); setEditId(null); setName(""); setPhone(""); setEmail("");
     setAddress(""); setCommType("percentage"); setCommRate(""); setAgentStatus("active");
     setLinkedUserId("");
+    setFatherName(""); setCnic(""); setLicenseNumber(""); setLicenseExpiry("");
+    setSignatureUrl(""); setStampUrl("");
+  };
+
+  const uploadAgentAsset = async (file: File, kind: "signature" | "stamp"): Promise<string | null> => {
+    if (!tenantId) { toast.error("Tenant not loaded"); return null; }
+    setUploadBusy(true);
+    try {
+      const ext = (file.name.split(".").pop() || "png").toLowerCase();
+      const path = `${tenantId}/agents/${kind}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true, contentType: file.type });
+      if (error) { toast.error("Upload failed"); return null; }
+      const { data: { publicUrl } } = supabase.storage.from("company-assets").getPublicUrl(path);
+      return publicUrl;
+    } finally { setUploadBusy(false); }
   };
 
   const handleInviteAgent = async () => {
@@ -294,16 +329,47 @@ export default function SalesAgents() {
         <DialogTrigger asChild>
           <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Agent</Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editId ? "Edit Agent" : "Add Sales Agent"}</DialogTitle>
-            <DialogDescription>Manage your sales commission agents. Link to a login so RLS can scope their data.</DialogDescription>
+            <DialogDescription>Manage your sales commission agents. Link to a login so RLS can scope their data. The Warranty Declaration fields print on warranty notes signed by this rep.</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3 mt-2">
-            <div><Label>Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+            <div><Label>Full Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+            <div><Label>Father Name</Label><Input value={fatherName} onChange={e => setFatherName(e.target.value)} /></div>
             <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
             <div><Label>Email</Label><Input value={email} onChange={e => setEmail(e.target.value)} /></div>
-            <div><Label>Address</Label><Input value={address} onChange={e => setAddress(e.target.value)} /></div>
+            <div className="col-span-2"><Label>Address</Label><Input value={address} onChange={e => setAddress(e.target.value)} /></div>
+
+            <div className="col-span-2 pt-3 mt-1 border-t border-border">
+              <p className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground mb-2">Warranty Declaration Details</p>
+            </div>
+            <div><Label>CNIC</Label><Input value={cnic} onChange={e => setCnic(e.target.value)} placeholder="35202-1234567-1" /></div>
+            <div><Label>Agent License Number</Label><Input value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} placeholder="PUN-DSL-12345" /></div>
+            <div><Label>Agent License Expiry</Label><Input type="date" value={licenseExpiry} onChange={e => setLicenseExpiry(e.target.value)} /></div>
+            <div />
+            <div>
+              <Label>Signature Image</Label>
+              <Input type="file" accept="image/*" disabled={uploadBusy} onChange={async (e) => {
+                const f = e.target.files?.[0]; if (!f) return;
+                const url = await uploadAgentAsset(f, "signature");
+                if (url) { setSignatureUrl(url); toast.success("Signature uploaded"); }
+              }} />
+              {signatureUrl && <img src={signatureUrl} alt="signature" className="mt-2 h-12 object-contain border border-border rounded bg-muted/30 p-1" />}
+            </div>
+            <div>
+              <Label>Official Stamp</Label>
+              <Input type="file" accept="image/*" disabled={uploadBusy} onChange={async (e) => {
+                const f = e.target.files?.[0]; if (!f) return;
+                const url = await uploadAgentAsset(f, "stamp");
+                if (url) { setStampUrl(url); toast.success("Stamp uploaded"); }
+              }} />
+              {stampUrl && <img src={stampUrl} alt="stamp" className="mt-2 h-12 object-contain border border-border rounded bg-muted/30 p-1" />}
+            </div>
+
+            <div className="col-span-2 pt-3 mt-1 border-t border-border">
+              <p className="text-[11px] uppercase tracking-[0.14em] font-semibold text-muted-foreground mb-2">Account & Commission</p>
+            </div>
             <div className="col-span-2">
               <Label className="flex items-center gap-1.5"><LinkIcon className="h-3 w-3" /> Linked Login (required for agent to see their data)</Label>
               <Select value={linkedUserId || "__none"} onValueChange={v => setLinkedUserId(v === "__none" ? "" : v)}>
@@ -342,7 +408,7 @@ export default function SalesAgents() {
               </Select>
             </div>
           </div>
-          <Button onClick={handleSaveAgent} className="w-full mt-4">{editId ? "Update" : "Add"} Agent</Button>
+          <Button onClick={handleSaveAgent} disabled={uploadBusy} className="w-full mt-4">{editId ? "Update" : "Add"} Agent</Button>
         </DialogContent>
       </Dialog>
     </div>
