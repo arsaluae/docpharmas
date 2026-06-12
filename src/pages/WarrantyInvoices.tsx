@@ -60,9 +60,65 @@ export default function WarrantyInvoices() {
  const [pdfHtml, setPdfHtml] = useState("");
  const [pdfOpen, setPdfOpen] = useState(false);
  const [pdfTitle, setPdfTitle] = useState("");
- const [pdfOpts, setPdfOpts] = useState<any | null>(null);
- const { settings } = useCompanySettings();
- const { getTemplate } = useDocumentTemplates();
+  const [pdfOpts, setPdfOpts] = useState<WarrantyNoteOptions | null>(null);
+  const { settings } = useCompanySettings();
+  const { getTemplate } = useDocumentTemplates();
+
+  const fmtDate = (iso: string) => {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  };
+
+  // Build the warranty-note options payload from a saved invoice, fetching the
+  // full distributor record so phone / license expiry / address are accurate.
+  const buildWarrantyOpts = async (inv: WarrantyInvoice): Promise<WarrantyNoteOptions> => {
+    let dist: Distributor | null = null;
+    if (inv.distributor_id) {
+      const { data } = await supabase.from("customer_distributors").select("*").eq("id", inv.distributor_id).single() as { data: Distributor | null };
+      dist = data;
+    }
+    const items = Array.isArray(inv.items) ? inv.items as any[] : [];
+    return {
+      invoiceNumber: inv.warranty_number,
+      date: fmtDate(inv.date),
+      dueDate: fmtDate(inv.date),
+      createdBy: undefined,
+      distributor: {
+        name: dist?.name || inv.pharmacy_name || "—",
+        address: dist?.address || inv.pharmacy_address || null,
+        phone: dist?.phone || null,
+        licenseNumber: dist?.license_number || inv.pharmacy_license_no || null,
+        licenseExpiry: dist?.license_expiry ? fmtDate(dist.license_expiry) : null,
+      },
+      items: items.map((i: any) => ({
+        product_name: i.product_name || "",
+        product_description: i.product_description || i.product_name || "",
+        batch_number: i.batch_number || "",
+        expiry_date: i.expiry_date || "",
+        quantity: Number(i.quantity || 0),
+        tp_rate: Number(i.tp_rate || 0),
+        mrp: Number(i.mrp || 0),
+        discount: Number(i.discount || 0),
+        amount: Number(i.amount || 0),
+      })),
+      subtotal: Number(inv.subtotal || 0),
+      discountAmount: Number(inv.discount_amount || 0),
+      discountLabel: Number(inv.discount_percent || 0) > 0 ? `Discount (${inv.discount_percent}%)` : "Discount",
+      total: Number(inv.total || 0),
+      noteText: settings?.warranty_note_text || null,
+      settings,
+    };
+  };
+
+  const openPdf = async (inv: WarrantyInvoice) => {
+    const opts = await buildWarrantyOpts(inv);
+    setPdfOpts(opts);
+    setPdfHtml(generateWarrantyNoteHtml(opts));
+    setPdfTitle(`Warranty Note — ${inv.warranty_number}`);
+    setPdfOpen(true);
+  };
+
 
  // Creation flow state
  const [step, setStep] = useState<CreateStep>("select_customer");
