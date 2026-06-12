@@ -574,28 +574,19 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     : "";
 
 
-  // ── Signature + Stamp block ──
-  const stampImg = rep?.stampUrl
-    ? `<img src="${rep.stampUrl}" alt="Stamp" style="max-height:80px;max-width:160px;object-fit:contain;" />`
-    : `<div style="height:80px;"></div>`;
-  const sigImg = rep?.signatureUrl
-    ? `<img src="${rep.signatureUrl}" alt="Signature" style="max-height:60px;max-width:200px;object-fit:contain;" />`
-    : `<div style="height:60px;"></div>`;
-  const repName = rep?.name || "";
-
+  // ── Signature + Stamp block (no sales-rep linkage) ──
   const signatureHtml = `
     <div style="margin-top:32px;display:grid;grid-template-columns:1fr 1fr;gap:48px;">
       <div style="text-align:center;">
-        ${stampImg}
-        <div style="border-top:1px solid #0f172a;margin-top:6px;padding-top:6px;font-size:12px;font-weight:700;color:#0f172a;">${escapeHtml(repName || "Sales Rep")}</div>
-        <div style="font-size:10.5px;color:#64748b;margin-top:2px;">Sales Representative</div>
+        <div style="height:80px;"></div>
+        <div style="border-top:1px solid #0f172a;margin-top:6px;padding-top:6px;font-size:12px;font-weight:700;color:#0f172a;">Sales Rep</div>
       </div>
       <div style="text-align:center;">
-        ${sigImg}
+        <div style="height:60px;"></div>
         <div style="border-top:1px solid #0f172a;margin-top:6px;padding-top:6px;font-size:12px;font-weight:700;color:#0f172a;">Prepared By</div>
-        <div style="font-size:10.5px;color:#64748b;margin-top:2px;">Authorized Signature</div>
       </div>
     </div>`;
+
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Warranty Note — ${escapeHtml(opts.invoiceNumber)}</title>
 <style>
