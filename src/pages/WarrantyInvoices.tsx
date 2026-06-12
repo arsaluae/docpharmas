@@ -274,6 +274,9 @@ export default function WarrantyInvoices() {
  };
  });
  setItems(lineItems);
+ // Prefetch batches for every product on the invoice.
+ const uniq = Array.from(new Set(lineItems.map(l => l.product_id).filter(Boolean)));
+ uniq.forEach(pid => { loadBatchesFor(pid); });
  }
  setStep("edit_items");
  };
