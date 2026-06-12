@@ -581,7 +581,7 @@ export default function WarrantyInvoices() {
  <Plus className="h-4 w-4" /> New Warranty Invoice
  </Button>
  </DialogTrigger>
- <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+ <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
  <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Warranty Invoice</DialogTitle></DialogHeader>
  {renderCreateStep()}
  </DialogContent>
