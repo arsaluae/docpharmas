@@ -287,7 +287,7 @@ export default function WarrantyInvoices() {
  setSelectedCustomerId("");
  setSelectedInvoiceId("");
  setSelectedDistributorId("");
- setSelectedSalesRepId("");
+ 
  setItems([]);
  setDiscountType("percent");
  setDiscountValue(0);
