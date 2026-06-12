@@ -303,18 +303,6 @@ export default function WarrantyInvoices() {
 
  const handleSave = async () => {
  if (items.length === 0) { toast.error("Add at least one item"); return; }
- if (!selectedSalesRepId) { toast.error("Select a Sales Representative — they sign the warranty declaration"); return; }
- const rep = salesReps.find(r => r.id === selectedSalesRepId);
- if (!rep) { toast.error("Selected sales rep not found"); return; }
- const missing: string[] = [];
- if (!rep.father_name) missing.push("father name");
- if (!rep.cnic) missing.push("CNIC");
- if (!rep.license_number) missing.push("license #");
- if (!rep.license_expiry) missing.push("license expiry");
- if (missing.length) {
-   toast.error(`Sales rep profile incomplete — missing: ${missing.join(", ")}. Edit the agent under Sales Agents to fix.`);
-   return;
- }
 
  const dist = distributors.find(d => d.id === selectedDistributorId);
  const pharmacyName = dist?.name || "N/A";
@@ -335,7 +323,8 @@ export default function WarrantyInvoices() {
  pharmacy_address: dist?.address || null,
  pharmacy_license_no: dist?.license_number || null,
  distributor_id: selectedDistributorId || null,
- sales_agent_id: selectedSalesRepId || null,
+ sales_agent_id: null,
+
  items: items as any,
  subtotal,
  discount_percent: discountType === "percent" ? discountValue : 0,
