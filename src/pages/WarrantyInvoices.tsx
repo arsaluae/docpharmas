@@ -79,7 +79,6 @@ export default function WarrantyInvoices() {
     return `${d}/${m}/${y}`;
   };
 
-  const [salesReps, setSalesReps] = useState<SalesRep[]>([]);
   // Build the warranty-note options payload from a saved invoice, fetching the
   // full distributor record so phone / license expiry / address are accurate.
   const buildWarrantyOpts = async (inv: WarrantyInvoice): Promise<WarrantyNoteOptions> => {
@@ -87,11 +86,6 @@ export default function WarrantyInvoices() {
     if (inv.distributor_id) {
       const { data } = await supabase.from("customer_distributors").select("*").eq("id", inv.distributor_id).single() as { data: Distributor | null };
       dist = data;
-    }
-    let rep: SalesRep | null = null;
-    if (inv.sales_agent_id) {
-      const { data } = await supabase.from("sales_agents").select("id, name, father_name, cnic, license_number, license_expiry, signature_url, stamp_url, gender").eq("id", inv.sales_agent_id).single() as { data: SalesRep | null };
-      rep = data;
     }
     const items = Array.isArray(inv.items) ? inv.items as any[] : [];
     return {
@@ -121,19 +115,11 @@ export default function WarrantyInvoices() {
       discountAmount: Number(inv.discount_amount || 0),
       discountLabel: Number(inv.discount_percent || 0) > 0 ? `Discount (${inv.discount_percent}%)` : "Discount",
       total: Number(inv.total || 0),
-      salesRep: rep ? {
-        name: rep.name,
-        fatherName: rep.father_name,
-        cnic: rep.cnic,
-        licenseNumber: rep.license_number,
-        licenseExpiry: rep.license_expiry ? fmtDate(rep.license_expiry) : null,
-        signatureUrl: rep.signature_url,
-        stampUrl: rep.stamp_url,
-        gender: rep.gender,
-      } as any : null,
+      salesRep: null,
       settings,
     };
   };
+
 
   const openPdf = async (inv: WarrantyInvoice) => {
     const opts = await buildWarrantyOpts(inv);
