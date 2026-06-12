@@ -507,8 +507,14 @@ export default function Settings() {
  </Card>
 
  <DangerZoneCard />
- </TabsContent>
- </Tabs>
+				</TabsContent>
+
+				{tenantRole === "owner" && (
+					<TabsContent value="testing">
+						<SandboxTestingTab />
+					</TabsContent>
+				)}
+				</Tabs>
  </div>
  </AppLayout>
  );
