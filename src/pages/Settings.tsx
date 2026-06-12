@@ -423,21 +423,83 @@ export default function Settings() {
  </label>
                 </div>
 
-                <div className="pt-2">
-                  <Label htmlFor="warranty_note_text" className="text-sm">Warranty Note — Legal Paragraph</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Printed verbatim on every Warranty Note. Include your authorized agent name, CNIC, license number and expiry so each warranty note carries the correct statutory wording.</p>
-                  <Textarea
-                    id="warranty_note_text"
-                    rows={6}
-                    value={form.warranty_note_text}
-                    onChange={e => setForm({ ...form, warranty_note_text: e.target.value })}
-                    placeholder="It is hereby certified that..."
-                  />
-                </div>
-              </div>
- </CardContent>
- </Card>
- </TabsContent>
+                 <div className="pt-2 space-y-3 border-t border-border mt-2">
+                   <div className="flex items-center justify-between">
+                     <div>
+                       <p className="font-medium text-sm">Warranty Declaration</p>
+                       <p className="text-xs text-muted-foreground">Editable legal paragraph printed on every Warranty Note. Variables resolve from the selected Sales Representative.</p>
+                     </div>
+                     <Switch
+                       checked={form.warranty_declaration_enabled}
+                       onCheckedChange={v => setForm({ ...form, warranty_declaration_enabled: v })}
+                     />
+                   </div>
+
+                   <div className="flex flex-wrap gap-1.5">
+                     {DECLARATION_VARIABLES.map(v => (
+                       <Button
+                         key={v.key}
+                         type="button"
+                         variant="outline"
+                         size="sm"
+                         className="h-7 text-[11px] font-mono"
+                         onClick={() => {
+                           const token = `{{${v.key}}}`;
+                           const el = document.getElementById("warranty_note_text") as HTMLTextAreaElement | null;
+                           const cur = form.warranty_note_text || "";
+                           const pos = el?.selectionStart ?? cur.length;
+                           const next = cur.slice(0, pos) + token + cur.slice(pos);
+                           setForm({ ...form, warranty_note_text: next });
+                           setTimeout(() => { if (el) { el.focus(); el.selectionStart = el.selectionEnd = pos + token.length; } }, 0);
+                         }}
+                         title={`Insert ${v.label} — e.g. ${v.example}`}
+                       >
+                         + {v.label}
+                       </Button>
+                     ))}
+                   </div>
+
+                   <Textarea
+                     id="warranty_note_text"
+                     rows={8}
+                     disabled={!form.warranty_declaration_enabled}
+                     value={form.warranty_note_text}
+                     onChange={e => setForm({ ...form, warranty_note_text: e.target.value })}
+                     placeholder={DEFAULT_WARRANTY_DECLARATION}
+                     className="font-mono text-xs leading-relaxed"
+                   />
+
+                   <div className="flex flex-wrap gap-2">
+                     <Button
+                       type="button"
+                       variant="outline"
+                       size="sm"
+                       onClick={() => setForm({ ...form, warranty_note_text: DEFAULT_WARRANTY_DECLARATION })}
+                     >
+                       Restore Default
+                     </Button>
+                   </div>
+
+                   {form.warranty_declaration_enabled && (
+                     <div className="rounded-md border border-border bg-muted/30 p-4">
+                       <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-muted-foreground mb-2">Preview (with example values)</p>
+                       <div className="text-xs leading-relaxed whitespace-pre-wrap text-foreground">
+                         {renderDeclaration(form.warranty_note_text || DEFAULT_WARRANTY_DECLARATION, {
+                           company_name: form.company_name || "Your Company",
+                           sales_rep_name: "Muhammad Ali",
+                           father_name: "Ahmed Khan",
+                           sales_rep_cnic: "35202-1234567-1",
+                           agent_license_number: "PUN-DSL-12345",
+                           agent_license_expiry: "31-12-2027",
+                         })}
+                       </div>
+                     </div>
+                   )}
+                 </div>
+               </div>
+  </CardContent>
+  </Card>
+  </TabsContent>
 
  <TabsContent value="templates">
  {templatesLoading ? (
