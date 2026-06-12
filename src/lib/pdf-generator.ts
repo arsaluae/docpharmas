@@ -210,20 +210,10 @@ function buildA4Html(opts: PdfOptions): string {
       <span style="color:${C.text};font-weight:600;flex:1;">${escapeHtml(r.value)}</span>
     </div>`).join("");
 
-  // Gate party phone/mobile by Document Preferences.
-  // Customer mobile defaults ON for SO/SI/DN — distributors expect it auto-printed.
-  const isSupplierParty = /supplier|printer|pharmacy|vendor/i.test(opts.partyLabel || "");
-  const isCustomerParty = !isSupplierParty;
-  const customerMobileFlag = (s as any)?.show_customer_mobile_on_docs;
-  const showMobile = isCustomerParty
-    ? (customerMobileFlag === false ? false : true) // default ON unless explicitly disabled
-    : (s as any)?.show_supplier_mobile_on_docs === true;
-  const showPhone = isCustomerParty
-    ? (s as any)?.show_customer_phone_on_docs === true
-    : (s as any)?.show_supplier_phone_on_docs === true;
+  // Always show mobile + phone from the party record when available.
   const phoneBits: string[] = [];
-  if (showMobile && opts.partyMobile) phoneBits.push(`📱 ${escapeHtml(opts.partyMobile)}`);
-  if (showPhone && opts.partyPhone && opts.partyPhone !== opts.partyMobile) phoneBits.push(`☎ ${escapeHtml(opts.partyPhone)}`);
+  if (opts.partyMobile) phoneBits.push(`📱 ${escapeHtml(opts.partyMobile)}`);
+  if (opts.partyPhone && opts.partyPhone !== opts.partyMobile) phoneBits.push(`☎ ${escapeHtml(opts.partyPhone)}`);
   const cityArea = [opts.partyCity, opts.partyArea].filter(Boolean).join(" · ");
 
   const partyHtml = `

@@ -1,65 +1,47 @@
 ## Goal
 
-1. **Renumber document prefixes** so all new docs use the requested codes — **sales orders SO-, sales invoices SI-, delivery notes DN-, purchase orders PO-, purchase invoices PI-** — applied going forward (existing documents keep their historical numbers).
-2. **Visually verify** Sales Order, Sales Invoice, and Delivery Note PDFs render the customer block (Name · Code · Mobile · City · Area · Address) correctly without breaking layout.
+On every generated document (Sales Order/Invoice, Delivery Note, Warranty Note, Purchase Order/Proforma/Invoice, GRN, Returns, Credit/Debit Notes):
 
-## Part 1 — Document numbering migration
+1. **Hide the internal party code** (e.g. `CUS-0001`, `SUP-0001`) — it should never appear in the printed/PDF header.
+2. **Always show party mobile + phone** (both, on the same line, separated by `·`) pulled from the customer/supplier record, immediately above the address block.
 
-Single SQL migration that touches `generate_document_number` and the per-tenant `document_counters` table.
+Address rendering already works; this only adjusts the party card.
 
-### Default prefixes (in `generate_document_number` CASE block)
+## Changes
 
-| doc_type             | current default | new default |
-| -------------------- | --------------- | ----------- |
-| `proforma`           | SO-             | SO- (keep)  |
-| `sales_invoice`      | INV-            | **SI-**     |
-| `delivery_note`      | DN-             | DN- (keep)  |
-| `purchase_proforma`  | PP-             | **PO-**     |
-| `purchase_order`     | PO-             | PO- (keep)  |
-| `purchase_invoice`   | BILL-           | **PI-**     |
-| `sales_return`       | SR-             | SR- (keep)  |
-| `purchase_return`    | PR-             | PR- (keep)  |
-| `warranty_invoice`   | WI-             | WI- (keep)  |
+### 1. `src/lib/pdf-generator.ts` — party card
 
-Everything else (GRN, PAY, EXP, CN, DBN, JE, PJ, SUP, CUS, PRD, SAL, COM) stays.
+In the `partyHtml` block (around line 234):
 
-### Realign existing tenant counters
+- **Remove** the line that renders `opts.partyCode`. The PDF will no longer print the internal code regardless of what callers pass in.
+- **Default both mobile and phone ON** for customers AND suppliers, ignoring the `show_*_mobile_on_docs` / `show_*_phone_on_docs` flags for the visibility decision (still skip a value if it's empty). Concretely, replace the `showMobile`/`showPhone` gating (lines 217-223) with:
+  ```
+  const showMobile = true;
+  const showPhone = true;
+  ```
+  Keep the de-duplication so we don't print the same number twice when `mobile === phone`.
 
-For each tenant row in `document_counters`, only flip the prefix when it still matches the *old* default — never overwrite a customer-customised prefix:
+No other changes to layout, spacing, or columns. NTN/License/CNIC/Account-code rows untouched.
 
-```sql
-UPDATE document_counters SET prefix = 'SO-' WHERE document_type = 'proforma'          AND prefix IN ('P-','PROF-','PI-','PRO-');
-UPDATE document_counters SET prefix = 'SI-' WHERE document_type = 'sales_invoice'     AND prefix = 'INV-';
-UPDATE document_counters SET prefix = 'PI-' WHERE document_type = 'purchase_invoice'  AND prefix = 'BILL-';
-UPDATE document_counters SET prefix = 'PO-' WHERE document_type = 'purchase_proforma' AND prefix = 'PP-';
-UPDATE document_counters SET prefix = 'DN-' WHERE document_type = 'delivery_note'     AND prefix <> 'DN-';
-```
+### 2. `src/pages/PurchaseProforma.tsx` — supplier mobile
 
-Counter values are not reset — only the prefix changes, so numbering continues sequentially.
+The four supplier party blocks (lines 381, 531, 675, 720) currently pass only `partyPhone`. Add `partyMobile: (order.suppliers as any)?.mobile || (order.suppliers as any)?.sms_mobile || undefined` next to each `partyPhone`, so suppliers print both numbers like customers do. (If the `suppliers` table only has `phone`, the mobile line is simply skipped — no breakage.)
 
-**Existing historical documents** (already-saved invoices/orders) keep the number they were stamped with at creation. Only documents generated *after* the migration use the new prefix.
+### 3. Callers that already pass `partyCode`
 
-## Part 2 — PDF customer block verification (read-only)
-
-The customer fields are already wired in `ProformaInvoices.tsx`, `SalesInvoicesList.tsx`, and `DeliveryNotes.tsx` via `partyName / partyCode / partyMobile / partyCity / partyArea / partyAddress`, and `pdf-generator.ts` renders them in the right-column party card with customer-mobile defaulting ON.
-
-I'll verify visually rather than by guessing:
-
-1. Open the live preview for each list page, trigger the PDF preview dialog on one real record, take a viewport screenshot.
-2. Inspect: customer name on top, code mono'd underneath, mobile/phone row, "City · Area" line, full address, no overflow into the items table, header logo stays on its row.
-3. If any field overflows or wraps badly, narrow the fix to the party card CSS only (`word-break`, `max-width`) — no structural changes.
-4. Confirm the document number on the same render uses the new prefix (SO/SI/DN).
+`ProformaInvoices.tsx`, `DeliveryNotes.tsx`, `SalesInvoicesList.tsx`, etc. still pass `partyCode` — leave the calls as-is. The renderer now ignores it. (Cleaner than touching ~10 call sites and risking regressions.)
 
 ## Out of scope
 
-- No rewrite of historical document numbers.
-- No changes to PDF layout beyond a targeted overflow fix if QA finds one.
-- No changes to other doc types' prefixes (PAY/EXP/GRN/etc.).
+- No DB / schema changes.
+- No UI changes to the in-app list/detail pages (the internal code still shows inside the app for staff lookup — only the printed/PDF output is affected).
+- No template-builder option to re-enable the code; the user explicitly wants it gone everywhere.
+- No changes to NTN/License/CNIC visibility.
 
 ## Acceptance
 
-- New sales orders print as `SO-####`, sales invoices as `SI-####`, delivery notes as `DN-####`, purchase orders as `PO-####`, purchase invoices as `PI-####`.
-- Existing documents are untouched and still openable.
-- Screenshot QA shows the customer block on SO / SI / DN renders all six fields cleanly with no clipping or layout break.
+- PDF preview of a Sales Order, Sales Invoice, Delivery Note, Warranty Note, Purchase Order/Proforma, Purchase Invoice, GRN, Sales/Purchase Return all show: party name → mobile · phone → city · area → address, with **no `CUS-####` / `SUP-####` line**.
+- When only one of mobile/phone exists, only that one prints. When both equal, only one prints.
+- Existing in-app tables and dialogs are unchanged.
 
-Approve and I'll run the migration and the visual QA pass.
+Approve and I'll apply the edits and visually verify with the live preview.
