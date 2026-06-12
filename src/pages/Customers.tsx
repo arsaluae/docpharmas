@@ -337,12 +337,12 @@ export default function Customers() {
  <Checkbox checked={filtered.length > 0 && selectedIds.size === filtered.length} onCheckedChange={toggleAll} />
  </TableHead>
  <TableHead>Code</TableHead>
- <TableHead>Company Name</TableHead>
- <TableHead>Contact</TableHead>
- <TableHead>City</TableHead>
- <TableHead>NTN</TableHead>
- <TableHead className="text-right">Balance</TableHead>
+ <TableHead>Customer</TableHead>
+ <TableHead>Mobile / Phone</TableHead>
+ <TableHead>City / Area</TableHead>
+ <TableHead className="min-w-[220px]">Address</TableHead>
  <TableHead className="text-right">Credit Limit</TableHead>
+ <TableHead className="text-right">Outstanding</TableHead>
  <TableHead className="text-center">Actions</TableHead>
  </TableRow>
  </TableHeader>
@@ -353,32 +353,46 @@ export default function Customers() {
  <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />No customers yet.
  </TableCell>
  </TableRow>
- ) : filtered.map(c => (
+ ) : filtered.map(c => {
+ const phones = (c.phone || "").split(",").map(p => p.trim()).filter(Boolean);
+ const mobile = phones[0] || "";
+ const phone2 = phones.slice(1).join(", ");
+ const overLimit = Number(c.balance) > Number(c.credit_limit) && Number(c.credit_limit) > 0;
+ return (
  <TableRow key={c.id} className={`cursor-pointer table-row-hover ${c.is_active === false ? "opacity-50" : ""}`} onClick={() => handleEdit(c)}>
  <TableCell onClick={e => e.stopPropagation()}>
  <Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
  </TableCell>
- <TableCell className="text-xs font-mono text-muted-foreground">{(c as any).customer_code || "—"}</TableCell>
- <TableCell className="font-medium cursor-pointer hover:text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setProfileCustomer(c); setProfileOpen(true); }}>{c.name}</TableCell>
- <TableCell>{c.company || "—"}</TableCell>
- <TableCell>{c.city || "—"}</TableCell>
- <TableCell className="text-xs text-muted-foreground">{c.ntn || "—"}</TableCell>
- <TableCell className={`text-right font-mono ${Number(c.balance) > Number(c.credit_limit) && Number(c.credit_limit) > 0 ? "text-destructive font-bold" : ""}`}>
- {Number(c.balance).toLocaleString()}
- {Number(c.balance) > Number(c.credit_limit) && Number(c.credit_limit) > 0 && (
- <AlertTriangle className="inline h-3 w-3 ml-1 text-destructive" />
- )}
+ <TableCell className="font-mono text-[13px] text-muted-foreground whitespace-nowrap">{(c as any).customer_code || "—"}</TableCell>
+ <TableCell className="cursor-pointer" onClick={(e) => { e.stopPropagation(); setProfileCustomer(c); setProfileOpen(true); }}>
+ <div className="font-semibold text-foreground hover:text-primary hover:underline leading-tight">{c.name}</div>
+ {c.company && <div className="text-[12.5px] text-muted-foreground mt-0.5 leading-tight">{c.company}</div>}
  </TableCell>
- <TableCell className="text-right font-mono text-muted-foreground">{Number(c.credit_limit).toLocaleString()}</TableCell>
+ <TableCell className="whitespace-nowrap">
+ <div className="font-mono text-[13.5px] text-foreground leading-tight">{mobile || "—"}</div>
+ {phone2 && <div className="font-mono text-[12.5px] text-muted-foreground mt-0.5 leading-tight">{phone2}</div>}
+ </TableCell>
+ <TableCell className="whitespace-nowrap">
+ <div className="text-foreground leading-tight">{c.city || "—"}</div>
+ {c.area && <div className="text-[12.5px] text-muted-foreground mt-0.5 leading-tight">{c.area}</div>}
+ </TableCell>
+ <TableCell className="max-w-[280px]">
+ <div className="text-[13.5px] text-muted-foreground leading-snug whitespace-normal break-words">{c.address || "—"}</div>
+ </TableCell>
+ <TableCell className="text-right font-mono tabular-nums text-muted-foreground whitespace-nowrap">{Number(c.credit_limit).toLocaleString()}</TableCell>
+ <TableCell className={`text-right font-mono tabular-nums whitespace-nowrap ${overLimit ? "text-destructive font-bold" : ""}`}>
+ {Number(c.balance).toLocaleString()}
+ {overLimit && <AlertTriangle className="inline h-3.5 w-3.5 ml-1 text-destructive" />}
+ </TableCell>
  <TableCell className="text-center">
  <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
- <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(c)} title="Edit Customer"><Edit className="h-3.5 w-3.5" /></Button>
- <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/customers/${c.id}/ledger`)} title="View Ledger"><BookOpen className="h-3.5 w-3.5" /></Button>
- <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setProfileCustomer(c); setProfileOpen(true); }} title="Profile & Distributors"><Store className="h-3.5 w-3.5" /></Button>
- <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => openLicenses(c, e)} title="Medical Licenses"><Award className="h-3.5 w-3.5" /></Button>
- <Button variant="ghost" size="icon" className={`h-7 w-7 ${c.is_active === false ? "text-success" : "text-warning"}`} onClick={(e) => toggleActive(c, e)} title={c.is_active === false ? "Reactivate" : "Deactivate"}><Power className="h-3.5 w-3.5" /></Button>
+ <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(c)} title="Edit Customer"><Edit className="h-4 w-4" /></Button>
+ <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/customers/${c.id}/ledger`)} title="View Ledger"><BookOpen className="h-4 w-4" /></Button>
+ <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setProfileCustomer(c); setProfileOpen(true); }} title="Profile & Distributors"><Store className="h-4 w-4" /></Button>
+ <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => openLicenses(c, e)} title="Medical Licenses"><Award className="h-4 w-4" /></Button>
+ <Button variant="ghost" size="icon" className={`h-8 w-8 ${c.is_active === false ? "text-success" : "text-warning"}`} onClick={(e) => toggleActive(c, e)} title={c.is_active === false ? "Reactivate" : "Deactivate"}><Power className="h-4 w-4" /></Button>
  <AlertDialog>
- <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+ <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
  <AlertDialogContent>
  <AlertDialogHeader><AlertDialogTitle>Delete {c.name}?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this customer and their licenses.</AlertDialogDescription></AlertDialogHeader>
  <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => handleDelete(c.id, e)}>Delete</AlertDialogAction></AlertDialogFooter>
@@ -387,7 +401,8 @@ export default function Customers() {
  </div>
  </TableCell>
  </TableRow>
- ))}
+ );
+ })}
  </TableBody>
  </Table>
  <PaginationControls
