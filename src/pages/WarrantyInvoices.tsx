@@ -191,14 +191,16 @@ export default function WarrantyInvoices() {
 
 
  const load = async () => {
- const [inv, cust, prod] = await Promise.all([
+ const [inv, cust, prod, reps] = await Promise.all([
  supabase.from("warranty_invoices").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to),
  supabase.from("customers").select("id, name, company").eq("is_active", true).order("name"),
  supabase.from("products").select("id, name, selling_price, mrp").eq("is_active", true).order("name"),
+ supabase.from("sales_agents").select("id, name, father_name, cnic, license_number, license_expiry, signature_url, stamp_url").eq("status", "active").order("name"),
  ]);
  if (inv.data) setInvoices(inv.data as any);
  if (inv.count !== null && inv.count !== undefined) pagination.setTotalCount(inv.count);
  if (cust.data) setCustomers(cust.data);
+ if (reps.data) setSalesReps(reps.data as any);
  if (prod.data) setProducts(prod.data as any);
  };
 
