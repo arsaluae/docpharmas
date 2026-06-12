@@ -297,18 +297,18 @@ function buildA4Html(opts: PdfOptions): string {
   const totalAmount = grandTotal ? parseFloat(grandTotal.value.replace(/[^0-9.]/g, "")) : 0;
 
   const totalsCard = totals.length ? `
-    <div style="display:flex;margin-top:18px;">
+    <div style="display:flex;margin-top:22px;">
       <div style="flex:1;"></div>
-      <div style="width:340px;max-width:55%;border:1px solid ${C.border};border-radius:3px;overflow:hidden;background:#fff;">
+      <div style="width:380px;max-width:58%;border:1px solid ${C.border};border-radius:3px;overflow:hidden;background:#fff;">
         ${subRows.map(r => `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;font-size:14px;border-bottom:1px solid ${C.borderLight};">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;font-size:15px;border-bottom:1px solid ${C.borderLight};">
             <span style="color:${C.textMuted};">${escapeHtml(r.label)}</span>
-            <span style="color:${C.text};font-family:'JetBrains Mono',monospace;font-weight:600;font-size:15px;">${escapeHtml(r.value)}</span>
+            <span style="color:${C.text};font-family:'JetBrains Mono',monospace;font-weight:600;font-size:16px;">${escapeHtml(r.value)}</span>
           </div>`).join("")}
         ${grandTotal ? `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:${C.text};color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
-            <span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;">${escapeHtml(grandTotal.label || "Grand Total")}</span>
-            <span style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:800;letter-spacing:0.4px;">${escapeHtml(grandTotal.value)}</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 18px;background:${C.text};color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+            <span style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.6px;">${escapeHtml(grandTotal.label || "Grand Total")}</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:800;letter-spacing:0.4px;">${escapeHtml(grandTotal.value)}</span>
           </div>` : ""}
       </div>
     </div>` : "";
