@@ -441,11 +441,11 @@ export default function Settings() {
  </label>
                 </div>
 
-                 <div className="pt-2 space-y-3 border-t border-border mt-2">
+                 <div className="pt-2 space-y-4 border-t border-border mt-2">
                    <div className="flex items-center justify-between">
                      <div>
                        <p className="font-medium text-sm">Warranty Declaration</p>
-                       <p className="text-xs text-muted-foreground">Fixed legal paragraph printed on every Warranty Note. The text is hardcoded and cannot be edited.</p>
+                       <p className="text-xs text-muted-foreground">Legal paragraph printed on every Warranty Note. Editable below.</p>
                      </div>
                      <Switch
                        checked={form.warranty_declaration_enabled}
@@ -454,13 +454,50 @@ export default function Settings() {
                    </div>
 
                    {form.warranty_declaration_enabled && (
-                     <div className="rounded-md border border-border bg-muted/30 p-4">
-                       <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-muted-foreground mb-2">Preview</p>
-                       <div className="text-xs leading-relaxed whitespace-pre-wrap text-foreground">
-                         {WARRANTY_NOTE_TEXT}
-                       </div>
+                     <div className="space-y-2">
+                       <Textarea
+                         rows={10}
+                         value={form.warranty_note_text}
+                         onChange={e => setForm({ ...form, warranty_note_text: e.target.value })}
+                         placeholder={WARRANTY_NOTE_TEXT}
+                         className="text-xs leading-relaxed font-mono"
+                       />
+                       <p className="text-[11px] text-muted-foreground">Use blank lines to separate paragraphs. Lines beginning with <code>1.</code> <code>2.</code> render as hanging-indent numbered points. Leave empty to use the default template.</p>
                      </div>
                    )}
+                 </div>
+
+                 <div className="pt-2 space-y-3 border-t border-border mt-2">
+                   <div>
+                     <p className="font-medium text-sm">Warranty Required Fields</p>
+                     <p className="text-xs text-muted-foreground">Block PDF download if any required field is missing.</p>
+                   </div>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Require customer mobile</span>
+                       <Switch checked={form.warranty_require_mobile} onCheckedChange={v => setForm({...form, warranty_require_mobile: v})} />
+                     </label>
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Require warranty address</span>
+                       <Switch checked={form.warranty_require_address} onCheckedChange={v => setForm({...form, warranty_require_address: v})} />
+                     </label>
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Require licence number</span>
+                       <Switch checked={form.warranty_require_license_no} onCheckedChange={v => setForm({...form, warranty_require_license_no: v})} />
+                     </label>
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Require licence expiry</span>
+                       <Switch checked={form.warranty_require_license_expiry} onCheckedChange={v => setForm({...form, warranty_require_license_expiry: v})} />
+                     </label>
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Require batch number</span>
+                       <Switch checked={form.warranty_require_batch_number} onCheckedChange={v => setForm({...form, warranty_require_batch_number: v})} />
+                     </label>
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Require batch expiry</span>
+                       <Switch checked={form.warranty_require_batch_expiry} onCheckedChange={v => setForm({...form, warranty_require_batch_expiry: v})} />
+                     </label>
+                   </div>
                  </div>
                </div>
 
