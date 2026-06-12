@@ -1018,6 +1018,52 @@ function TeamAccessCard() {
     }
   };
 
+ const handleDelete = async () => {
+   if (!tenantId || !deleteFor) return;
+   if (deleteConfirm.trim().toLowerCase() !== (deleteFor.email ?? "").trim().toLowerCase()) {
+     toast.error("Type the user's email to confirm");
+     return;
+   }
+   setDeleting(true);
+   try {
+     const { data, error } = await supabase.functions.invoke("manage-tenant", {
+       body: { action: "delete_tenant_user", tenant_id: tenantId, user_id: deleteFor.user_id },
+     });
+     if (error) {
+       let serverMsg = error.message;
+       let serverCode: string | null = null;
+       try {
+         const b = await (error as any).context?.json?.();
+         if (b?.error) serverMsg = b.message || b.error;
+         if (b?.error === "user_has_history") serverCode = "user_has_history";
+       } catch {}
+       if (serverCode === "user_has_history") {
+         toast.error("User has business records. Deactivate them instead — history must stay intact.");
+         setDeleteFor(null); setDeleteConfirm("");
+         return;
+       }
+       throw new Error(serverMsg);
+     }
+     if (data?.error) throw new Error(data.error);
+     toast.success("User deleted");
+     void logAudit({
+       action: "member_deleted",
+       entity_type: "tenant_member",
+       entity_id: deleteFor.user_id,
+       entity_number: deleteFor.email ?? null,
+       changes: { role: deleteFor.role },
+     });
+     setDeleteFor(null); setDeleteConfirm("");
+     await load();
+   } catch (err: any) {
+     toast.error(err.message);
+   } finally {
+     setDeleting(false);
+   }
+ };
+
+
+
 
  return (
  <div className="space-y-6">
