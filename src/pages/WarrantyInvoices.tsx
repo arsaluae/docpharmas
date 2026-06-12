@@ -597,7 +597,8 @@ export default function WarrantyInvoices() {
                                 }
                                 let pdfLink: string | undefined;
                                 try {
-                                  const html = generateWarrantyNoteHtml(buildWarrantyOpts(inv));
+                                  const opts = await buildWarrantyOpts(inv);
+                                  const html = generateWarrantyNoteHtml(opts);
                                   pdfLink = await uploadSharedDocument(html, inv.warranty_number) || undefined;
                                 } catch (e) { console.error("PDF link error:", e); }
                                 await sendWhatsAppDoc({
