@@ -134,8 +134,14 @@ export default function Settings() {
  show_customer_phone_on_docs: !!(data as any).show_customer_phone_on_docs,
  show_supplier_mobile_on_docs: !!(data as any).show_supplier_mobile_on_docs,
         show_supplier_phone_on_docs: !!(data as any).show_supplier_phone_on_docs,
-         warranty_note_text: (data as any).warranty_note_text || "",
-         warranty_declaration_enabled: (data as any).warranty_declaration_enabled !== false,
+          warranty_note_text: (data as any).warranty_note_text || "",
+          warranty_declaration_enabled: (data as any).warranty_declaration_enabled !== false,
+          warranty_require_mobile: (data as any).warranty_require_mobile !== false,
+          warranty_require_address: (data as any).warranty_require_address !== false,
+          warranty_require_license_no: (data as any).warranty_require_license_no !== false,
+          warranty_require_license_expiry: (data as any).warranty_require_license_expiry !== false,
+          warranty_require_batch_number: (data as any).warranty_require_batch_number !== false,
+          warranty_require_batch_expiry: (data as any).warranty_require_batch_expiry !== false,
   });
  }
  setLoading(false);
