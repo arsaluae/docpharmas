@@ -449,7 +449,18 @@ export interface WarrantyNoteOptions {
   discountLabel?: string;
   discountAmount?: number;
   total: number;
+  /** @deprecated Kept for back-compat; ignored when settings.warranty_declaration_enabled is true. */
   noteText?: string | null;
+  /** Sales Representative who signs the warranty declaration. */
+  salesRep?: {
+    name?: string | null;
+    fatherName?: string | null;
+    cnic?: string | null;
+    licenseNumber?: string | null;
+    licenseExpiry?: string | null;
+    signatureUrl?: string | null;
+    stampUrl?: string | null;
+  } | null;
   settings: CompanySettings | null;
 }
 
