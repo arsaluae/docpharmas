@@ -1,28 +1,28 @@
-# Fix product picker, sales order prefix, and agent invoice header
+# Verify and harden the sales agent product picker
 
-## Root causes found (verified in the database)
+## What I confirmed is already fixed (database)
 
-**1. Products still don't show** — the three agent-facing views (`sales_product_catalog_view`, `agent_stock_availability`, `agent_batch_availability`) have **no GRANTs at all**. The previous fix removed `security_invoker`, but nobody can SELECT from them — every query returns a permission error, so the picker is empty for everyone using it.
+- All three agent views (`sales_product_catalog_view`, `agent_stock_availability`, `agent_batch_availability`) now have the correct read permissions — a live API test returned HTTP 200 with the exact columns the picker requests.
+- Your tenant has 187 active products, and the sales agent account is active and properly linked.
+- The earlier "permission denied" that emptied the picker is gone. **A fresh login (or hard refresh) as the agent is required** because the old session cached the failed state.
 
-**2. Sales order number shows "PI-"** — the `document_counters` row for sales orders has prefix `PI-`, and the `generate_document_number` function defaults to `PI-` for this document type.
+## Remaining work (frontend hardening + verification)
 
-**3. Company name missing on agent's invoice template** — `company_settings` (and `document_templates`) are protected by a restrictive policy requiring the `settings:read` capability. The `sales_agent` role has **no settings capability row**, so the template query returns zero rows for agents → "Company Name" placeholder.
+1. **Surface fetch errors instead of silently showing an empty picker**
+   - In `src/pages/ProformaInvoices.tsx`, the product query currently ignores errors (`if (prod.data) ...`). Add error handling: if the product fetch fails, show a toast ("Couldn't load products — please refresh") and log the error so this never silently appears as "no products" again.
+   - Apply the same to the batch availability fetch used for batch/expiry selection.
 
-## Fix (one migration, no frontend changes)
+2. **Force fresh data on dialog open**
+   - Re-fetch the product list every time the Create Sales Order dialog opens (no stale cached empty result from before the fix).
 
-1. **Grant view access**
-   - `GRANT SELECT` on all three views to `authenticated` (and `ALL` to `service_role`). Tenant isolation stays enforced inside each view via `tenant_id = get_user_tenant_id()`. Cost columns remain excluded, so agents still cannot see cost/profit data.
+3. **End-to-end browser verification**
+   - Open the preview, log in, open Create Sales Order, and confirm:
+     - Product picker lists products with code, MRP, rate, and stock.
+     - Selecting a product shows its batches with expiry dates.
+     - New order number starts with `SO-`.
+   - If you can share the agent test login (or just re-test yourself after the change), we confirm the agent view specifically.
 
-2. **Sales order prefix → SO-**
-   - Update the existing counter row: prefix `PI-` → `SO-` (next order will be `SO-0006`; existing documents keep their old numbers).
-   - Update the default in `generate_document_number` so new tenants also get `SO-`.
+## Technical notes
 
-3. **Let agents read company branding**
-   - Insert `role_capabilities` rows: `(sales_agent, settings, read-only)` and `(staff, settings, read-only)`.
-   - This is server-side only — the client-side menu matrix is unchanged, so agents still don't see the Settings page; they just get the company name/address/logo on printed documents.
-
-## Verification
-- Open Create Sales Order as agent and as admin → product picker lists products with MRP, rate, stock, batches, expiry.
-- Create a new sales order → number starts with `SO-`.
-- Open a document preview as a sales agent → company name, address, phone, and logo appear in the header.
-- Confirm agents still get zero rows querying `products` directly (cost stays hidden).
+- No further database changes needed — grants, view ownership, tenant isolation, and role capabilities are all verified correct.
+- Cost columns remain hidden from agents (views exclude them; base `products` table stays blocked for agents).
