@@ -30,6 +30,12 @@ interface Product { id: string; name: string; selling_price: number; mrp: number
 interface SalesInvoice { id: string; invoice_number: string; date: string; total: number; status: string; }
 interface SalesInvoiceItem { id: string; product_id: string | null; quantity: number; rate: number; amount: number; batch_number: string | null; gst_rate: number; discount_percent: number; }
 interface Distributor { id: string; customer_id: string; name: string; address: string | null; license_number: string | null; license_expiry: string | null; phone: string | null; }
+interface SalesRep {
+ id: string; name: string;
+ father_name: string | null; cnic: string | null;
+ license_number: string | null; license_expiry: string | null;
+ signature_url: string | null; stamp_url: string | null;
+}
 
 interface LineItem {
  product_id: string; product_name: string; batch_number: string;
@@ -43,6 +49,7 @@ interface WarrantyInvoice {
  notes: string | null; status: string; created_at: string;
  source_invoice_id: string | null; discount_percent: number; discount_amount: number;
  distributor_id: string | null;
+ sales_agent_id: string | null;
  customers?: { name: string } | null;
 }
 
