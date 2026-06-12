@@ -128,8 +128,9 @@ export default function Settings() {
  show_customer_phone_on_docs: !!(data as any).show_customer_phone_on_docs,
  show_supplier_mobile_on_docs: !!(data as any).show_supplier_mobile_on_docs,
         show_supplier_phone_on_docs: !!(data as any).show_supplier_phone_on_docs,
-        warranty_note_text: (data as any).warranty_note_text || "",
- });
+         warranty_note_text: (data as any).warranty_note_text || "",
+         warranty_declaration_enabled: (data as any).warranty_declaration_enabled !== false,
+  });
  }
  setLoading(false);
  };
