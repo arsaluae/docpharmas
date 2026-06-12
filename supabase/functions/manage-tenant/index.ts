@@ -264,10 +264,16 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Mirror active status onto sales_agents so RLS scoping flips immediately
+      await supabaseAdmin.from("sales_agents")
+        .update({ is_active, status: is_active ? "active" : "inactive" })
+        .eq("tenant_id", tenant_id).eq("user_id", target_user_id);
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // list_tenant_users: return { user_id, email } for current tenant (owner-only)
     if (action === "list_tenant_users") {
