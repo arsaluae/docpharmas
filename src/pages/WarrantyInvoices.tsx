@@ -354,146 +354,225 @@ export default function WarrantyInvoices() {
  const issuedCount = invoices.filter(i => i.status === "issued").length;
  const totalValue = invoices.reduce((s, i) => s + Number(i.total), 0);
 
- const renderCreateStep = () => {
- if (step === "select_customer") {
- return (
- <div className="space-y-4">
- <p className="text-sm text-muted-foreground">Step 1: Select the customer who requested the warranty invoice</p>
- <SearchableSelect options={customerOptions} value={selectedCustomerId} onChange={handleSelectCustomer} placeholder="Search customer..." />
- </div>
- );
- }
+  const startBlank = () => {
+    setSelectedInvoiceId("");
+    setItems([]);
+    setStep("edit_items");
+  };
 
- if (step === "select_invoice") {
- return (
- <div className="space-y-4">
- <div className="flex items-center gap-2">
- <Button variant="ghost" size="sm" onClick={() => setStep("select_customer")}><ChevronLeft className="h-4 w-4" /></Button>
- <p className="text-sm text-muted-foreground">Step 2: Select a sales invoice</p>
- </div>
- {customerInvoices.length === 0 ? (
- <p className="text-center text-muted-foreground py-8">No sales invoices found for this customer.</p>
- ) : (
- <div className="space-y-2 max-h-[50vh] overflow-y-auto">
- {customerInvoices.map(inv => (
- <div key={inv.id} onClick={() => handleSelectInvoice(inv.id)}
- className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
- <div>
- <p className="font-mono font-medium text-sm">{inv.invoice_number}</p>
- <p className="text-xs text-muted-foreground">{inv.date}</p>
- </div>
- <div className="flex items-center gap-3">
- <Badge variant="outline" className="capitalize">{inv.status}</Badge>
- <span className="font-mono font-medium">PKR {Number(inv.total).toLocaleString()}</span>
- <ArrowRight className="h-4 w-4 text-muted-foreground" />
- </div>
- </div>
- ))}
- </div>
- )}
- </div>
- );
- }
+  const addProductRow = (productId: string) => {
+    if (!productId) return;
+    const p = products.find(x => x.id === productId);
+    if (!p) return;
+    const mrp = Number(p.mrp || p.selling_price || 0);
+    const tp = Math.round(mrp * 0.85 * 100) / 100;
+    setItems([...items, {
+      product_id: p.id,
+      product_name: p.name,
+      batch_number: "",
+      expiry_date: "",
+      quantity: 1,
+      mrp,
+      tp_rate: tp,
+      discount: 0,
+      amount: tp,
+    }]);
+  };
 
- // Step 3: edit_items
- return (
- <div className="space-y-4">
- {!editId && (
- <div className="flex items-center gap-2">
- <Button variant="ghost" size="sm" onClick={() => setStep("select_invoice")}><ChevronLeft className="h-4 w-4" /></Button>
- <p className="text-sm text-muted-foreground">Step 3: Review & edit items</p>
- </div>
- )}
+  const selectedDist = distributors.find(d => d.id === selectedDistributorId) || null;
 
- <div className="grid grid-cols-2 gap-3">
- <div><Label>Date</Label><Input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} /></div>
- <div>
- <div className="flex items-center justify-between mb-1">
- <Label>Distributor / Pharmacy</Label>
- {selectedCustomerId && (
- <Button type="button" variant="ghost" size="sm" className="h-6 text-xs gap-1 -mr-2" onClick={() => setAddDistOpen(true)}>
- <Plus className="h-3 w-3" /> Add Distributor
- </Button>
- )}
- </div>
- <Select value={selectedDistributorId} onValueChange={setSelectedDistributorId}>
- <SelectTrigger><SelectValue placeholder={distributors.length === 0 ? "No distributors — add one" : "Select distributor..."} /></SelectTrigger>
- <SelectContent>
- {distributors.map(d => (
- <SelectItem key={d.id} value={d.id}>
- {d.name} {d.license_number ? `(${d.license_number})` : ""}
- </SelectItem>
- ))}
- </SelectContent>
- </Select>
- </div>
+  const StepHeader = () => (
+    <div className="flex items-center gap-2 text-xs font-medium mb-2">
+      {(["select_customer", "select_invoice", "edit_items"] as CreateStep[]).map((s, i) => {
+        const labels = ["Customer", "Sales Invoice", "Items & Review"];
+        const active = step === s;
+        const done = (["select_customer", "select_invoice", "edit_items"] as CreateStep[]).indexOf(step) > i;
+        return (
+          <div key={s} className="flex items-center gap-2">
+            <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-bold ${active ? "bg-primary text-primary-foreground" : done ? "bg-success text-white" : "bg-muted text-muted-foreground"}`}>{i + 1}</div>
+            <span className={active ? "text-foreground" : "text-muted-foreground"}>{labels[i]}</span>
+            {i < 2 && <ChevronLeft className="h-3 w-3 text-muted-foreground rotate-180" />}
+          </div>
+        );
+      })}
+    </div>
+  );
 
- </div>
+  const renderCreateStep = () => {
+    if (step === "select_customer") {
+      return (
+        <div className="space-y-4">
+          <StepHeader />
+          <p className="text-sm text-muted-foreground">Select the customer the warranty note is being issued for. The printed Warranty Address comes from the customer's distributor — not the customer's own address.</p>
+          <SearchableSelect options={customerOptions} value={selectedCustomerId} onChange={handleSelectCustomer} placeholder="Search customer..." />
+        </div>
+      );
+    }
 
- {/* Items table */}
- {items.length > 0 && (
- <div className="border rounded overflow-auto">
- <Table>
- <TableHeader>
- <TableRow>
- <TableHead className="min-w-[150px]">Product</TableHead>
- <TableHead>Batch</TableHead>
- <TableHead>Expiry</TableHead>
- <TableHead className="w-16">Qty</TableHead>
- <TableHead className="w-20">MRP</TableHead>
- <TableHead className="w-20">TP Rate</TableHead>
- <TableHead className="w-20">Disc.</TableHead>
- <TableHead className="w-24 text-right">Amount</TableHead>
- <TableHead className="w-10"></TableHead>
- </TableRow>
- </TableHeader>
- <TableBody>
- {items.map((item, idx) => (
- <TableRow key={idx}>
- <TableCell className="text-xs font-medium">{item.product_name}</TableCell>
- <TableCell><Input className="h-7 text-xs w-20" value={item.batch_number} onChange={e => updateItem(idx, "batch_number", e.target.value)} /></TableCell>
- <TableCell><Input className="h-7 text-xs w-28" type="date" value={item.expiry_date} onChange={e => updateItem(idx, "expiry_date", e.target.value)} /></TableCell>
- <TableCell><Input className="h-7 text-xs w-14" type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", Number(e.target.value))} /></TableCell>
- <TableCell><Input className="h-7 text-xs w-18" type="number" value={item.mrp} onChange={e => updateItem(idx, "mrp", Number(e.target.value))} /></TableCell>
- <TableCell className="font-mono text-xs">{item.tp_rate.toLocaleString()}</TableCell>
- <TableCell><Input className="h-7 text-xs w-16" type="number" value={item.discount} onChange={e => updateItem(idx, "discount", Number(e.target.value))} /></TableCell>
- <TableCell className="text-right font-mono text-xs">{item.amount.toLocaleString()}</TableCell>
- <TableCell><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeItem(idx)}><X className="h-3 w-3" /></Button></TableCell>
- </TableRow>
- ))}
- </TableBody>
- </Table>
- </div>
- )}
+    if (step === "select_invoice") {
+      return (
+        <div className="space-y-4">
+          <StepHeader />
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setStep("select_customer")}><ChevronLeft className="h-4 w-4" /></Button>
+            <p className="text-sm text-muted-foreground">Pick a sales invoice to copy items from, or start from scratch.</p>
+          </div>
 
- {/* Discount & totals */}
- <div className="flex flex-col items-end gap-2 text-sm">
- <div className="flex items-center gap-2">
- <span className="text-muted-foreground">Subtotal:</span>
- <span className="font-mono font-medium">PKR {subtotal.toLocaleString()}</span>
- </div>
- <div className="flex items-center gap-2">
- <Select value={discountType} onValueChange={v => setDiscountType(v as any)}>
- <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
- <SelectContent>
- <SelectItem value="percent">Discount %</SelectItem>
- <SelectItem value="amount">Discount Amt</SelectItem>
- </SelectContent>
- </Select>
- <Input className="h-8 w-20 text-xs" type="number" value={discountValue} onChange={e => setDiscountValue(Number(e.target.value))} />
- <span className="font-mono text-xs text-muted-foreground">= PKR {discountCalc.toLocaleString()}</span>
- </div>
- <div className="flex items-center gap-2 text-base font-bold">
- <span>Total:</span>
- <span className="font-mono">PKR {total.toLocaleString()}</span>
- </div>
- </div>
+          <Button variant="outline" className="w-full justify-start gap-2 h-12" onClick={startBlank}>
+            <FilePlus2 className="h-4 w-4" />
+            <span className="font-medium">Start blank — no sales invoice</span>
+            <span className="ml-auto text-xs text-muted-foreground">Add products manually</span>
+          </Button>
 
- <div><Label>Notes</Label><Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={2} /></div>
- <Button onClick={handleSave} className="w-full">{editId ? "Update" : "Create"} Warranty Invoice</Button>
- </div>
- );
- };
+          {customerInvoices.length === 0 ? (
+            <p className="text-center text-muted-foreground py-6 text-sm">No prior sales invoices for this customer.</p>
+          ) : (
+            <div className="space-y-2 max-h-[45vh] overflow-y-auto">
+              {customerInvoices.map(inv => (
+                <div key={inv.id} onClick={() => handleSelectInvoice(inv.id)}
+                  className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors">
+                  <div>
+                    <p className="font-mono font-medium text-sm">{inv.invoice_number}</p>
+                    <p className="text-xs text-muted-foreground">{inv.date}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline" className="capitalize">{inv.status}</Badge>
+                    <span className="font-mono font-medium">PKR {Number(inv.total).toLocaleString()}</span>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Step 3: edit_items
+    return (
+      <div className="space-y-5">
+        <StepHeader />
+        {!editId && (
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setStep("select_invoice")}><ChevronLeft className="h-4 w-4" /></Button>
+            <p className="text-sm text-muted-foreground">Review & edit items. Distributor block prints as Warranty Address.</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
+          <div><Label>Date</Label><Input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} /></div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <Label>Distributor / Warranty Address</Label>
+              {selectedCustomerId && (
+                <Button type="button" variant="ghost" size="sm" className="h-6 text-xs gap-1 -mr-2" onClick={() => setAddDistOpen(true)}>
+                  <Plus className="h-3 w-3" /> Add Distributor
+                </Button>
+              )}
+            </div>
+            <Select value={selectedDistributorId} onValueChange={setSelectedDistributorId}>
+              <SelectTrigger><SelectValue placeholder={distributors.length === 0 ? "No distributors — add one" : "Select distributor..."} /></SelectTrigger>
+              <SelectContent>
+                {distributors.map(d => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name} {d.license_number ? `(${d.license_number})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Distributor preview (Warranty Address) */}
+        {selectedDist && (
+          <div className="rounded-md border border-border bg-muted/30 px-4 py-3">
+            <div className="text-[10.5px] uppercase tracking-[0.14em] font-semibold text-muted-foreground mb-1">Warranty Address (prints on document)</div>
+            <div className="font-semibold text-[15px]">{selectedDist.name}</div>
+            {selectedDist.address && <div className="text-sm text-muted-foreground mt-0.5">{selectedDist.address}</div>}
+            <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+              {selectedDist.phone && <span>Mobile: <span className="text-foreground">{selectedDist.phone}</span></span>}
+              {selectedDist.license_number && <span>Licence: <span className="text-foreground">{selectedDist.license_number}</span></span>}
+              {selectedDist.license_expiry && <span>Valid up to: <span className="text-foreground">{selectedDist.license_expiry}</span></span>}
+            </div>
+          </div>
+        )}
+
+        {/* Add product picker */}
+        <div>
+          <Label>Add Product</Label>
+          <SearchableSelect
+            options={products.map(p => ({ value: p.id, label: `${p.name} — MRP ${Number(p.mrp || p.selling_price || 0).toLocaleString()}` }))}
+            value=""
+            onChange={addProductRow}
+            placeholder="Search and add a product..."
+          />
+        </div>
+
+        {/* Items table */}
+        {items.length > 0 && (
+          <div className="border rounded overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[180px]">Product</TableHead>
+                  <TableHead>Batch</TableHead>
+                  <TableHead>Expiry</TableHead>
+                  <TableHead className="w-16">Qty</TableHead>
+                  <TableHead className="w-24">MRP</TableHead>
+                  <TableHead className="w-24">TP Rate</TableHead>
+                  <TableHead className="w-20">Disc.</TableHead>
+                  <TableHead className="w-28 text-right">Amount</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((item, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="text-sm font-medium">{item.product_name}</TableCell>
+                    <TableCell><Input className="h-8 text-sm w-24" value={item.batch_number} onChange={e => updateItem(idx, "batch_number", e.target.value)} /></TableCell>
+                    <TableCell><Input className="h-8 text-sm w-32" type="date" value={item.expiry_date} onChange={e => updateItem(idx, "expiry_date", e.target.value)} /></TableCell>
+                    <TableCell><Input className="h-8 text-sm w-16" type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", Number(e.target.value))} /></TableCell>
+                    <TableCell><Input className="h-8 text-sm w-20" type="number" value={item.mrp} onChange={e => updateItem(idx, "mrp", Number(e.target.value))} /></TableCell>
+                    <TableCell className="font-mono text-sm tabular-nums">{item.tp_rate.toLocaleString()}</TableCell>
+                    <TableCell><Input className="h-8 text-sm w-16" type="number" value={item.discount} onChange={e => updateItem(idx, "discount", Number(e.target.value))} /></TableCell>
+                    <TableCell className="text-right font-mono text-sm tabular-nums">{item.amount.toLocaleString()}</TableCell>
+                    <TableCell><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(idx)}><X className="h-3.5 w-3.5" /></Button></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {/* Discount & totals */}
+        <div className="flex flex-col items-end gap-2 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Subtotal:</span>
+            <span className="font-mono font-medium tabular-nums">PKR {subtotal.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={discountType} onValueChange={v => setDiscountType(v as any)}>
+              <SelectTrigger className="h-9 w-32 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="percent">Discount %</SelectItem>
+                <SelectItem value="amount">Discount Amt</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input className="h-9 w-24 text-sm" type="number" value={discountValue} onChange={e => setDiscountValue(Number(e.target.value))} />
+            <span className="font-mono text-xs text-muted-foreground tabular-nums">= PKR {discountCalc.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center gap-3 text-2xl font-bold pt-1 border-t border-border min-w-[260px] justify-end">
+            <span>Total:</span>
+            <span className="font-mono tabular-nums">PKR {total.toLocaleString()}</span>
+          </div>
+        </div>
+
+        <div><Label>Notes</Label><Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={2} /></div>
+        <Button onClick={handleSave} className="w-full" size="lg">{editId ? "Update" : "Create"} Warranty Invoice</Button>
+      </div>
+    );
+  };
+
 
  const headerActions = (
  <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
