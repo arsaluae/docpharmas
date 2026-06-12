@@ -181,16 +181,16 @@ function buildA4Html(opts: PdfOptions): string {
 
   const companyBlock = `
     <div style="text-align:right;">
-      ${s?.logo_url ? `<div style="font-size:22px;font-weight:700;color:${C.text};letter-spacing:-0.2px;line-height:1.2;">${escapeHtml(companyName)}</div>` : ""}
-      ${tagline ? `<div style="font-size:12px;font-style:italic;color:${C.textMuted};margin-top:2px;">${escapeHtml(tagline)}</div>` : ""}
-      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:12px;color:${C.textMuted};line-height:1.6;margin-top:1px;">${escapeHtml(l)}</div>`).join("")}
+      ${s?.logo_url ? `<div style="font-size:24px;font-weight:700;color:${C.text};letter-spacing:-0.2px;line-height:1.2;">${escapeHtml(companyName)}</div>` : ""}
+      ${tagline ? `<div style="font-size:14px;font-style:italic;color:${C.textMuted};margin-top:3px;">${escapeHtml(tagline)}</div>` : ""}
+      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:14px;color:${C.textMuted};line-height:1.65;margin-top:2px;">${escapeHtml(l)}</div>`).join("")}
     </div>`;
 
   /* ── DOCUMENT TITLE (centered) ── */
   const titleBlock = `
-    <div style="text-align:center;margin-top:18px;padding-top:14px;border-top:2px solid ${C.text};">
-      <div style="font-size:24px;font-weight:800;color:${C.text};letter-spacing:1px;text-transform:uppercase;">${escapeHtml(docTitle)}</div>
-      <div style="height:2px;width:80px;background:${C.primary};margin:6px auto 0;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div>
+    <div style="text-align:center;margin-top:22px;padding-top:16px;border-top:2px solid ${C.text};">
+      <div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:1.2px;text-transform:uppercase;">${escapeHtml(docTitle)}</div>
+      <div style="height:2px;width:90px;background:${C.primary};margin:7px auto 0;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div>
     </div>`;
 
   /* ── DOC INFO (left) + CUSTOMER (right) ── */
