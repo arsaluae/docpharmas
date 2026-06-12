@@ -1,102 +1,102 @@
-## Goal
-Transform the ERP from cramped to premium enterprise-grade — bigger type, stronger spacing, fuller master screens, and polished A4 document templates — without changing existing layout or structure.
+# Warranty Invoice — UI + Template Rebuild
+
+Goal: match the supplied "Warranty Note" PDF format precisely, fix the misaligned party block, allow scratch creation, and polish the dialog.
 
 ---
 
-## Part 1 — Customer & Supplier Master screens
+## Part 1 — Warranty Note PDF template (dedicated renderer)
 
-Files: `src/pages/Customers.tsx`, `src/pages/Suppliers.tsx`
+Today the warranty PDF is generated through the generic `generatePdfHtml(...)` invoice template. That template can't reproduce the warranty layout (distributor block on the right, dual License Number/Expiry rows, MRP Inc. Tax column, full statutory "Note", Total in Words + Inv Balance in Words, single "Sales Rep / Prepared By" signature). I'll add a dedicated branch.
 
-- Expand the main list table (or stacked mobile card) to always show, no hover/extra-tab needed:
-  - **Customers:** Name, Code, Mobile, Phone, City, Area, Full Address, Credit Limit, Outstanding Balance
-  - **Suppliers:** Name, Code, Mobile, Phone, City, Area, Full Address, Payment Terms, Outstanding Balance
-- Use a two-line cell pattern (primary value + muted secondary) so 9 fields fit without horizontal scroll on common widths.
-- Bump font sizes (see Part 3) and row height; right-align numeric columns with `tabular-nums`.
-- Keep filters, search, pagination, and actions exactly where they are.
+Files: `src/lib/pdf-generator.ts`, `src/pages/WarrantyInvoices.tsx`.
 
----
+**Header (top of page):**
+- Larger company logo + name block on the left (per the global design pass already in place).
+- Centered title: `Warranty Note`.
+- Right side: `Inv No.`, `Date`, `Due Date`, `Created By` rows.
 
-## Part 2 — Document templates (A4)
+**Party block (two columns, exactly like the sample):**
+- Left column: `Mobile` (distributor phone), `NTN`, `CNIC`, `License Number`, `Expiry` — each on its own line with label + value (fixes the current bug where labels stack with no values).
+- Right column header: **`Warranty Address`** followed by the full distributor block: distributor name (e.g. "M/S ALI PHARMA"), address, `Licence No: …`, `Valid up to: …`.
+- Important: this prints the **distributor** (warranty address), never the customer's own address. The customer is only used internally for lookup.
 
-Files: `src/components/PdfPreviewDialog.tsx`, `src/lib/pdf-generator.ts`, `src/hooks/useDocumentTemplates.tsx`, and the per-document render paths used by Sales Order, Sales Invoice, Delivery Note, Sales Return, Purchase Order, Purchase Invoice.
+**Items table — exact columns from the sample:**
+`SrNo · Product Name · Product Description · Quantity · Rate · Batch No. · Batch Expiry · Discount · Amount · MRP Inc. Tax`
 
-**Logo** — increase rendered size 200–250% (height ~40px → ~96–110px), keep position and aspect ratio.
+- Product Description falls back to product name when no separate description exists.
+- Batch Expiry rendered as `MM-YY` (matches sample).
+- Numbers right-aligned, `tabular-nums`, two-decimal money.
+- MRP Inc. Tax column renders the product's MRP (gross) — `—` when 0.
 
-**Typography scale (print CSS):**
-| Element | Size |
-|---|---|
-| Company name | 22–24px |
-| Document title | 20–24px |
-| Section headings | 16–18px |
-| Party info / metadata | 14–15px |
-| Table header / rows | 14–15px |
-| Amount in words | 14–15px |
-| Grand Total | 24–32px bold |
+**Totals strip:** single `Total: Rs. <amount>` row (no GST/Subtotal split, matching sample). Underneath:
+- `Total in Words` line.
+- `Inv Balance in Words` line.
 
-**Spacing** — increase row height, cell padding, and inter-section margins; widen header/footer gutters; keep one-page A4 fit by trimming decorative chrome, not content.
+**Note block (compliance text):** rendered verbatim from `document_templates.footer_text` for `warranty_invoice` (already seeded with the correct legal paragraph). Numbered points kept.
 
-**Product table columns (no truncation on Name):**
-Code · Name · Batch · Expiry · Qty · Rate · Discount · Tax · Amount.
-Stronger header rule, hairline row separators, right-aligned numerics, `tabular-nums`.
+**Signature:** single `Sales Rep / Prepared By` label, right side.
 
-**Party block rules:**
-- Always show: Name, Code, City, Area, Address.
-- **Never** show supplier phone on printed docs.
-- Customer mobile/phone hidden unless the new setting (Part 5) is enabled.
+**Footer:** `This is a system generated invoice and does not require any signatures.`
 
-**Document info block:** Invoice/Order #, Date, Sales Agent — larger labels, clearer pairing.
-
-**Totals block:** same position, larger amounts, bolder Grand Total with a top rule and subtle background panel (no gradients).
-
-**Visual polish:** crisp 1px borders, consistent alignment grid, generous whitespace — no gradients, no shadows on print.
+No gradients/shadows in print. A4 single-page, 11mm margins.
 
 ---
 
-## Part 3 — Global ERP UI scale
+## Part 2 — Use distributor (warranty address) as printed party
 
-File: `src/index.css` (and a few component primitives if needed: `src/components/ui/table.tsx`, `input.tsx`, `button.tsx`, `label.tsx`, `src/components/ui/sidebar.tsx`, `src/components/AppSidebar.tsx`).
-
-- Lift base font size: `html { font-size: 16px }` and body text to 15–16px.
-- Table cells: 14–15px, row height +25%, header 12.5–13px uppercase (currently 11.5px).
-- Inputs: 15–16px, taller (h-10 → h-11), more horizontal padding.
-- Labels: 14–15px.
-- Buttons: larger default size, more padding, comfortable touch target.
-- Sidebar: larger nav text, larger icons, more vertical spacing between items.
-- Forms: increase row gap and section spacing.
-
-Apply via tokens/utility classes — no per-page restyling, so existing layouts stay intact.
+Already stored on the row (`pharmacy_name`, `pharmacy_address`, `pharmacy_license_no`, plus `distributor_id`). The new renderer reads `customer_distributors` for `phone` and `license_expiry` (currently dropped on the floor) so all five left-column fields populate. The customer's own address/phone is never printed on the warranty note.
 
 ---
 
-## Part 4 — New setting: Document Preferences
+## Part 3 — Allow "Create from scratch" when no sales invoice exists
 
-Files: `src/pages/Settings.tsx`, `company_settings` table (migration), `useCompanySettings.tsx`, document renderers.
+File: `src/pages/WarrantyInvoices.tsx`.
 
-- Add a "Document Preferences" card with 4 toggles (all default OFF):
-  - Show customer mobile on documents
-  - Show customer phone on documents
-  - Show supplier mobile on documents *(forced display still suppressed for suppliers per spec — toggle hidden or marked Coming Soon; awaiting your call, see Open Question)*
-  - Show supplier phone on documents *(same)*
-- Migration adds 4 boolean columns to `company_settings` (default false).
-- Document templates read these flags before rendering phone/mobile lines.
+In Step 2 (`select_invoice`):
+- Always show a **`Start blank — no sales invoice`** button at the top of the list (not only when the list is empty).
+- Clicking it sets `selectedInvoiceId=""`, leaves `items` empty, and jumps to Step 3.
+
+In Step 3 (`edit_items`) add an **`+ Add Item`** row picker:
+- `SearchableSelect` of all active products.
+- On pick, push a `LineItem` with `mrp = product.mrp || product.selling_price`, `tp_rate = round(mrp * 0.85, 2)`, `quantity = 1`, empty batch/expiry, `amount = tp_rate`.
+- Same row is also useful for invoice-sourced flows when the user wants to add an extra line.
+
+Save path already works for `source_invoice_id = null`.
+
+---
+
+## Part 4 — Dialog UI polish
+
+File: `src/pages/WarrantyInvoices.tsx`.
+
+- Wider dialog (`max-w-5xl`) and roomier spacing — matches the global premium scale already shipped.
+- Step indicator (`1 Customer → 2 Invoice → 3 Items`) at the top of the dialog.
+- Step 1: stack `Customer` picker on top, with a secondary `Distributor (Warranty Address)` pre-selector visible so users know that's the printed party.
+- Step 3 grid uses the larger inputs/labels (Date, Distributor with **Add Distributor** button already present, plus a new **Source Invoice** read-only chip showing `SI-####` or `Blank`).
+- Items table given the same +25% row height + larger fonts as the rest of the app (uses standard `Table` primitives now).
+- Totals block enlarged: prominent `Total` in 24px tabular-nums.
+- Inline preview of the Warranty Address chosen distributor — name + address + license — so the user can confirm before saving.
 
 ---
 
-## Acceptance checklist
-- Logo visibly larger on every template
-- Fonts larger across screens and printed docs
-- Customer/Supplier list shows all required fields without drilling in
-- Product tables readable, no Name truncation
-- Grand Total dominates the totals block
-- Sidebar/forms/tables feel roomy at 100% zoom
-- A4 single-page fit preserved
-- No layout or navigation restructuring
+## Part 5 — List screen polish
+
+- Add `Distributor` column (currently shown as "Pharmacy") and a `Source Invoice` column showing the linked SI number or `—`.
+- Use the same larger row height / typography as the rest of the redesign.
 
 ---
+
+## Acceptance
+- Warranty PDF visually matches the supplied "Warranty Note" sample (header, party block, columns including `MRP Inc. Tax`, totals, words, legal note, signature, footer).
+- Left party block labels (`Mobile / NTN / CNIC / License Number / Expiry`) each have their value on the same line — no more orphan labels.
+- Right party block is titled **Warranty Address** and shows the **distributor**, never the customer's own address.
+- "New Warranty Invoice" works end-to-end with **no sales invoice selected** (Start blank → add products → save).
+- Product MRP is fetched from `products.mrp` and printed in the `MRP Inc. Tax` column; TP rate auto = MRP × 0.85.
+- Dialog feels premium: larger fonts, clear step header, distributor preview card.
 
 ## Open question
-Your spec says "Do NOT show supplier phone… ever" but the settings list includes supplier mobile/phone toggles. Should I:
-**(A)** include both supplier toggles as requested, or
-**(B)** hard-suppress all supplier contact on prints and only ship the two customer toggles?
+The sample shows a generic statutory note tied to a specific agent ("Miss UFAQ ISHIAQ … 09-341-0157-041722D"). Should this be:
+- **(A)** kept as static text in `document_templates.footer_text` (one note for all warranty invoices), or
+- **(B)** stored per-tenant in `company_settings.warranty_note_text` so admins can edit the agent name/license/expiry once in Settings and have every warranty note reflect it?
 
-I'll proceed with **(A)** unless you say otherwise.
+I'll go with **(B)** unless you say otherwise — it's only a settings field + one textarea in Settings, and avoids ever shipping the wrong agent name.
