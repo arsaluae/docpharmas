@@ -259,8 +259,8 @@ export default function ProformaInvoices() {
  // Sales agents cannot read the products base table (cost columns hidden by RLS).
  // Use the cost-free agent_stock_availability view instead — same live data, no cost exposure.
  const prodQuery = isSalesAgent
-   ? supabase.from("agent_stock_availability").select("product_id, name, selling_price, gst_rate, mrp")
-   : supabase.from("products").select("id, name, selling_price, gst_rate, mrp").eq("is_active", true);
+   ? supabase.from("sales_product_catalog_view").select("product_id, name, product_code, selling_price, gst_rate, mrp, available_qty, nearest_expiry, supplier_name")
+   : supabase.from("products").select("id, name, product_code, selling_price, gst_rate, mrp").eq("is_active", true);
  const [pf, cust, prod, agentsRes] = await Promise.all([
  pfQuery,
  supabase.from("customers").select("id, name, company, phone, address, area").eq("is_active", true),
