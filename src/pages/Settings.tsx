@@ -869,6 +869,10 @@ function TeamAccessCard() {
  const [resetFor, setResetFor] = useState<string | null>(null);
  const [resetPwd, setResetPwd] = useState("");
  const [resetting, setResetting] = useState(false);
+ const [deleteFor, setDeleteFor] = useState<TenantMember | null>(null);
+ const [deleteConfirm, setDeleteConfirm] = useState("");
+ const [deleting, setDeleting] = useState(false);
+
 
  const load = async () => {
  if (!tenantId) return;
