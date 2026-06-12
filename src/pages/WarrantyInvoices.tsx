@@ -542,32 +542,8 @@ export default function WarrantyInvoices() {
           </div>
         </div>
 
-        <div>
-          <Label>Sales Representative (signs the declaration)</Label>
-          <Select value={selectedSalesRepId} onValueChange={setSelectedSalesRepId}>
-            <SelectTrigger><SelectValue placeholder={salesReps.length === 0 ? "No active sales reps — add one under Sales Agents" : "Select sales representative..."} /></SelectTrigger>
-            <SelectContent>
-              {salesReps.map(r => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.name}{r.license_number ? ` — Lic ${r.license_number}` : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectedSalesRepId && (() => {
-            const r = salesReps.find(x => x.id === selectedSalesRepId);
-            if (!r) return null;
-            const missing: string[] = [];
-            if (!r.cnic) missing.push("CNIC");
-            if (!r.license_number) missing.push("License #");
-            if (!r.license_expiry) missing.push("License expiry");
-            if (!r.signature_url) missing.push("Signature");
-            if (!r.stamp_url) missing.push("Stamp");
-            return missing.length > 0
-              ? <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">Missing on profile: {missing.join(", ")}. Edit the agent to complete the warranty declaration.</p>
-              : <p className="text-[11px] text-success mt-1">All warranty declaration fields are filled.</p>;
-          })()}
-        </div>
+
+
 
 
         {/* Distributor preview (Warranty Address) */}
