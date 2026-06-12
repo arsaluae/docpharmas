@@ -525,121 +525,62 @@ export default function WarrantyInvoices() {
  <TableCell>{inv.customers?.name || "—"}</TableCell>
  <TableCell>{inv.pharmacy_name}</TableCell>
  <TableCell className="text-right font-mono">{Number(inv.total).toLocaleString()}</TableCell>
- <TableCell className="text-center">
- <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
- <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => {
- const wiItems = Array.isArray(inv.items) ? inv.items : [];
- const template = getTemplate("warranty_invoice");
- const cols = template?.columns_config?.length ? template.columns_config : [
- { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
- { header: "Batch", key: "batch_number" }, { header: "Expiry", key: "expiry_date" },
- { header: "Qty", key: "quantity", align: "right" as const },
- { header: "MRP", key: "mrp", align: "right" as const },
- { header: "TP Rate", key: "tp_rate", align: "right" as const },
- { header: "Amount", key: "amount", align: "right" as const },
- ];
- const __opts_wiHtml = ({
- title: "WARRANTY INVOICE", documentNumber: inv.warranty_number, date: inv.date,
- partyLabel: "Pharmacy / Distributor", partyName: inv.pharmacy_name,
- partyAddress: inv.pharmacy_address || undefined,
- partyLicense: inv.pharmacy_license_no || undefined,
- meta: inv.pharmacy_license_no ? [{ label: "License #", value: inv.pharmacy_license_no }] : [],
- columns: cols as any,
- rows: wiItems.map((i: any, idx: number) => ({
- ...i, idx: idx + 1,
- mrp: Number(i.mrp || i.mrp_rate || 0).toLocaleString(),
- tp_rate: Number(i.tp_rate || 0).toLocaleString(),
- amount: Number(i.amount).toLocaleString(),
- })),
- totals: [
- { label: "Subtotal", value: `PKR ${Number(inv.subtotal).toLocaleString()}` },
- ...(Number(inv.discount_amount) > 0 ? [{ label: `Discount${Number(inv.discount_percent) > 0 ? ` (${inv.discount_percent}%)` : ''}`, value: `- PKR ${Number(inv.discount_amount).toLocaleString()}` }] : []),
- { label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` },
- ],
- notes: inv.notes || undefined, settings, template,
- } as any);
- const wiHtml = generatePdfHtml(__opts_wiHtml);
- setPdfOpts(__opts_wiHtml);
- setPdfHtml(wiHtml); setPdfTitle(`Warranty Invoice — ${inv.warranty_number}`); setPdfOpen(true);
- }}>
- <Download className="h-3 w-3" /> PDF
- </Button>
- <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async (e) => {
- e.stopPropagation();
-  const { uploadSharedDocument } = await import("@/lib/whatsapp-share");
-  const { sendWhatsAppDoc } = await import("@/lib/whatsapp-templates");
- const wiItems = Array.isArray(inv.items) ? inv.items as any[] : [];
- // Get customer phone
- let phone = "";
- if (inv.customer_id) {
- const { data } = await supabase.from("customers").select("phone").eq("id", inv.customer_id).single();
- phone = data?.phone || "";
- }
- // Generate PDF link
- let pdfLink: string | undefined;
- try {
- const template = getTemplate("warranty_invoice");
- const cols = template?.columns_config?.length ? template.columns_config : [
- { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
- { header: "Batch", key: "batch_number" }, { header: "Qty", key: "quantity", align: "right" as const },
- { header: "MRP", key: "mrp", align: "right" as const },
- { header: "TP Rate", key: "tp_rate", align: "right" as const },
- { header: "Amount", key: "amount", align: "right" as const },
- ];
- const __opts_html = ({
- title: "WARRANTY INVOICE", documentNumber: inv.warranty_number, date: inv.date,
- partyLabel: "Pharmacy / Distributor", partyName: inv.pharmacy_name,
- columns: cols as any,
- rows: wiItems.map((i: any, idx: number) => ({
- ...i, idx: idx + 1,
- mrp: Number(i.mrp || 0).toLocaleString(),
- tp_rate: Number(i.tp_rate || 0).toLocaleString(),
- amount: Number(i.amount).toLocaleString(),
- })),
- totals: [{ label: "Total", value: `PKR ${Number(inv.total).toLocaleString()}` }],
- settings, template,
- } as any);
- const html = generatePdfHtml(__opts_html);
- setPdfOpts(__opts_html);
- pdfLink = await uploadSharedDocument(html, inv.warranty_number) || undefined;
- } catch (e) { console.error("PDF link error:", e); }
-  await sendWhatsAppDoc({
-  documentType: "sales_invoice",
-  phone,
-  vars: {
-  company_name: settings?.company_name || "DocPharmas",
-  company_phone: (settings as any)?.phone || "",
-  company_email: (settings as any)?.email || "",
-  company_address: (settings as any)?.address || "",
-  customer_name: inv.pharmacy_name,
-  customer_phone: phone,
-  document_type: "Warranty Invoice",
-  document_number: inv.warranty_number,
-  document_date: inv.date,
-  document_total: Number(inv.total).toLocaleString(),
-  document_link: pdfLink || "",
-  },
-  });
- }} title="Share via WhatsApp">
- <MessageCircle className="h-3.5 w-3.5 text-success" />
- </Button>
- <AlertDialog>
- <AlertDialogTrigger asChild>
- <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
- </AlertDialogTrigger>
- <AlertDialogContent>
- <AlertDialogHeader>
- <AlertDialogTitle>Delete {inv.warranty_number}?</AlertDialogTitle>
- <AlertDialogDescription>This will permanently delete this warranty invoice.</AlertDialogDescription>
- </AlertDialogHeader>
- <AlertDialogFooter>
- <AlertDialogCancel>Cancel</AlertDialogCancel>
- <AlertDialogAction onClick={(e) => handleDelete(inv.id, e)}>Delete</AlertDialogAction>
- </AlertDialogFooter>
- </AlertDialogContent>
- </AlertDialog>
- </div>
- </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => openPdf(inv)}>
+                                <Download className="h-3 w-3" /> PDF
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async (e) => {
+                                e.stopPropagation();
+                                const { uploadSharedDocument } = await import("@/lib/whatsapp-share");
+                                const { sendWhatsAppDoc } = await import("@/lib/whatsapp-templates");
+                                let phone = "";
+                                if (inv.customer_id) {
+                                  const { data } = await supabase.from("customers").select("phone").eq("id", inv.customer_id).single();
+                                  phone = data?.phone || "";
+                                }
+                                let pdfLink: string | undefined;
+                                try {
+                                  const html = generateWarrantyNoteHtml(buildWarrantyOpts(inv));
+                                  pdfLink = await uploadSharedDocument(html, inv.warranty_number) || undefined;
+                                } catch (e) { console.error("PDF link error:", e); }
+                                await sendWhatsAppDoc({
+                                  documentType: "sales_invoice",
+                                  phone,
+                                  vars: {
+                                    company_name: settings?.company_name || "DocPharmas",
+                                    company_phone: (settings as any)?.phone || "",
+                                    company_email: (settings as any)?.email || "",
+                                    company_address: (settings as any)?.address || "",
+                                    customer_name: inv.pharmacy_name,
+                                    customer_phone: phone,
+                                    document_type: "Warranty Invoice",
+                                    document_number: inv.warranty_number,
+                                    document_date: inv.date,
+                                    document_total: Number(inv.total).toLocaleString(),
+                                    document_link: pdfLink || "",
+                                  },
+                                });
+                              }} title="Share via WhatsApp">
+                                <MessageCircle className="h-3.5 w-3.5 text-success" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete {inv.warranty_number}?</AlertDialogTitle>
+                                    <AlertDialogDescription>This will permanently delete this warranty invoice.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={(e) => handleDelete(inv.id, e)}>Delete</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
  </TableRow>
  ))}
  </TableBody>
