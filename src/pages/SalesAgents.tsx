@@ -21,6 +21,9 @@ interface SalesAgent {
   id: string; name: string; phone: string | null; email: string | null;
   address: string | null; status: string; commission_type: string; commission_rate: number;
   user_id: string | null;
+  father_name: string | null; cnic: string | null;
+  license_number: string | null; license_expiry: string | null;
+  signature_url: string | null; stamp_url: string | null;
 }
 interface AgentCustomer { id: string; agent_id: string; customer_id: string; }
 interface Customer { id: string; name: string; company: string | null; }
