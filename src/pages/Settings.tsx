@@ -1257,3 +1257,80 @@ function TeamAccessCard() {
  );
 }
 
+function SalesAgentScopeCard() {
+  const { tenantId } = useTenant();
+  const [scope, setScope] = useState<"all" | "assigned">("all");
+  const [assignmentCount, setAssignmentCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    const { data: cs } = await (supabase as any).from("company_settings")
+      .select("sales_agent_scope").eq("tenant_id", tenantId).maybeSingle();
+    const { count } = await (supabase as any).from("agent_customers")
+      .select("agent_id", { count: "exact", head: true }).eq("tenant_id", tenantId);
+    setScope((cs?.sales_agent_scope as any) ?? "all");
+    setAssignmentCount(count ?? 0);
+    setLoading(false);
+  };
+  useEffect(() => { void load(); }, [tenantId]);
+
+  const save = async (next: "all" | "assigned") => {
+    if (!tenantId) return;
+    setSaving(true);
+    const { error } = await (supabase as any).from("company_settings")
+      .update({ sales_agent_scope: next }).eq("tenant_id", tenantId);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    setScope(next);
+    toast.success("Sales agent scope updated");
+  };
+
+  return (
+    <Card className="glass-card">
+      <CardHeader>
+        <CardTitle className="text-lg">Sales Agent Customer Scope</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Controls which customers a Sales Agent can see, edit and sell to. You currently have{" "}
+              <strong>{assignmentCount}</strong> agent-customer assignment{assignmentCount === 1 ? "" : "s"}.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => save("all")}
+                className={`text-left rounded-md border px-3 py-2 transition-colors ${scope === "all" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
+              >
+                <div className="text-sm font-medium">All customers</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  Every sales agent sees every customer in the workspace. Recommended when you haven't set up assignments yet.
+                </div>
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => save("assigned")}
+                className={`text-left rounded-md border px-3 py-2 transition-colors ${scope === "assigned" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
+              >
+                <div className="text-sm font-medium">Assigned customers only</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  Each agent only sees customers explicitly assigned to them on the Sales Agents page.
+                </div>
+              </button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+
