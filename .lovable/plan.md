@@ -1,59 +1,65 @@
-# Warranty Note — Polished Declaration + Clean PDF Download
+# Warranty Invoice — Declaration, Clean PDF, Batch Picker
 
-Two changes, both isolated to warranty-note rendering. No business logic touched.
+Three precise fixes scoped to warranty invoices. No other modules touched.
 
-## 1. New declaration text & resolved variables
+## 1. Declaration not showing on the printed note
 
-Update `DEFAULT_WARRANTY_DECLARATION` in `src/lib/warranty-declaration.ts` to the exact paragraph the user pasted, with proper variable tokens so admin data fills in automatically:
+Root cause: the declaration renders, but every variable (`{{sales_rep_name}}`, `{{father_name}}`, `{{sales_rep_cnic}}`, `{{agent_license_number}}`, `{{agent_license_expiry}}`, `{{relation}}`) resolves to `__________` whenever the saved invoice has no `sales_agent_id`, or when the linked agent is missing CNIC / license / father name. So the user sees a paragraph of blanks instead of the certified-agent text.
 
-```
-It is certified that I, {{sales_rep_name}} D/O {{father_name}}
-having NIC # {{sales_rep_cnic}}, being an authorized agent
-No. {{agent_license_number}} valid up to {{agent_license_expiry}},
-on behalf of M/s {{company_name}}:
+Fixes in `src/lib/pdf-generator.ts` + `src/pages/WarrantyInvoices.tsx`:
 
-1. It is hereby certified that the following finished products have been supplied by me.
+- **Make Sales Representative required** in the create form. The Save button is disabled with a tooltip until a rep is picked, so every new warranty note carries an agent.
+- **Hard-validate agent profile completeness** before save: name, father name, CNIC, license #, license expiry. Block save with a toast pointing the user to "Sales Agents → edit profile" when anything is missing. The existing amber hint is upgraded to a blocking error pill.
+- **Backfill UI for existing invoices without a rep**: when opening the PDF for a legacy warranty note that has `sales_agent_id = null`, prompt the user to assign one before printing (small inline picker on the PDF preview header). The patch updates the saved invoice + reopens the PDF with resolved variables.
+- **Stronger fallback in the renderer**: if any variable is still empty after resolving, fall back to a thin underline of fixed width (`____________`) instead of a long string, and keep the bold/inline style so the sentence still reads naturally.
+- **Bold the resolved values inline** (name, NIC, license #, expiry, company) so the certificate reads exactly like the sample: "It is certified that I, **UFAQ ISHIAQ** D/O **Ishtiaq Ahmed** having NIC # **3520-28328903-4** being an authorized agent No. **09-341-0157-041722D** valid up to **12-04-2028** on behalf of M/s **MOUJ PHARMACEUTICALS** …".
 
-2. It is hereby certified and I undertake that the above-mentioned finished
-   products of the specified Batch Number supplied by me do not contravene any
-   provision of the Act and rules framed thereunder.
+## 2. Save-as-PDF produces a blank/B&W page
 
-The Authorized Agent shall pass on this warranty to the retailers in his area
-of jurisdiction during the supply of medicines and health products.
-```
+Root cause: `PdfPreviewDialog.handleDownloadPdf` builds a detached, off-screen container at `left: -10000px` and feeds it to `html2pdf`. Two failure modes hit warranty notes:
 
-Add a new variable `{{relation}}` (defaults to "S/O" or "D/O" based on `sales_agents.gender`, falling back to "S/O") so the certificate reads correctly for male or female reps. Add `gender` column to `sales_agents` (text, nullable) and a small select in the Sales Agents dialog.
+1. The warranty HTML uses `<div class="page">` (not `.page-frame`), so the regex that strips the toolbar never matches — the toolbar HTML stays in the body and the first page renders as a small grey bar (looks like a blank/B&W sheet).
+2. Logo, signature, and stamp images are loaded from Supabase Storage. `html2canvas` snapshots before the images decode → empty boxes / white page. Setting `useCORS: true` alone doesn't await decode.
 
-Anyone who already customised their declaration keeps their version — only the default seed and the "Restore Default" button are updated. Existing tenants with the old default text get a one-time migration that rewrites `company_settings.warranty_note_text` only when it still matches the previous default string.
+Rewrite the download path in `src/components/PdfPreviewDialog.tsx`:
 
-## 2. Polished PDF layout
+- Render the active HTML into a hidden **same-origin iframe** (`<iframe srcdoc>`), wait for `iframe.onload`, then `await Promise.all(images.map(img => img.decode().catch(()=>{})))` so every `<img>` is fully painted before snapshot.
+- Run `html2pdf` against `iframe.contentDocument.body` (not a parsed clone) so the browser's layout engine — fonts, flex, grid — is what gets rasterised.
+- Drop the toolbar with a CSS rule injected into the iframe (`.toolbar { display:none !important }`) instead of regex-stripping the HTML string. Works for warranty (`.page`) and the older A4 templates (`.page-frame`) without conditional regex.
+- Force background colour on `html2canvas` (`backgroundColor: "#ffffff"`) and set `windowWidth: 794` (A4 @ 96dpi) so the snapshot width matches the jsPDF page, eliminating the "tiny content top-left, rest of page blank" symptom.
+- Keep `jsPDF` at `unit: "mm", format: "a4", orientation: "portrait"`, `margin: 0`. Use `pagebreak: { mode: ["css", "legacy"] }` so multi-page warranties paginate cleanly.
 
-In `buildWarrantyNoteHtml` (`src/lib/pdf-generator.ts`):
+This same patch fixes Save-as-PDF for sales invoices, proformas, etc. — no per-document work needed.
 
-- Replace the boxed "Warranty Declaration" panel with a typographically clean block: justified body, 13px / line-height 1.8, numbered list rendered as a real `<ol>` with hanging indent, and a hairline rule above instead of a filled card.
-- Bold the resolved values (name, NIC, license, expiry, company) inline so reviewers can scan the certificate at a glance.
-- Tighten the signature row: stamp left + signature right with a single shared baseline, "Sales Rep" / "Prepared By" labels matching the screenshot.
-- Remove the muted "System generated warranty note · INV-…" footer line — the user wants the page to feel like a real document.
+## 3. Batch picker with auto-expiry on the warranty form
 
-## 3. Clean "Save as PDF" (no browser URL/timestamp)
+Currently the create form has two free-text inputs (`Batch` and `Expiry`) per line — users have to type the batch and the expiry by hand, and nothing validates that the batch exists for that product.
 
-The current Download button opens `window.print()`, which lets Chrome inject the URL + date footer. To produce a truly clean file:
+Replace with a real picker, reusing the existing `getActiveBatches(productId)` helper in `src/lib/batches.ts` (already FEFO-sorted, already merges `grn_items.expiry_date`):
 
-- Add `html2pdf.js` (wraps `html2canvas` + `jsPDF`, ~small footprint, MIT).
-- In `PdfPreviewDialog`, change the header button to **Save as PDF** which renders the active iframe HTML to A4 via html2pdf and triggers a direct download named `Warranty-Note-{invoiceNumber}.pdf`. Keep a secondary **Print** menu item for users who still want the print dialog.
-- For all other documents (sales invoice, proforma, etc.) the same Save as PDF flow applies — same dialog, no per-document change needed.
-- Set `@page { size: A4; margin: 0 }` on the print stylesheet so the browser-print fallback also drops headers/footers in Chrome (user still needs to untick "Headers and footers" in some browsers, but html2pdf path makes it irrelevant).
+- When a product row is added (or when the dialog opens for editing), call `getActiveBatches(item.product_id)` and cache the result keyed by product id (`Record<string, ActiveBatch[]>`).
+- Render the Batch cell as a `SearchableSelect` whose options are `{ value: batch.batch_number, label: "BATCH-123 · on-hand 240 · exp 11-26" }`. Auto-set `item.expiry_date` to the picked batch's `expiry_date` and recompute amount.
+- Show an inline warning when the picked batch is `expiring` (≤90 days) or `expired`, so the user knows before printing.
+- Keep manual entry as a fallback: if no active batches exist for the product (legacy data), fall back to the current free-text inputs and surface a small hint "No tracked batches — typing manually".
+- The expiry input stays read-only when a tracked batch was picked; users hit a "Clear" mini-button to override.
+
+No DB changes — all data comes from `stock_movements` + `grn_items` which the helper already reads.
 
 ## Files touched
 
-- `src/lib/warranty-declaration.ts` — new default text, add `relation` variable
-- `src/lib/pdf-generator.ts` — polished declaration block, remove system footer, `@page` margin 0
-- `src/components/PdfPreviewDialog.tsx` — Save as PDF via html2pdf, Print as secondary
-- `src/pages/SalesAgents.tsx` — gender select
-- `package.json` — add `html2pdf.js`
-- One migration: add `sales_agents.gender`, soft-update old default `warranty_note_text`
+- `src/lib/pdf-generator.ts` — bold inline resolved values, fixed-width blanks fallback
+- `src/components/PdfPreviewDialog.tsx` — iframe-based clean Save-as-PDF, image-decode await, css toolbar hide
+- `src/pages/WarrantyInvoices.tsx` — required rep + blocking validation, per-product batch cache, Batch picker via `SearchableSelect`, auto-expiry, "assign rep" prompt on legacy PDFs
 
 ## Out of scope
 
-- No changes to sales invoice / delivery note layouts beyond the shared Save-as-PDF button.
-- Sandbox/UAT and other unrelated features untouched.
+- No schema changes.
+- No changes to other PDF templates' content.
+- Sandbox/UAT, sales agent role, and the warranty settings UI stay as-is.
+
+## Acceptance
+
+- Creating a new warranty note with a fully-filled sales rep prints the certified-agent paragraph with bold values exactly matching the user's sample.
+- Saving with a rep missing CNIC / license / father name is blocked with a clear toast.
+- "Save as PDF" downloads a clean coloured A4 PDF with logo, signature, stamp visible — no blank page, no browser URL/timestamp.
+- Adding a product in the warranty form shows a Batch dropdown with on-hand quantities; selecting a batch fills expiry automatically.

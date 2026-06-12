@@ -25,8 +25,33 @@ interface PdfPreviewDialogProps {
   defaultView?: string;
 }
 
+/**
+ * Inject CSS that hides the in-document toolbar/page-frame chrome and forces
+ * a flat A4 white background. Works for both warranty (`.page`) and the
+ * legacy A4 (`.page-frame`) templates without per-document regex.
+ */
+const PRINT_CHROME_CSS = `
+  body { margin:0 !important; padding:0 !important; background:#fff !important; }
+  .toolbar { display:none !important; }
+  .page-frame, .page {
+    box-shadow:none !important;
+    border:none !important;
+    margin:0 !important;
+    background:#fff !important;
+  }
+  .page-frame::before, .corner { display:none !important; }
+`;
+
+function injectChromeCss(html: string): string {
+  if (/<\/head>/i.test(html)) {
+    return html.replace(/<\/head>/i, `<style>${PRINT_CHROME_CSS}</style></head>`);
+  }
+  return `<style>${PRINT_CHROME_CSS}</style>${html}`;
+}
+
 export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defaultView }: PdfPreviewDialogProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const enabledViews = (views || []).filter((v) => !v.disabled);
   const initial = defaultView && enabledViews.find((v) => v.key === defaultView)
@@ -44,79 +69,98 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
     return html || "";
   }, [views, active, html]);
 
+  const embeddedHtml = useMemo(() => injectChromeCss(activeHtml), [activeHtml]);
+
   const handlePrint = () => {
     const win = window.open("", "_blank");
     if (win) {
-      win.document.write(activeHtml);
+      win.document.write(embeddedHtml);
       win.document.close();
       win.onload = () => { win.print(); };
       setTimeout(() => { try { win.print(); } catch(e) {} }, 600);
     }
   };
 
+  /**
+   * Render the active HTML into a hidden same-origin iframe, wait for the
+   * document + every <img> to decode, then snapshot the iframe body with
+   * html2pdf. This avoids:
+   *   • blank pages when images (logo / signature / stamp) haven't loaded
+   *   • B&W rendering when external stylesheets aren't carried over
+   *   • toolbar leaking onto the first page
+   */
   const handleDownloadPdf = async () => {
-    // Build a detached container so html2pdf can rasterise the document at A4.
-    const container = document.createElement("div");
-    container.style.position = "fixed";
-    container.style.left = "-10000px";
-    container.style.top = "0";
-    container.style.width = "210mm";
-    container.style.background = "#fff";
-    // Strip the screen toolbar/page-frame shadow; html2pdf paginates the body.
-    const cleanedHtml = activeHtml
-      .replace(/<div class="toolbar">[\s\S]*?<\/div>\s*(?=\s*<div class="page-frame")/, "")
-      .replace(/<\/head>/, `<style>
-        body { margin:0 !important; padding:0 !important; background:#fff !important; }
-        .page-frame, .page { box-shadow:none !important; border:none !important; margin:0 !important; }
-        .page-frame::before, .corner { display:none !important; }
-      </style></head>`);
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(cleanedHtml, "text/html");
-    container.innerHTML = doc.body.innerHTML;
-    // Carry over inline <style> blocks from <head> so layout/colours render.
-    doc.head.querySelectorAll("style").forEach((s) => {
-      const clone = document.createElement("style");
-      clone.textContent = s.textContent || "";
-      container.appendChild(clone);
-    });
-    document.body.appendChild(container);
-    const filename = `${(title || "Document").replace(/[^a-z0-9\-_.]+/gi, "-")}.pdf`;
+    if (downloading) return;
+    setDownloading(true);
+    const iframe = document.createElement("iframe");
+    // A4 width at 96dpi = 794px. Keep the iframe sized to that so html2canvas
+    // captures content at the same width jsPDF will lay it out on.
+    iframe.style.position = "fixed";
+    iframe.style.left = "-10000px";
+    iframe.style.top = "0";
+    iframe.style.width = "794px";
+    iframe.style.height = "1123px"; // A4 height @96dpi — grows automatically
+    iframe.style.border = "0";
+    iframe.style.background = "#ffffff";
+    iframe.setAttribute("aria-hidden", "true");
+    document.body.appendChild(iframe);
+
     try {
+      await new Promise<void>((resolve) => {
+        iframe.onload = () => resolve();
+        iframe.srcdoc = embeddedHtml;
+      });
+
+      const doc = iframe.contentDocument;
+      if (!doc) throw new Error("PDF iframe failed to initialise");
+
+      // Wait for fonts + every image to fully decode before snapshot.
+      const fontsReady = (doc as any).fonts?.ready?.catch(() => undefined) || Promise.resolve();
+      const imgs = Array.from(doc.images);
+      await Promise.all([
+        fontsReady,
+        ...imgs.map((img) => {
+          if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+          return new Promise<void>((res) => {
+            img.addEventListener("load", () => res(), { once: true });
+            img.addEventListener("error", () => res(), { once: true });
+          });
+        }),
+        // tiny tick to let layout settle
+        new Promise<void>((res) => setTimeout(res, 80)),
+      ]);
+
+      const filename = `${(title || "Document").replace(/[^a-z0-9\-_.]+/gi, "-")}.pdf`;
+      const target = doc.body;
+      // Make sure the content height drives pagination
+      target.style.width = "794px";
+      target.style.background = "#ffffff";
+
       await html2pdf()
         .set({
           margin: 0,
           filename,
           image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: "#ffffff",
+            windowWidth: 794,
+            logging: false,
+          },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
+          pagebreak: { mode: ["css", "legacy"] },
         } as any)
-        .from(container)
+        .from(target)
         .save();
+    } catch (e) {
+      console.error("PDF download failed", e);
     } finally {
-      container.remove();
+      iframe.remove();
+      setDownloading(false);
     }
   };
-
-  const embeddedHtml = activeHtml.replace(
-    /<div class="toolbar">[\s\S]*?<\/div>\s*(?=\s*<div class="page-frame")/,
-    ""
-  ).replace(
-    /<\/head>/,
-    `<style>
-      body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
-      .page-frame {
-        margin: 0 auto !important;
-        padding: 28px 32px !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        box-shadow: none !important;
-        border: none !important;
-      }
-      .page-frame::before { display: none !important; }
-      .corner { display: none !important; }
-    </style></head>`
-  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -150,11 +194,11 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
             </div>
           )}
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handlePrint}>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handlePrint} disabled={downloading}>
               <Printer className="h-3.5 w-3.5" /> Print
             </Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={handleDownloadPdf}>
-              <Download className="h-3.5 w-3.5" /> Save as PDF
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={handleDownloadPdf} disabled={downloading}>
+              <Download className="h-3.5 w-3.5" /> {downloading ? "Saving…" : "Save as PDF"}
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" />
