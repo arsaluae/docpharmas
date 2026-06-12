@@ -23,6 +23,7 @@ import { generateWarrantyNoteHtml, generateWarrantyNoteViews, type WarrantyNoteO
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { AddDistributorDialog } from "@/components/AddDistributorDialog";
+import { getActiveBatches, type ActiveBatch } from "@/lib/batches";
 
 
 interface Customer { id: string; name: string; company: string | null; }
