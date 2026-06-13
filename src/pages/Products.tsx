@@ -488,8 +488,16 @@ export default function Products() {
  onOpenChange={(o) => { if (!o) setProfileProduct(null); }}
  productId={profileProduct?.id || null}
  productName={profileProduct?.name}
- productCode={(profileProduct as any)?.product_code}
- currentCost={Number(profileProduct?.cost_price || 0)}
+ productCode={profileProduct?.sku || (profileProduct as any)?.product_code}
+ purchaseCost={Number((profileProduct as any)?.purchase_cost ?? profileProduct?.cost_price ?? 0)}
+ salePrice={Number(profileProduct?.selling_price || 0)}
+ currentLandedCost={Number(profileProduct?.cost_price || 0)}
+ onSaved={loadAll}
+ />
+ <OpeningStockDialog
+ open={openingOpen}
+ onOpenChange={setOpeningOpen}
+ onSaved={loadAll}
  />
  </AppLayout>
  );
