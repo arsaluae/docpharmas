@@ -102,8 +102,12 @@ export default function Settings() {
     warranty_require_license_expiry: true,
     warranty_require_batch_number: true,
     warranty_require_batch_expiry: true,
+    warranty_stamp_url: "",
+    warranty_signature_url: "",
+    warranty_footer_text: "",
     document_page_mode: "auto" as "half" | "full" | "auto",
   });
+
 
  const { templates, loading: templatesLoading, updateTemplate } = useDocumentTemplates();
 
@@ -143,8 +147,12 @@ export default function Settings() {
           warranty_require_license_expiry: (data as any).warranty_require_license_expiry !== false,
           warranty_require_batch_number: (data as any).warranty_require_batch_number !== false,
           warranty_require_batch_expiry: (data as any).warranty_require_batch_expiry !== false,
+          warranty_stamp_url: (data as any).warranty_stamp_url || "",
+          warranty_signature_url: (data as any).warranty_signature_url || "",
+          warranty_footer_text: (data as any).warranty_footer_text || "",
           document_page_mode: ((data as any).document_page_mode || "auto") as "half" | "full" | "auto",
   });
+
  }
  setLoading(false);
  };
@@ -170,8 +178,12 @@ export default function Settings() {
        warranty_require_license_expiry: form.warranty_require_license_expiry,
        warranty_require_batch_number: form.warranty_require_batch_number,
         warranty_require_batch_expiry: form.warranty_require_batch_expiry,
+        warranty_stamp_url: form.warranty_stamp_url || null,
+        warranty_signature_url: form.warranty_signature_url || null,
+        warranty_footer_text: form.warranty_footer_text || null,
         document_page_mode: form.document_page_mode,
       };
+
  if (settingsId) {
  await supabase.from("company_settings").update(payload as any).eq("id", settingsId);
  } else {
