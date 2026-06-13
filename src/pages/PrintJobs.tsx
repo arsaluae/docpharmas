@@ -335,11 +335,9 @@ export default function PrintJobs() {
  setDeleteId(null); load();
  };
 
+ // Server-side already filters by job_number / product / supplier. Keep dispatched-supplier
+ // narrowing (which needs the loaded dispatchesByJob map).
  const filtered = jobs.filter(j => {
- const matchSearch = j.job_number.toLowerCase().includes(search.toLowerCase()) ||
- (printerNames[j.printer_id || ""] || "").toLowerCase().includes(search.toLowerCase()) ||
- (productNames[j.product_id || ""] || "").toLowerCase().includes(search.toLowerCase());
- if (!matchSearch) return false;
  if (filterSupplier !== "all") {
    const disp = dispatchesByJob[j.id] || [];
    const hasSupplier = j.allotted_supplier_id === filterSupplier || disp.some(d => d.supplier_id === filterSupplier);
