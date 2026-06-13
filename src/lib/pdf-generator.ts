@@ -366,7 +366,14 @@ function buildA4Html(opts: PdfOptions): string {
         </div>`).join("")}
     </div>`;
 
+  const docKind = /delivery\s*note/i.test(docTitle) ? "delivery-note"
+    : /sales\s*order|proforma/i.test(docTitle) ? "sales-order"
+    : /invoice/i.test(docTitle) ? "sales-invoice"
+    : "document";
+
   return `<!DOCTYPE html><html><head>
+<meta name="doc-kind" content="${docKind}">
+<meta name="item-count" content="${opts.rows.length}">
 <title>${escapeHtml(docTitle)} — ${escapeHtml(opts.documentNumber)}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
