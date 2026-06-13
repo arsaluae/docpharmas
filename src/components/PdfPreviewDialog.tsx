@@ -92,7 +92,7 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
     const iframe = document.createElement("iframe");
     const A4_W = 794;   // A4 portrait at 96dpi
     const A4_H = 1123;
-    const HALF_H = Math.round(A4_H / 2); // 561 px ~ 148.5mm
+    
     iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${A4_W}px;height:${A4_H}px;border:0;background:#fff;`;
     iframe.setAttribute("aria-hidden", "true");
     document.body.appendChild(iframe);
