@@ -516,7 +516,7 @@ export function generateDocumentViews(opts: PdfOptions): PdfViewSpec[] {
 }
 
 export function generatePdf(opts: PdfOptions) {
-  const html = buildA4Html(opts);
+  const html = applyPageMode(buildA4Html(opts), opts);
   const win = window.open("", "_blank");
   if (win) { win.document.write(html); win.document.close(); }
 }
