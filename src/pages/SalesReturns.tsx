@@ -112,8 +112,16 @@ export default function SalesReturns() {
 
   const loadData = async () => {
     setLoading(true);
+    let retQuery = supabase.from("sales_returns").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false });
+    const term = debouncedSearch.trim();
+    if (term) {
+      const safe = escIlike(term);
+      const custIds = await searchCustomerIds(term);
+      const idClause = custIds.length > 0 ? `,customer_id.in.(${custIds.join(",")})` : "";
+      retQuery = retQuery.or(`return_number.ilike.%${safe}%,reason.ilike.%${safe}%${idClause}`);
+    }
     const [{ data: r, count }, { data: c }, { data: inv }, { data: p }] = await Promise.all([
-      supabase.from("sales_returns").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to),
+      retQuery.range(pagination.from, pagination.to),
       supabase.from("customers").select("id, name").eq("is_active", true),
       supabase.from("sales_invoices").select("id, invoice_number, customer_id"),
       supabase.from("products").select("id, name, selling_price").eq("is_active", true),
