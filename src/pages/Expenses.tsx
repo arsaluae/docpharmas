@@ -95,12 +95,22 @@ export default function Expenses() {
 
   useEffect(() => { load(); }, [pagination.page, activeTab, selectedLedger]);
 
+  const debouncedSearch = useDebouncedValue(search, 300);
+  useEffect(() => { pagination.setPage(0); }, [debouncedSearch, activeTab, catFilter, selectedLedger]);
+  useEffect(() => { load(); }, [pagination.page, activeTab, selectedLedger, debouncedSearch, catFilter]);
+
   const load = async () => {
     let expQuery = supabase.from("expenses").select("*", { count: "exact" }).order("created_at", { ascending: false });
     if (selectedLedger) {
       expQuery = expQuery.eq("ledger_id", selectedLedger.id);
     } else if (activeTab !== "all") {
       expQuery = expQuery.eq("expense_type", activeTab);
+    }
+    if (catFilter !== "all") expQuery = expQuery.eq("category", catFilter);
+    const q = debouncedSearch.trim();
+    if (q) {
+      const safe = escIlike(q);
+      expQuery = expQuery.or(`expense_number.ilike.%${safe}%,description.ilike.%${safe}%,notes.ilike.%${safe}%,category.ilike.%${safe}%`);
     }
     expQuery = expQuery.range(pagination.from, pagination.to);
 
