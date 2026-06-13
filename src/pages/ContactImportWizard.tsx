@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { AppLayout } from "@/components/AppLayout";
@@ -12,20 +12,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { CloudUpload, Download, ArrowLeft, ArrowRight, CheckCircle2, X, AlertTriangle, Sparkles, UserPlus, Pencil, FileSpreadsheet } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import {
+  CloudUpload, Download, ArrowLeft, ArrowRight, CheckCircle2, X, AlertTriangle,
+  Sparkles, UserPlus, Pencil, FileSpreadsheet, Columns3,
+} from "lucide-react";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/audit";
 import {
-  detectHeaderMap, parseRows, matchRow, normalizeEmail, normalizeMobile, normalizeName, findDuplicate,
-  type ContactRow, type CustomerLite, type MatchResult, type ExistingContactLite, type DuplicateAction,
+  autoDetectMapping, parseRows, matchRow, findDuplicate, customerSearchText,
+  type ContactRow, type ColumnMapping, type ContactField,
+  type CustomerLite, type MatchResult, type ExistingContactLite,
 } from "@/lib/import/contacts";
 
 type Step = 1 | 2 | 3 | 4;
 
-const TEMPLATE_HEADERS = ["Customer Name", "Customer Code", "Contact Person", "Designation", "Mobile", "Phone", "Email"];
+const TEMPLATE_HEADERS = ["Customer Name", "Customer Code", "Contact Person", "Designation", "Mobile", "Phone", "Email", "City", "Area"];
 const TEMPLATE_SAMPLE = [
-  ["Rehman Medicos", "CUST-0001", "Ali Rehman", "Owner", "03001234567", "042-3578-9000", "ali@rehmanmed.pk"],
-  ["Shifa Pharmacy", "", "Dr. Sara Khan", "Pharmacist", "03219876543", "", "sara@shifa.pk"],
+  ["Rehman Medicos", "CUST-0001", "Ali Rehman", "Owner", "03001234567", "042-3578-9000", "ali@rehmanmed.pk", "Lahore", "Gulberg"],
+  ["Shifa Pharmacy", "", "Dr. Sara Khan", "Pharmacist", "03219876543", "", "sara@shifa.pk", "Karachi", "Defence"],
 ];
 
 function downloadTemplate() {
@@ -38,8 +43,8 @@ function downloadTemplate() {
 
 function ConfidenceBadge({ value }: { value: number }) {
   let cls = "bg-muted/60 text-muted-foreground";
-  if (value >= 85) cls = "bg-emerald-500/10 text-emerald-500";
-  else if (value >= 60) cls = "bg-amber-500/10 text-amber-500";
+  if (value >= 90) cls = "bg-emerald-500/10 text-emerald-500";
+  else if (value >= 70) cls = "bg-amber-500/10 text-amber-500";
   else if (value > 0) cls = "bg-destructive/10 text-destructive";
   return <span className={`px-2 py-0.5 rounded text-[11px] font-mono ${cls}`}>{value}%</span>;
 }
@@ -56,25 +61,49 @@ function StatusPill({ s }: { s: MatchResult["status"] }) {
   return <span className={`px-2 py-0.5 rounded text-[11px] capitalize ${map[s]}`}>{s}</span>;
 }
 
+const FIELD_LABELS: Record<ContactField, string> = {
+  customer_name: "Customer Name",
+  contact_name: "Contact Person",
+  mobile: "Mobile",
+  phone: "Phone",
+  customer_code: "Customer Code",
+  city: "City",
+  area: "Area",
+  address: "Address",
+  designation: "Designation",
+  email: "Email",
+  notes: "Notes",
+};
+
+const REQUIRED_FIELDS: ContactField[] = ["customer_name", "contact_name"];
+const OPTIONAL_FIELDS: ContactField[] = ["mobile", "phone", "customer_code", "designation", "email", "city", "area", "address", "notes"];
+
+const NONE_VALUE = "__none";
+
 export default function ContactImportWizard() {
   const nav = useNavigate();
   const [step, setStep] = useState<Step>(1);
 
-  // Step 1
+  // Step 1 — file
   const [fileName, setFileName] = useState("");
-  const [rows, setRows] = useState<ContactRow[]>([]);
-  const [headerMap, setHeaderMap] = useState<Record<string, number>>({});
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [aoa, setAoa] = useState<unknown[][]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Step 2
+  // Step 1.5 — mapping
+  const [mapping, setMapping] = useState<ColumnMapping>({});
+
+  // Step 2 — matches
+  const [rows, setRows] = useState<ContactRow[]>([]);
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [customers, setCustomers] = useState<CustomerLite[]>([]);
   const [filter, setFilter] = useState<"all" | "auto" | "review" | "unmatched" | "skipped">("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [createTargetRow, setCreateTargetRow] = useState<number | null>(null);
   const [createForm, setCreateForm] = useState({ name: "", phone: "", email: "" });
+  const [overwriteMobile, setOverwriteMobile] = useState(false);
 
-  // Step 3 result
+  // Step 4 — summary
   const [posting, setPosting] = useState(false);
   const [summary, setSummary] = useState<{
     total: number; matched: number; unmatched: number; imported: number;
@@ -86,31 +115,51 @@ export default function ContactImportWizard() {
     const ab = await f.arrayBuffer();
     const wb = XLSX.read(ab, { type: "array" });
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
-    if (!aoa.length) { toast.error("File is empty"); return; }
-    const headers = (aoa[0] as unknown[]).map(h => String(h ?? "").trim());
-    const map = detectHeaderMap(headers);
-    if (map.contact_name == null) {
-      toast.error("Missing required column: Contact Person");
-      return;
-    }
-    setHeaderMap(map);
-    const data = aoa.slice(1).filter(r => (r as unknown[]).some(c => c !== "" && c != null)) as unknown[][];
-    const parsed = parseRows(data, map);
-    setRows(parsed);
-    toast.success(`Parsed ${parsed.length} contact rows`);
+    const grid = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+    if (!grid.length) { toast.error("File is empty"); return; }
+    const hdr = (grid[0] as unknown[]).map(h => String(h ?? "").trim());
+    const data = grid.slice(1).filter(r => (r as unknown[]).some(c => c !== "" && c != null)) as unknown[][];
+    setHeaders(hdr);
+    setAoa(data);
+    setMapping(autoDetectMapping(hdr));
+    toast.success(`Read ${data.length} rows — review column mapping`);
   }
 
+  function setField(field: ContactField, value: string) {
+    setMapping(m => ({ ...m, [field]: value === NONE_VALUE ? null : Number(value) }));
+  }
+
+  const mappingPreview = useMemo(() => {
+    if (!aoa.length) return [];
+    return parseRows(aoa.slice(0, 8), mapping, headers);
+  }, [aoa, mapping, headers]);
+
+  const fallbackCount = useMemo(
+    () => mappingPreview.filter(r => r.matchNameSource === "contact").length,
+    [mappingPreview]
+  );
+
   async function runMatch() {
-    if (!rows.length) { toast.error("Upload a file first"); return; }
-    // Bulk fetch customers (single query; pagination not needed for matching scope).
+    if (mapping.customer_name == null && mapping.contact_name == null) {
+      toast.error("Map either Customer Name or Contact Person before matching");
+      return;
+    }
+    if (mapping.contact_name == null) {
+      toast.error("Contact Person column is required");
+      return;
+    }
+    const parsed = parseRows(aoa, mapping, headers);
+    if (!parsed.length) { toast.error("No usable rows after mapping"); return; }
+    setRows(parsed);
+
+    // Bulk fetch customers including searchable fields.
     const all: CustomerLite[] = [];
     let from = 0;
     const SIZE = 1000;
     while (true) {
       const { data, error } = await supabase
         .from("customers")
-        .select("id, name, company, customer_code")
+        .select("id, name, company, customer_code, city, area, phone, mobile")
         .range(from, from + SIZE - 1);
       if (error) { toast.error(error.message); return; }
       if (!data?.length) break;
@@ -119,8 +168,8 @@ export default function ContactImportWizard() {
       from += SIZE;
     }
     setCustomers(all);
-    setMatches(rows.map(r => matchRow(r, all)));
-    setStep(2);
+    setMatches(parsed.map(r => matchRow(r, all)));
+    setStep(3);
   }
 
   const visibleMatches = useMemo(() => {
@@ -148,7 +197,7 @@ export default function ContactImportWizard() {
       matchedCustomerId: c.id,
       matchedLabel: c.name || c.company || "—",
       confidence: 100,
-      matchReason: "Manual",
+      matchMethod: "Manual",
       status: "accepted",
     });
   }
@@ -165,7 +214,7 @@ export default function ContactImportWizard() {
     if (!m) return;
     setCreateTargetRow(rowNumber);
     setCreateForm({
-      name: m.row.customer_name || m.row.contact_name || "",
+      name: m.row.matchName || m.row.contact_name || "",
       phone: m.row.mobile || m.row.phone || "",
       email: m.row.email || "",
     });
@@ -178,7 +227,7 @@ export default function ContactImportWizard() {
       name: createForm.name.trim(),
       phone: createForm.phone || null,
       email: createForm.email || null,
-    } as any).select("id, name, company, customer_code").single();
+    } as any).select("id, name, company, customer_code, city, area, phone, mobile").single();
     if (error) { toast.error(error.message); return; }
     const newC = data as CustomerLite;
     setCustomers(prev => [...prev, newC]);
@@ -186,7 +235,7 @@ export default function ContactImportWizard() {
       matchedCustomerId: newC.id,
       matchedLabel: newC.name || createForm.name,
       confidence: 100,
-      matchReason: "Created",
+      matchMethod: "Created",
       status: "created",
     });
     toast.success("Customer created");
@@ -204,7 +253,6 @@ export default function ContactImportWizard() {
 
       const customerIds = [...new Set(ready.map(m => m.matchedCustomerId!))];
 
-      // Bulk fetch existing contacts for those customers (for dedupe + primary detection).
       const existing: ExistingContactLite[] = [];
       const CHUNK = 200;
       for (let i = 0; i < customerIds.length; i += CHUNK) {
@@ -217,17 +265,18 @@ export default function ContactImportWizard() {
         existing.push(...((data ?? []) as unknown as ExistingContactLite[]));
       }
 
-      // Group ready contacts by customer to assign primary when none exists.
       const byCustomer = new Map<string, MatchResult[]>();
       for (const m of ready) {
         const list = byCustomer.get(m.matchedCustomerId!) ?? [];
         list.push(m); byCustomer.set(m.matchedCustomerId!, list);
       }
 
-      let imported = 0, updated = 0, dupSkipped = 0;
+      let imported = 0, updated = 0;
+      const dupSkipped = 0;
       const errors: string[] = [];
       const inserts: any[] = [];
       const updates: { id: string; payload: any }[] = [];
+      const customerMobileUpdates: { id: string; mobile: string }[] = [];
 
       for (const [custId, list] of byCustomer) {
         const customerExisting = existing.filter(e => e.customer_id === custId);
@@ -235,6 +284,7 @@ export default function ContactImportWizard() {
           ? (await supabase.from("customer_contacts" as any).select("id").eq("customer_id", custId).eq("is_primary", true).limit(1)).data?.length
           : false;
         let assignedPrimary = !!hasPrimary;
+        const cust = customers.find(c => c.id === custId);
 
         for (const m of list) {
           const candidate = {
@@ -250,7 +300,6 @@ export default function ContactImportWizard() {
             email: m.row.email,
           }, customerExisting);
           if (dup) {
-            // Update strategy: fill in any missing fields without overwriting existing data.
             updates.push({
               id: dup.id,
               payload: {
@@ -272,18 +321,28 @@ export default function ContactImportWizard() {
           });
           if (!assignedPrimary) assignedPrimary = true;
           imported++;
+
+          // Optional: update customer's mobile if blank, or always (with confirmation flag).
+          if (cust && candidate.mobile && (overwriteMobile || !cust.mobile)) {
+            customerMobileUpdates.push({ id: custId, mobile: candidate.mobile });
+          }
         }
       }
 
-      // Apply inserts in chunks of 500
       for (let i = 0; i < inserts.length; i += 500) {
         const slice = inserts.slice(i, i + 500);
         const { error } = await supabase.from("customer_contacts" as any).insert(slice);
         if (error) { errors.push(error.message); imported -= slice.length; }
       }
-      // Apply updates sequentially (small volumes)
       for (const u of updates) {
         const { error } = await supabase.from("customer_contacts" as any).update(u.payload).eq("id", u.id);
+        if (error) errors.push(error.message);
+      }
+      // Apply customer mobile updates (deduped, last write wins per customer).
+      const mobileMap = new Map<string, string>();
+      for (const m of customerMobileUpdates) mobileMap.set(m.id, m.mobile);
+      for (const [id, mobile] of mobileMap) {
+        const { error } = await supabase.from("customers").update({ mobile } as any).eq("id", id);
         if (error) errors.push(error.message);
       }
 
@@ -314,6 +373,14 @@ export default function ContactImportWizard() {
     }
   }
 
+  // ---- Customer picker options (filtered to ~1000 of best matches per row to keep popover snappy) ----
+  const customerOptions = useMemo(() => customers.map(c => ({
+    value: c.id,
+    label: [c.name || c.company || "(unnamed)", c.customer_code && `· ${c.customer_code}`, c.city && `· ${c.city}`]
+      .filter(Boolean).join(" "),
+    search: customerSearchText(c),
+  })), [customers]);
+
   return (
     <AppLayout title="Customer Contact Import">
       <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -321,7 +388,7 @@ export default function ContactImportWizard() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Customer Contact Import</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Upload contact persons from Excel and auto-match them to existing customers.
+              Upload contact persons from Excel, map columns, and auto-match to existing customers.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => nav("/import")}>
@@ -331,6 +398,7 @@ export default function ContactImportWizard() {
 
         <Stepper step={step} />
 
+        {/* ============ STEP 1: UPLOAD ============ */}
         {step === 1 && (
           <Card className="p-6 space-y-5">
             <div className="flex flex-wrap gap-2">
@@ -344,56 +412,119 @@ export default function ContactImportWizard() {
               </Button>
             </div>
 
-            {!!rows.length && (
+            {!!aoa.length && (
               <Card className="p-4 space-y-3 bg-muted/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet className="h-4 w-4 text-primary" />
                     <span className="text-sm font-medium">{fileName}</span>
-                    <Badge variant="secondary">{rows.length} rows</Badge>
+                    <Badge variant="secondary">{aoa.length} rows · {headers.length} columns</Badge>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => { setRows([]); setFileName(""); }}>
+                  <Button variant="ghost" size="icon" onClick={() => { setAoa([]); setHeaders([]); setFileName(""); }}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                <ScrollArea className="max-h-64">
+                <p className="text-xs text-muted-foreground">
+                  Headers detected: {headers.filter(Boolean).slice(0, 12).join(" · ")}
+                  {headers.length > 12 ? ` … (+${headers.length - 12})` : ""}
+                </p>
+              </Card>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <Button onClick={() => setStep(2)} disabled={!aoa.length}>
+                Continue to column mapping <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* ============ STEP 2: MAPPING ============ */}
+        {step === 2 && (
+          <Card className="p-6 space-y-5">
+            <div className="flex items-center gap-2">
+              <Columns3 className="h-5 w-5 text-primary" />
+              <div>
+                <h2 className="text-sm font-semibold">Map Excel columns to ERP fields</h2>
+                <p className="text-xs text-muted-foreground">
+                  We auto-detected columns where possible. Adjust any mapping below — pick <em>None</em> to ignore a field.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {REQUIRED_FIELDS.map(f => (
+                <MappingRow key={f} field={f} required headers={headers} value={mapping[f]} onChange={(v) => setField(f, v)} />
+              ))}
+              {OPTIONAL_FIELDS.map(f => (
+                <MappingRow key={f} field={f} headers={headers} value={mapping[f]} onChange={(v) => setField(f, v)} />
+              ))}
+            </div>
+
+            {mapping.customer_name == null && mapping.contact_name != null && (
+              <div className="border border-amber-500/30 bg-amber-500/5 rounded p-3 text-xs flex gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                <div>
+                  <strong>No Customer Name column mapped.</strong> The Contact Person column will be used as the customer matching name as a fallback.
+                </div>
+              </div>
+            )}
+            {mapping.customer_name != null && fallbackCount > 0 && (
+              <div className="border border-amber-500/30 bg-amber-500/5 rounded p-3 text-xs flex gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                <div>
+                  <strong>{fallbackCount} of {mappingPreview.length}</strong> preview rows have blank Customer Name — the Contact Person value will be used as the matching name for those rows.
+                </div>
+              </div>
+            )}
+
+            {!!mappingPreview.length && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Preview</p>
+                <ScrollArea className="max-h-72 border border-border rounded">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Code</TableHead>
+                        <TableHead>Match Name</TableHead>
+                        <TableHead>Source</TableHead>
                         <TableHead>Contact</TableHead>
-                        <TableHead>Designation</TableHead>
                         <TableHead>Mobile</TableHead>
-                        <TableHead>Email</TableHead>
+                        <TableHead>Code</TableHead>
+                        <TableHead>City</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {rows.slice(0, 20).map(r => (
+                      {mappingPreview.map(r => (
                         <TableRow key={r.rowNumber}>
-                          <TableCell className="text-xs">{r.customer_name || "—"}</TableCell>
-                          <TableCell className="text-xs font-mono">{r.customer_code || "—"}</TableCell>
-                          <TableCell className="text-xs font-medium">{r.contact_name}</TableCell>
-                          <TableCell className="text-xs">{r.designation || "—"}</TableCell>
+                          <TableCell className="text-xs font-medium">{r.matchName || <span className="text-destructive">— blank —</span>}</TableCell>
+                          <TableCell>
+                            <Badge variant={r.matchNameSource === "customer" ? "secondary" : r.matchNameSource === "contact" ? "outline" : "destructive"} className="text-[10px]">
+                              {r.matchNameSource}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs">{r.contact_name || "—"}</TableCell>
                           <TableCell className="text-xs font-mono">{r.mobile || "—"}</TableCell>
-                          <TableCell className="text-xs">{r.email || "—"}</TableCell>
+                          <TableCell className="text-xs font-mono">{r.customer_code || "—"}</TableCell>
+                          <TableCell className="text-xs">{r.city || "—"}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </ScrollArea>
-              </Card>
+              </div>
             )}
 
-            <div className="flex justify-end pt-2">
-              <Button onClick={runMatch} disabled={!rows.length}>
+            <div className="flex justify-between pt-2">
+              <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="h-4 w-4 mr-2" /> Back</Button>
+              <Button onClick={runMatch} disabled={mapping.contact_name == null}>
                 Run smart matching <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
           </Card>
         )}
 
-        {step === 2 && (
+        {/* ============ STEP 3: VERIFY ============ */}
+        {step === 3 && (
           <Card className="p-0 overflow-hidden">
             <div className="p-4 border-b border-border flex flex-wrap items-center gap-3">
               <CheckCircle2 className="h-5 w-5 text-emerald-500" />
@@ -403,6 +534,10 @@ export default function ContactImportWizard() {
                   {counts.auto} auto · {counts.review} review · {counts.unmatched} unmatched · {counts.skipped} skipped
                 </p>
               </div>
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <input type="checkbox" className="accent-primary" checked={overwriteMobile} onChange={e => setOverwriteMobile(e.target.checked)} />
+                Overwrite customer mobile when present
+              </label>
               <Button size="sm" variant="outline" onClick={acceptAllAuto}>Accept all auto-matched</Button>
               <Button size="sm" variant="outline" onClick={skipUnmatched}>Skip all unmatched</Button>
             </div>
@@ -423,9 +558,11 @@ export default function ContactImportWizard() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-8">#</TableHead>
-                    <TableHead>Excel Customer</TableHead>
+                    <TableHead>Excel Name Used</TableHead>
                     <TableHead>Contact</TableHead>
+                    <TableHead>Mobile</TableHead>
                     <TableHead>Matched ERP Customer</TableHead>
+                    <TableHead>Method</TableHead>
                     <TableHead className="text-center">Confidence</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -436,32 +573,23 @@ export default function ContactImportWizard() {
                     <TableRow key={m.row.rowNumber}>
                       <TableCell className="text-[11px] text-muted-foreground tabular-nums">{m.row.rowNumber}</TableCell>
                       <TableCell className="text-xs">
-                        <div className="font-medium">{m.row.customer_name || "—"}</div>
-                        {m.row.customer_code && <div className="text-[10px] text-muted-foreground font-mono">{m.row.customer_code}</div>}
+                        <div className="font-medium">{m.row.matchName || "—"}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {m.row.matchNameSource === "contact" && <Badge variant="outline" className="text-[9px] py-0">from Contact</Badge>}
+                          {m.row.customer_code && <span className="font-mono ml-1">{m.row.customer_code}</span>}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-xs">
-                        <div className="font-medium">{m.row.contact_name}</div>
-                        <div className="text-[10px] text-muted-foreground font-mono">{m.row.mobile || m.row.email || ""}</div>
+                      <TableCell className="text-xs font-medium">{m.row.contact_name || "—"}</TableCell>
+                      <TableCell className="text-xs font-mono">{m.row.mobile || "—"}</TableCell>
+                      <TableCell className="text-xs min-w-[240px]">
+                        <CustomerPicker
+                          options={customerOptions}
+                          value={m.matchedCustomerId ?? ""}
+                          onChange={(v) => v && changeMatchTo(m.row.rowNumber, v)}
+                          placeholder="Choose customer"
+                        />
                       </TableCell>
-                      <TableCell className="text-xs min-w-[220px]">
-                        <Select value={m.matchedCustomerId ?? "__none"} onValueChange={(v) => {
-                          if (v === "__none") return;
-                          changeMatchTo(m.row.rowNumber, v);
-                        }}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Choose customer">
-                              {m.matchedLabel || "Choose customer"}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent className="max-h-72">
-                            {customers.slice(0, 500).map(c => (
-                              <SelectItem key={c.id} value={c.id} className="text-xs">
-                                {c.name || c.company} {c.customer_code ? `· ${c.customer_code}` : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
+                      <TableCell className="text-[11px] text-muted-foreground">{m.matchMethod}</TableCell>
                       <TableCell className="text-center"><ConfidenceBadge value={m.confidence} /></TableCell>
                       <TableCell><StatusPill s={m.status} /></TableCell>
                       <TableCell className="text-right">
@@ -495,7 +623,7 @@ export default function ContactImportWizard() {
             </ScrollArea>
 
             <div className="p-4 border-t border-border flex items-center justify-between">
-              <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="h-4 w-4 mr-2" /> Back</Button>
+              <Button variant="ghost" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4 mr-2" /> Back</Button>
               {counts.pending > 0 && (
                 <div className="flex items-center gap-2 text-xs text-amber-500">
                   <AlertTriangle className="h-3.5 w-3.5" />
@@ -509,6 +637,7 @@ export default function ContactImportWizard() {
           </Card>
         )}
 
+        {/* ============ STEP 4: SUMMARY ============ */}
         {step === 4 && summary && (
           <Card className="p-6 space-y-5">
             <div className="flex items-center gap-3">
@@ -536,7 +665,10 @@ export default function ContactImportWizard() {
               </div>
             )}
             <div className="flex items-center gap-2">
-              <Button onClick={() => { setStep(1); setRows([]); setMatches([]); setSummary(null); setFileName(""); }}>
+              <Button onClick={() => {
+                setStep(1); setAoa([]); setHeaders([]); setRows([]); setMatches([]);
+                setSummary(null); setFileName(""); setMapping({});
+              }}>
                 Import more
               </Button>
               <Button variant="outline" onClick={() => nav("/customers")}>Go to Customers</Button>
@@ -566,22 +698,112 @@ export default function ContactImportWizard() {
   );
 }
 
+function MappingRow({
+  field, headers, value, onChange, required,
+}: {
+  field: ContactField;
+  headers: string[];
+  value: number | null | undefined;
+  onChange: (v: string) => void;
+  required?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <Label className="text-xs w-36 shrink-0">
+        {FIELD_LABELS[field]}
+        {required && <span className="text-destructive ml-1">*</span>}
+      </Label>
+      <Select value={value == null ? NONE_VALUE : String(value)} onValueChange={onChange}>
+        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select column" /></SelectTrigger>
+        <SelectContent className="max-h-72">
+          <SelectItem value={NONE_VALUE} className="text-xs italic text-muted-foreground">— None —</SelectItem>
+          {headers.map((h, i) => (
+            <SelectItem key={i} value={String(i)} className="text-xs">
+              {h || `(column ${i + 1})`}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+// Custom picker that filters via the merged search blob (name + company + code + city + area + phone + mobile).
+function CustomerPicker({
+  options, value, onChange, placeholder,
+}: {
+  options: { value: string; label: string; search: string }[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return options.slice(0, 200);
+    return options.filter(o => o.search.includes(needle)).slice(0, 200);
+  }, [options, q]);
+  const selected = options.find(o => o.value === value);
+
+  useEffect(() => { if (!open) setQ(""); }, [open]);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full text-left h-8 px-2 rounded border border-border bg-background text-xs flex items-center justify-between hover:bg-foreground/[0.04]"
+      >
+        <span className="truncate">{selected?.label || <span className="text-muted-foreground">{placeholder}</span>}</span>
+        <ArrowRight className="h-3 w-3 ml-1 opacity-50 rotate-90" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-[340px] bg-popover border border-border rounded shadow-lg">
+          <Input
+            autoFocus
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="Search name, code, city, phone…"
+            className="h-8 text-xs border-0 border-b border-border rounded-none focus-visible:ring-0"
+          />
+          <div className="max-h-64 overflow-y-auto">
+            {filtered.length === 0 && <div className="p-3 text-xs text-muted-foreground">No matches</div>}
+            {filtered.map(o => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => { onChange(o.value); setOpen(false); }}
+                className="w-full text-left px-2 py-1.5 text-xs hover:bg-foreground/[0.06] truncate"
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Stepper({ step }: { step: Step }) {
-  const labels = ["Upload", "Verify Matches", "—", "Summary"];
+  const labels: { n: Step; label: string }[] = [
+    { n: 1, label: "Upload" },
+    { n: 2, label: "Map columns" },
+    { n: 3, label: "Verify matches" },
+    { n: 4, label: "Summary" },
+  ];
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {labels.map((l, i) => {
-        if (l === "—") return null;
-        const n = (i + 1) as Step;
+      {labels.map(({ n, label }, i) => {
         const active = step === n; const done = step > n;
         return (
-          <div key={l} className="flex items-center gap-2">
+          <div key={label} className="flex items-center gap-2">
             <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-semibold ${
               done ? "bg-emerald-500 text-white" : active ? "bg-primary text-primary-foreground" : "bg-foreground/[0.06] text-muted-foreground"
             }`}>{done ? "✓" : n}</div>
-            <span className={`text-xs ${active ? "font-medium" : "text-muted-foreground"}`}>{l}</span>
-            {i < labels.length - 1 && labels[i+1] !== "—" && <div className="w-6 h-px bg-border" />}
-            {i < labels.length - 1 && labels[i+1] === "—" && <div className="w-6 h-px bg-border" />}
+            <span className={`text-xs ${active ? "font-medium" : "text-muted-foreground"}`}>{label}</span>
+            {i < labels.length - 1 && <div className="w-6 h-px bg-border" />}
           </div>
         );
       })}
