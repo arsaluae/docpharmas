@@ -43,9 +43,10 @@ export function ProductBatchProfileDialog({
     [rows, purchaseCost]
   );
 
+  // Markup on cost: (Sale − Landed) ÷ Landed × 100.
   const grossMarginPct = useMemo(() => {
-    if (!salePrice || salePrice <= 0) return null;
-    return ((salePrice - landedCost) / salePrice) * 100;
+    if (!landedCost || landedCost <= 0 || !salePrice || salePrice <= 0) return null;
+    return ((salePrice - landedCost) / landedCost) * 100;
   }, [salePrice, landedCost]);
 
   useEffect(() => {
