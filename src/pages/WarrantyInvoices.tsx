@@ -670,6 +670,41 @@ export default function WarrantyInvoices() {
           </div>
         </div>
 
+        {/* Sales Rep selector — signs the declaration */}
+        <div>
+          <Label>Sales Representative (signs the warranty declaration)</Label>
+          <Select value={selectedRepId || "__none"} onValueChange={v => setSelectedRepId(v === "__none" ? "" : v)}>
+            <SelectTrigger>
+              <SelectValue placeholder={salesAgents.length === 0 ? "No sales agents — add one in Sales Agents" : "Select sales rep..."} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">— No rep (declaration tokens will show blanks) —</SelectItem>
+              {salesAgents.map(a => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.name}{a.license_number ? ` · ${a.license_number}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedRepId && (() => {
+            const r = salesAgents.find(a => a.id === selectedRepId);
+            if (!r) return null;
+            const missing: string[] = [];
+            if (!r.father_name) missing.push("Father name");
+            if (!r.cnic) missing.push("CNIC");
+            if (!r.license_number) missing.push("License #");
+            if (!r.license_expiry) missing.push("License expiry");
+            if (!r.signature_url) missing.push("Signature");
+            return missing.length > 0 ? (
+              <p className="text-[11px] text-amber-600 mt-1">Missing on rep profile: {missing.join(", ")} — fill in Sales Agents to populate the declaration.</p>
+            ) : (
+              <p className="text-[11px] text-success mt-1">✓ All declaration fields available.</p>
+            );
+          })()}
+        </div>
+
+
+
 
 
 
