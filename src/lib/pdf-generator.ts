@@ -187,7 +187,7 @@ function buildA4Html(opts: PdfOptions): string {
   const safeCompany = escapeHtml(companyName);
   const logoHtml = s?.logo_url
     ? `<img src="${s.logo_url}" alt="${safeCompany}" crossorigin="anonymous"
-            style="height:64px;max-height:64px;max-width:260px;width:auto;object-fit:contain;display:block;"
+            style="height:auto;max-height:90px;max-width:180px;width:auto;object-fit:contain;display:block;"
             onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';" /><div style="display:none;font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`
     : `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`;
 
@@ -235,16 +235,16 @@ function buildA4Html(opts: PdfOptions): string {
 
   const partyHtml = `
     <div style="border:1px solid ${C.border};border-radius:4px;overflow:hidden;background:#fff;">
-      <div style="background:${C.cardBg};padding:8px 16px;border-bottom:1px solid ${C.border};font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;color:${C.primary};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(opts.partyLabel || "Bill To")}</div>
-      <div style="padding:14px 16px;word-wrap:break-word;overflow-wrap:anywhere;">
-        ${opts.partyName ? `<div style="font-size:19px;font-weight:700;color:${C.text};line-height:1.25;">${escapeHtml(opts.partyName)}</div>` : ""}
-        ${phoneBits.length ? `<div style="font-size:15px;color:${C.text};margin-top:9px;font-weight:600;">${phoneBits.join("  ·  ")}</div>` : ""}
-        ${cityArea ? `<div style="font-size:15px;color:${C.text};margin-top:5px;">${escapeHtml(cityArea)}</div>` : ""}
-        ${opts.partyAddress ? `<div style="font-size:15px;color:${C.textMuted};margin-top:5px;line-height:1.55;">${escapeHtml(opts.partyAddress)}</div>` : ""}
-        ${opts.partyNtn ? `<div style="font-size:13px;color:${C.textMuted};margin-top:7px;">NTN: ${escapeHtml(opts.partyNtn)}</div>` : ""}
-        ${t?.show_party_license && opts.partyLicense ? `<div style="font-size:13px;color:${C.textMuted};">License: ${escapeHtml(opts.partyLicense)}</div>` : ""}
-        ${t?.show_party_cnic && opts.partyCnic ? `<div style="font-size:13px;color:${C.textMuted};">CNIC: ${escapeHtml(opts.partyCnic)}</div>` : ""}
-        ${opts.partyAccountCode ? `<div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${C.textLight};margin-top:7px;">A/C: ${escapeHtml(opts.partyAccountCode)}</div>` : ""}
+      <div style="background:${C.cardBg};padding:6px 12px;border-bottom:1px solid ${C.border};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.6px;color:${C.primary};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(opts.partyLabel || "Bill To")}</div>
+      <div style="padding:10px 12px;word-wrap:break-word;overflow-wrap:anywhere;">
+        ${opts.partyName ? `<div style="font-size:15px;font-weight:700;color:${C.text};line-height:1.25;">${escapeHtml(opts.partyName)}</div>` : ""}
+        ${phoneBits.length ? `<div style="font-size:13px;color:${C.text};margin-top:5px;font-weight:600;">${phoneBits.join("  ·  ")}</div>` : ""}
+        ${cityArea ? `<div style="font-size:13px;color:${C.text};margin-top:3px;">${escapeHtml(cityArea)}</div>` : ""}
+        ${opts.partyAddress ? `<div style="font-size:12px;color:${C.textMuted};margin-top:3px;line-height:1.45;">${escapeHtml(opts.partyAddress)}</div>` : ""}
+        ${opts.partyNtn ? `<div style="font-size:11.5px;color:${C.textMuted};margin-top:4px;">NTN: ${escapeHtml(opts.partyNtn)}</div>` : ""}
+        ${t?.show_party_license && opts.partyLicense ? `<div style="font-size:11.5px;color:${C.textMuted};">License: ${escapeHtml(opts.partyLicense)}</div>` : ""}
+        ${t?.show_party_cnic && opts.partyCnic ? `<div style="font-size:11.5px;color:${C.textMuted};">CNIC: ${escapeHtml(opts.partyCnic)}</div>` : ""}
+        ${opts.partyAccountCode ? `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${C.textLight};margin-top:4px;">A/C: ${escapeHtml(opts.partyAccountCode)}</div>` : ""}
       </div>
     </div>`;
 
@@ -265,25 +265,23 @@ function buildA4Html(opts: PdfOptions): string {
   const colWidth = (c: PdfColumn) => {
     const k = c.key.toLowerCase();
     const isProductName = c.key === "product_name" || c.key === "name" || c.key === "item_name" || c.key === "description";
-    if (SERIAL_KEYS.has(c.key)) return "width:32px;";
-    if (isProductName) return hasMoneyCol ? "width:26%;" : "width:50%;";
-    if (k === "product_code" || k === "code" || k === "sku") return "width:80px;";
-    if (k === "batch_number" || k === "batch") return hasMoneyCol ? "width:9%;" : "width:14%;";
-    if (k === "expiry_date" || k === "expiry") return hasMoneyCol ? "width:8%;" : "width:12%;";
-    if (k === "quantity" || k === "qty") return hasMoneyCol ? "width:7%;" : "width:14%;";
+    if (SERIAL_KEYS.has(c.key)) return "width:7%;";
+    if (isProductName) return hasMoneyCol ? "width:32%;" : "width:55%;";
+    if (k === "product_code" || k === "code" || k === "sku") return "width:10%;";
+    if (k === "batch_number" || k === "batch") return "width:12%;";
+    if (k === "expiry_date" || k === "expiry") return "width:11%;";
+    if (k === "quantity" || k === "qty") return "width:8%;";
     if (k === "rate" || k === "tp_rate" || k === "price") return "width:9%;";
-    if (k === "mrp" || k === "mrp_inc_tax") return "width:11%;";
+    if (k === "mrp" || k === "mrp_inc_tax") return "width:8%;";
     if (k === "discount" || k === "discount_pct" || k === "disc") return "width:7%;";
     if (k === "tax" || k === "gst_rate" || k === "gst") return "width:7%;";
-    if (k === "amount" || k === "line_total" || k === "total") return "width:12%;";
+    if (k === "amount" || k === "line_total" || k === "total") return "width:13%;";
     return "";
   };
 
   const headerCells = columns.map(c => {
-    const k = c.key.toLowerCase();
-    const canWrap = k === "mrp" || k === "mrp_inc_tax" || k === "amount" || k === "line_total" || k === "discount" || k === "discount_pct" || k === "tax" || k === "gst_rate" || k === "received";
     return `
-    <th style="padding:9px 8px;text-align:${thAlign(c)};font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:${C.text};background:#eef0f3;border-bottom:2px solid ${C.text};${colWidth(c)}${canWrap ? "white-space:normal;line-height:1.15;" : "white-space:nowrap;"}-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.header)}</th>`;
+    <th style="padding:8px 6px;text-align:${thAlign(c)};font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:${C.text};background:#eef0f3;border-bottom:2px solid ${C.text};${colWidth(c)}white-space:normal;line-height:1.2;word-break:break-word;overflow-wrap:anywhere;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.header)}</th>`;
   }).join("");
 
   const bodyRows = opts.rows.map((row, i) => {
@@ -296,8 +294,8 @@ function buildA4Html(opts: PdfOptions): string {
       const valStr = value === null || value === undefined ? "" : String(value);
       const fontFamily = isNum || isSerial || /batch|code|expiry/i.test(c.key) ? "'JetBrains Mono','Courier New',monospace" : "'Inter',sans-serif";
       const fontWeight = isProductName ? "600" : isNum ? "600" : "400";
-      const wrap = isProductName ? "white-space:normal;word-break:break-word;line-height:1.45;" : "white-space:nowrap;";
-      return `<td style="padding:8px;font-size:13px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};font-family:${fontFamily};font-weight:${fontWeight};${wrap}${colWidth(c)}">${escapeHtml(valStr)}</td>`;
+      const wrap = "white-space:normal;word-break:break-word;overflow-wrap:anywhere;line-height:1.35;";
+      return `<td style="padding:7px 6px;font-size:12.5px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};font-family:${fontFamily};font-weight:${fontWeight};${wrap}${colWidth(c)}">${escapeHtml(valStr)}</td>`;
     }).join("");
     return `<tr style="background:${bg};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${cells}</tr>`;
   }).join("");
@@ -379,11 +377,8 @@ function buildA4Html(opts: PdfOptions): string {
     box-shadow:0 4px 18px rgba(0,0,0,0.18); }
   .toolbar-title { color:#fff; font-size:13px; font-weight:600; letter-spacing:0.3px; }
   .toolbar-btn { background:${C.primary}; color:#fff; border:none; padding:8px 18px; font-size:12.5px; font-weight:600; border-radius:4px; cursor:pointer; }
-  .page-frame { position:relative; max-width:794px; margin:0 auto; padding:18px 28px 20px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; overflow:hidden; }
-  .page-frame > * { position:relative; z-index:1; }
-  .doc-watermark { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:0; overflow:hidden; }
-  .doc-watermark span { font-size:78px; font-weight:900; letter-spacing:8px; color:rgba(15,23,42,0.055); transform:rotate(-26deg); white-space:nowrap; text-transform:uppercase; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  .doc-header { display:flex; align-items:center; justify-content:space-between; gap:24px; padding-bottom:12px; border-bottom:1px solid ${C.border}; }
+  .page-frame { position:relative; max-width:794px; margin:0 auto; padding:14px 24px 18px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; }
+  .doc-header { display:flex; align-items:center; justify-content:space-between; gap:24px; padding-bottom:10px; border-bottom:1px solid ${C.border}; }
   .doc-header > div:first-child { flex:0 0 auto; }
   /* Pagination-safe defaults (apply during html2canvas snapshot too, not only @media print) */
   table { page-break-inside:auto; }
@@ -406,7 +401,7 @@ function buildA4Html(opts: PdfOptions): string {
 </div>
 
 <div class="page-frame">
-  <div class="doc-watermark" aria-hidden="true"><span>${safeCompany}</span></div>
+  
   <div class="doc-header">
     <div>${logoHtml}</div>
     <div style="min-width:0;">${companyBlock}</div>
@@ -454,8 +449,7 @@ const HALF_PAGE_CSS = `
   }
   /* Density pass — preserve layout, shrink chrome to fit upper half (~138mm content) */
   .page-frame .doc-header { padding-bottom: 6pt !important; }
-  .page-frame img { max-height: 48px !important; height: 48px !important; max-width: 200px !important; }
-  .page-frame .doc-watermark span { font-size: 60px !important; letter-spacing: 6px !important; }
+  .page-frame img { max-height: 56px !important; max-width: 160px !important; }
   .page-frame [style*="font-size:46px"],
   .page-frame [style*="font-size:42px"],
   .page-frame [style*="font-size:38px"] { font-size: 22pt !important; line-height: 1.05 !important; }
@@ -750,8 +744,6 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     box-sizing: border-box;
   }
   .warranty-document > * { position: relative; z-index: 1; }
-  .warranty-watermark { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:0; overflow:hidden; }
-  .warranty-watermark span { font-size:78px; font-weight:900; letter-spacing:8px; color:rgba(15,23,42,0.055); transform:rotate(-26deg); white-space:nowrap; text-transform:uppercase; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   table { border-collapse: collapse; }
   .items-table {
     width: 100%;
@@ -769,7 +761,7 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   }
 </style></head><body><div class="warranty-document">
 
-  <div class="warranty-watermark" aria-hidden="true"><span>${escapeHtml(company)}</span></div>
+  
 
   <section data-pdf-section="header" class="no-break">
     <table style="width:100%;border-collapse:collapse;">
