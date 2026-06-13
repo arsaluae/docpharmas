@@ -71,13 +71,15 @@ export default function CustomerLedger() {
   useEffect(() => { if (id) loadLedger(id); }, [id]);
 
   const loadLedger = async (customerId: string) => {
+    // Posted-only filter: keeps draft / voided / cancelled records out of the customer ledger.
+    const NOT_POSTED = "(draft,voided,cancelled)";
     const [{ data: cust }, { data: invs }, { data: payments }, { data: returns }, { data: warranties }, { data: creditNotes }] = await Promise.all([
       supabase.from("customers").select("*").eq("id", customerId).single(),
-      supabase.from("sales_invoices").select("id, invoice_number, date, total").eq("customer_id", customerId),
-      supabase.from("payments").select("*").eq("party_id", customerId).eq("party_type", "customer"),
-      supabase.from("sales_returns").select("*").eq("customer_id", customerId),
-      supabase.from("warranty_invoices").select("*").eq("customer_id", customerId),
-      supabase.from("credit_notes").select("*").eq("party_id", customerId).eq("party_type", "customer"),
+      supabase.from("sales_invoices").select("id, invoice_number, date, total, status").eq("customer_id", customerId).not("status", "in", NOT_POSTED),
+      supabase.from("payments").select("*").eq("party_id", customerId).eq("party_type", "customer").not("status", "in", NOT_POSTED),
+      supabase.from("sales_returns").select("*").eq("customer_id", customerId).not("status", "in", NOT_POSTED),
+      supabase.from("warranty_invoices").select("*").eq("customer_id", customerId).not("status", "in", NOT_POSTED),
+      supabase.from("credit_notes").select("*").eq("party_id", customerId).eq("party_type", "customer").not("status", "in", NOT_POSTED),
     ]);
     if (cust) setCustomer(cust);
     if (invs) setInvoices(invs);

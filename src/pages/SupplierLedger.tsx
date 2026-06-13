@@ -57,13 +57,15 @@ export default function SupplierLedger() {
   useEffect(() => { if (id) loadLedger(id); }, [id]);
 
   const loadLedger = async (supplierId: string) => {
+    // Posted-only filter: keeps draft / voided / cancelled records out of the supplier ledger.
+    const NOT_POSTED = "(draft,voided,cancelled)";
     const [{ data: sup }, { data: invs }, { data: payments }, { data: returns }, { data: costs }, { data: debitNotes }] = await Promise.all([
       supabase.from("suppliers").select("*").eq("id", supplierId).single(),
-      supabase.from("purchase_invoices").select("id, bill_number, date, total").eq("supplier_id", supplierId),
-      supabase.from("payments").select("*").eq("party_id", supplierId).eq("party_type", "supplier"),
-      supabase.from("purchase_returns").select("*").eq("supplier_id", supplierId),
+      supabase.from("purchase_invoices").select("id, bill_number, date, total, status").eq("supplier_id", supplierId).not("status", "in", NOT_POSTED),
+      supabase.from("payments").select("*").eq("party_id", supplierId).eq("party_type", "supplier").not("status", "in", NOT_POSTED),
+      supabase.from("purchase_returns").select("*").eq("supplier_id", supplierId).not("status", "in", NOT_POSTED),
       supabase.from("additional_costs").select("*").eq("vendor_id", supplierId),
-      supabase.from("debit_notes").select("*").eq("party_id", supplierId).eq("party_type", "supplier"),
+      supabase.from("debit_notes").select("*").eq("party_id", supplierId).eq("party_type", "supplier").not("status", "in", NOT_POSTED),
     ]);
     if (sup) setSupplier(sup);
     if (invs) setBills(invs);
