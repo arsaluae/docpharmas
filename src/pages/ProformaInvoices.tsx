@@ -648,7 +648,7 @@ export default function ProformaInvoices() {
      partyArea: c.area || undefined,
      partyAddress: c.address || undefined,
      partyAccountCode: c.old_erp_account_code || undefined,
-     validity: `Valid for ${order.validity_days} days`,
+     // validity intentionally omitted from printed/PDF output (kept in DB for internal expiry tracking)
      paymentTerms: order.payment_instructions || undefined,
        columns: [
          { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
