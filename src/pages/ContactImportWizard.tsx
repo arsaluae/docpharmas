@@ -159,7 +159,7 @@ export default function ContactImportWizard() {
     while (true) {
       const { data, error } = await supabase
         .from("customers")
-        .select("id, name, company, customer_code, city, area, phone, mobile")
+        .select("id, name, company, customer_code, city, area, phone, sms_mobile")
         .range(from, from + SIZE - 1);
       if (error) { toast.error(error.message); return; }
       if (!data?.length) break;
@@ -227,7 +227,7 @@ export default function ContactImportWizard() {
       name: createForm.name.trim(),
       phone: createForm.phone || null,
       email: createForm.email || null,
-    } as any).select("id, name, company, customer_code, city, area, phone, mobile").single();
+    } as any).select("id, name, company, customer_code, city, area, phone, sms_mobile").single();
     if (error) { toast.error(error.message); return; }
     const newC = data as CustomerLite;
     setCustomers(prev => [...prev, newC]);
@@ -323,7 +323,7 @@ export default function ContactImportWizard() {
           imported++;
 
           // Optional: update customer's mobile if blank, or always (with confirmation flag).
-          if (cust && candidate.mobile && (overwriteMobile || !cust.mobile)) {
+          if (cust && candidate.mobile && (overwriteMobile || !cust.sms_mobile)) {
             customerMobileUpdates.push({ id: custId, mobile: candidate.mobile });
           }
         }
