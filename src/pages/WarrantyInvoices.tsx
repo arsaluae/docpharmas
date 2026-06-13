@@ -410,13 +410,11 @@ export default function WarrantyInvoices() {
 
  const customerOptions = customers.map(c => ({ value: c.id, label: c.name + (c.company ? ` — ${c.company}` : "") }));
 
+ // Server-side search already filtered. Keep status + customer client narrowing.
  const filtered = invoices.filter(i => {
- const matchSearch = i.warranty_number.toLowerCase().includes(search.toLowerCase()) ||
- i.pharmacy_name.toLowerCase().includes(search.toLowerCase()) ||
- (i.customers?.name || "").toLowerCase().includes(search.toLowerCase());
  const matchStatus = statusFilter === "all" || i.status === statusFilter;
  const matchCustomer = !customerFilter || i.customer_id === customerFilter;
- return matchSearch && matchStatus && matchCustomer;
+ return matchStatus && matchCustomer;
  });
 
  const issuedCount = invoices.filter(i => i.status === "issued").length;
