@@ -16,6 +16,8 @@ import { Plus, Search, Trash2, Banknote, Package, Truck, Printer, ShieldCheck, T
 import { toast } from "sonner";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchSupplierIds } from "@/lib/search-helpers";
 
 const COST_TYPES = [
  { value: "packaging", label: "Packaging", icon: Package },
