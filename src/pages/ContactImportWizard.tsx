@@ -300,10 +300,9 @@ export default function ContactImportWizard() {
 
       await logAudit({
         entity_type: "import_batch",
-        entity_id: null as any,
-        action: "created" as any,
-        description: `Customer contacts imported: ${imported} new, ${updated} updated`,
-        changes: { kind: "customer_contacts", ...sum } as any,
+        entity_id: null,
+        action: "import_completed",
+        changes: { kind: "customer_contacts", note: `${imported} new, ${updated} updated`, ...sum } as any,
       });
 
       setStep(4);
