@@ -31,8 +31,12 @@ export interface CompanySettings {
   warranty_require_license_expiry?: boolean;
   warranty_require_batch_number?: boolean;
   warranty_require_batch_expiry?: boolean;
+  warranty_stamp_url?: string | null;
+  warranty_signature_url?: string | null;
+  warranty_footer_text?: string | null;
   document_page_mode?: "half" | "full" | "auto";
 }
+
 
 export function useCompanySettings() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);

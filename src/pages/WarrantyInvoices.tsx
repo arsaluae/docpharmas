@@ -33,6 +33,12 @@ interface Product { id: string; name: string; selling_price: number; mrp: number
 interface SalesInvoice { id: string; invoice_number: string; date: string; total: number; status: string; }
 interface SalesInvoiceItem { id: string; product_id: string | null; quantity: number; rate: number; amount: number; batch_number: string | null; gst_rate: number; discount_percent: number; }
 interface Distributor { id: string; customer_id: string; name: string; address: string | null; license_number: string | null; license_expiry: string | null; phone: string | null; }
+interface SalesAgent {
+ id: string; name: string;
+ father_name: string | null; cnic: string | null; gender: string | null;
+ license_number: string | null; license_expiry: string | null;
+ signature_url: string | null; stamp_url: string | null;
+}
 
 
 
@@ -49,8 +55,19 @@ interface WarrantyInvoice {
  source_invoice_id: string | null; discount_percent: number; discount_amount: number;
  distributor_id: string | null;
  sales_agent_id: string | null;
+ // Snapshot fields (filled on save) — keep historical notes immutable
+ sales_rep_name?: string | null; sales_rep_father_name?: string | null;
+ sales_rep_cnic?: string | null; sales_rep_gender?: string | null;
+ agent_license_number?: string | null; agent_license_expiry?: string | null;
+ rep_signature_url?: string | null; rep_stamp_url?: string | null;
+ company_stamp_url?: string | null; company_signature_url?: string | null;
+ customer_warranty_address?: string | null; customer_license_number?: string | null;
+ customer_license_expiry?: string | null; customer_ntn?: string | null;
+ customer_cnic?: string | null; customer_mobile?: string | null;
+ created_by_name?: string | null;
  customers?: { name: string } | null;
 }
+
 
 type CreateStep = "select_customer" | "select_invoice" | "edit_items";
 
@@ -76,26 +93,34 @@ export default function WarrantyInvoices() {
     return `${d}/${m}/${y}`;
   };
 
-  // Build the warranty-note options payload from a saved invoice, fetching the
-  // full distributor record so phone / license expiry / address are accurate.
+  // Build the warranty-note options payload from a saved invoice. Uses snapshot
+  // fields stored on the row first, falls back to live distributor / agent.
   const buildWarrantyOpts = async (inv: WarrantyInvoice): Promise<WarrantyNoteOptions> => {
     let dist: Distributor | null = null;
     if (inv.distributor_id) {
       const { data } = await supabase.from("customer_distributors").select("*").eq("id", inv.distributor_id).single() as { data: Distributor | null };
       dist = data;
     }
+    // Live fallback for sales rep when snapshot is missing (legacy rows)
+    let liveRep: SalesAgent | null = null;
+    if (!inv.sales_rep_name && inv.sales_agent_id) {
+      const { data } = await supabase.from("sales_agents").select("*").eq("id", inv.sales_agent_id).single() as { data: SalesAgent | null };
+      liveRep = data;
+    }
     const items = Array.isArray(inv.items) ? inv.items as any[] : [];
     return {
       invoiceNumber: inv.warranty_number,
       date: fmtDate(inv.date),
       dueDate: fmtDate(inv.date),
-      createdBy: undefined,
+      createdBy: inv.created_by_name || undefined,
       distributor: {
         name: dist?.name || inv.pharmacy_name || "—",
-        address: dist?.address || inv.pharmacy_address || null,
-        phone: dist?.phone || null,
-        licenseNumber: dist?.license_number || inv.pharmacy_license_no || null,
-        licenseExpiry: dist?.license_expiry ? fmtDate(dist.license_expiry) : null,
+        address: inv.customer_warranty_address || dist?.address || inv.pharmacy_address || null,
+        phone: inv.customer_mobile || dist?.phone || null,
+        licenseNumber: inv.customer_license_number || dist?.license_number || inv.pharmacy_license_no || null,
+        licenseExpiry: inv.customer_license_expiry ? fmtDate(inv.customer_license_expiry) : (dist?.license_expiry ? fmtDate(dist.license_expiry) : null),
+        ntn: inv.customer_ntn || null,
+        cnic: inv.customer_cnic || null,
       },
       items: items.map((i: any) => ({
         product_name: i.product_name || "",
@@ -112,10 +137,22 @@ export default function WarrantyInvoices() {
       discountAmount: Number(inv.discount_amount || 0),
       discountLabel: Number(inv.discount_percent || 0) > 0 ? `Discount (${inv.discount_percent}%)` : "Discount",
       total: Number(inv.total || 0),
-      salesRep: null,
+      salesRep: {
+        name: inv.sales_rep_name || liveRep?.name || null,
+        fatherName: inv.sales_rep_father_name || liveRep?.father_name || null,
+        cnic: inv.sales_rep_cnic || liveRep?.cnic || null,
+        gender: inv.sales_rep_gender || liveRep?.gender || null,
+        licenseNumber: inv.agent_license_number || liveRep?.license_number || null,
+        licenseExpiry: inv.agent_license_expiry ? fmtDate(inv.agent_license_expiry) : (liveRep?.license_expiry ? fmtDate(liveRep.license_expiry) : null),
+        signatureUrl: inv.rep_signature_url || liveRep?.signature_url || null,
+        stampUrl: inv.rep_stamp_url || liveRep?.stamp_url || null,
+      },
+      companyStampUrl: inv.company_stamp_url || null,
+      companySignatureUrl: inv.company_signature_url || null,
       settings,
     };
   };
+
 
 
   const validateForPdf = async (inv: WarrantyInvoice): Promise<string[]> => {
@@ -158,6 +195,8 @@ export default function WarrantyInvoices() {
  const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
  const [distributors, setDistributors] = useState<Distributor[]>([]);
  const [selectedDistributorId, setSelectedDistributorId] = useState("");
+ const [salesAgents, setSalesAgents] = useState<SalesAgent[]>([]);
+ const [selectedRepId, setSelectedRepId] = useState("");
  
  const [items, setItems] = useState<LineItem[]>([]);
  const [discountType, setDiscountType] = useState<"percent" | "amount">("percent");
@@ -165,6 +204,7 @@ export default function WarrantyInvoices() {
  const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
  const [formNotes, setFormNotes] = useState("");
  const [addDistOpen, setAddDistOpen] = useState(false);
+
  // Cache of active batches per product id (FEFO ordered).
  const [batchCache, setBatchCache] = useState<Record<string, ActiveBatch[]>>({});
 
@@ -219,16 +259,30 @@ export default function WarrantyInvoices() {
    const idClause = custIds.length > 0 ? `,customer_id.in.(${custIds.join(",")})` : "";
    invQuery = invQuery.or(`warranty_number.ilike.%${safe}%,pharmacy_name.ilike.%${safe}%${idClause}`);
  }
- const [inv, cust, prod] = await Promise.all([
+ const [inv, cust, prod, agents] = await Promise.all([
  invQuery.range(pagination.from, pagination.to),
  supabase.from("customers").select("id, name, company").eq("is_active", true).order("name"),
  supabase.from("products").select("id, name, selling_price, mrp").eq("is_active", true).order("name"),
+ supabase.from("sales_agents").select("id, name, father_name, cnic, gender, license_number, license_expiry, signature_url, stamp_url").eq("status", "active").order("name"),
  ]);
  if (inv.data) setInvoices(inv.data as any);
  if (inv.count !== null && inv.count !== undefined) pagination.setTotalCount(inv.count);
  if (cust.data) setCustomers(cust.data);
  if (prod.data) setProducts(prod.data as any);
+ if (agents.data) {
+   setSalesAgents(agents.data as any);
+   // Default selected rep = current user's agent (if any)
+   if (!selectedRepId && !editId) {
+     const { data: userRes } = await supabase.auth.getUser();
+     const uid = userRes.user?.id;
+     if (uid) {
+       const { data: myAgent } = await supabase.from("sales_agents").select("id").eq("user_id", uid).maybeSingle();
+       if (myAgent?.id) setSelectedRepId(myAgent.id);
+     }
+   }
+ }
  };
+
 
 
  const handleSelectCustomer = async (customerId: string) => {
@@ -323,6 +377,7 @@ export default function WarrantyInvoices() {
  setSelectedCustomerId("");
  setSelectedInvoiceId("");
  setSelectedDistributorId("");
+ setSelectedRepId("");
  
  setItems([]);
  setDiscountType("percent");
@@ -337,6 +392,23 @@ export default function WarrantyInvoices() {
 
  const dist = distributors.find(d => d.id === selectedDistributorId);
  const pharmacyName = dist?.name || "N/A";
+ const rep = salesAgents.find(a => a.id === selectedRepId) || null;
+
+ // Pull customer warranty fields for the snapshot
+ let cust: any = null;
+ if (selectedCustomerId) {
+   const { data } = await supabase.from("customers")
+     .select("warranty_address, license_number, license_expiry, ntn, cnic, phone")
+     .eq("id", selectedCustomerId).maybeSingle();
+   cust = data;
+ }
+
+ // Created by name (current user / agent name)
+ let createdByName: string | null = rep?.name || null;
+ if (!createdByName) {
+   const { data: ur } = await supabase.auth.getUser();
+   createdByName = (ur.user?.user_metadata as any)?.full_name || ur.user?.email || null;
+ }
 
  let warrantyNumber: string | undefined;
  if (!editId) {
@@ -354,7 +426,7 @@ export default function WarrantyInvoices() {
  pharmacy_address: dist?.address || null,
  pharmacy_license_no: dist?.license_number || null,
  distributor_id: selectedDistributorId || null,
- sales_agent_id: null,
+ sales_agent_id: rep?.id || null,
 
  items: items as any,
  subtotal,
@@ -364,15 +436,40 @@ export default function WarrantyInvoices() {
  total,
  notes: formNotes || null,
  status: "issued",
+
+ // ── Sales rep snapshot ────────────────────────────────────────────
+ sales_rep_name: rep?.name || null,
+ sales_rep_father_name: rep?.father_name || null,
+ sales_rep_cnic: rep?.cnic || null,
+ sales_rep_gender: rep?.gender || null,
+ agent_license_number: rep?.license_number || null,
+ agent_license_expiry: rep?.license_expiry || null,
+ rep_signature_url: rep?.signature_url || null,
+ rep_stamp_url: rep?.stamp_url || null,
+
+ // ── Company stamp/signature snapshot ──────────────────────────────
+ company_stamp_url: (settings as any)?.warranty_stamp_url || null,
+ company_signature_url: (settings as any)?.warranty_signature_url || null,
+
+ // ── Customer warranty snapshot ────────────────────────────────────
+ customer_warranty_address: cust?.warranty_address || null,
+ customer_license_number: cust?.license_number || null,
+ customer_license_expiry: cust?.license_expiry || null,
+ customer_ntn: cust?.ntn || null,
+ customer_cnic: cust?.cnic || null,
+ customer_mobile: cust?.phone || null,
+
+ declaration_text_snapshot: (settings as any)?.warranty_note_text || null,
+ created_by_name: createdByName,
  };
 
  if (editId) {
  const { warranty_number, ...updatePayload } = payload;
  await supabase.from("warranty_invoices").update(updatePayload as any).eq("id", editId);
- toast.success("Warranty invoice updated");
+ toast.success("Warranty note updated");
  } else {
  await supabase.from("warranty_invoices").insert(payload as any);
- toast.success("Warranty invoice created");
+ toast.success("Warranty note created");
  }
  setOpen(false); resetForm(); load();
  };
@@ -382,6 +479,7 @@ export default function WarrantyInvoices() {
  setSelectedCustomerId(inv.customer_id || "");
  setSelectedInvoiceId(inv.source_invoice_id || "");
  setSelectedDistributorId(inv.distributor_id || "");
+ setSelectedRepId(inv.sales_agent_id || "");
  
  const invItems = Array.isArray(inv.items) ? inv.items as any : [];
  setItems(invItems);
@@ -400,6 +498,7 @@ export default function WarrantyInvoices() {
  setStep("edit_items");
  setOpen(true);
  };
+
 
 
  const handleDelete = async (id: string, e: React.MouseEvent) => {
@@ -570,6 +669,41 @@ export default function WarrantyInvoices() {
             </Select>
           </div>
         </div>
+
+        {/* Sales Rep selector — signs the declaration */}
+        <div>
+          <Label>Sales Representative (signs the warranty declaration)</Label>
+          <Select value={selectedRepId || "__none"} onValueChange={v => setSelectedRepId(v === "__none" ? "" : v)}>
+            <SelectTrigger>
+              <SelectValue placeholder={salesAgents.length === 0 ? "No sales agents — add one in Sales Agents" : "Select sales rep..."} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">— No rep (declaration tokens will show blanks) —</SelectItem>
+              {salesAgents.map(a => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.name}{a.license_number ? ` · ${a.license_number}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedRepId && (() => {
+            const r = salesAgents.find(a => a.id === selectedRepId);
+            if (!r) return null;
+            const missing: string[] = [];
+            if (!r.father_name) missing.push("Father name");
+            if (!r.cnic) missing.push("CNIC");
+            if (!r.license_number) missing.push("License #");
+            if (!r.license_expiry) missing.push("License expiry");
+            if (!r.signature_url) missing.push("Signature");
+            return missing.length > 0 ? (
+              <p className="text-[11px] text-amber-600 mt-1">Missing on rep profile: {missing.join(", ")} — fill in Sales Agents to populate the declaration.</p>
+            ) : (
+              <p className="text-[11px] text-success mt-1">✓ All declaration fields available.</p>
+            );
+          })()}
+        </div>
+
+
 
 
 

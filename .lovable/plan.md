@@ -1,69 +1,159 @@
-# Global Search Across All Paginated Lists
+# Warranty Note — Standalone Module Redesign
 
-## Problem
-Search inputs on list pages currently filter the **already-loaded page** (50 rows). Typing a SKU/name that lives on page 3 returns nothing. Same issue on the Products tab, Stock Movements tab, and every other paginated list (Customers, Suppliers, Sales Invoices, POs, etc.).
+Make Warranty Note a fully independent document: own settings, own data sources, own template, own PDF — no shared layout with Sales Invoice.
 
-## Fix — server-side debounced search
-Push the search term into the Supabase query (`.or(...ilike...)`) so the database searches the whole catalog and pagination follows the filtered set.
+---
 
-### Pattern (applied identically to every list)
-```ts
-const [search, setSearch] = useState("");
-const [debounced, setDebounced] = useState("");
+## 1. Database changes
 
-useEffect(() => {
-  const t = setTimeout(() => setDebounced(search.trim()), 300);
-  return () => clearTimeout(t);
-}, [search]);
+### `customers` — add missing warranty fields
+- `warranty_address` (text, multi-line)
+- `license_number` (text)
+- `license_expiry` (date)
+- `ntn` (text)
+- `cnic` (text)
 
-// reset to page 1 whenever the search term changes
-useEffect(() => { pagination.setPage(1); }, [debounced]);
+Keep existing `customer_licenses` untouched; warranty pulls from `customers.*` first, falls back to latest active row in `customer_licenses` if blank.
 
-// in loadAll(), before .range():
-if (debounced) {
-  const q = `%${debounced}%`;
-  query = query.or(`name.ilike.${q},sku.ilike.${q},product_code.ilike.${q}`);
-}
+### `sales_agents` — add rep/warranty fields
+- `father_name` (text)
+- `cnic` (text)
+- `agent_license_number` (text)
+- `agent_license_expiry` (date)
+- `signature_url` (text — Storage path)
+
+### `staff` (or `profiles`) — current-user fallback
+Same five fields as above so a logged-in user without a `sales_agents` row can still sign.
+
+Resolution order at warranty creation: selected `sales_agents` row → current user's `staff/profile` → blanks.
+
+### `company_settings` — stamp & signature
+- `warranty_stamp_url` (text)
+- `warranty_signature_url` (text — optional company-wide default)
+- `warranty_declaration_text` (text — overrides default in `src/lib/warranty-declaration.ts`)
+- `warranty_footer_text` (text)
+
+### `warranty_invoices` — snapshot fields
+Snapshot at issue time so historical notes don't change if master data is edited:
+- `sales_rep_name`, `sales_rep_father_name`, `sales_rep_cnic`
+- `agent_license_number`, `agent_license_expiry`
+- `signature_url`, `stamp_url`
+- `customer_warranty_address`, `customer_license_number`, `customer_license_expiry`, `customer_ntn`, `customer_cnic`, `customer_mobile`
+
+### Storage
+New private bucket `warranty-assets` with RLS scoped by `tenant_id` for: company stamps, company signatures, agent signatures.
+
+---
+
+## 2. Settings UI
+
+### Settings → Company → Warranty Documents (new sub-section)
+- Upload Company Stamp (image)
+- Upload Default Signature (image, optional)
+
+### Settings → Documents → Warranty Note (new tab)
+- Editable Warranty Declaration text (with `{{placeholders}}` reference panel)
+- Editable Footer text
+- Live preview using sample data
+
+### Settings → Sales Agents → Agent Profile (extend existing dialog)
+- Father Name, CNIC, Agent License #, Agent License Expiry, Signature upload
+
+### Settings → Team Members / My Profile
+- Same five fields for current-user fallback
+
+### Customers → Profile dialog (extend)
+- Warranty Address (textarea), License #, License Expiry, NTN, CNIC
+
+---
+
+## 3. Warranty Note Page (`src/pages/WarrantyInvoices.tsx`)
+- Create dialog: pick customer → auto-fill warranty/license fields (editable); pick sales rep (default = current user agent) → auto-fill rep block
+- Line items already exist (TP = MRP × 0.85 logic preserved)
+- On save: snapshot rep + customer + stamp/signature URLs into the warranty row
+
+---
+
+## 4. PDF / Print Template — brand-new
+
+New file: `src/lib/warranty-note-pdf.ts` (or React component for `PdfPreviewDialog`) — does NOT reuse sales invoice template.
+
+### Layout (A4 portrait)
+```text
+┌──────────────────────────────────────────────────────┐
+│ [LOGO 200px]              Company Name (right-align) │
+│                           Address                    │
+│                           City                       │
+│                           Mobile                     │
+├──────────────────────────────────────────────────────┤
+│ WARRANTY NOTE  (22px bold, left)                     │
+├──────────────────────────────────────────────────────┤
+│ Mobile: …               │ Warranty Note #: …         │
+│ Warranty Address: …     │ Date: …                    │
+│   (multi-line, no clip) │ Due Date: …                │
+│ License #: …            │ Created By: …              │
+│ License Expiry: …       │ Sales Rep: …               │
+│ NTN: … | CNIC: …        │                            │
+├──────────────────────────────────────────────────────┤
+│ Sr│ Product │ Desc │ Qty │ Rate │ Batch │ Exp │ Disc │ Amount │ MRP Inc Tax │
+│  1│ …       │ …    │  10 │ 100  │ B-12  │ … │  5%  │ 950    │ 117         │
+│  …                                                    │
+├──────────────────────────────────────────────────────┤
+│                                Total: Rs. 12,345.00  │
+├──────────────────────────────────────────────────────┤
+│ Note                                                 │
+│ It is certified that I {{sales_rep_name}} D/O …      │
+│ (full declaration, 2 numbered clauses + trailer)     │
+├──────────────────────────────────────────────────────┤
+│ Total in Words: …                                    │
+│ Inv Balance in Words: …                              │
+├──────────────────────────────────────────────────────┤
+│ [STAMP]                              [SIGNATURE]     │
+│ Company Stamp                        Sales Rep       │
+│                                      Prepared By     │
+├──────────────────────────────────────────────────────┤
+│ This is a system generated invoice and does not …    │
+│                                          Page 1 of N │
+└──────────────────────────────────────────────────────┘
 ```
 
-- Debounce 300 ms → no query storm while typing.
-- `count: "exact"` already in place → pagination footer stays accurate against the filtered set.
-- Remove the now-redundant client-side `.filter(...)` on `products` / `movements`.
+### PDF rules enforced
+- A4 portrait, 15mm margins
+- Multi-page auto-flow with repeating header + table header
+- Long product descriptions wrap (no truncate)
+- Right-align amounts, center qty/batch
+- No content overlaps signature block (signature pins to last page bottom-right)
 
-## Pages updated (same pattern, different searchable columns)
+---
 
-| Page | Searchable columns |
-|---|---|
-| Products → Catalog tab (`Products.tsx`) | `name, sku, product_code, generic_name, brand` |
-| Products → Stock Movements tab | `batch_number, notes` + product name via cached map (kept client-side after fetch — DB join not available; will switch to server search on `batch_number, notes, reference_number` and keep product-name filter additive) |
-| Customers (`Customers.tsx`) | `name, contact_person, phone, city, customer_code` |
-| Suppliers (`Suppliers.tsx`) | `name, contact_person, phone, supplier_code` |
-| Sales Invoices (`SalesInvoicesList.tsx`, `ProformaInvoices.tsx`) | `invoice_number` + customer name via cached map server filter on `invoice_number` only; customer-name filter stays client-side because customers is a relation |
-| Purchase Proforma / Purchase Orders (`PurchaseProforma.tsx`) | `po_number, proforma_number` |
-| Sales Returns, Purchase Returns, Credit Notes, Debit Notes, Delivery Notes | their document-number column |
-| Payments, Expenses, Warranty Invoices, Landed Costs, Print Jobs, Printers, Bank Accounts | their primary number/name column |
+## 5. Files touched
 
-For relation-based search (e.g. "find invoice by customer name") I'll add a second cheap query: when `debounced` is set, fetch matching customer/supplier ids with `ilike` and include `customer_id.in.(...)` in the main `.or()`. This keeps everything server-side.
+**Migrations (1)**
+- Add columns to `customers`, `sales_agents`, `staff`, `company_settings`, `warranty_invoices`; create `warranty-assets` bucket + RLS
 
-## Out of scope
-- The Sales Order / Invoice **product picker** dropdown — you didn't include it in scope this round; it stays as is.
-- No schema changes. No new indexes (existing `name`/`sku` indexes are sufficient at current data volumes; can revisit if slow).
-- No UI redesign — only wiring change behind the same search inputs.
+**New files**
+- `src/lib/warranty-note-pdf.ts` — standalone PDF generator
+- `src/components/WarrantyNoteTemplate.tsx` — on-screen + print template
+- `src/components/settings/WarrantyDocumentSettings.tsx`
+- `src/components/settings/WarrantyNoteTemplateSettings.tsx`
+- `src/components/settings/SalesRepProfileFields.tsx`
 
-## Files touched
-- `src/pages/Products.tsx`
-- `src/pages/StockMovements.tsx`
-- `src/pages/Customers.tsx`, `src/pages/Suppliers.tsx`
-- `src/pages/ProformaInvoices.tsx`, `src/pages/SalesInvoicesList.tsx`
-- `src/pages/PurchaseProforma.tsx`
-- `src/pages/SalesReturns.tsx`, `src/pages/PurchaseReturns.tsx`
-- `src/pages/CreditNotes.tsx`, `src/pages/DebitNotes.tsx`, `src/pages/DeliveryNotes.tsx`
-- `src/pages/Payments.tsx`, `src/pages/Expenses.tsx`
-- `src/pages/WarrantyInvoices.tsx`, `src/pages/LandedCosts.tsx`
-- `src/pages/PrintJobs.tsx`, `src/pages/Printers.tsx`, `src/pages/BankAccounts.tsx`
+**Edited**
+- `src/pages/Settings.tsx` — wire new tabs/sections
+- `src/pages/WarrantyInvoices.tsx` — create flow snapshot + new PDF preview
+- `src/components/PdfPreviewDialog.tsx` — route warranty docs to new template
+- `src/components/CustomerProfileDialog.tsx` — add warranty fields
+- `src/pages/SalesAgents.tsx` — add rep/license/signature fields
+- `src/lib/warranty-declaration.ts` — read override from `company_settings`
 
-## Verification
-1. Products: type a SKU known to live on page 4 → result appears immediately, pagination shows "1 of 1".
-2. Customers: search a name from a non-loaded page → found.
-3. Clear search → original paginated list restored, page resets to 1.
-4. No console errors; network shows one debounced query per keystroke burst.
+---
+
+## 6. Acceptance checklist
+- Warranty Note renders with own template (no sales-invoice CSS reuse)
+- Warranty Declaration block always present, editable via settings
+- Customer Mobile, Warranty Address, License #, License Expiry, NTN, CNIC visible
+- Stamp + Signature uploads work; auto-pulled into PDF
+- Sales Rep details auto-fill from agent → user fallback
+- Total in Words + Inv Balance in Words present
+- Preview == Print == PDF (A4, no clipping, no overflow)
+- Long descriptions wrap cleanly across pages

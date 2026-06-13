@@ -1,6 +1,6 @@
 import type { CompanySettings } from "@/hooks/useCompanySettings";
 import type { DocumentTemplate } from "@/hooks/useDocumentTemplates";
-import { WARRANTY_NOTE_TEXT } from "@/lib/warranty-declaration";
+import { WARRANTY_NOTE_TEXT, renderWarrantyDeclaration } from "@/lib/warranty-declaration";
 
 export interface PdfColumn { header: string; key: string; align?: "left" | "right" | "center"; }
 export interface PdfMeta { label: string; value: string; }
@@ -586,14 +586,19 @@ export interface WarrantyNoteOptions {
     name?: string | null;
     fatherName?: string | null;
     cnic?: string | null;
+    gender?: string | null;
     licenseNumber?: string | null;
     licenseExpiry?: string | null;
     signatureUrl?: string | null;
     stampUrl?: string | null;
   } | null;
+  /** Company-level stamp/signature override (falls back to settings.warranty_*). */
+  companyStampUrl?: string | null;
+  companySignatureUrl?: string | null;
   settings: CompanySettings | null;
   pageMode?: "half" | "full" | "auto";
 }
+
 
 function fmtMoney(n: number): string {
   return Number(n || 0).toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -616,7 +621,7 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   ].filter(Boolean) as string[];
 
   const logo = s?.logo_url
-    ? `<img src="${s.logo_url}" alt="${escapeHtml(company)}" style="height:110px;width:auto;max-width:320px;object-fit:contain;display:block;" />`
+    ? `<img src="${s.logo_url}" alt="${escapeHtml(company)}" style="height:auto;width:200px;max-width:220px;max-height:140px;object-fit:contain;display:block;" />`
     : "";
 
   const d = opts.distributor;
@@ -628,6 +633,7 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     ["NTN", d.ntn || "—"],
     ["CNIC", d.cnic || "—"],
   ];
+
   const leftBlock = leftPairs.map(([k, v]) => `
     <tr>
       <td style="padding:3pt 8pt 3pt 0;color:#475569;font-weight:600;font-size:9.5pt;white-space:nowrap;vertical-align:top;">${escapeHtml(k)}</td>
@@ -640,11 +646,13 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     ["Due Date", opts.dueDate || opts.date],
   ];
   if (opts.createdBy) rightPairs.push(["Created By", opts.createdBy]);
+  if (opts.salesRep?.name) rightPairs.push(["Sales Representative", opts.salesRep.name]);
   const rightBlock = rightPairs.map(([k, v]) => `
     <tr>
       <td style="padding:3pt 8pt 3pt 0;color:#475569;font-weight:600;font-size:9.5pt;white-space:nowrap;vertical-align:top;">${escapeHtml(k)}</td>
       <td style="padding:3pt 0;color:#0f172a;font-size:9.5pt;font-weight:600;word-break:break-word;">${escapeHtml(v)}</td>
     </tr>`).join("");
+
 
   const cols = [
     { h: "Sr",           w: "7%",  a: "center" },
@@ -689,7 +697,17 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
 
   const declarationEnabled = s?.warranty_declaration_enabled !== false;
   const declarationSource = (s?.warranty_note_text && s.warranty_note_text.trim()) || WARRANTY_NOTE_TEXT;
-  const declarationBlocks = declarationSource
+  const rep = opts.salesRep || {};
+  const rendered = renderWarrantyDeclaration(declarationSource, {
+    salesRepName: rep.name,
+    fatherName: rep.fatherName,
+    salesRepCnic: rep.cnic,
+    agentLicenseNumber: rep.licenseNumber,
+    agentLicenseExpiry: rep.licenseExpiry,
+    companyName: company,
+    gender: rep.gender,
+  });
+  const declarationBlocks = rendered
     .split(/\n{2,}/)
     .map(p => p.trim())
     .filter(Boolean);
@@ -705,25 +723,37 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   }).join("");
   const declarationHtml = declarationEnabled ? `
     <section class="no-break" data-pdf-section="declaration" style="margin-top:10pt;padding:8pt 10pt;border:0.5pt solid #cbd5e1;border-left:2pt solid #0f172a;">
-      <div style="font-size:8.5pt;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:#475569;margin-bottom:5pt;">Warranty Declaration</div>
-      <div style="font-size:9.5pt;line-height:1.5;color:#0f172a;font-family:'Inter',sans-serif;">${declarationInner}</div>
+      <div style="font-size:8.5pt;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:#475569;margin-bottom:5pt;">Note</div>
+      <div style="font-size:9.5pt;line-height:1.55;color:#0f172a;font-family:'Inter',sans-serif;">${declarationInner}</div>
     </section>` : "";
+
+  const stampImg = (opts.companyStampUrl || s?.warranty_stamp_url || rep.stampUrl);
+  const sigImg = (rep.signatureUrl || opts.companySignatureUrl || s?.warranty_signature_url);
+  const stampHtml = stampImg
+    ? `<img src="${stampImg}" alt="Company Stamp" style="max-height:70pt;max-width:160pt;object-fit:contain;display:block;margin:0 auto 4pt;" />`
+    : `<div style="height:60pt;"></div>`;
+  const sigHtml = sigImg
+    ? `<img src="${sigImg}" alt="Signature" style="max-height:50pt;max-width:160pt;object-fit:contain;display:block;margin:0 auto 4pt;" />`
+    : `<div style="height:48pt;"></div>`;
+  const repName = rep.name ? `<div style="font-size:9pt;font-weight:600;color:#0f172a;margin-top:2pt;">${escapeHtml(rep.name)}</div>` : "";
 
   const signatureHtml = `
     <section class="no-break" data-pdf-section="signatures" style="margin-top:18pt;">
       <table style="width:100%;border-collapse:collapse;">
         <tr>
-          <td style="width:50%;padding-right:16pt;vertical-align:bottom;">
-            <div style="height:36pt;"></div>
-            <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-align:center;text-transform:uppercase;letter-spacing:0.08em;">Prepared By</div>
+          <td style="width:50%;padding-right:16pt;vertical-align:bottom;text-align:center;">
+            ${stampHtml}
+            <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.08em;">Company Stamp</div>
           </td>
-          <td style="width:50%;padding-left:16pt;vertical-align:bottom;">
-            <div style="height:36pt;"></div>
-            <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-align:center;text-transform:uppercase;letter-spacing:0.08em;">Stamp / Authorised Signature</div>
+          <td style="width:50%;padding-left:16pt;vertical-align:bottom;text-align:center;">
+            ${sigHtml}
+            <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.08em;">Sales Rep · Prepared By</div>
+            ${repName}
           </td>
         </tr>
       </table>
     </section>`;
+
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Warranty Note — ${escapeHtml(opts.invoiceNumber)}</title>
 <style>
@@ -824,8 +854,9 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   ${signatureHtml}
 
   <section data-pdf-section="footer" class="no-break" style="margin-top:14pt;padding-top:6pt;border-top:0.5pt solid #cbd5e1;text-align:center;">
-    <div style="font-size:8pt;color:#94a3b8;font-style:italic;">This is a system generated document and does not require any signatures.</div>
+    <div style="font-size:8pt;color:#94a3b8;font-style:italic;">${escapeHtml(s?.warranty_footer_text || "This is a system generated invoice and does not require any signatures.")}</div>
   </section>
+
 
 </div></body></html>`;
 }
