@@ -594,6 +594,7 @@ export type Database = {
           tenant_id: string | null
           updated_at: string
           warranty_declaration_enabled: boolean
+          warranty_footer_text: string | null
           warranty_note_text: string | null
           warranty_require_address: boolean
           warranty_require_batch_expiry: boolean
@@ -601,6 +602,8 @@ export type Database = {
           warranty_require_license_expiry: boolean
           warranty_require_license_no: boolean
           warranty_require_mobile: boolean
+          warranty_signature_url: string | null
+          warranty_stamp_url: string | null
           website: string | null
           whatsapp_number: string | null
           wht_enabled: boolean
@@ -637,6 +640,7 @@ export type Database = {
           tenant_id?: string | null
           updated_at?: string
           warranty_declaration_enabled?: boolean
+          warranty_footer_text?: string | null
           warranty_note_text?: string | null
           warranty_require_address?: boolean
           warranty_require_batch_expiry?: boolean
@@ -644,6 +648,8 @@ export type Database = {
           warranty_require_license_expiry?: boolean
           warranty_require_license_no?: boolean
           warranty_require_mobile?: boolean
+          warranty_signature_url?: string | null
+          warranty_stamp_url?: string | null
           website?: string | null
           whatsapp_number?: string | null
           wht_enabled?: boolean
@@ -680,6 +686,7 @@ export type Database = {
           tenant_id?: string | null
           updated_at?: string
           warranty_declaration_enabled?: boolean
+          warranty_footer_text?: string | null
           warranty_note_text?: string | null
           warranty_require_address?: boolean
           warranty_require_batch_expiry?: boolean
@@ -687,6 +694,8 @@ export type Database = {
           warranty_require_license_expiry?: boolean
           warranty_require_license_no?: boolean
           warranty_require_mobile?: boolean
+          warranty_signature_url?: string | null
+          warranty_stamp_url?: string | null
           website?: string | null
           whatsapp_number?: string | null
           wht_enabled?: boolean
@@ -1153,6 +1162,8 @@ export type Database = {
           import_batch_id: string | null
           is_active: boolean
           last_name: string | null
+          license_expiry: string | null
+          license_number: string | null
           name: string
           notes: string | null
           ntn: string | null
@@ -1169,6 +1180,7 @@ export type Database = {
           tax_number: string | null
           tenant_id: string | null
           title: string | null
+          warranty_address: string | null
           website: string | null
           whatsapp: string | null
         }
@@ -1193,6 +1205,8 @@ export type Database = {
           import_batch_id?: string | null
           is_active?: boolean
           last_name?: string | null
+          license_expiry?: string | null
+          license_number?: string | null
           name: string
           notes?: string | null
           ntn?: string | null
@@ -1209,6 +1223,7 @@ export type Database = {
           tax_number?: string | null
           tenant_id?: string | null
           title?: string | null
+          warranty_address?: string | null
           website?: string | null
           whatsapp?: string | null
         }
@@ -1233,6 +1248,8 @@ export type Database = {
           import_batch_id?: string | null
           is_active?: boolean
           last_name?: string | null
+          license_expiry?: string | null
+          license_number?: string | null
           name?: string
           notes?: string | null
           ntn?: string | null
@@ -1249,6 +1266,7 @@ export type Database = {
           tax_number?: string | null
           tenant_id?: string | null
           title?: string | null
+          warranty_address?: string | null
           website?: string | null
           whatsapp?: string | null
         }
@@ -5321,9 +5339,21 @@ export type Database = {
       }
       warranty_invoices: {
         Row: {
+          agent_license_expiry: string | null
+          agent_license_number: string | null
+          company_signature_url: string | null
+          company_stamp_url: string | null
           created_at: string
+          created_by_name: string | null
+          customer_cnic: string | null
           customer_id: string | null
+          customer_license_expiry: string | null
+          customer_license_number: string | null
+          customer_mobile: string | null
+          customer_ntn: string | null
+          customer_warranty_address: string | null
           date: string
+          declaration_text_snapshot: string | null
           discount_amount: number
           discount_percent: number
           distributor_id: string | null
@@ -5334,7 +5364,13 @@ export type Database = {
           pharmacy_address: string | null
           pharmacy_license_no: string | null
           pharmacy_name: string
+          rep_signature_url: string | null
+          rep_stamp_url: string | null
           sales_agent_id: string | null
+          sales_rep_cnic: string | null
+          sales_rep_father_name: string | null
+          sales_rep_gender: string | null
+          sales_rep_name: string | null
           source_invoice_id: string | null
           status: string
           subtotal: number
@@ -5346,9 +5382,21 @@ export type Database = {
           warranty_number: string
         }
         Insert: {
+          agent_license_expiry?: string | null
+          agent_license_number?: string | null
+          company_signature_url?: string | null
+          company_stamp_url?: string | null
           created_at?: string
+          created_by_name?: string | null
+          customer_cnic?: string | null
           customer_id?: string | null
+          customer_license_expiry?: string | null
+          customer_license_number?: string | null
+          customer_mobile?: string | null
+          customer_ntn?: string | null
+          customer_warranty_address?: string | null
           date?: string
+          declaration_text_snapshot?: string | null
           discount_amount?: number
           discount_percent?: number
           distributor_id?: string | null
@@ -5359,7 +5407,13 @@ export type Database = {
           pharmacy_address?: string | null
           pharmacy_license_no?: string | null
           pharmacy_name: string
+          rep_signature_url?: string | null
+          rep_stamp_url?: string | null
           sales_agent_id?: string | null
+          sales_rep_cnic?: string | null
+          sales_rep_father_name?: string | null
+          sales_rep_gender?: string | null
+          sales_rep_name?: string | null
           source_invoice_id?: string | null
           status?: string
           subtotal?: number
@@ -5371,9 +5425,21 @@ export type Database = {
           warranty_number: string
         }
         Update: {
+          agent_license_expiry?: string | null
+          agent_license_number?: string | null
+          company_signature_url?: string | null
+          company_stamp_url?: string | null
           created_at?: string
+          created_by_name?: string | null
+          customer_cnic?: string | null
           customer_id?: string | null
+          customer_license_expiry?: string | null
+          customer_license_number?: string | null
+          customer_mobile?: string | null
+          customer_ntn?: string | null
+          customer_warranty_address?: string | null
           date?: string
+          declaration_text_snapshot?: string | null
           discount_amount?: number
           discount_percent?: number
           distributor_id?: string | null
@@ -5384,7 +5450,13 @@ export type Database = {
           pharmacy_address?: string | null
           pharmacy_license_no?: string | null
           pharmacy_name?: string
+          rep_signature_url?: string | null
+          rep_stamp_url?: string | null
           sales_agent_id?: string | null
+          sales_rep_cnic?: string | null
+          sales_rep_father_name?: string | null
+          sales_rep_gender?: string | null
+          sales_rep_name?: string | null
           source_invoice_id?: string | null
           status?: string
           subtotal?: number
