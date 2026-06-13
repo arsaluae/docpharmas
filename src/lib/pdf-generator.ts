@@ -379,9 +379,12 @@ function buildA4Html(opts: PdfOptions): string {
     box-shadow:0 4px 18px rgba(0,0,0,0.18); }
   .toolbar-title { color:#fff; font-size:13px; font-weight:600; letter-spacing:0.3px; }
   .toolbar-btn { background:${C.primary}; color:#fff; border:none; padding:8px 18px; font-size:12.5px; font-weight:600; border-radius:4px; cursor:pointer; }
-  .page-frame { max-width:794px; margin:32px auto 0; padding:24px 28px 20px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; }
-  .doc-header { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
-  .doc-header > div:first-child { flex:0 0 340px; min-width:260px; }
+  .page-frame { position:relative; max-width:794px; margin:0 auto; padding:18px 28px 20px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; overflow:hidden; }
+  .page-frame > * { position:relative; z-index:1; }
+  .doc-watermark { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:0; overflow:hidden; }
+  .doc-watermark span { font-size:78px; font-weight:900; letter-spacing:8px; color:rgba(15,23,42,0.055); transform:rotate(-26deg); white-space:nowrap; text-transform:uppercase; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .doc-header { display:flex; align-items:center; justify-content:space-between; gap:24px; padding-bottom:12px; border-bottom:1px solid ${C.border}; }
+  .doc-header > div:first-child { flex:0 0 auto; }
   /* Pagination-safe defaults (apply during html2canvas snapshot too, not only @media print) */
   table { page-break-inside:auto; }
   thead { display:table-header-group; }
