@@ -633,14 +633,14 @@ export default function ProformaInvoices() {
      partyAccountCode: c.old_erp_account_code || undefined,
      validity: `Valid for ${order.validity_days} days`,
      paymentTerms: order.payment_instructions || undefined,
-      columns: [
-        { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
-        { header: "MRP", key: "mrp", align: "right" },
-        { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
-        { header: "Disc%", key: "discount_pct", align: "right" },
-        ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
-        { header: "Amount", key: "amount", align: "right" },
-      ],
+       columns: [
+         { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+         { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+         { header: "Disc%", key: "discount_pct", align: "right" },
+         ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
+         { header: "MRP", key: "mrp", align: "right" },
+         { header: "Amount", key: "amount", align: "right" },
+       ],
       rows: pfItems.map((i: any, idx: number) => {
         const catalogMrp = Number(products.find(p => p.id === i.product_id)?.mrp || 0);
         const mrpVal = Number(i.mrp || catalogMrp || 0);
