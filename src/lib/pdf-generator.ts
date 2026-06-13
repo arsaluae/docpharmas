@@ -522,22 +522,97 @@ function applyPageMode(html: string, opts: PdfOptions): string {
   return mode === "half" ? wrapHalfPage(html) : tagFullPage(html);
 }
 
+/* ── A5 PAGE TRANSFORMER (Delivery Note default) ─────────────────────────── */
+const A5_PAGE_CSS = `
+  @page { size: A5 portrait; margin: 0; }
+  html, body { background:#fff !important; margin:0 !important; padding:0 !important; }
+  .toolbar { display:none !important; }
+  .page-frame, .warranty-document, .page {
+    width: 148mm !important; max-width: 148mm !important;
+    min-height: 210mm !important; height: 210mm !important;
+    margin: 0 auto !important; padding: 7mm 9mm 9mm 9mm !important;
+    border: none !important; box-shadow: none !important; background:#fff !important;
+    overflow: hidden !important; box-sizing: border-box !important;
+    display: flex !important; flex-direction: column !important;
+    page-break-after: avoid !important;
+  }
+  .page-frame .doc-header td:first-child { padding-left:0 !important; }
+  .page-frame .doc-header td:last-child { padding-right:0 !important; }
+  .page-frame img { height:80px !important; max-height:80px !important; max-width:210px !important; width:auto !important; }
+  .page-frame [style*="font-size:46px"],
+  .page-frame [style*="font-size:42px"],
+  .page-frame [style*="font-size:38px"] { font-size:18pt !important; line-height:1.05 !important; }
+  .page-frame [style*="font-size:26px"] { font-size:13pt !important; }
+  .page-frame [style*="font-size:24px"] { font-size:12pt !important; }
+  .page-frame [style*="font-size:19px"] { font-size:10.5pt !important; }
+  .page-frame [style*="font-size:16px"],
+  .page-frame [style*="font-size:15px"] { font-size:9.5pt !important; line-height:1.3 !important; }
+  .page-frame [style*="font-size:14px"] { font-size:9pt !important; line-height:1.25 !important; }
+  .page-frame [style*="font-size:13.5px"],
+  .page-frame [style*="font-size:13px"] { font-size:8.5pt !important; line-height:1.25 !important; }
+  .page-frame [style*="font-size:12.5px"],
+  .page-frame [style*="font-size:12px"] { font-size:8pt !important; }
+  .page-frame [style*="font-size:11.5px"],
+  .page-frame [style*="font-size:11px"] { font-size:7.5pt !important; }
+  .page-frame [style*="font-size:30px"] { font-size:14pt !important; }
+  .page-frame [style*="margin-top:42px"] { margin-top:10pt !important; }
+  .page-frame [style*="margin-top:22px"],
+  .page-frame [style*="margin-top:18px"] { margin-top:6pt !important; }
+  .page-frame [style*="margin-top:16px"],
+  .page-frame [style*="margin-top:14px"],
+  .page-frame [style*="margin-top:12px"] { margin-top:5pt !important; }
+  .page-frame .signatures { margin-top:auto !important; padding-top:14pt !important; }
+  .page-frame .signatures > div > div { margin-top:22pt !important; }
+  @media screen {
+    body { background:#e2e8f0 !important; padding:12px 0 !important; }
+    .page-frame { box-shadow:0 4px 18px rgba(0,0,0,0.08) !important; outline:1px dashed #cbd5e1; }
+  }
+  @media print {
+    body { background:#fff !important; padding:0 !important; }
+    .page-frame { box-shadow:none !important; outline:none !important; }
+  }
+`;
+
+function wrapA5Page(html: string): string {
+  const styleBlock = `<style data-a5-page="1">${A5_PAGE_CSS}</style>`;
+  if (/<html\b/i.test(html)) {
+    html = html.replace(/<html\b([^>]*)>/i, `<html$1 data-page-mode="a5" data-doc-format="a5">`);
+  }
+  if (/<\/head>/i.test(html)) {
+    return html.replace(/<\/head>/i, `${styleBlock}</head>`);
+  }
+  return styleBlock + html;
+}
+
+const A5_DELIVERY_ROW_LIMIT = 10;
+const isDeliveryNoteTitle = (t?: string) => !!t && /delivery\s*note/i.test(t);
+function applyDeliveryPageMode(html: string, opts: PdfOptions): string {
+  const rows = opts.rows?.length || 0;
+  return rows <= A5_DELIVERY_ROW_LIMIT ? wrapA5Page(html) : tagFullPage(html);
+}
+
 /* ════════════════════════════════════════════════════════════════════════════
    PUBLIC API
 ════════════════════════════════════════════════════════════════════════════ */
 export function generatePdfHtml(opts: PdfOptions): string {
+  if (isDeliveryNoteTitle(opts.title)) return applyDeliveryPageMode(buildA4Html(opts), opts);
   return applyPageMode(buildA4Html(opts), opts);
 }
 
-/** Kept for backward compatibility — returns same polished A4 HTML. */
 export function generateWhatsAppHtml(opts: PdfOptions): string {
+  if (isDeliveryNoteTitle(opts.title)) return applyDeliveryPageMode(buildA4Html(opts), opts);
   return applyPageMode(buildA4Html(opts), opts);
 }
 
 export interface PdfViewSpec { key: string; label: string; color: string; html: string; disabled?: boolean; }
 
-/** Single polished A4 view. Single-item array → PdfPreviewDialog hides the switcher. */
 export function generateDocumentViews(opts: PdfOptions): PdfViewSpec[] {
+  if (isDeliveryNoteTitle(opts.title)) {
+    const rows = opts.rows?.length || 0;
+    const useA5 = rows <= A5_DELIVERY_ROW_LIMIT;
+    const html = useA5 ? wrapA5Page(buildA4Html(opts)) : tagFullPage(buildA4Html(opts));
+    return [{ key: useA5 ? "a5" : "a4", label: useA5 ? "A5 Print" : "A4 Print", color: "bg-slate-900 text-white border-slate-900", html }];
+  }
   const mode = resolvePageMode(opts.pageMode ?? (opts.settings as any)?.document_page_mode, opts.rows?.length || 0, HALF_PAGE_ROW_LIMIT);
   const label = mode === "half" ? "Half A4" : "A4 Print";
   return [
