@@ -82,12 +82,21 @@ export default function Payments() {
  }
  }, [searchParams]);
 
- useEffect(() => { load(); }, [pagination.page, tab]);
+ const debouncedSearch = useDebouncedValue(search, 300);
+ useEffect(() => { pagination.setPage(0); }, [debouncedSearch, tab]);
+ useEffect(() => { load(); }, [pagination.page, tab, debouncedSearch]);
 
  const load = async () => {
  let payQuery = supabase.from("payments").select("*", { count: "exact" }).order("created_at", { ascending: false });
  if (tab === "received") payQuery = payQuery.eq("type", "received");
  if (tab === "made") payQuery = payQuery.eq("type", "made");
+ const q = debouncedSearch.trim();
+ if (q) {
+   const safe = escIlike(q);
+   const partyIds = [...(await searchCustomerIds(q)), ...(await searchSupplierIds(q))];
+   const idClause = partyIds.length > 0 ? `,party_id.in.(${partyIds.join(",")})` : "";
+   payQuery = payQuery.or(`payment_number.ilike.%${safe}%,reference.ilike.%${safe}%,cheque_number.ilike.%${safe}%,notes.ilike.%${safe}%${idClause}`);
+ }
  payQuery = payQuery.range(pagination.from, pagination.to);
  const [pay, cust, sup, banks, prnt] = await Promise.all([
  payQuery,
