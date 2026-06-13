@@ -56,18 +56,60 @@ export function ProductBatchProfileDialog({
     return ((salePrice - landedCost) / landedCost) * 100;
   }, [salePrice, landedCost]);
 
+  const reloadBatches = async () => {
+    if (!productId) return;
+    setLoading(true);
+    const [list, prod] = await Promise.all([
+      getActiveBatches(productId),
+      supabase.from("products").select("stock_quantity").eq("id", productId).single(),
+    ]);
+    setBatches(list);
+    setStockQty(Number((prod.data as any)?.stock_quantity ?? 0));
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (!open || !productId) return;
     setRows([{ type: "printing", amount: "0" }, { type: "freight", amount: "0" }]);
-    setLoading(true);
-    Promise.all([
-      getActiveBatches(productId),
-      supabase.from("products").select("stock_quantity").eq("id", productId).single(),
-    ]).then(([list, prod]) => {
-      setBatches(list);
-      setStockQty(Number((prod.data as any)?.stock_quantity ?? 0));
-    }).finally(() => setLoading(false));
+    setEditingBatch(null);
+    reloadBatches();
   }, [open, productId]);
+
+  const adjustBatch = async (batchNumber: string | null, currentQty: number, newQty: number, reason: string) => {
+    if (!productId) return;
+    const delta = newQty - currentQty;
+    if (delta === 0) { setEditingBatch(null); return; }
+    setBusyBatch(batchNumber ?? "__nobatch__");
+    try {
+      const moveType = delta > 0 ? "adjustment_in" : "adjustment_out";
+      const { error } = await supabase.from("stock_movements").insert({
+        product_id: productId,
+        movement_type: moveType,
+        quantity: Math.abs(delta),
+        batch_number: batchNumber,
+        date: new Date().toISOString().slice(0, 10),
+        notes: reason,
+      });
+      if (error) throw error;
+      void logAudit({
+        action: "stock_adjusted",
+        entity_type: "stock_movement",
+        entity_id: productId,
+        entity_number: batchNumber || "no-batch",
+        changes: { was: currentQty, now: newQty, delta, reason },
+      });
+      toast.success(`Batch ${batchNumber || ""} updated: ${currentQty.toLocaleString()} → ${newQty.toLocaleString()}`);
+      setEditingBatch(null);
+      await reloadBatches();
+    } catch (e: any) {
+      toast.error("Failed: " + e.message);
+    } finally {
+      setBusyBatch(null);
+    }
+  };
+
+  const deleteBatch = (b: ActiveBatch) =>
+    adjustBatch(b.batch_number, b.on_hand, 0, `Batch ${b.batch_number} removed via batch drawer`);
 
   const updateRow = (i: number, patch: Partial<CostRow>) =>
     setRows(rs => rs.map((r, idx) => idx === i ? { ...r, ...patch } : r));
