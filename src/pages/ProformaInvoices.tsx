@@ -633,14 +633,14 @@ export default function ProformaInvoices() {
      partyAccountCode: c.old_erp_account_code || undefined,
      validity: `Valid for ${order.validity_days} days`,
      paymentTerms: order.payment_instructions || undefined,
-      columns: [
-        { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
-        { header: "MRP", key: "mrp", align: "right" },
-        { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
-        { header: "Disc%", key: "discount_pct", align: "right" },
-        ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
-        { header: "Amount", key: "amount", align: "right" },
-      ],
+       columns: [
+         { header: "#", key: "idx" }, { header: "Product", key: "product_name" },
+         { header: "Qty", key: "quantity", align: "right" }, { header: "Rate", key: "rate", align: "right" },
+         { header: "Disc%", key: "discount_pct", align: "right" },
+         ...(settings?.gst_enabled ? [{ header: "GST%", key: "gst_rate", align: "right" as const }] : []),
+         { header: "MRP", key: "mrp", align: "right" },
+         { header: "Amount", key: "amount", align: "right" },
+       ],
       rows: pfItems.map((i: any, idx: number) => {
         const catalogMrp = Number(products.find(p => p.id === i.product_id)?.mrp || 0);
         const mrpVal = Number(i.mrp || catalogMrp || 0);
@@ -730,16 +730,16 @@ export default function ProformaInvoices() {
       partyAddress: __c.address || undefined,
       partyAccountCode: __c.old_erp_account_code || undefined,
       paymentTerms: (inv as any).payment_terms || undefined,
-      columns: [
-        { header: "#", key: "idx" },
-        { header: "Product", key: "name" },
-        { header: "Batch #", key: "batch_number" },
-        { header: "Expiry", key: "expiry_date" },
-        { header: "MRP", key: "mrp", align: "right" },
-        { header: "Qty", key: "quantity", align: "right" },
-        { header: "Rate", key: "rate", align: "right" },
-        { header: "Amount", key: "amount", align: "right" },
-      ],
+       columns: [
+         { header: "#", key: "idx" },
+         { header: "Product", key: "name" },
+         { header: "Batch #", key: "batch_number" },
+         { header: "Expiry", key: "expiry_date" },
+         { header: "Qty", key: "quantity", align: "right" },
+         { header: "Rate", key: "rate", align: "right" },
+         { header: "Amount", key: "amount", align: "right" },
+         { header: "MRP", key: "mrp", align: "right" },
+       ],
       rows: items.map((i: any, idx: number) => {
         const exp = i.expiry_date || expiryMap[`${i.product_id}__${i.batch_number}`] || null;
         const mrp = Number(i.products?.mrp || 0);
@@ -807,8 +807,8 @@ export default function ProformaInvoices() {
         { header: "Product", key: "product_name" },
         { header: "Batch #", key: "batch_number" },
         { header: "Expiry", key: "expiry_date" },
-        { header: "MRP", key: "mrp", align: "right" },
         { header: "Qty", key: "quantity", align: "right" },
+        { header: "MRP", key: "mrp", align: "right" },
       ],
       rows: dnItems.map((i: any, idx: number) => {
         const exp = i.expiry_date || expiryMap[`${i.product_id}__${i.batch_number}`] || null;
@@ -1263,14 +1263,14 @@ export default function ProformaInvoices() {
             <div className="hidden md:block rounded-lg border border-border overflow-hidden bg-card">
               <div className="overflow-x-auto">
                 <div className="min-w-[1000px]">
-                  <div className="grid grid-cols-[32px_minmax(260px,1fr)_100px_80px_100px_80px_80px_140px_40px] gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <div className="grid grid-cols-[32px_minmax(260px,1fr)_80px_100px_80px_80px_100px_140px_40px] gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
                     <div>#</div>
                     <div>Product</div>
-                    <div className="text-right">MRP</div>
                     <div className="text-right">Qty</div>
                     <div className="text-right">Rate</div>
                     <div className="text-right">Disc %</div>
                     {settings?.gst_enabled ? <div className="text-right">GST %</div> : <div />}
+                    <div className="text-right">MRP</div>
                     <div className="text-right">Line Total</div>
                     <div />
                   </div>
@@ -1281,16 +1281,13 @@ export default function ProformaInvoices() {
                     const effectiveMrp = Number(item.mrp || catalogMrp || 0);
                     const aboveMrp = effectiveMrp > 0 && Number(item.rate) > effectiveMrp;
                     return (
-                    <div key={idx} className="grid grid-cols-[32px_minmax(260px,1fr)_100px_80px_100px_80px_80px_140px_40px] gap-2 px-3 py-2 items-center border-t border-border/60 hover:bg-muted/20">
+                    <div key={idx} className="grid grid-cols-[32px_minmax(260px,1fr)_80px_100px_80px_80px_100px_140px_40px] gap-2 px-3 py-2 items-center border-t border-border/60 hover:bg-muted/20">
                       <div className="text-[12px] font-mono text-muted-foreground">{idx + 1}</div>
                       <div className="min-w-0">
                         <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Search by name, code, supplier…" triggerClassName="h-9 text-[14px]" />
                         {item.last_price !== undefined && item.last_price !== null && (
                           <div className="text-[11px] text-success mt-0.5 ml-1">Last: PKR {Number(item.last_price).toLocaleString()}</div>
                         )}
-                      </div>
-                      <div>
-                        <Input type="number" value={item.mrp ?? ""} onChange={e => updateItem(idx, "mrp", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder={catalogMrp ? String(catalogMrp) : "0"} />
                       </div>
                       <div>
                         <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="0" />
@@ -1307,6 +1304,9 @@ export default function ProformaInvoices() {
                           <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="17" />
                         </div>
                       ) : <div />}
+                      <div>
+                        <Input type="number" value={item.mrp ?? ""} onChange={e => updateItem(idx, "mrp", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums text-muted-foreground" placeholder={catalogMrp ? String(catalogMrp) : "—"} title="Market Retail Price — printed for reference, not used in totals" />
+                      </div>
                       <div className="text-right text-[15px] font-mono font-semibold text-foreground tabular-nums">
                         {Number(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </div>
@@ -1318,6 +1318,9 @@ export default function ProformaInvoices() {
                     </div>
                   );})}
                 </div>
+              </div>
+              <div className="px-3 py-2 text-[11px] text-muted-foreground border-t border-border bg-muted/20">
+                MRP is the Market Retail Price printed on the pack — shown for reference only and never included in line totals or invoice math.
               </div>
             </div>
 
@@ -1337,10 +1340,6 @@ export default function ProformaInvoices() {
                   <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product…" triggerClassName="h-10 text-[14px]" />
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-[11px] text-muted-foreground">MRP</Label>
-                      <Input type="number" value={item.mrp ?? ""} onChange={e => updateItem(idx, "mrp", e.target.value)} className="h-10 text-right text-[15px] font-mono" placeholder="MRP" />
-                    </div>
-                    <div>
                       <Label className="text-[11px] text-muted-foreground">Qty</Label>
                       <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="h-10 text-right text-[15px] font-mono" />
                     </div>
@@ -1358,6 +1357,10 @@ export default function ProformaInvoices() {
                         <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="h-10 text-right text-[15px] font-mono" />
                       </div>
                     )}
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground">MRP <span className="text-[9px] uppercase tracking-wider">(ref)</span></Label>
+                      <Input type="number" value={item.mrp ?? ""} onChange={e => updateItem(idx, "mrp", e.target.value)} className="h-10 text-right text-[15px] font-mono text-muted-foreground" placeholder="MRP" />
+                    </div>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t border-border">
                     <span className="text-[12px] uppercase tracking-wider text-muted-foreground">Line Total</span>
@@ -1666,68 +1669,185 @@ export default function ProformaInvoices() {
  </DialogContent>
  </Dialog>
 
- {/* ═══ EDIT ORDER DIALOG ═══ */}
- <Dialog open={editOpen} onOpenChange={setEditOpen}>
- <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
- <DialogHeader><DialogTitle className="font-heading">Edit Order {editOrder?.proforma_number}</DialogTitle></DialogHeader>
- {editOrder && (
- <div className="space-y-4">
- <div className="grid grid-cols-2 gap-3">
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Customer</Label>
- <SearchableSelect options={customerOptions} value={editCustomerId} onChange={setEditCustomerId} placeholder="Customer..." />
- </div>
- <div>
- <Label className="text-xs font-medium text-muted-foreground">Sales Agent</Label>
- <SearchableSelect
- options={agentsList.map(a => ({ value: a.id, label: a.name }))}
- value={editAgentId} onChange={setEditAgentId} placeholder="Auto / Select..."
- />
- </div>
- <div><Label className="text-xs font-medium text-muted-foreground">Date</Label><Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} /></div>
- </div>
- <div><Label className="text-xs font-medium text-muted-foreground">Validity (days)</Label><Input type="number" value={editValidity} onChange={e => setEditValidity(e.target.value)} /></div>
- <div><Label className="text-xs font-medium text-muted-foreground">Payment Instructions</Label><Textarea value={editPaymentInstr} onChange={e => setEditPaymentInstr(e.target.value)} rows={2} /></div>
- <Separator />
- <div className="flex items-center justify-between">
- <Label className="text-sm font-semibold">Items</Label>
- <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: 17, amount: 0, discount_pct: 0, mrp: 0 }])} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add</Button>
- </div>
-  {editItems.map((item, idx) => {
-  const catalogMrp = Number(products.find(p => p.id === item.product_id)?.mrp || 0);
-  return (
-  <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-  <div className="col-span-3">
-    <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product" triggerClassName="text-xs h-9" />
-    {catalogMrp ? <span className="block text-[10px] text-muted-foreground mt-1 tabular-nums">Catalog MRP PKR {catalogMrp.toLocaleString()}</span> : null}
-  </div>
-  <div className="col-span-2"><Input type="number" value={item.mrp ?? ""} onChange={e => updateEditItem(idx, "mrp", e.target.value)} className="text-xs tabular-nums" placeholder="MRP" /></div>
-  <div className="col-span-1"><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="text-xs tabular-nums" placeholder="Qty" /></div>
-  <div className="col-span-2 relative">
-  <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="text-xs tabular-nums" placeholder="Rate" />
-  {item.last_price !== undefined && item.last_price !== null && (
-  <span className="absolute -bottom-4 left-0 text-[10px] text-success font-medium">Last: PKR {Number(item.last_price).toLocaleString()}</span>
-  )}
-  </div>
-  <div className="col-span-1"><Input type="number" value={item.discount_pct || 0} onChange={e => updateEditItem(idx, "discount_pct", e.target.value)} className="text-xs tabular-nums" placeholder="Disc%" /></div>
-  <div className="col-span-2 text-right text-xs font-mono pt-2 tabular-nums">{item.amount.toLocaleString()}</div>
-  <div className="col-span-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
-  </div>
-  );})}
- {(() => { const t = calcTotals(editItems); return (
- <div className="border-t border-border pt-3 space-y-1 text-sm">
- <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="font-mono">{t.subtotal.toLocaleString()}</span></div>
- <div className="flex justify-between font-bold text-foreground"><span>Total</span><span className="font-mono">PKR {t.total.toLocaleString()}</span></div>
- </div>
- ); })()}
- <div className="flex gap-2">
- <Button onClick={handleEditSave} disabled={saving} className="flex-1">{saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Save</Button>
- <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
- </div>
- </div>
- )}
- </DialogContent>
- </Dialog>
+  {/* ═══ EDIT ORDER DIALOG ═══ */}
+  <Dialog open={editOpen} onOpenChange={setEditOpen}>
+  <DialogContent className="w-[95vw] max-w-[1400px] h-[92vh] p-0 gap-0 flex flex-col overflow-hidden sm:rounded-lg">
+    {/* STICKY HEADER */}
+    <DialogHeader className="px-6 py-4 border-b border-border bg-card flex-row items-center justify-between space-y-0 shrink-0">
+      <div>
+        <DialogTitle className="font-heading text-[24px] leading-tight">Edit Sales Order · <span className="font-mono text-primary">{editOrder?.proforma_number}</span></DialogTitle>
+        <p className="text-[13px] text-muted-foreground mt-0.5">Update items, rates and discounts. MRP is a reference figure only — it never affects totals.</p>
+      </div>
+    </DialogHeader>
+
+    {/* BODY */}
+    <div className="flex-1 overflow-y-auto px-6 py-5">
+      {editOrder && (
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+          {/* LEFT COLUMN */}
+          <div className="space-y-6 min-w-0">
+            {/* CUSTOMER SECTION */}
+            <section>
+              <h3 className="text-[18px] font-semibold mb-3 text-foreground">Customer & Order Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div className="xl:col-span-2">
+                  <Label className="text-[14px] font-medium text-foreground">Customer</Label>
+                  <div className="mt-1.5">
+                    <SearchableSelect options={customerOptions} value={editCustomerId} onChange={setEditCustomerId} placeholder="Search customers…" triggerClassName="h-11 text-[15px]" />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-[14px] font-medium text-foreground">Sales Agent</Label>
+                  <div className="mt-1.5">
+                    <SearchableSelect options={agentsList.map(a => ({ value: a.id, label: a.name }))} value={editAgentId} onChange={setEditAgentId} placeholder="Auto / Select…" triggerClassName="h-11 text-[15px]" />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-[14px] font-medium text-foreground">Order Date</Label>
+                  <Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className="mt-1.5 h-11 text-[15px]" />
+                </div>
+                <div>
+                  <Label className="text-[14px] font-medium text-foreground">Validity (days)</Label>
+                  <Input type="number" value={editValidity} onChange={e => setEditValidity(e.target.value)} className="mt-1.5 h-11 text-[15px]" />
+                </div>
+                <div className="md:col-span-2 xl:col-span-4">
+                  <Label className="text-[14px] font-medium text-foreground">Payment Instructions</Label>
+                  <Textarea value={editPaymentInstr} onChange={e => setEditPaymentInstr(e.target.value)} rows={2} className="mt-1.5 text-[15px]" />
+                </div>
+              </div>
+            </section>
+
+            {/* ITEMS SECTION */}
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[18px] font-semibold text-foreground">Items</h3>
+                <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { product_id: "", product_name: "", quantity: 1, rate: 0, gst_rate: settings?.gst_enabled ? Number(settings.default_gst_rate) : 0, amount: 0, discount_pct: 0, mrp: 0 }])} className="gap-1.5 text-[13px] h-8"><Plus className="h-3.5 w-3.5" /> Add Item</Button>
+              </div>
+
+              {/* DESKTOP TABLE */}
+              <div className="hidden md:block rounded-lg border border-border overflow-hidden bg-card">
+                <div className="overflow-x-auto">
+                  <div className="min-w-[1000px]">
+                    <div className="grid grid-cols-[32px_minmax(260px,1fr)_80px_100px_80px_80px_100px_140px_40px] gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
+                      <div>#</div>
+                      <div>Product</div>
+                      <div className="text-right">Qty</div>
+                      <div className="text-right">Rate</div>
+                      <div className="text-right">Disc %</div>
+                      {settings?.gst_enabled ? <div className="text-right">GST %</div> : <div />}
+                      <div className="text-right">MRP</div>
+                      <div className="text-right">Line Total</div>
+                      <div />
+                    </div>
+                    {editItems.length === 0 ? (
+                      <div className="px-3 py-10 text-center text-[14px] text-muted-foreground">No items — click "Add Item".</div>
+                    ) : editItems.map((item, idx) => {
+                      const catalogMrp = Number(products.find(p => p.id === item.product_id)?.mrp || 0);
+                      const effectiveMrp = Number(item.mrp || catalogMrp || 0);
+                      const aboveMrp = effectiveMrp > 0 && Number(item.rate) > effectiveMrp;
+                      return (
+                        <div key={idx} className="grid grid-cols-[32px_minmax(260px,1fr)_80px_100px_80px_80px_100px_140px_40px] gap-2 px-3 py-2 items-center border-t border-border/60 hover:bg-muted/20">
+                          <div className="text-[12px] font-mono text-muted-foreground">{idx + 1}</div>
+                          <div className="min-w-0">
+                            <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Search by name, code…" triggerClassName="h-9 text-[14px]" />
+                            {item.last_price !== undefined && item.last_price !== null && (
+                              <div className="text-[11px] text-success mt-0.5 ml-1">Last: PKR {Number(item.last_price).toLocaleString()}</div>
+                            )}
+                          </div>
+                          <div><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="0" /></div>
+                          <div>
+                            <Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className={`h-9 text-right text-[14px] font-mono tabular-nums ${aboveMrp ? "border-warning text-warning" : ""}`} placeholder="0.00" />
+                            {aboveMrp && <div className="text-[10px] text-warning mt-0.5 text-right">Above MRP</div>}
+                          </div>
+                          <div><Input type="number" value={item.discount_pct || 0} onChange={e => updateEditItem(idx, "discount_pct", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="0" /></div>
+                          {settings?.gst_enabled ? (
+                            <div><Input type="number" value={item.gst_rate} onChange={e => updateEditItem(idx, "gst_rate", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="17" /></div>
+                          ) : <div />}
+                          <div><Input type="number" value={item.mrp ?? ""} onChange={e => updateEditItem(idx, "mrp", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums text-muted-foreground" placeholder={catalogMrp ? String(catalogMrp) : "—"} title="Market Retail Price — printed for reference, not used in totals" /></div>
+                          <div className="text-right text-[15px] font-mono font-semibold text-foreground tabular-nums">{Number(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}</div>
+                          <div className="flex justify-end">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))} aria-label="Remove"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="px-3 py-2 text-[11px] text-muted-foreground border-t border-border bg-muted/20">
+                  MRP is the Market Retail Price printed on the pack — reference only, never included in totals.
+                </div>
+              </div>
+
+              {/* MOBILE CARDS */}
+              <div className="md:hidden space-y-3">
+                {editItems.map((item, idx) => (
+                  <div key={idx} className="rounded-lg border border-border bg-card p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-mono text-muted-foreground">Line #{idx + 1}</span>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </div>
+                    <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateEditItem(idx, "product_id", v)} placeholder="Product…" triggerClassName="h-10 text-[14px]" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label className="text-[11px] text-muted-foreground">Qty</Label><Input type="number" value={item.quantity} onChange={e => updateEditItem(idx, "quantity", e.target.value)} className="h-10 text-right text-[15px] font-mono" /></div>
+                      <div><Label className="text-[11px] text-muted-foreground">Rate</Label><Input type="number" value={item.rate} onChange={e => updateEditItem(idx, "rate", e.target.value)} className="h-10 text-right text-[15px] font-mono" /></div>
+                      <div><Label className="text-[11px] text-muted-foreground">Disc %</Label><Input type="number" value={item.discount_pct || 0} onChange={e => updateEditItem(idx, "discount_pct", e.target.value)} className="h-10 text-right text-[15px] font-mono" /></div>
+                      {settings?.gst_enabled && (
+                        <div><Label className="text-[11px] text-muted-foreground">GST %</Label><Input type="number" value={item.gst_rate} onChange={e => updateEditItem(idx, "gst_rate", e.target.value)} className="h-10 text-right text-[15px] font-mono" /></div>
+                      )}
+                      <div><Label className="text-[11px] text-muted-foreground">MRP <span className="text-[9px] uppercase">(ref)</span></Label><Input type="number" value={item.mrp ?? ""} onChange={e => updateEditItem(idx, "mrp", e.target.value)} className="h-10 text-right text-[15px] font-mono text-muted-foreground" /></div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-border">
+                      <span className="text-[12px] uppercase tracking-wider text-muted-foreground">Line Total</span>
+                      <span className="text-[18px] font-mono font-semibold tabular-nums">PKR {Number(item.amount || 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          {/* RIGHT COLUMN: Totals card */}
+          <aside className="lg:sticky lg:top-0 self-start">
+            {(() => { const t = calcTotals(editItems); return (
+              <div className="rounded-lg border border-border bg-card p-5 space-y-3">
+                <div className="text-[12px] uppercase tracking-widest text-muted-foreground font-semibold">Order Summary</div>
+                <div className="space-y-2 text-[14px]">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span className="font-mono tabular-nums text-foreground">{t.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  {settings?.gst_enabled && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>GST</span>
+                      <span className="font-mono tabular-nums text-foreground">{t.gst.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                </div>
+                <Separator />
+                <div>
+                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold mb-1">Grand Total</div>
+                  <div className="text-[32px] font-mono font-bold tabular-nums leading-none">PKR {t.total.toLocaleString(undefined, { minimumFractionDigits: 0 })}</div>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[11px] text-muted-foreground">{editItems.filter(i => i.product_id).length} items</span>
+                  <span className="text-[11px] text-muted-foreground">{editItems.reduce((s, i) => s + (Number(i.quantity) || 0), 0)} units</span>
+                </div>
+              </div>
+            ); })()}
+          </aside>
+        </div>
+      )}
+    </div>
+
+    {/* STICKY FOOTER */}
+    <div className="border-t border-border bg-card px-6 py-3 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 shrink-0">
+      <Button variant="ghost" onClick={() => setEditOpen(false)} className="h-10 text-[14px]">Cancel</Button>
+      <Button onClick={handleEditSave} disabled={saving} className="h-10 text-[14px] font-semibold gap-2">
+        {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save Changes
+      </Button>
+    </div>
+  </DialogContent>
+  </Dialog>
 
  {/* ═══ SUBMIT DIALOG (Batch + Dispatch) ═══ */}
  <Dialog open={submitOpen} onOpenChange={setSubmitOpen}>
