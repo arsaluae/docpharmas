@@ -217,7 +217,7 @@ export default function WarrantyInvoices() {
    const safe = escIlike(term);
    const custIds = await searchCustomerIds(term);
    const idClause = custIds.length > 0 ? `,customer_id.in.(${custIds.join(",")})` : "";
-   invQuery = invQuery.or(`warranty_number.ilike.%${safe}%,invoice_number.ilike.%${safe}%${idClause}`);
+   invQuery = invQuery.or(`warranty_number.ilike.%${safe}%,pharmacy_name.ilike.%${safe}%${idClause}`);
  }
  const [inv, cust, prod] = await Promise.all([
  invQuery.range(pagination.from, pagination.to),
