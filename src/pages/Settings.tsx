@@ -105,6 +105,11 @@ export default function Settings() {
     warranty_stamp_url: "",
     warranty_signature_url: "",
     warranty_footer_text: "",
+    warranty_show_company_stamp: true,
+    warranty_show_rep_signature: true,
+    warranty_show_prepared_by: true,
+    warranty_show_agent_license_number: true,
+    warranty_show_agent_license_expiry: true,
     document_page_mode: "auto" as "half" | "full" | "auto",
   });
 
