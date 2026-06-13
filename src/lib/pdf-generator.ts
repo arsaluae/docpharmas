@@ -439,9 +439,10 @@ const HALF_PAGE_CSS = `
     display: flex; flex-direction: column;
   }
   /* Density pass — preserve layout, shrink chrome */
-  .page-frame img { max-height: 56px !important; }
+  .page-frame img { max-height: 100px !important; }
+  .page-frame [style*="font-size:46px"],
   .page-frame [style*="font-size:42px"],
-  .page-frame [style*="font-size:26px"] { font-size: 14pt !important; }
+  .page-frame [style*="font-size:26px"] { font-size: 15pt !important; }
   .page-frame [style*="font-size:24px"] { font-size: 12pt !important; }
   .page-frame [style*="font-size:19px"] { font-size: 10.5pt !important; }
   .page-frame [style*="font-size:16px"],
