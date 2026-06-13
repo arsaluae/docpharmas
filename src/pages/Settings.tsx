@@ -207,6 +207,17 @@ export default function Settings() {
  toast.success("Logo uploaded");
  };
 
+ const uploadWarrantyAsset = async (file: File, kind: "stamp" | "signature"): Promise<string | null> => {
+   if (!tenantId) { toast.error("Tenant not loaded"); return null; }
+   const ext = file.name.split(".").pop() || "png";
+   const path = `${tenantId}/warranty-${kind}-${Date.now()}.${ext}`;
+   const { error } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true, contentType: file.type });
+   if (error) { toast.error(`${kind} upload failed`); return null; }
+   const { data: { publicUrl } } = supabase.storage.from("company-assets").getPublicUrl(path);
+   return publicUrl;
+ };
+
+
  const fetchAllRows = async (tableName: string) => {
  const PAGE_SIZE = 500;
  let allData: any[] = [];
