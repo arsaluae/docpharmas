@@ -185,15 +185,11 @@ function buildA4Html(opts: PdfOptions): string {
      Logo uses crossorigin + onerror fallback so a broken/blocked image swaps to
      a large branded text block instead of leaving the left side blank. */
   const safeCompany = escapeHtml(companyName);
-  const logoFallback = `<div style="font-size:38px;font-weight:800;color:${C.text};letter-spacing:-0.5px;line-height:1.05;">${safeCompany}</div>`;
   const logoHtml = s?.logo_url
-    ? `<div class="brand-logo-wrap" style="min-height:120px;display:flex;align-items:center;">
-         <img src="${s.logo_url}" alt="${safeCompany}" crossorigin="anonymous"
-              style="height:auto;max-height:140px;max-width:360px;width:auto;object-fit:contain;display:block;"
-              onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
-         <div style="display:none;font-size:38px;font-weight:800;color:${C.text};letter-spacing:-0.5px;line-height:1.05;">${safeCompany}</div>
-       </div>`
-    : logoFallback;
+    ? `<img src="${s.logo_url}" alt="${safeCompany}" crossorigin="anonymous"
+            style="height:64px;max-height:64px;max-width:260px;width:auto;object-fit:contain;display:block;"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';" /><div style="display:none;font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`
+    : `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`;
 
   const addressLine = [s?.address, (s as any)?.city].filter(Boolean).join(", ");
   const phoneLine = [s?.phone ? `Tel: ${s.phone}` : null, (s as any)?.whatsapp_number ? `Mob: ${(s as any).whatsapp_number}` : null].filter(Boolean).join("  ·  ");
@@ -202,15 +198,15 @@ function buildA4Html(opts: PdfOptions): string {
 
   const companyBlock = `
     <div style="text-align:right;">
-      ${s?.logo_url ? `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.2px;line-height:1.2;">${safeCompany}</div>` : ""}
-      ${tagline ? `<div style="font-size:14px;font-style:italic;color:${C.textMuted};margin-top:3px;">${escapeHtml(tagline)}</div>` : ""}
-      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:14px;color:${C.textMuted};line-height:1.65;margin-top:2px;word-break:break-word;">${escapeHtml(l)}</div>`).join("")}
+      <div style="font-size:22px;font-weight:800;color:${C.text};letter-spacing:-0.2px;line-height:1.15;">${safeCompany}</div>
+      ${tagline ? `<div style="font-size:13px;font-style:italic;color:${C.textMuted};margin-top:2px;">${escapeHtml(tagline)}</div>` : ""}
+      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:12.5px;color:${C.textMuted};line-height:1.5;margin-top:1px;word-break:break-word;">${escapeHtml(l)}</div>`).join("")}
     </div>`;
 
   /* ── DOCUMENT TITLE (centered) ── */
   const titleBlock = `
-    <div style="text-align:center;margin-top:22px;padding-top:16px;border-top:2px solid ${C.text};">
-      <div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:1.2px;text-transform:uppercase;">${escapeHtml(docTitle)}</div>
+    <div style="text-align:center;margin-top:14px;">
+      <div style="font-size:24px;font-weight:800;color:${C.text};letter-spacing:1.2px;text-transform:uppercase;">${escapeHtml(docTitle)}</div>
       <div style="height:2px;width:90px;background:${C.primary};margin:7px auto 0;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div>
     </div>`;
 
@@ -383,9 +379,12 @@ function buildA4Html(opts: PdfOptions): string {
     box-shadow:0 4px 18px rgba(0,0,0,0.18); }
   .toolbar-title { color:#fff; font-size:13px; font-weight:600; letter-spacing:0.3px; }
   .toolbar-btn { background:${C.primary}; color:#fff; border:none; padding:8px 18px; font-size:12.5px; font-weight:600; border-radius:4px; cursor:pointer; }
-  .page-frame { max-width:794px; margin:32px auto 0; padding:24px 28px 20px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; }
-  .doc-header { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
-  .doc-header > div:first-child { flex:0 0 340px; min-width:260px; }
+  .page-frame { position:relative; max-width:794px; margin:0 auto; padding:18px 28px 20px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; overflow:hidden; }
+  .page-frame > * { position:relative; z-index:1; }
+  .doc-watermark { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:0; overflow:hidden; }
+  .doc-watermark span { font-size:78px; font-weight:900; letter-spacing:8px; color:rgba(15,23,42,0.055); transform:rotate(-26deg); white-space:nowrap; text-transform:uppercase; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .doc-header { display:flex; align-items:center; justify-content:space-between; gap:24px; padding-bottom:12px; border-bottom:1px solid ${C.border}; }
+  .doc-header > div:first-child { flex:0 0 auto; }
   /* Pagination-safe defaults (apply during html2canvas snapshot too, not only @media print) */
   table { page-break-inside:auto; }
   thead { display:table-header-group; }
@@ -407,8 +406,9 @@ function buildA4Html(opts: PdfOptions): string {
 </div>
 
 <div class="page-frame">
+  <div class="doc-watermark" aria-hidden="true"><span>${safeCompany}</span></div>
   <div class="doc-header">
-    <div style="flex-shrink:0;">${logoHtml}</div>
+    <div>${logoHtml}</div>
     <div style="min-width:0;">${companyBlock}</div>
   </div>
   ${titleBlock}
@@ -453,8 +453,9 @@ const HALF_PAGE_CSS = `
     break-after: avoid !important;
   }
   /* Density pass — preserve layout, shrink chrome to fit upper half (~138mm content) */
-  .page-frame .brand-logo-wrap { min-height: 90px !important; }
-  .page-frame img, .warranty-document img { max-height: 95px !important; max-width: 280px !important; }
+  .page-frame .doc-header { padding-bottom: 6pt !important; }
+  .page-frame img { max-height: 48px !important; height: 48px !important; max-width: 200px !important; }
+  .page-frame .doc-watermark span { font-size: 60px !important; letter-spacing: 6px !important; }
   .page-frame [style*="font-size:46px"],
   .page-frame [style*="font-size:42px"],
   .page-frame [style*="font-size:38px"] { font-size: 22pt !important; line-height: 1.05 !important; }
@@ -740,6 +741,7 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     -webkit-font-smoothing:antialiased;
   }
   .warranty-document {
+    position: relative;
     width: 190mm;
     max-width: 190mm;
     margin: 0 auto;
@@ -747,6 +749,9 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     overflow: visible;
     box-sizing: border-box;
   }
+  .warranty-document > * { position: relative; z-index: 1; }
+  .warranty-watermark { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:0; overflow:hidden; }
+  .warranty-watermark span { font-size:78px; font-weight:900; letter-spacing:8px; color:rgba(15,23,42,0.055); transform:rotate(-26deg); white-space:nowrap; text-transform:uppercase; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   table { border-collapse: collapse; }
   .items-table {
     width: 100%;
@@ -764,11 +769,13 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   }
 </style></head><body><div class="warranty-document">
 
+  <div class="warranty-watermark" aria-hidden="true"><span>${escapeHtml(company)}</span></div>
+
   <section data-pdf-section="header" class="no-break">
     <table style="width:100%;border-collapse:collapse;">
       <tr>
-        <td style="width:35%;vertical-align:top;">${logo}</td>
-        <td style="width:65%;vertical-align:top;text-align:right;">
+        <td style="width:35%;vertical-align:middle;">${logo}</td>
+        <td style="width:65%;vertical-align:middle;text-align:right;">
           <div style="font-size:18pt;font-weight:800;letter-spacing:-0.3px;color:#0f172a;line-height:1.15;">${escapeHtml(company)}</div>
           ${companyLines.map(l => `<div style="font-size:9pt;color:#475569;line-height:1.5;margin-top:1pt;">${escapeHtml(l)}</div>`).join("")}
         </td>
