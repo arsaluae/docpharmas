@@ -31,15 +31,24 @@ interface PdfPreviewDialogProps {
  * legacy A4 (`.page-frame`) templates without per-document regex.
  */
 const PRINT_CHROME_CSS = `
-  body { margin:0 !important; padding:0 !important; background:#fff !important; }
+  html, body { margin:0 !important; padding:0 !important; background:#fff !important; }
   .toolbar { display:none !important; }
-  .page-frame, .page {
+  .page-frame, .page, .warranty-document {
     box-shadow:none !important;
     border:none !important;
-    margin:0 !important;
+    margin:0 auto !important;
     background:#fff !important;
+    max-width:100% !important;
   }
   .page-frame::before, .corner { display:none !important; }
+  /* Keep rows / sections together across page breaks during snapshot */
+  table { page-break-inside: auto; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tr, .no-break, [data-pdf-section] {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
 `;
 
 function injectChromeCss(html: string): string {
@@ -93,13 +102,14 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
     if (downloading) return;
     setDownloading(true);
     const iframe = document.createElement("iframe");
-    // A4 width at 96dpi = 794px. Keep the iframe sized to that so html2canvas
-    // captures content at the same width jsPDF will lay it out on.
+    // A4 portrait at 96dpi ≈ 794 x 1123 px. Render the document at the EXACT
+    // pixel width that html2canvas will capture so layout & wrap match preview.
+    const CAPTURE_WIDTH = 794;
     iframe.style.position = "fixed";
     iframe.style.left = "-10000px";
     iframe.style.top = "0";
-    iframe.style.width = "794px";
-    iframe.style.height = "1123px"; // A4 height @96dpi — grows automatically
+    iframe.style.width = `${CAPTURE_WIDTH}px`;
+    iframe.style.height = "1123px";
     iframe.style.border = "0";
     iframe.style.background = "#ffffff";
     iframe.setAttribute("aria-hidden", "true");
@@ -126,19 +136,23 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
             img.addEventListener("error", () => res(), { once: true });
           });
         }),
-        // tiny tick to let layout settle
-        new Promise<void>((res) => setTimeout(res, 80)),
+        new Promise<void>((res) => setTimeout(res, 120)),
       ]);
 
       const filename = `${(title || "Document").replace(/[^a-z0-9\-_.]+/gi, "-")}.pdf`;
+
+      // Prefer the actual document body width so warranty (190mm) and A4
+      // templates both render flush. Clamp to CAPTURE_WIDTH to avoid clipping.
       const target = doc.body;
-      // Make sure the content height drives pagination
-      target.style.width = "794px";
       target.style.background = "#ffffff";
+      const measuredWidth = Math.min(
+        CAPTURE_WIDTH,
+        Math.max(target.scrollWidth, target.getBoundingClientRect().width || 0, CAPTURE_WIDTH)
+      );
 
       await html2pdf()
         .set({
-          margin: 0,
+          margin: [8, 8, 8, 8], // mm — small safety margin so edge content isn't trimmed
           filename,
           image: { type: "jpeg", quality: 0.98 },
           html2canvas: {
@@ -146,11 +160,14 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
             useCORS: true,
             allowTaint: false,
             backgroundColor: "#ffffff",
-            windowWidth: 794,
+            windowWidth: measuredWidth,
+            width: measuredWidth,
             logging: false,
+            scrollX: 0,
+            scrollY: 0,
           },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
-          pagebreak: { mode: ["css", "legacy"] },
+          pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".no-break", "[data-pdf-section]"] },
         } as any)
         .from(target)
         .save();
