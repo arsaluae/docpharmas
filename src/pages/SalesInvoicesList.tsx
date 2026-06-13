@@ -106,7 +106,17 @@ export default function SalesInvoicesList() {
             </TableBody>
           </Table>
         </CardContent></Card>
-        <PaginationControls pagination={pagination} />
+        <PaginationControls
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalCount={pagination.totalCount}
+          pageSize={pagination.pageSize}
+          hasNext={pagination.hasNext}
+          hasPrev={pagination.hasPrev}
+          onNext={pagination.nextPage}
+          onPrev={pagination.prevPage}
+          onJump={pagination.setPage}
+        />
       </div>
     </AppLayout>
   );
