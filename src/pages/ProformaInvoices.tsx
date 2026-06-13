@@ -261,15 +261,26 @@ export default function ProformaInvoices() {
  }
  };
 
- // ── SIMPLIFIED LOAD: proforma_invoices only ──
- const load = async () => {
- setLoading(true);
- let pfQuery = supabase.from("proforma_invoices").select("*, customers(customer_code, name, company, phone, sms_mobile, address, city, area, old_erp_account_code)", { count: "exact" }).order("created_at", { ascending: false });
- if (statusFilter !== "all") {
- if (statusFilter === "draft") pfQuery = pfQuery.eq("status", "draft");
- else pfQuery = pfQuery.neq("status", "draft"); // simplified for server-side
- }
- pfQuery = pfQuery.range(pagination.from, pagination.to);
+  // ── SIMPLIFIED LOAD: proforma_invoices only ──
+  const debouncedSearch = useDebouncedValue(search, 300);
+  useEffect(() => { pagination.setPage(0); }, [debouncedSearch, statusFilter, dateRange]);
+  useEffect(() => { load(); }, [pagination.page, statusFilter, debouncedSearch]);
+
+  const load = async () => {
+  setLoading(true);
+  let pfQuery = supabase.from("proforma_invoices").select("*, customers(customer_code, name, company, phone, sms_mobile, address, city, area, old_erp_account_code)", { count: "exact" }).order("created_at", { ascending: false });
+  if (statusFilter !== "all") {
+  if (statusFilter === "draft") pfQuery = pfQuery.eq("status", "draft");
+  else pfQuery = pfQuery.neq("status", "draft"); // simplified for server-side
+  }
+  const q = debouncedSearch.trim();
+  if (q) {
+    const safe = escIlike(q);
+    const custIds = await searchCustomerIds(q);
+    const idClause = custIds.length > 0 ? `,customer_id.in.(${custIds.join(",")})` : "";
+    pfQuery = pfQuery.or(`proforma_number.ilike.%${safe}%${idClause}`);
+  }
+  pfQuery = pfQuery.range(pagination.from, pagination.to);
  // Sales agents cannot read the products base table (cost columns hidden by RLS).
  // Use the cost-free agent_stock_availability view instead — same live data, no cost exposure.
  const prodQuery = isSalesAgent
