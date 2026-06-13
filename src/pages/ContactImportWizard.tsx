@@ -214,7 +214,7 @@ export default function ContactImportWizard() {
           .select("id, customer_id, contact_name, mobile, email")
           .in("customer_id", ids);
         if (error) throw error;
-        existing.push(...((data ?? []) as ExistingContactLite[]));
+        existing.push(...((data ?? []) as unknown as ExistingContactLite[]));
       }
 
       // Group ready contacts by customer to assign primary when none exists.
