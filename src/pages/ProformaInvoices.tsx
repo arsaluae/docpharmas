@@ -35,6 +35,8 @@ import { SalesReturnDialog } from "@/components/sales/SalesReturnDialog";
 import { useDraftAutosave } from "@/hooks/useDraftAutosave";
 import { useTenant } from "@/hooks/useTenant";
 import { useIsSalesAgent } from "@/hooks/useIsSalesAgent";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchCustomerIds } from "@/lib/search-helpers";
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; mrp?: number | null; }
