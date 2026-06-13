@@ -120,24 +120,31 @@ export default function Products() {
   if (!form.name.trim()) { toast.error("Product name required"); return; }
   // Stock quantity is intentionally NOT in update payload — all stock changes must
   // flow through stock_movements so triggers, audit, and negative-stock guard fire.
-    const basePayload = {
+    const basePayload: any = {
     is_active: true,
     name: form.name, sku: form.sku || null, category: form.category,
     drap_reg_number: form.drap_reg_number || null, pack_size: form.pack_size || null, unit: form.unit,
-    cost_price: Number(form.cost_price), selling_price: Number(form.selling_price),
+    purchase_cost: Number(form.purchase_cost), selling_price: Number(form.selling_price),
     mrp: Number(form.mrp) || 0,
     gst_rate: Number(form.gst_rate), reorder_level: Number(form.reorder_level),
     };
   if (editId) {
+  // Don't touch cost_price (landed cache) on plain edit — only purchase_cost changes here.
   await supabase.from("products").update(basePayload).eq("id", editId);
   toast.success("Product updated");
   } else {
-  const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "product" });
-  // Opening stock on create still allowed — write the product then post an opening movement.
+  // Auto-generate SKU if missing
+  let sku = (form.sku || "").trim();
+  if (!sku) {
+    const { data: gen } = await supabase.rpc("generate_sku" as any);
+    sku = (gen as string) || null as any;
+  }
+  // Seed landed cache = purchase cost until landed-cost engine runs.
+  const insertPayload = { ...basePayload, sku, cost_price: Number(form.purchase_cost), stock_quantity: 0 };
   const openingQty = Number(form.stock_quantity) || 0;
   const { data: created, error: createErr } = await supabase
   .from("products")
-  .insert({ ...basePayload, stock_quantity: 0, product_code: code || null } as any)
+  .insert(insertPayload)
   .select("id")
   .single();
   if (createErr) { toast.error("Failed: " + createErr.message); return; }
@@ -151,7 +158,7 @@ export default function Products() {
   notes: "Opening stock set on product creation",
   } as any);
   }
-  toast.success("Product created");
+  toast.success(`Product created — SKU ${sku}`);
   }
   setOpen(false); setForm(emptyForm); setEditId(null); loadAll();
   };
