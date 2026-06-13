@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, RotateCcw, Search, Loader2, Calendar } from "lucide-react";
+import { Plus, Trash2, RotateCcw, Search, Loader2, Calendar, Download } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +16,10 @@ import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { BulkActionBar, useBulkSelection, RowCheckbox } from "@/components/BulkActionBar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
+import { generateDocumentViews } from "@/lib/pdf-generator";
+import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 
 interface ReturnItem { product_id: string; product_name: string; batch_number: string; quantity: string; rate: string; gst_rate: string; }
 
