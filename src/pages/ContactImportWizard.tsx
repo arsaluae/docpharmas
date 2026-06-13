@@ -342,7 +342,7 @@ export default function ContactImportWizard() {
       const mobileMap = new Map<string, string>();
       for (const m of customerMobileUpdates) mobileMap.set(m.id, m.mobile);
       for (const [id, mobile] of mobileMap) {
-        const { error } = await supabase.from("customers").update({ mobile } as any).eq("id", id);
+        const { error } = await supabase.from("customers").update({ sms_mobile: mobile } as any).eq("id", id);
         if (error) errors.push(error.message);
       }
 
