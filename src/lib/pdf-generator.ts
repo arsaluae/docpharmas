@@ -817,39 +817,43 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
 
   const stampImg = (opts.companyStampUrl || s?.warranty_stamp_url || rep.stampUrl);
   const sigImg = (rep.signatureUrl || opts.companySignatureUrl || s?.warranty_signature_url);
-  // .preview-only hides during print/PDF via @media print
-  const stampHtml = stampImg
-    ? `<img src="${stampImg}" alt="Company Stamp" style="max-height:70pt;max-width:160pt;width:auto;height:auto;object-fit:contain;display:block;margin:0 auto 4pt;" />`
-    : `<div class="preview-only" style="height:60pt;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:8.5pt;font-style:italic;border:0.5pt dashed #cbd5e1;border-radius:3pt;">No Company Stamp Uploaded</div><div class="print-only" style="height:60pt;"></div>`;
-  const sigHtml = sigImg
-    ? `<img src="${sigImg}" alt="Signature" style="max-height:50pt;max-width:160pt;width:auto;height:auto;object-fit:contain;display:block;margin:0 auto 4pt;" />`
-    : `<div class="preview-only" style="height:48pt;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:8.5pt;font-style:italic;border:0.5pt dashed #cbd5e1;border-radius:3pt;">No Signature Uploaded</div><div class="print-only" style="height:48pt;"></div>`;
   const repName = rep.name ? `<div style="font-size:9pt;font-weight:600;color:#0f172a;margin-top:2pt;">${escapeHtml(rep.name)}</div>` : "";
   const repLicNo = (showLicNo && rep.licenseNumber) ? `<div style="font-size:8.5pt;color:#475569;margin-top:1pt;">License #: ${escapeHtml(rep.licenseNumber)}</div>` : "";
   const repLicExp = (showLicExp && rep.licenseExpiry) ? `<div style="font-size:8.5pt;color:#475569;margin-top:1pt;">License Expiry: ${escapeHtml(rep.licenseExpiry)}</div>` : "";
-  const preparedBy = showPreparedBy ? `<div style="font-size:7.5pt;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-top:1pt;">Prepared By</div>` : "";
+  // Overlay layout: stamp sits behind signature on the right; "Prepared By" goes left.
+  const stampOverlay = (showStamp && stampImg)
+    ? `<img src="${stampImg}" alt="Company Stamp" style="position:absolute;right:8pt;bottom:26pt;max-height:115pt;max-width:170pt;width:auto;height:auto;object-fit:contain;opacity:0.92;z-index:1;" />`
+    : (showStamp ? `<div class="preview-only" style="position:absolute;right:8pt;bottom:26pt;width:150pt;height:90pt;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:8.5pt;font-style:italic;border:0.5pt dashed #cbd5e1;border-radius:3pt;">Upload company stamp in Settings</div>` : "");
+  const sigOverlay = (showRepSig && sigImg)
+    ? `<img src="${sigImg}" alt="Authorized Signature" style="position:absolute;right:34pt;bottom:42pt;max-height:80pt;max-width:150pt;width:auto;height:auto;object-fit:contain;z-index:2;" />`
+    : (showRepSig ? `<div class="preview-only" style="position:absolute;right:34pt;bottom:48pt;width:130pt;height:50pt;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:8.5pt;font-style:italic;border:0.5pt dashed #cbd5e1;border-radius:3pt;z-index:2;background:rgba(255,255,255,0.6);">Upload authorized signature</div>` : "");
 
-  const stampCell = showStamp ? `
-          <td style="width:50%;padding-right:16pt;vertical-align:bottom;text-align:center;">
-            ${stampHtml}
-            <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.08em;">Company Stamp</div>
-          </td>` : `<td style="width:50%;"></td>`;
-  const sigCell = showRepSig ? `
-          <td style="width:50%;padding-left:16pt;vertical-align:bottom;text-align:center;">
-            ${sigHtml}
-            <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.08em;">Sales Representative Signature</div>
+  const leftFooter = showPreparedBy ? `
+          <td style="width:50%;padding-right:16pt;vertical-align:bottom;">
+            <div style="height:90pt;"></div>
+            <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.08em;">Prepared By</div>
             ${repName}
             ${repLicNo}
             ${repLicExp}
-            ${preparedBy}
           </td>` : `<td style="width:50%;"></td>`;
 
-  const signatureHtml = (showStamp || showRepSig) ? `
-    <section class="no-break" data-pdf-section="signatures" style="margin-top:18pt;">
+  const rightFooter = (showStamp || showRepSig) ? `
+          <td style="width:50%;padding-left:16pt;vertical-align:bottom;position:relative;">
+            <div style="position:relative;height:140pt;">
+              ${stampOverlay}
+              ${sigOverlay}
+            </div>
+            <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.08em;text-align:center;">Authorized Signature</div>
+            <div style="font-size:8.5pt;color:#475569;margin-top:2pt;text-align:center;">${escapeHtml(company)}</div>
+          </td>` : `<td style="width:50%;"></td>`;
+
+  const signatureHtml = (showStamp || showRepSig || showPreparedBy) ? `
+    <section class="no-break" data-pdf-section="signatures" style="margin-top:22pt;">
       <table style="width:100%;border-collapse:collapse;">
-        <tr>${stampCell}${sigCell}</tr>
+        <tr>${leftFooter}${rightFooter}</tr>
       </table>
     </section>` : "";
+
 
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Warranty Note — ${escapeHtml(opts.invoiceNumber)}</title>
@@ -961,21 +965,21 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
 </div></body></html>`;
 }
 
-function applyWarrantyPageMode(html: string, opts: WarrantyNoteOptions): string {
-  const mode = resolvePageMode(opts.pageMode ?? (opts.settings as any)?.document_page_mode, opts.items?.length || 0, HALF_PAGE_WARRANTY_LIMIT);
-  return mode === "half" ? wrapHalfPage(html) : tagFullPage(html);
+function applyWarrantyPageMode(html: string, _opts: WarrantyNoteOptions): string {
+  // Warranty Note is always A4 — stamp + signature overlay needs the full page.
+  return tagFullPage(html);
 }
+
 
 export function generateWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   return applyWarrantyPageMode(buildWarrantyNoteHtml(opts), opts);
 }
 
 export function generateWarrantyNoteViews(opts: WarrantyNoteOptions): PdfViewSpec[] {
-  const mode = resolvePageMode(opts.pageMode ?? (opts.settings as any)?.document_page_mode, opts.items?.length || 0, HALF_PAGE_WARRANTY_LIMIT);
-  const label = mode === "half" ? "Half A4" : "A4 Print";
   return [
-    { key: "a4", label, color: "bg-slate-900 text-white border-slate-900", html: applyWarrantyPageMode(buildWarrantyNoteHtml(opts), opts) },
+    { key: "a4", label: "A4 Print", color: "bg-slate-900 text-white border-slate-900", html: applyWarrantyPageMode(buildWarrantyNoteHtml(opts), opts) },
   ];
 }
+
 
 
