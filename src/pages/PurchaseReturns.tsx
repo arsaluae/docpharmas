@@ -108,8 +108,16 @@ export default function PurchaseReturns() {
 
   const loadData = async () => {
     setLoading(true);
+    let retQuery = supabase.from("purchase_returns").select("*, suppliers(name)", { count: "exact" }).order("created_at", { ascending: false });
+    const term = debouncedSearch.trim();
+    if (term) {
+      const safe = escIlike(term);
+      const supIds = await searchSupplierIds(term);
+      const idClause = supIds.length > 0 ? `,supplier_id.in.(${supIds.join(",")})` : "";
+      retQuery = retQuery.or(`return_number.ilike.%${safe}%,reason.ilike.%${safe}%${idClause}`);
+    }
     const [{ data: r, count }, { data: s }, { data: inv }, { data: p }] = await Promise.all([
-      supabase.from("purchase_returns").select("*, suppliers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to),
+      retQuery.range(pagination.from, pagination.to),
       supabase.from("suppliers").select("id, name"),
       supabase.from("purchase_invoices").select("id, bill_number, supplier_id"),
       supabase.from("products").select("id, name, cost_price"),
