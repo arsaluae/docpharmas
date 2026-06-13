@@ -68,7 +68,7 @@ export default function StockMovements() {
       const safe = escIlike(q);
       const prodIds = await searchProductIds(q);
       const idClause = prodIds.length > 0 ? `,product_id.in.(${prodIds.join(",")})` : "";
-      query = query.or(`batch_number.ilike.%${safe}%,notes.ilike.%${safe}%,reference_number.ilike.%${safe}%${idClause}`);
+      query = query.or(`batch_number.ilike.%${safe}%,notes.ilike.%${safe}%${idClause}`);
     }
     query = query.range(pagination.from, pagination.to);
     const { data, count } = await query;
