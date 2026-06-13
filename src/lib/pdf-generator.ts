@@ -1,6 +1,6 @@
 import type { CompanySettings } from "@/hooks/useCompanySettings";
 import type { DocumentTemplate } from "@/hooks/useDocumentTemplates";
-import { WARRANTY_NOTE_TEXT } from "@/lib/warranty-declaration";
+import { WARRANTY_NOTE_TEXT, renderWarrantyDeclaration } from "@/lib/warranty-declaration";
 
 export interface PdfColumn { header: string; key: string; align?: "left" | "right" | "center"; }
 export interface PdfMeta { label: string; value: string; }
@@ -586,14 +586,19 @@ export interface WarrantyNoteOptions {
     name?: string | null;
     fatherName?: string | null;
     cnic?: string | null;
+    gender?: string | null;
     licenseNumber?: string | null;
     licenseExpiry?: string | null;
     signatureUrl?: string | null;
     stampUrl?: string | null;
   } | null;
+  /** Company-level stamp/signature override (falls back to settings.warranty_*). */
+  companyStampUrl?: string | null;
+  companySignatureUrl?: string | null;
   settings: CompanySettings | null;
   pageMode?: "half" | "full" | "auto";
 }
+
 
 function fmtMoney(n: number): string {
   return Number(n || 0).toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
