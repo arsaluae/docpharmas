@@ -569,6 +569,7 @@ export interface WarrantyNoteOptions {
     stampUrl?: string | null;
   } | null;
   settings: CompanySettings | null;
+  pageMode?: "half" | "full" | "auto";
 }
 
 function fmtMoney(n: number): string {
