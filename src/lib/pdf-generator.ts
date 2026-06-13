@@ -621,7 +621,7 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   ].filter(Boolean) as string[];
 
   const logo = s?.logo_url
-    ? `<img src="${s.logo_url}" alt="${escapeHtml(company)}" style="height:110px;width:auto;max-width:320px;object-fit:contain;display:block;" />`
+    ? `<img src="${s.logo_url}" alt="${escapeHtml(company)}" style="height:auto;width:200px;max-width:220px;max-height:140px;object-fit:contain;display:block;" />`
     : "";
 
   const d = opts.distributor;
@@ -633,6 +633,7 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     ["NTN", d.ntn || "—"],
     ["CNIC", d.cnic || "—"],
   ];
+
   const leftBlock = leftPairs.map(([k, v]) => `
     <tr>
       <td style="padding:3pt 8pt 3pt 0;color:#475569;font-weight:600;font-size:9.5pt;white-space:nowrap;vertical-align:top;">${escapeHtml(k)}</td>
@@ -645,11 +646,13 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     ["Due Date", opts.dueDate || opts.date],
   ];
   if (opts.createdBy) rightPairs.push(["Created By", opts.createdBy]);
+  if (opts.salesRep?.name) rightPairs.push(["Sales Representative", opts.salesRep.name]);
   const rightBlock = rightPairs.map(([k, v]) => `
     <tr>
       <td style="padding:3pt 8pt 3pt 0;color:#475569;font-weight:600;font-size:9.5pt;white-space:nowrap;vertical-align:top;">${escapeHtml(k)}</td>
       <td style="padding:3pt 0;color:#0f172a;font-size:9.5pt;font-weight:600;word-break:break-word;">${escapeHtml(v)}</td>
     </tr>`).join("");
+
 
   const cols = [
     { h: "Sr",           w: "7%",  a: "center" },
