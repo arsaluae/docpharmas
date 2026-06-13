@@ -135,6 +135,16 @@ export default function PrintJobs() {
  if (tab !== "all") jobQuery = jobQuery.eq("status", tab);
  if (filterPrinter !== "all") jobQuery = jobQuery.eq("printer_id", filterPrinter);
  if (filterProduct !== "all") jobQuery = jobQuery.eq("product_id", filterProduct);
+ const term = debouncedSearch.trim();
+ if (term) {
+   const safe = escIlike(term);
+   const [prodIds, supIds] = await Promise.all([searchProductIds(term), searchSupplierIds(term)]);
+   const clauses: string[] = [];
+   if (prodIds.length) clauses.push(`product_id.in.(${prodIds.join(",")})`);
+   if (supIds.length) clauses.push(`allotted_supplier_id.in.(${supIds.join(",")})`);
+   const tail = clauses.length ? "," + clauses.join(",") : "";
+   jobQuery = jobQuery.or(`job_number.ilike.%${safe}%,notes.ilike.%${safe}%,factory_name.ilike.%${safe}%${tail}`);
+ }
  jobQuery = jobQuery.range(pagination.from, pagination.to);
  const [j, pr, prod, sup] = await Promise.all([
  jobQuery,
