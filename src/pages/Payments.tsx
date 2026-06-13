@@ -197,11 +197,8 @@ export default function Payments() {
  const parties = partyType === "customer" ? customers : partyType === "supplier" ? suppliers : printersList;
  const partyOptions = parties.map(p => ({ value: p.id, label: p.name }));
 
- const filtered = payments.filter(p => {
- const matchSearch = p.payment_number.toLowerCase().includes(search.toLowerCase()) ||
- (partyNames[p.party_id] || "").toLowerCase().includes(search.toLowerCase());
- return matchSearch;
- });
+ // Server-side search already filters across all pages.
+ const filtered = payments;
 
  const headerActions = (
  <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else setOpen(true); }}>
