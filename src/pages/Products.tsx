@@ -60,6 +60,7 @@ export default function Products() {
  const [editId, setEditId] = useState<string | null>(null);
  const [activeTab, setActiveTab] = useState("catalog");
  const [profileProduct, setProfileProduct] = useState<Product | null>(null);
+ const [openingOpen, setOpeningOpen] = useState(false);
 
  // Stock movement form
  const [moveOpen, setMoveOpen] = useState(false);
