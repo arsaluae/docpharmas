@@ -166,6 +166,41 @@ export default function ProformaInvoices() {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [createOpen, composerDirty]);
+
+  // Auto-rehydrate draft when composer opens (only once per open, only if form is empty).
+  useEffect(() => {
+    if (!createOpen) { setDraftRehydrated(false); return; }
+    if (draftRehydrated) return;
+    if (!existingDraft) { setDraftRehydrated(true); return; }
+    const empty = !customerId && items.length === 0 && !paymentInstructions;
+    if (empty) {
+      const d = existingDraft.data;
+      setCustomerId(d.customerId || "");
+      setPfDate(d.pfDate || new Date().toISOString().split("T")[0]);
+      setValidityDays(d.validityDays || "30");
+      setPaymentInstructions(d.paymentInstructions || "");
+      setAgentId(d.agentId || "");
+      setItems(d.items || []);
+      setDraftDismissed(true);
+    }
+    setDraftRehydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createOpen]);
+
+  // Flush draft synchronously when the user switches tab so nothing is lost.
+  useEffect(() => {
+    if (!createOpen) return;
+    const onHide = () => {
+      const hasContent = !!customerId || items.length > 0 || !!paymentInstructions;
+      if (hasContent) flushDraft({ customerId, pfDate, validityDays, paymentInstructions, agentId, items });
+    };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onHide);
+    };
+  }, [createOpen, customerId, pfDate, validityDays, paymentInstructions, agentId, items, flushDraft]);
   const requestCloseComposer = () => {
     if (composerDirty) setCloseConfirmOpen(true);
     else setCreateOpen(false);
