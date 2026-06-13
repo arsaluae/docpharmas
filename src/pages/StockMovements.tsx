@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, ArrowDownUp } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Plus, Search, ArrowDownUp, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -120,6 +121,21 @@ export default function StockMovements() {
 
   const { tenantRole, isAdmin } = useTenant();
   const readOnly = tenantRole === "staff" && !isAdmin;
+  const canDeleteOpening = !readOnly;
+
+  const handleDeleteOpening = async (m: StockMovement) => {
+    const { error } = await supabase.from("stock_movements").delete().eq("id", m.id);
+    if (error) { toast.error("Delete failed: " + error.message); return; }
+    void logAudit({
+      action: "stock_adjusted",
+      entity_type: "stock_movement",
+      entity_id: m.id,
+      entity_number: m.batch_number || "opening",
+      changes: { deleted: true, product: productNames[m.product_id], quantity: m.quantity, type: m.movement_type },
+    });
+    toast.success("Opening stock row deleted");
+    load(); loadProducts();
+  };
 
   const headerActions = readOnly ? (
     <span className="text-xs uppercase tracking-wider px-2 py-1 rounded-full border border-border text-muted-foreground">Read-only</span>
@@ -190,14 +206,17 @@ export default function StockMovements() {
                     <TableRow>
                       <TableHead>Product</TableHead><TableHead>Type</TableHead><TableHead>Qty</TableHead>
                       <TableHead>Batch</TableHead><TableHead>Date</TableHead><TableHead>Notes</TableHead>
+                      {canDeleteOpening && <TableHead className="text-right">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                      <TableRow><TableCell colSpan={canDeleteOpening ? 7 : 6} className="text-center py-12 text-muted-foreground">
                         <ArrowDownUp className="h-8 w-8 mx-auto mb-2 opacity-40" />No stock movements.
                       </TableCell></TableRow>
-                    ) : filtered.map(m => (
+                    ) : filtered.map(m => {
+                      const isOpening = m.movement_type === "opening" || m.movement_type === "opening_stock";
+                      return (
                       <TableRow key={m.id}>
                         <TableCell className="font-medium">{productNames[m.product_id] || "—"}</TableCell>
                         <TableCell>{typeBadge(m.movement_type)}</TableCell>
@@ -205,8 +224,36 @@ export default function StockMovements() {
                         <TableCell className="text-muted-foreground">{m.batch_number || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{m.date}</TableCell>
                         <TableCell className="text-muted-foreground text-xs">{m.notes || "—"}</TableCell>
+                        {canDeleteOpening && (
+                          <TableCell className="text-right">
+                            {isOpening ? (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="Delete opening row">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete this opening stock row?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Removes {Number(m.quantity).toLocaleString()} units of {productNames[m.product_id] || "this product"}
+                                      {m.batch_number ? ` (batch ${m.batch_number})` : ""}. Stock count updates automatically. Audited.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteOpening(m)}>Delete</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
-                    ))}
+                    );})}
                   </TableBody>
                 </Table>
                 <PaginationControls

@@ -5,10 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Package, Banknote, Plus, Trash2, Info } from "lucide-react";
+import { Package, Banknote, Plus, Trash2, Pencil, Check, X } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { getActiveBatches, type ActiveBatch } from "@/lib/batches";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logAudit } from "@/lib/audit";
+import { useIsSalesAgent } from "@/hooks/useIsSalesAgent";
 
 type CostType = "printing" | "freight" | "customs" | "handling" | "other";
 interface CostRow { type: CostType; amount: string; label?: string; }
@@ -37,29 +40,76 @@ export function ProductBatchProfileDialog({
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<CostRow[]>([{ type: "printing", amount: "0" }, { type: "freight", amount: "0" }]);
   const [saving, setSaving] = useState(false);
+  const [editingBatch, setEditingBatch] = useState<string | null>(null);
+  const [editQty, setEditQty] = useState("");
+  const [busyBatch, setBusyBatch] = useState<string | null>(null);
+  const isSalesAgent = useIsSalesAgent();
 
   const landedCost = useMemo(
     () => Number(purchaseCost || 0) + rows.reduce((s, r) => s + (Number(r.amount) || 0), 0),
     [rows, purchaseCost]
   );
 
+  // Markup on cost: (Sale − Landed) ÷ Landed × 100.
   const grossMarginPct = useMemo(() => {
-    if (!salePrice || salePrice <= 0) return null;
-    return ((salePrice - landedCost) / salePrice) * 100;
+    if (!landedCost || landedCost <= 0 || !salePrice || salePrice <= 0) return null;
+    return ((salePrice - landedCost) / landedCost) * 100;
   }, [salePrice, landedCost]);
+
+  const reloadBatches = async () => {
+    if (!productId) return;
+    setLoading(true);
+    const [list, prod] = await Promise.all([
+      getActiveBatches(productId),
+      supabase.from("products").select("stock_quantity").eq("id", productId).single(),
+    ]);
+    setBatches(list);
+    setStockQty(Number((prod.data as any)?.stock_quantity ?? 0));
+    setLoading(false);
+  };
 
   useEffect(() => {
     if (!open || !productId) return;
     setRows([{ type: "printing", amount: "0" }, { type: "freight", amount: "0" }]);
-    setLoading(true);
-    Promise.all([
-      getActiveBatches(productId),
-      supabase.from("products").select("stock_quantity").eq("id", productId).single(),
-    ]).then(([list, prod]) => {
-      setBatches(list);
-      setStockQty(Number((prod.data as any)?.stock_quantity ?? 0));
-    }).finally(() => setLoading(false));
+    setEditingBatch(null);
+    reloadBatches();
   }, [open, productId]);
+
+  const adjustBatch = async (batchNumber: string | null, currentQty: number, newQty: number, reason: string) => {
+    if (!productId) return;
+    const delta = newQty - currentQty;
+    if (delta === 0) { setEditingBatch(null); return; }
+    setBusyBatch(batchNumber ?? "__nobatch__");
+    try {
+      const moveType = delta > 0 ? "adjustment_in" : "adjustment_out";
+      const { error } = await supabase.from("stock_movements").insert({
+        product_id: productId,
+        movement_type: moveType,
+        quantity: Math.abs(delta),
+        batch_number: batchNumber,
+        date: new Date().toISOString().slice(0, 10),
+        notes: reason,
+      });
+      if (error) throw error;
+      void logAudit({
+        action: "stock_adjusted",
+        entity_type: "stock_movement",
+        entity_id: productId,
+        entity_number: batchNumber || "no-batch",
+        changes: { was: currentQty, now: newQty, delta, reason },
+      });
+      toast.success(`Batch ${batchNumber || ""} updated: ${currentQty.toLocaleString()} → ${newQty.toLocaleString()}`);
+      setEditingBatch(null);
+      await reloadBatches();
+    } catch (e: any) {
+      toast.error("Failed: " + e.message);
+    } finally {
+      setBusyBatch(null);
+    }
+  };
+
+  const deleteBatch = (b: ActiveBatch) =>
+    adjustBatch(b.batch_number, b.on_hand, 0, `Batch ${b.batch_number} removed via batch drawer`);
 
   const updateRow = (i: number, patch: Partial<CostRow>) =>
     setRows(rs => rs.map((r, idx) => idx === i ? { ...r, ...patch } : r));
@@ -138,7 +188,7 @@ export function ProductBatchProfileDialog({
               </div>
             </div>
             <div>
-              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Gross Margin</Label>
+              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Markup %</Label>
               <div className={`h-9 px-3 flex items-center rounded-md font-mono tabular-nums text-sm ${grossMarginPct !== null && grossMarginPct >= 0 ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"}`}>
                 {grossMarginPct === null ? "—" : `${grossMarginPct.toFixed(2)}%`}
               </div>
@@ -203,33 +253,98 @@ export function ProductBatchProfileDialog({
                   <TableHead className="text-[11px] uppercase tracking-wide">Expiry</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wide text-right">On-hand</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wide text-center">Status</TableHead>
+                  {!isSalesAgent && <TableHead className="text-[11px] uppercase tracking-wide text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">Loading…</TableCell></TableRow>
-                ) : batches.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
-                      {stockQty > 0 ? (
-                        <div className="flex items-center justify-center gap-2 text-warning">
-                          <Info className="h-4 w-4" />
-                          Stock present ({stockQty.toLocaleString()}) but no batch history. Use “Add Opening Stock” to record batches.
-                        </div>
-                      ) : (
-                        "No active batches."
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ) : batches.map((b) => (
-                  <TableRow key={b.batch_number}>
-                    <TableCell className="font-mono text-xs">{b.batch_number}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{b.mfg_date || "—"}</TableCell>
-                    <TableCell className="text-xs">{b.expiry_date || "—"}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{b.on_hand.toLocaleString()}</TableCell>
-                    <TableCell className="text-center">{statusBadge(b.status)}</TableCell>
-                  </TableRow>
-                ))}
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">Loading…</TableCell></TableRow>
+                ) : (() => {
+                  const batchSum = batches.reduce((s, b) => s + b.on_hand, 0);
+                  const orphanQty = Math.max(0, stockQty - batchSum);
+                  const rowsToRender: (ActiveBatch | { batch_number: null; on_hand: number; mfg_date: null; expiry_date: null; status: "active" })[] = [...batches];
+                  if (orphanQty > 0) rowsToRender.push({ batch_number: null, on_hand: orphanQty, mfg_date: null, expiry_date: null, status: "active" });
+                  if (rowsToRender.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">No active batches.</TableCell>
+                      </TableRow>
+                    );
+                  }
+                  return rowsToRender.map((b) => {
+                    const key = b.batch_number ?? "__nobatch__";
+                    const isEditing = editingBatch === key;
+                    const isBusy = busyBatch === key;
+                    return (
+                      <TableRow key={key}>
+                        <TableCell className="font-mono text-xs">
+                          {b.batch_number || <span className="italic text-muted-foreground">no batch</span>}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{b.mfg_date || "—"}</TableCell>
+                        <TableCell className="text-xs">{b.expiry_date || "—"}</TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">
+                          {isEditing ? (
+                            <Input
+                              type="number"
+                              autoFocus
+                              value={editQty}
+                              onChange={e => setEditQty(e.target.value)}
+                              className="h-7 w-28 ml-auto text-right tabular-nums"
+                            />
+                          ) : b.on_hand.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-center">{statusBadge(b.status as ActiveBatch["status"])}</TableCell>
+                        {!isSalesAgent && (
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {isEditing ? (
+                                <>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-success" disabled={isBusy}
+                                    onClick={() => {
+                                      const n = Number(editQty);
+                                      if (!Number.isFinite(n) || n < 0) { toast.error("Enter a valid quantity ≥ 0"); return; }
+                                      adjustBatch(b.batch_number, b.on_hand, n, `Manual batch adjustment — was ${b.on_hand}, now ${n}`);
+                                    }}>
+                                    <Check className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => setEditingBatch(null)}>
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-primary" disabled={isBusy}
+                                    onClick={() => { setEditingBatch(key); setEditQty(String(b.on_hand)); }} title="Edit qty">
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" disabled={isBusy} title="Delete batch">
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Remove {b.on_hand.toLocaleString()} units{b.batch_number ? ` of batch ${b.batch_number}` : ""}?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Writes a reversing adjustment-out movement. Stock count updates immediately. This is audit-logged.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => deleteBatch(b as ActiveBatch)}>Remove stock</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  });
+                })()}
               </TableBody>
             </Table>
           </div>
