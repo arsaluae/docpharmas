@@ -16,6 +16,8 @@ import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useTenant } from "@/hooks/useTenant";
 import { logAudit } from "@/lib/audit";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchProductIds } from "@/lib/search-helpers";
 
 const ADJUSTMENT_TYPES = new Set(["adjustment", "adjustment_in", "adjustment_out"]);
 
