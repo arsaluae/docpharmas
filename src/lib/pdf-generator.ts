@@ -37,6 +37,17 @@ export interface PdfOptions {
   template?: DocumentTemplate | null;
   statusTheme?: StatusTheme;
   numbered?: boolean;
+  /** Page format. "auto" = half when rows ≤ HALF_PAGE_ROW_LIMIT, else full. Default "auto". */
+  pageMode?: "half" | "full" | "auto";
+}
+
+export const HALF_PAGE_ROW_LIMIT = 5;
+export const HALF_PAGE_WARRANTY_LIMIT = 4;
+
+function resolvePageMode(mode: "half" | "full" | "auto" | undefined, itemCount: number, limit: number): "half" | "full" {
+  if (mode === "half") return "half";
+  if (mode === "full") return "full";
+  return itemCount <= limit ? "half" : "full";
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
