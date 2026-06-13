@@ -16,7 +16,8 @@ export default function CustomerWiseReport() {
     const NOT_POSTED = "(draft,voided,cancelled)";
     const [customers, invoices, payments, returns] = await Promise.all([
       fetchAllRows("customers", "id, name, area, balance"),
-      fetchAllRows("sales_invoices", "customer_id, total", [
+      // Use ex-tax `subtotal` so this report reconciles to P&L Revenue (also ex-tax).
+      fetchAllRows("sales_invoices", "customer_id, subtotal", [
         { column: "status", op: "not", value: "in", value2: NOT_POSTED },
       ]),
       fetchAllRows("payments", "party_id, amount", [
@@ -30,7 +31,7 @@ export default function CustomerWiseReport() {
     if (!customers.length) return;
     const map = new Map<string, any>();
     customers.forEach((c: any) => map.set(c.id, { ...c, total_sales: 0, total_payments: 0, total_returns: 0 }));
-    invoices.forEach((inv: any) => { if (inv.customer_id && map.has(inv.customer_id)) map.get(inv.customer_id).total_sales += Number(inv.total); });
+    invoices.forEach((inv: any) => { if (inv.customer_id && map.has(inv.customer_id)) map.get(inv.customer_id).total_sales += Number(inv.subtotal); });
     payments.forEach((p: any) => { if (map.has(p.party_id)) map.get(p.party_id).total_payments += Number(p.amount); });
     returns.forEach((r: any) => { if (r.customer_id && map.has(r.customer_id)) map.get(r.customer_id).total_returns += Number(r.total); });
     setRows(Array.from(map.values()));

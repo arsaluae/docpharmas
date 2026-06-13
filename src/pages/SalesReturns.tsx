@@ -17,7 +17,7 @@ import { PaginationControls } from "@/components/PaginationControls";
 import { BulkActionBar, useBulkSelection, RowCheckbox } from "@/components/BulkActionBar";
 import { Checkbox } from "@/components/ui/checkbox";
 
-interface ReturnItem { product_id: string; product_name: string; batch_number: string; quantity: string; rate: string; }
+interface ReturnItem { product_id: string; product_name: string; batch_number: string; quantity: string; rate: string; gst_rate: string; }
 
 const DATE_RANGES = [
   { label: "All", value: "all" },
@@ -35,7 +35,7 @@ export default function SalesReturns() {
   const [customerId, setCustomerId] = useState("");
   const [invoiceId, setInvoiceId] = useState("");
   const [reason, setReason] = useState("");
-  const [items, setItems] = useState<ReturnItem[]>([{ product_id: "", product_name: "", batch_number: "", quantity: "1", rate: "0" }]);
+  const [items, setItems] = useState<ReturnItem[]>([{ product_id: "", product_name: "", batch_number: "", quantity: "1", rate: "0", gst_rate: "0" }]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
@@ -70,13 +70,42 @@ export default function SalesReturns() {
     setLoading(false);
   };
 
+  // When an invoice is selected, prefill line items from the ORIGINAL invoice snapshot
+  // (rate, gst_rate, batch_number, product_name) so the credit note reflects what was
+  // actually billed — not a stale live products.selling_price.
+  useEffect(() => {
+    if (!invoiceId) return;
+    (async () => {
+      const { data: invItems } = await supabase
+        .from("sales_invoice_items")
+        .select("product_id, product_name, quantity, rate, gst_rate, batch_number")
+        .eq("invoice_id", invoiceId);
+      if (!invItems || invItems.length === 0) return;
+      setItems(invItems.map((it: any) => ({
+        product_id: it.product_id || "",
+        product_name: it.product_name || (products.find(p => p.id === it.product_id)?.name ?? ""),
+        batch_number: it.batch_number || "",
+        quantity: String(it.quantity),
+        rate: String(it.rate),
+        gst_rate: String(it.gst_rate ?? 0),
+      })));
+      const inv = invoices.find(i => i.id === invoiceId);
+      if (inv && inv.customer_id) setCustomerId(inv.customer_id);
+    })();
+  }, [invoiceId]);
+
   const handleSave = async () => {
     if (!customerId) { toast.error("Select a customer"); return; }
     const validItems = items.filter(i => i.product_id && Number(i.quantity) > 0);
     if (validItems.length === 0) { toast.error("Add at least one item"); return; }
 
     setSaving(true);
-    const total = validItems.reduce((s, i) => s + Number(i.quantity) * Number(i.rate), 0);
+    // Return line `amount` is ex-tax (matches sales_invoice_items contract).
+    // Credit-note `total` is INC-TAX so the customer balance reversal matches the
+    // inc-tax amount originally added by the sales invoice trigger.
+    const netTotal = validItems.reduce((s, i) => s + Number(i.quantity) * Number(i.rate), 0);
+    const taxTotal = validItems.reduce((s, i) => s + Number(i.quantity) * Number(i.rate) * (Number(i.gst_rate || 0) / 100), 0);
+    const total = Math.round((netTotal + taxTotal) * 100) / 100;
     const { data: num } = await supabase.rpc("generate_document_number", { p_document_type: "sales_return" });
     if (!num) { toast.error("Failed to generate number"); setSaving(false); return; }
 
@@ -87,7 +116,8 @@ export default function SalesReturns() {
 
     await supabase.from("sales_return_items").insert(validItems.map(i => ({
       return_id: sr.id, product_id: i.product_id, batch_number: i.batch_number || null,
-      quantity: Number(i.quantity), rate: Number(i.rate), amount: Number(i.quantity) * Number(i.rate),
+      quantity: Number(i.quantity), rate: Number(i.rate),
+      amount: Math.round(Number(i.quantity) * Number(i.rate) * 100) / 100,
     })));
 
     // Create return_in stock movements to restore inventory (with reference_id for audit trail)
@@ -111,18 +141,20 @@ export default function SalesReturns() {
     logAudit({ action: "return_raised", entity_type: "sales_return", entity_id: sr.id, entity_number: num, changes: { reason, total, invoice_id: invoiceId || null } });
     toast.success(`Sales Return ${num} created — Credit Note auto-issued`);
     setOpen(false); setCustomerId(""); setInvoiceId(""); setReason("");
-    setItems([{ product_id: "", product_name: "", batch_number: "", quantity: "1", rate: "0" }]);
+    setItems([{ product_id: "", product_name: "", batch_number: "", quantity: "1", rate: "0", gst_rate: "0" }]);
     setSaving(false);
     loadData();
   };
 
-  const addItem = () => setItems([...items, { product_id: "", product_name: "", batch_number: "", quantity: "1", rate: "0" }]);
+  const addItem = () => setItems([...items, { product_id: "", product_name: "", batch_number: "", quantity: "1", rate: "0", gst_rate: "0" }]);
   const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
   const updateItem = (idx: number, field: string, value: string) => {
     const next = [...items];
     (next[idx] as any)[field] = value;
     if (field === "product_id") {
       const p = products.find(pr => pr.id === value);
+      // Free-form (no invoice) returns still fall back to live selling_price — but the
+      // invoice-link useEffect above prefills from the snapshot whenever an invoice is chosen.
       if (p) { next[idx].product_name = p.name; next[idx].rate = String(p.selling_price); }
     }
     setItems(next);

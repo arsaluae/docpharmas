@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { GraceDeleteButton } from "@/components/GraceDeleteButton";
 import { generatePdfHtml, generateDocumentViews } from "@/lib/pdf-generator";
+import { calcLine as calcLineMath, calcTotals as calcTotalsMath } from "@/lib/invoice-math";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -396,26 +397,18 @@ export default function ProformaInvoices() {
  if (lastRate !== null) u[idx].rate = lastRate;
  }
  }
- const lineGross = Number(u[idx].quantity) * Number(u[idx].rate);
- const discPct = Number(u[idx].discount_pct || 0);
- const lineAfterDisc = lineGross - (lineGross * discPct / 100);
- u[idx].amount = lineAfterDisc + (settings?.gst_enabled ? (lineAfterDisc * Number(u[idx].gst_rate) / 100) : 0);
- setItems([...u]);
- };
+  // Line `amount` is EX-TAX (net). Tax is computed at the header from each line's gst_rate.
+  // See src/lib/invoice-math.ts — also used by Sales Invoice conversion + reports.
+  const line = calcLineMath({
+    quantity: u[idx].quantity, rate: u[idx].rate,
+    discount_pct: u[idx].discount_pct, gst_rate: u[idx].gst_rate,
+  }, !!settings?.gst_enabled);
+  u[idx].amount = line.net;
+  setItems([...u]);
+  };
 
- const calcTotals = (list: ProformaItem[]) => {
- const subtotal = list.reduce((s, i) => {
- const gross = Number(i.quantity) * Number(i.rate);
- const disc = gross * Number(i.discount_pct || 0) / 100;
- return s + (gross - disc);
- }, 0);
- const gst = settings?.gst_enabled ? list.reduce((s, i) => {
- const gross = Number(i.quantity) * Number(i.rate);
- const disc = gross * Number(i.discount_pct || 0) / 100;
- return s + ((gross - disc) * Number(i.gst_rate) / 100);
- }, 0) : 0;
- return { subtotal, gst, total: subtotal + gst };
- };
+  const calcTotals = (list: ProformaItem[]) => calcTotalsMath(list as any, !!settings?.gst_enabled);
+
 
  // ── CREATE ──
  const handleSave = async () => {
@@ -923,20 +916,28 @@ export default function ProformaInvoices() {
 
   if (invErr || !inv) { toast.error("Failed to create invoice: " + (invErr?.message || "Unknown error")); setSubmitting(false); return; }
   logAudit({ action: "invoice_generated", entity_type: "sales_invoice", entity_id: inv.id, entity_number: invNumber, changes: { from_order: submitOrder.proforma_number, total: submitOrder.total } });
- const lineItems = submitItems.map((i: any) => {
-   const prod = products.find(p => p.id === i.product_id) as any;
-   return {
-     invoice_id: inv.id, product_id: i.product_id || null,
-     quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
-     amount: i.amount,
-     batch_number: i.batch_number || null,
-     expiry_date: i.product_id && i.batch_number ? expiryFor(i.product_id, i.batch_number) : null,
-     // Historical snapshot — survives later edits to product master
-     product_name: i.product_name || prod?.name || null,
-     product_code: prod?.product_code || null,
-     mrp: prod?.mrp ?? null,
-   };
- });
+  const lineItems = submitItems.map((i: any) => {
+    const prod = products.find(p => p.id === i.product_id) as any;
+    // Recompute amount from the (possibly-edited) convert_quantity so amount ÷ qty == rate.
+    // Snapshot unit_cost from the product master at invoice-time so historical COGS
+    // doesn't drift when products.cost_price is later edited.
+    const line = calcLineMath({
+      quantity: i.convert_quantity, rate: i.rate,
+      discount_pct: i.discount_pct || 0, gst_rate: i.gst_rate,
+    }, !!settings?.gst_enabled);
+    return {
+      invoice_id: inv.id, product_id: i.product_id || null,
+      quantity: Number(i.convert_quantity), rate: Number(i.rate), gst_rate: Number(i.gst_rate),
+      amount: line.net, // EX-TAX — reports/reconciliation depend on this contract
+      unit_cost: Number(prod?.cost_price ?? 0),
+      batch_number: i.batch_number || null,
+      expiry_date: i.product_id && i.batch_number ? expiryFor(i.product_id, i.batch_number) : null,
+      // Historical snapshot — survives later edits to product master
+      product_name: i.product_name || prod?.name || null,
+      product_code: prod?.product_code || null,
+      mrp: prod?.mrp ?? null,
+    };
+  });
  const { error: itemsErr } = await supabase.from("sales_invoice_items").insert(lineItems);
  if (itemsErr) {
  // Rollback: remove the orphan invoice header so no data is left in an inconsistent state
