@@ -49,10 +49,27 @@ export default function DeliveryNotes() {
  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
  const [deleteIds, setDeleteIds] = useState<string[]>([]);
 
- useEffect(() => { load(); }, [pagination.page]);
+ const debouncedSearch = useDebouncedValue(search, 300);
+ useEffect(() => { pagination.setPage(0); }, [debouncedSearch, courierFilter]);
+ useEffect(() => { load(); }, [pagination.page, debouncedSearch]);
 
  const load = async () => {
- const { data, count } = await supabase.from("delivery_notes").select("*, customers(customer_code, name, phone, sms_mobile, city, area, address, old_erp_account_code), suppliers(supplier_code, name, phone, city, address)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to);
+ let q = supabase.from("delivery_notes")
+   .select("*, customers(customer_code, name, phone, sms_mobile, city, area, address, old_erp_account_code), suppliers(supplier_code, name, phone, city, address)", { count: "exact" })
+   .order("created_at", { ascending: false });
+ const term = debouncedSearch.trim();
+ if (term) {
+   const safe = escIlike(term);
+   const partyIds = [...(await searchCustomerIds(term)), ...(await searchSupplierIds(term))];
+   const idClauses: string[] = [];
+   if (partyIds.length > 0) {
+     idClauses.push(`customer_id.in.(${partyIds.join(",")})`);
+     idClauses.push(`supplier_id.in.(${partyIds.join(",")})`);
+   }
+   const tail = idClauses.length > 0 ? "," + idClauses.join(",") : "";
+   q = q.or(`dn_number.ilike.%${safe}%,notes.ilike.%${safe}%${tail}`);
+ }
+ const { data, count } = await q.range(pagination.from, pagination.to);
  if (data) setNotes(data as any);
  if (count !== null) pagination.setTotalCount(count);
  };
