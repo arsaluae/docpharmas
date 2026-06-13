@@ -1079,17 +1079,15 @@ export default function ProformaInvoices() {
  };
 
 
- const filtered = orders.filter(p => {
- const q = search.toLowerCase();
- const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
- ((p.customers as any)?.name || "").toLowerCase().includes(q) ||
- (p.invoice_number || "").toLowerCase().includes(q);
- const matchStatus = statusFilter === "all" || p.status === statusFilter ||
- (statusFilter === "invoiced" && (p.status === "invoiced" || p.status === "dispatched" || p.status === "partial" || p.status === "paid"));
- const dateStart = getDateFilter();
- const matchDate = !dateStart || p.date >= dateStart;
- return matchSearch && matchStatus && matchDate;
- });
+  // Server-side already filtered by search + statusFilter. Keep client date range +
+  // narrower status grouping (e.g. "invoiced" group includes dispatched/partial/paid).
+  const filtered = orders.filter(p => {
+  const matchStatus = statusFilter === "all" || p.status === statusFilter ||
+  (statusFilter === "invoiced" && (p.status === "invoiced" || p.status === "dispatched" || p.status === "partial" || p.status === "paid"));
+  const dateStart = getDateFilter();
+  const matchDate = !dateStart || p.date >= dateStart;
+  return matchStatus && matchDate;
+  });
 
  // Month selector for stats
  const now = new Date();
