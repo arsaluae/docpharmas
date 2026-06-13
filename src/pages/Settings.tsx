@@ -224,6 +224,8 @@ export default function Settings() {
 
  const uploadWarrantyAsset = async (file: File, kind: "stamp" | "signature"): Promise<string | null> => {
    if (!tenantId) { toast.error("Tenant not loaded"); return null; }
+   if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) { toast.error("Only PNG, JPG, or WebP images"); return null; }
+   if (file.size > 5 * 1024 * 1024) { toast.error("File too large — maximum 5MB"); return null; }
    const ext = file.name.split(".").pop() || "png";
    const path = `${tenantId}/warranty-${kind}-${Date.now()}.${ext}`;
    const { error } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true, contentType: file.type });
