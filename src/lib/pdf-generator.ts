@@ -350,7 +350,7 @@ function buildA4Html(opts: PdfOptions): string {
     </div>` : "";
 
   const signatures = `
-    <div style="margin-top:42px;display:flex;justify-content:space-between;gap:30px;">
+    <div class="signatures" style="margin-top:42px;display:flex;justify-content:space-between;gap:30px;page-break-inside:avoid;">
       ${signatureLabels.map(l => `
         <div style="flex:1;text-align:center;max-width:240px;">
           <div style="border-top:1.5px solid ${C.text};padding-top:6px;margin-top:42px;">
