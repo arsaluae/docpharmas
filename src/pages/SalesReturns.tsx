@@ -55,7 +55,9 @@ export default function SalesReturns() {
 
   const bulk = useBulkSelection();
 
-  useEffect(() => { loadData(); }, [pagination.page]);
+  const debouncedSearch = useDebouncedValue(search, 300);
+  useEffect(() => { pagination.setPage(0); }, [debouncedSearch, dateRange]);
+  useEffect(() => { loadData(); }, [pagination.page, debouncedSearch]);
 
   const printReturn = async (r: any) => {
     const { data: its } = await supabase.from("sales_return_items")
