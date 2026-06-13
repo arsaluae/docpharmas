@@ -61,6 +61,7 @@ const PrintJobs = lazy(() => import("./pages/PrintJobs"));
 const DataImport = lazy(() => import("./pages/DataImport"));
 const ImportHistory = lazy(() => import("./pages/ImportHistory"));
 const MigrationWizard = lazy(() => import("./pages/MigrationWizard"));
+const ContactImportWizard = lazy(() => import("./pages/ContactImportWizard"));
 const Settings = lazy(() => import("./pages/Settings"));
 const SystemHealth = lazy(() => import("./pages/SystemHealth"));
 const Backups = lazy(() => import("./pages/Backups"));
