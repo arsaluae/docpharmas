@@ -274,8 +274,12 @@ function buildA4Html(opts: PdfOptions): string {
     return "";
   };
 
-  const headerCells = columns.map(c => `
-    <th style="padding:11px 10px;text-align:${thAlign(c)};font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:${C.text};background:#eef0f3;border-bottom:2px solid ${C.text};${colWidth(c)}white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.header)}</th>`).join("");
+  const headerCells = columns.map(c => {
+    const k = c.key.toLowerCase();
+    const canWrap = k === "mrp" || k === "mrp_inc_tax" || k === "amount" || k === "line_total";
+    return `
+    <th style="padding:11px 10px;text-align:${thAlign(c)};font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:${C.text};background:#eef0f3;border-bottom:2px solid ${C.text};${colWidth(c)}${canWrap ? "white-space:normal;line-height:1.2;" : "white-space:nowrap;"}-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.header)}</th>`;
+  }).join("");
 
   const bodyRows = opts.rows.map((row, i) => {
     const bg = i % 2 === 0 ? "#ffffff" : "#fafbfc";
