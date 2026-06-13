@@ -299,10 +299,15 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
             </div>
           )}
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handlePrint} disabled={downloading}>
+            {isDeliveryNote && (
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => handleDownloadPdf("twoup")} disabled={downloading} title="Save two delivery notes on a single A4 sheet">
+                <Download className="h-3.5 w-3.5" /> 2 per A4
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => handlePrint("auto")} disabled={downloading}>
               <Printer className="h-3.5 w-3.5" /> Print
             </Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={handleDownloadPdf} disabled={downloading}>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => handleDownloadPdf("auto")} disabled={downloading}>
               <Download className="h-3.5 w-3.5" /> {downloading ? "Saving…" : "Save as PDF"}
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>
