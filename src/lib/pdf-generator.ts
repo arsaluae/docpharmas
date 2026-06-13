@@ -297,7 +297,7 @@ function buildA4Html(opts: PdfOptions): string {
       const wrap = "white-space:normal;word-break:break-word;overflow-wrap:anywhere;line-height:1.35;";
       return `<td style="padding:7px 6px;font-size:12.5px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};font-family:${fontFamily};font-weight:${fontWeight};${wrap}${colWidth(c)}">${escapeHtml(valStr)}</td>`;
     }).join("");
-    return `<tr style="background:${bg};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${cells}</tr>`;
+    return `<tr data-row="item" style="background:${bg};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${cells}</tr>`;
   }).join("");
 
   const itemsTable = `
