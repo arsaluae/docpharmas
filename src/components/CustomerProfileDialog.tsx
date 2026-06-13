@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, X, Edit, Users, TrendingUp, Banknote, Package, ShieldCheck, ExternalLink } from "lucide-react";
 import { AllocatedProducts } from "@/components/AllocatedProducts";
+import { CustomerContactsCard } from "@/components/customer/CustomerContactsCard";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -217,8 +218,11 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
  </div>
  )}
 
- {/* Allocated Products */}
- {customerId && <AllocatedProducts partyId={customerId} partyType="customer" />}
+  {/* Allocated Products */}
+  {customerId && <AllocatedProducts partyId={customerId} partyType="customer" />}
+
+  {/* Contact Persons */}
+  {customerId && <CustomerContactsCard customerId={customerId} />}
 
  {/* Warranty Invoices history */}
  <div>
