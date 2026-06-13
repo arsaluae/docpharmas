@@ -292,7 +292,7 @@ function buildA4Html(opts: PdfOptions): string {
       const fontFamily = isNum || isSerial || /batch|code|expiry/i.test(c.key) ? "'JetBrains Mono','Courier New',monospace" : "'Inter',sans-serif";
       const fontWeight = isProductName ? "600" : isNum ? "600" : "400";
       const wrap = isProductName ? "white-space:normal;word-break:break-word;line-height:1.45;" : "white-space:nowrap;";
-      return `<td style="padding:10px;font-size:15px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};font-family:${fontFamily};font-weight:${fontWeight};${wrap}${colWidth(c)}">${escapeHtml(valStr)}</td>`;
+      return `<td style="padding:8px;font-size:13px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};font-family:${fontFamily};font-weight:${fontWeight};${wrap}${colWidth(c)}">${escapeHtml(valStr)}</td>`;
     }).join("");
     return `<tr style="background:${bg};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${cells}</tr>`;
   }).join("");
