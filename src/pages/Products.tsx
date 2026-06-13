@@ -212,9 +212,8 @@ export default function Products() {
  loadAll();
  };
 
- const filtered = products.filter(p =>
- p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || "").toLowerCase().includes(search.toLowerCase())
- );
+  // Server-side search is now applied in loadAll(), so the rendered list is already filtered.
+  const filtered = products;
 
  // Landed cost = products.cost_price (kept in sync by product_landed_costs trigger).
  // Falls back to purchase_cost when no landed entry exists yet.
