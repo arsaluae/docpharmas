@@ -155,6 +155,11 @@ export default function Settings() {
           warranty_stamp_url: (data as any).warranty_stamp_url || "",
           warranty_signature_url: (data as any).warranty_signature_url || "",
           warranty_footer_text: (data as any).warranty_footer_text || "",
+          warranty_show_company_stamp: (data as any).warranty_show_company_stamp !== false,
+          warranty_show_rep_signature: (data as any).warranty_show_rep_signature !== false,
+          warranty_show_prepared_by: (data as any).warranty_show_prepared_by !== false,
+          warranty_show_agent_license_number: (data as any).warranty_show_agent_license_number !== false,
+          warranty_show_agent_license_expiry: (data as any).warranty_show_agent_license_expiry !== false,
           document_page_mode: ((data as any).document_page_mode || "auto") as "half" | "full" | "auto",
   });
 
