@@ -260,25 +260,25 @@ function buildA4Html(opts: PdfOptions): string {
   const colWidth = (c: PdfColumn) => {
     const k = c.key.toLowerCase();
     const isProductName = c.key === "product_name" || c.key === "name" || c.key === "item_name" || c.key === "description";
-    if (SERIAL_KEYS.has(c.key)) return "width:36px;";
-    if (isProductName) return hasMoneyCol ? "width:32%;" : "width:55%;";
-    if (k === "product_code" || k === "code" || k === "sku") return "width:90px;";
-    if (k === "batch_number" || k === "batch") return hasMoneyCol ? "width:88px;" : "width:14%;";
-    if (k === "expiry_date" || k === "expiry") return hasMoneyCol ? "width:78px;" : "width:12%;";
-    if (k === "quantity" || k === "qty") return hasMoneyCol ? "width:64px;" : "width:12%;";
-    if (k === "rate" || k === "tp_rate" || k === "price") return "width:84px;";
-    if (k === "mrp" || k === "mrp_inc_tax") return "width:110px;";
-    if (k === "discount" || k === "discount_pct" || k === "disc") return "width:70px;";
-    if (k === "tax" || k === "gst_rate" || k === "gst") return "width:64px;";
-    if (k === "amount" || k === "line_total" || k === "total") return "width:104px;";
+    if (SERIAL_KEYS.has(c.key)) return "width:32px;";
+    if (isProductName) return hasMoneyCol ? "width:26%;" : "width:50%;";
+    if (k === "product_code" || k === "code" || k === "sku") return "width:80px;";
+    if (k === "batch_number" || k === "batch") return hasMoneyCol ? "width:9%;" : "width:14%;";
+    if (k === "expiry_date" || k === "expiry") return hasMoneyCol ? "width:8%;" : "width:12%;";
+    if (k === "quantity" || k === "qty") return hasMoneyCol ? "width:7%;" : "width:14%;";
+    if (k === "rate" || k === "tp_rate" || k === "price") return "width:9%;";
+    if (k === "mrp" || k === "mrp_inc_tax") return "width:11%;";
+    if (k === "discount" || k === "discount_pct" || k === "disc") return "width:7%;";
+    if (k === "tax" || k === "gst_rate" || k === "gst") return "width:7%;";
+    if (k === "amount" || k === "line_total" || k === "total") return "width:12%;";
     return "";
   };
 
   const headerCells = columns.map(c => {
     const k = c.key.toLowerCase();
-    const canWrap = k === "mrp" || k === "mrp_inc_tax" || k === "amount" || k === "line_total";
+    const canWrap = k === "mrp" || k === "mrp_inc_tax" || k === "amount" || k === "line_total" || k === "discount" || k === "discount_pct" || k === "tax" || k === "gst_rate" || k === "received";
     return `
-    <th style="padding:11px 10px;text-align:${thAlign(c)};font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:${C.text};background:#eef0f3;border-bottom:2px solid ${C.text};${colWidth(c)}${canWrap ? "white-space:normal;line-height:1.2;" : "white-space:nowrap;"}-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.header)}</th>`;
+    <th style="padding:9px 8px;text-align:${thAlign(c)};font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:${C.text};background:#eef0f3;border-bottom:2px solid ${C.text};${colWidth(c)}${canWrap ? "white-space:normal;line-height:1.15;" : "white-space:nowrap;"}-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.header)}</th>`;
   }).join("");
 
   const bodyRows = opts.rows.map((row, i) => {
@@ -298,10 +298,10 @@ function buildA4Html(opts: PdfOptions): string {
   }).join("");
 
   const itemsTable = `
-    <div style="margin-top:18px;border:1px solid ${C.border};border-radius:3px;overflow:hidden;">
+    <div data-pdf-section="items" style="margin-top:14px;border:1px solid ${C.border};border-radius:3px;">
       <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
         <thead><tr>${headerCells}</tr></thead>
-        <tbody>${bodyRows || `<tr><td colspan="${columns.length}" style="padding:24px;text-align:center;font-size:13px;color:${C.textLight};font-style:italic;">No items</td></tr>`}</tbody>
+        <tbody>${bodyRows || `<tr><td colspan="${columns.length}" style="padding:20px;text-align:center;font-size:12px;color:${C.textLight};font-style:italic;">No items</td></tr>`}</tbody>
       </table>
     </div>`;
 
