@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchCustomerIds } from "@/lib/search-helpers";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -21,41 +25,45 @@ export default function SalesInvoicesList() {
   const nav = useNavigate();
   const [rows, setRows] = useState<SI[]>([]);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [loading, setLoading] = useState(true);
+  const pagination = usePagination();
+
+  useEffect(() => { pagination.setPage(0); }, [debouncedSearch]);
 
   useEffect(() => { (async () => {
     setLoading(true);
-    const { data } = await supabase.from("sales_invoices")
-      .select("id, invoice_number, date, total, amount_paid, status, customer_id, customers(name)")
-      .neq("status", "voided").order("date", { ascending: false }).limit(500);
+    let q = supabase.from("sales_invoices")
+      .select("id, invoice_number, date, total, amount_paid, status, customer_id, customers(name)", { count: "exact" })
+      .neq("status", "voided").order("date", { ascending: false });
+    const term = debouncedSearch.trim();
+    if (term) {
+      const safe = escIlike(term);
+      const custIds = await searchCustomerIds(term);
+      const idClause = custIds.length > 0 ? `,customer_id.in.(${custIds.join(",")})` : "";
+      q = q.or(`invoice_number.ilike.%${safe}%${idClause}`);
+    }
+    const { data, count } = await q.range(pagination.from, pagination.to);
     setRows((data as any[]) ?? []);
+    if (count !== null) pagination.setTotalCount(count);
     setLoading(false);
-  })(); }, []);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r =>
-      r.invoice_number.toLowerCase().includes(q) ||
-      (r.customers?.name ?? "").toLowerCase().includes(q)
-    );
-  }, [rows, search]);
+  })(); }, [pagination.page, debouncedSearch]);
 
   const totals = useMemo(() => ({
-    count: filtered.length,
-    total: filtered.reduce((s, r) => s + Number(r.total || 0), 0),
-    paid: filtered.reduce((s, r) => s + Number(r.amount_paid || 0), 0),
-  }), [filtered]);
+    count: rows.length,
+    total: rows.reduce((s, r) => s + Number(r.total || 0), 0),
+    paid: rows.reduce((s, r) => s + Number(r.amount_paid || 0), 0),
+  }), [rows]);
   const outstanding = totals.total - totals.paid;
 
   return (
     <AppLayout title="My Sales Invoices" subtitle="Invoices you created for your assigned customers">
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <Card className="glass-card"><CardContent className="p-4"><div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Invoices</div><div className="text-lg font-bold tabular-nums">{totals.count}</div></CardContent></Card>
-          <Card className="glass-card"><CardContent className="p-4"><div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Total</div><div className="text-lg font-bold tabular-nums">{fmtPKR(totals.total)}</div></CardContent></Card>
-          <Card className="glass-card"><CardContent className="p-4"><div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Paid</div><div className="text-lg font-bold tabular-nums text-success">{fmtPKR(totals.paid)}</div></CardContent></Card>
-          <Card className="glass-card"><CardContent className="p-4"><div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Outstanding</div><div className="text-lg font-bold tabular-nums text-destructive">{fmtPKR(outstanding)}</div></CardContent></Card>
+          <Card className="glass-card"><CardContent className="p-4"><div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Invoices (page)</div><div className="text-lg font-bold tabular-nums">{totals.count}</div></CardContent></Card>
+          <Card className="glass-card"><CardContent className="p-4"><div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Total (page)</div><div className="text-lg font-bold tabular-nums">{fmtPKR(totals.total)}</div></CardContent></Card>
+          <Card className="glass-card"><CardContent className="p-4"><div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Paid (page)</div><div className="text-lg font-bold tabular-nums text-success">{fmtPKR(totals.paid)}</div></CardContent></Card>
+          <Card className="glass-card"><CardContent className="p-4"><div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Outstanding (page)</div><div className="text-lg font-bold tabular-nums text-destructive">{fmtPKR(outstanding)}</div></CardContent></Card>
         </div>
 
         <div className="relative max-w-sm">
@@ -79,9 +87,9 @@ export default function SalesInvoicesList() {
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={7} className="py-12 text-center text-muted-foreground">Loading…</TableCell></TableRow>
-              ) : filtered.length === 0 ? (
+              ) : rows.length === 0 ? (
                 <TableRow><TableCell colSpan={7} className="py-12 text-center text-muted-foreground"><FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />No invoices yet.</TableCell></TableRow>
-              ) : filtered.map(r => {
+              ) : rows.map(r => {
                 const paid = Number(r.amount_paid || 0); const total = Number(r.total || 0);
                 return (
                   <TableRow key={r.id} className="cursor-pointer" onClick={() => nav(`/proforma?invoice=${r.id}`)}>
@@ -98,6 +106,7 @@ export default function SalesInvoicesList() {
             </TableBody>
           </Table>
         </CardContent></Card>
+        <PaginationControls pagination={pagination} />
       </div>
     </AppLayout>
   );
