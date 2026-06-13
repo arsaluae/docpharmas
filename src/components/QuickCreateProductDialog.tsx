@@ -41,21 +41,25 @@ export function QuickCreateProductDialog({ open, onOpenChange, onCreated, defaul
     if (!name.trim()) { toast.error("Product name is required"); return; }
     setSaving(true);
     try {
-      const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "product" });
+      let resolvedSku = sku.trim();
+      if (!resolvedSku) {
+        const { data: gen } = await supabase.rpc("generate_sku" as any);
+        resolvedSku = (gen as string) || "";
+      }
       const payload: any = {
         is_active: true,
         name: name.trim(),
-        sku: sku.trim() || null,
+        sku: resolvedSku || null,
         category: "tablet",
         pack_size: packSize.trim() || null,
         unit: unit.trim() || "pcs",
-        cost_price: Number(costPrice) || 0,
+        purchase_cost: Number(costPrice) || 0,
+        cost_price: Number(costPrice) || 0, // seed landed cache = purchase
         selling_price: Number(sellingPrice) || 0,
         mrp: Number(mrp) || 0,
         gst_rate: 17,
         reorder_level: 0,
         stock_quantity: 0,
-        product_code: code || null,
       };
       const { data, error } = await supabase
         .from("products")
@@ -63,7 +67,7 @@ export function QuickCreateProductDialog({ open, onOpenChange, onCreated, defaul
         .select("id, name, cost_price")
         .single();
       if (error || !data) { toast.error("Failed: " + (error?.message || "unknown")); setSaving(false); return; }
-      toast.success(`Product "${data.name}" created`);
+      toast.success(`Product "${data.name}" created — SKU ${resolvedSku}`);
       onCreated?.({ id: data.id, name: data.name, cost_price: Number(data.cost_price) });
       onOpenChange(false);
     } finally {
