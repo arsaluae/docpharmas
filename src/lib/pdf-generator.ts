@@ -267,7 +267,7 @@ function buildA4Html(opts: PdfOptions): string {
     if (k === "expiry_date" || k === "expiry") return hasMoneyCol ? "width:78px;" : "width:12%;";
     if (k === "quantity" || k === "qty") return hasMoneyCol ? "width:64px;" : "width:12%;";
     if (k === "rate" || k === "tp_rate" || k === "price") return "width:84px;";
-    if (k === "mrp" || k === "mrp_inc_tax") return "width:80px;";
+    if (k === "mrp" || k === "mrp_inc_tax") return "width:110px;";
     if (k === "discount" || k === "discount_pct" || k === "disc") return "width:70px;";
     if (k === "tax" || k === "gst_rate" || k === "gst") return "width:64px;";
     if (k === "amount" || k === "line_total" || k === "total") return "width:104px;";
