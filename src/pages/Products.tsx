@@ -29,7 +29,7 @@ const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", 
 
 interface Product {
  id: string; name: string; sku: string | null; category: string; drap_reg_number: string | null;
- pack_size: string | null; unit: string; cost_price: number; selling_price: number; gst_rate: number;
+ pack_size: string | null; unit: string; cost_price: number; purchase_cost?: number; selling_price: number; gst_rate: number;
  stock_quantity: number; reorder_level: number; created_at: string; is_active?: boolean; mrp?: number | null;
 }
 
@@ -40,7 +40,7 @@ interface StockMovement {
 
 const emptyForm = {
  name: "", sku: "", category: "tablet" as string, drap_reg_number: "", pack_size: "", unit: "pcs",
- cost_price: "0", selling_price: "0", mrp: "0", gst_rate: "17", stock_quantity: "0", reorder_level: "0",
+ purchase_cost: "0", selling_price: "0", mrp: "0", gst_rate: "17", stock_quantity: "0", reorder_level: "0",
 };
 
 export default function Products() {
