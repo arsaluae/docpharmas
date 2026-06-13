@@ -187,7 +187,7 @@ function buildA4Html(opts: PdfOptions): string {
   const safeCompany = escapeHtml(companyName);
   const logoHtml = s?.logo_url
     ? `<img src="${s.logo_url}" alt="${safeCompany}" crossorigin="anonymous"
-            style="height:84px;max-height:84px;width:auto;max-width:280px;object-fit:contain;display:block;"
+            style="height:110px !important;width:auto !important;max-width:320px !important;object-fit:contain;display:block;vertical-align:middle;"
             onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';" /><div style="display:none;font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`
     : `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`;
 
@@ -198,9 +198,9 @@ function buildA4Html(opts: PdfOptions): string {
 
   const companyBlock = `
     <div style="text-align:right;">
-      <div style="font-size:22px;font-weight:800;color:${C.text};letter-spacing:-0.2px;line-height:1.15;">${safeCompany}</div>
+      <div style="font-size:19px;font-weight:800;color:${C.text};letter-spacing:-0.2px;line-height:1.15;">${safeCompany}</div>
       ${tagline ? `<div style="font-size:13px;font-style:italic;color:${C.textMuted};margin-top:2px;">${escapeHtml(tagline)}</div>` : ""}
-      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:12.5px;color:${C.textMuted};line-height:1.5;margin-top:1px;word-break:break-word;">${escapeHtml(l)}</div>`).join("")}
+      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:12.5px;color:${C.textMuted};line-height:1.45;margin-top:1px;word-break:break-word;">${escapeHtml(l)}</div>`).join("")}
     </div>`;
 
   /* ── DOCUMENT TITLE (centered) ── */
