@@ -31,15 +31,24 @@ interface PdfPreviewDialogProps {
  * legacy A4 (`.page-frame`) templates without per-document regex.
  */
 const PRINT_CHROME_CSS = `
-  body { margin:0 !important; padding:0 !important; background:#fff !important; }
+  html, body { margin:0 !important; padding:0 !important; background:#fff !important; }
   .toolbar { display:none !important; }
-  .page-frame, .page {
+  .page-frame, .page, .warranty-document {
     box-shadow:none !important;
     border:none !important;
-    margin:0 !important;
+    margin:0 auto !important;
     background:#fff !important;
+    max-width:100% !important;
   }
   .page-frame::before, .corner { display:none !important; }
+  /* Keep rows / sections together across page breaks during snapshot */
+  table { page-break-inside: auto; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tr, .no-break, [data-pdf-section] {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
 `;
 
 function injectChromeCss(html: string): string {
