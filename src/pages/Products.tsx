@@ -243,11 +243,8 @@ export default function Products() {
  const lowStockCount = products.filter(p => Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= Number(p.reorder_level)).length;
  const outOfStockCount = products.filter(p => Number(p.stock_quantity) <= 0).length;
 
- const filteredMovements = movements.filter(m => {
- const matchSearch = (productNames[m.product_id] || "").toLowerCase().includes(search.toLowerCase()) ||
- (m.batch_number || "").toLowerCase().includes(search.toLowerCase());
- return matchSearch;
- });
+  // Server-side search already filters movements.
+  const filteredMovements = movements;
 
  const typeBadge = (t: string) => {
  if (t.includes("in")) return <Badge variant="default" className="bg-primary/10 text-primary border-0">{t.replace("_", " ")}</Badge>;
