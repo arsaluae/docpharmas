@@ -40,6 +40,10 @@ export function ProductBatchProfileDialog({
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<CostRow[]>([{ type: "printing", amount: "0" }, { type: "freight", amount: "0" }]);
   const [saving, setSaving] = useState(false);
+  const [editingBatch, setEditingBatch] = useState<string | null>(null);
+  const [editQty, setEditQty] = useState("");
+  const [busyBatch, setBusyBatch] = useState<string | null>(null);
+  const isSalesAgent = useIsSalesAgent();
 
   const landedCost = useMemo(
     () => Number(purchaseCost || 0) + rows.reduce((s, r) => s + (Number(r.amount) || 0), 0),
