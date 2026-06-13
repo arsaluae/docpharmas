@@ -345,7 +345,7 @@ export default function Products() {
  {!hideCost && <TableHead className="text-right">Purchase</TableHead>}
  {!hideCost && <TableHead className="text-right">Landed</TableHead>}
  <TableHead className="text-right">Net Price</TableHead><TableHead className="text-right">MRP</TableHead>
- {!hideCost && <TableHead className="text-right">Margin</TableHead>}
+ {!hideCost && <TableHead className="text-right" title="(Sale − Landed) ÷ Landed × 100">Markup %</TableHead>}
  <TableHead className="text-right">Stock</TableHead>
  <TableHead className="text-center">Actions</TableHead>
  </TableRow>
@@ -440,7 +440,7 @@ export default function Products() {
  {!hideCost && <TableHead className="text-right">Cost Price</TableHead>}
  <TableHead className="text-right">Sell Price</TableHead>
  {!hideCost && <TableHead className="text-right">Stock Value</TableHead>}
- {!hideCost && <TableHead className="text-right">Margin</TableHead>}
+ {!hideCost && <TableHead className="text-right" title="(Sale − Landed) ÷ Landed × 100">Markup %</TableHead>}
  <TableHead className="text-right">Reorder</TableHead>
  <TableHead className="text-center">Status</TableHead>
  </TableRow>
