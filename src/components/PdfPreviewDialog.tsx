@@ -39,16 +39,26 @@ const PRINT_CHROME_CSS = `
     margin:0 auto !important;
     background:#fff !important;
     max-width:100% !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
   .page-frame::before, .corner { display:none !important; }
+  @page { size: A4 portrait; margin: 8mm; }
   /* Keep rows / sections together across page breaks during snapshot */
   table { page-break-inside: auto; }
   thead { display: table-header-group; }
   tfoot { display: table-footer-group; }
-  tr, .no-break, [data-pdf-section] {
+  tr, .no-break, [data-pdf-section], .totals-card, .signatures {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
+  /* On-screen instruction banner — hidden during print */
+  .print-tip-banner {
+    margin: 8px auto; max-width: 794px; padding: 8px 14px;
+    background: #fef3c7; border: 1px solid #fde68a; border-left: 3px solid #f59e0b;
+    color: #78350f; font: 12px/1.4 -apple-system, 'Segoe UI', sans-serif; border-radius: 4px;
+  }
+  @media print { .print-tip-banner { display: none !important; } }
 `;
 
 function injectChromeCss(html: string): string {
@@ -83,7 +93,13 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
   const handlePrint = () => {
     const win = window.open("", "_blank");
     if (win) {
-      win.document.write(embeddedHtml);
+      // Inject a non-print on-screen tip telling the user to disable browser
+      // headers/footers (which print URL / date / page numbers).
+      const tipHtml = `<div class="print-tip-banner">For a clean printout, in the browser's print dialog open <b>More settings</b> and uncheck <b>Headers and footers</b>. Choose <b>A4</b> paper, <b>Default</b> margins.</div>`;
+      const withTip = /<body[^>]*>/i.test(embeddedHtml)
+        ? embeddedHtml.replace(/<body([^>]*)>/i, `<body$1>${tipHtml}`)
+        : tipHtml + embeddedHtml;
+      win.document.write(withTip);
       win.document.close();
       win.onload = () => { win.print(); };
       setTimeout(() => { try { win.print(); } catch(e) {} }, 600);

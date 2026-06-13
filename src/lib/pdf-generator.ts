@@ -183,8 +183,8 @@ function buildA4Html(opts: PdfOptions): string {
 
   /* ── HEADER: logo left · company right ── */
   const logoHtml = s?.logo_url
-    ? `<img src="${s.logo_url}" alt="${escapeHtml(companyName)}" style="max-height:210px;max-width:440px;object-fit:contain;display:block;" />`
-    : `<div style="font-size:42px;font-weight:800;color:${C.text};letter-spacing:-0.5px;">${escapeHtml(companyName)}</div>`;
+    ? `<img src="${s.logo_url}" alt="${escapeHtml(companyName)}" style="height:140px;max-height:140px;max-width:340px;width:auto;object-fit:contain;display:block;" />`
+    : `<div style="font-size:46px;font-weight:800;color:${C.text};letter-spacing:-0.5px;">${escapeHtml(companyName)}</div>`;
 
   const addressLine = [s?.address, (s as any)?.city].filter(Boolean).join(", ");
   const phoneLine = [s?.phone ? `Tel: ${s.phone}` : null, (s as any)?.whatsapp_number ? `Mob: ${(s as any).whatsapp_number}` : null].filter(Boolean).join("  ·  ");
@@ -193,9 +193,9 @@ function buildA4Html(opts: PdfOptions): string {
 
   const companyBlock = `
     <div style="text-align:right;">
-      ${s?.logo_url ? `<div style="font-size:24px;font-weight:700;color:${C.text};letter-spacing:-0.2px;line-height:1.2;">${escapeHtml(companyName)}</div>` : ""}
+      ${s?.logo_url ? `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.2px;line-height:1.2;">${escapeHtml(companyName)}</div>` : ""}
       ${tagline ? `<div style="font-size:14px;font-style:italic;color:${C.textMuted};margin-top:3px;">${escapeHtml(tagline)}</div>` : ""}
-      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:14px;color:${C.textMuted};line-height:1.65;margin-top:2px;">${escapeHtml(l)}</div>`).join("")}
+      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:14px;color:${C.textMuted};line-height:1.65;margin-top:2px;word-break:break-word;">${escapeHtml(l)}</div>`).join("")}
     </div>`;
 
   /* ── DOCUMENT TITLE (centered) ── */
@@ -250,14 +250,22 @@ function buildA4Html(opts: PdfOptions): string {
     </div>`;
 
   /* ── ITEMS TABLE ── */
+  // Detect "logistics-style" tables (Delivery Note / Sales Return without prices)
+  // so the Product Name column gets the slack instead of leaving a giant gap.
+  const hasMoneyCol = columns.some(c => {
+    const k = c.key.toLowerCase();
+    return k === "rate" || k === "tp_rate" || k === "amount" || k === "line_total" || k === "mrp" || k === "mrp_inc_tax" || k === "price";
+  });
   const thAlign = (c: PdfColumn) => c.align || "left";
   const colWidth = (c: PdfColumn) => {
     const k = c.key.toLowerCase();
+    const isProductName = c.key === "product_name" || c.key === "name" || c.key === "item_name" || c.key === "description";
     if (SERIAL_KEYS.has(c.key)) return "width:36px;";
+    if (isProductName) return hasMoneyCol ? "width:32%;" : "width:55%;";
     if (k === "product_code" || k === "code" || k === "sku") return "width:90px;";
-    if (k === "batch_number" || k === "batch") return "width:88px;";
-    if (k === "expiry_date" || k === "expiry") return "width:78px;";
-    if (k === "quantity" || k === "qty") return "width:64px;";
+    if (k === "batch_number" || k === "batch") return hasMoneyCol ? "width:88px;" : "width:14%;";
+    if (k === "expiry_date" || k === "expiry") return hasMoneyCol ? "width:78px;" : "width:12%;";
+    if (k === "quantity" || k === "qty") return hasMoneyCol ? "width:64px;" : "width:12%;";
     if (k === "rate" || k === "tp_rate" || k === "price") return "width:84px;";
     if (k === "mrp" || k === "mrp_inc_tax") return "width:80px;";
     if (k === "discount" || k === "discount_pct" || k === "disc") return "width:70px;";
@@ -302,7 +310,7 @@ function buildA4Html(opts: PdfOptions): string {
   const totalsCard = totals.length ? `
     <div style="display:flex;margin-top:22px;">
       <div style="flex:1;"></div>
-      <div style="width:380px;max-width:58%;border:1px solid ${C.border};border-radius:3px;overflow:hidden;background:#fff;">
+      <div class="totals-card" style="width:380px;max-width:58%;border:1px solid ${C.border};border-radius:3px;overflow:hidden;background:#fff;">
         ${subRows.map(r => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;font-size:15px;border-bottom:1px solid ${C.borderLight};">
             <span style="color:${C.textMuted};">${escapeHtml(r.label)}</span>
@@ -342,7 +350,7 @@ function buildA4Html(opts: PdfOptions): string {
     </div>` : "";
 
   const signatures = `
-    <div style="margin-top:42px;display:flex;justify-content:space-between;gap:30px;">
+    <div class="signatures" style="margin-top:42px;display:flex;justify-content:space-between;gap:30px;page-break-inside:avoid;">
       ${signatureLabels.map(l => `
         <div style="flex:1;text-align:center;max-width:240px;">
           <div style="border-top:1.5px solid ${C.text};padding-top:6px;margin-top:42px;">
@@ -362,19 +370,22 @@ function buildA4Html(opts: PdfOptions): string {
     box-shadow:0 4px 18px rgba(0,0,0,0.18); }
   .toolbar-title { color:#fff; font-size:13px; font-weight:600; letter-spacing:0.3px; }
   .toolbar-btn { background:${C.primary}; color:#fff; border:none; padding:8px 18px; font-size:12.5px; font-weight:600; border-radius:4px; cursor:pointer; }
-  .page-frame { max-width:778px; margin:64px auto 36px; padding:24px 28px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); }
-  .doc-header { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+  .page-frame { max-width:794px; margin:32px auto 0; padding:24px 28px 20px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; }
+  .doc-header { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
+  .doc-header > div:first-child { flex:0 0 340px; min-width:260px; }
   /* Pagination-safe defaults (apply during html2canvas snapshot too, not only @media print) */
   table { page-break-inside:auto; }
   thead { display:table-header-group; }
   tfoot { display:table-footer-group; }
   tr { page-break-inside:avoid; break-inside:avoid; }
+  .totals-card, .signatures, [data-pdf-section] { page-break-inside:avoid; break-inside:avoid; }
   @media print {
     body { background:#fff; }
     *, *::before, *::after { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
     .toolbar { display:none !important; }
-    .page-frame { border:none; box-shadow:none; max-width:100%; margin:0; padding:0; }
-    @page { margin:12mm 12mm; size:A4; }
+    .page-frame { border:none; box-shadow:none; max-width:100%; margin:0; padding:0; page-break-after:avoid !important; }
+    html, body { height:auto !important; }
+    @page { margin:8mm 10mm; size:A4; }
   }
 </style></head><body>
 <div class="toolbar">
@@ -428,9 +439,10 @@ const HALF_PAGE_CSS = `
     display: flex; flex-direction: column;
   }
   /* Density pass — preserve layout, shrink chrome */
-  .page-frame img { max-height: 56px !important; }
+  .page-frame img { max-height: 100px !important; }
+  .page-frame [style*="font-size:46px"],
   .page-frame [style*="font-size:42px"],
-  .page-frame [style*="font-size:26px"] { font-size: 14pt !important; }
+  .page-frame [style*="font-size:26px"] { font-size: 15pt !important; }
   .page-frame [style*="font-size:24px"] { font-size: 12pt !important; }
   .page-frame [style*="font-size:19px"] { font-size: 10.5pt !important; }
   .page-frame [style*="font-size:16px"],

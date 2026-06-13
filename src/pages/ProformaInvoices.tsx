@@ -152,6 +152,17 @@ export default function ProformaInvoices() {
   }, [customerId]);
 
   const composerDirty = !!customerId || items.some(i => !!i.product_id || Number(i.quantity) > 0 || Number(i.rate) > 0) || !!paymentInstructions;
+
+  // Warn before browser/tab close while composer has unsaved data
+  useEffect(() => {
+    if (!createOpen || !composerDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [createOpen, composerDirty]);
   const requestCloseComposer = () => {
     if (composerDirty) setCloseConfirmOpen(true);
     else setCreateOpen(false);
