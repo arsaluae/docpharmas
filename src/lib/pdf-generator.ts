@@ -187,7 +187,7 @@ function buildA4Html(opts: PdfOptions): string {
   const safeCompany = escapeHtml(companyName);
   const logoHtml = s?.logo_url
     ? `<img src="${s.logo_url}" alt="${safeCompany}" crossorigin="anonymous"
-            style="height:96px !important;width:auto !important;max-width:300px !important;object-fit:contain;display:block;vertical-align:middle;"
+            style="height:144px !important;width:auto !important;max-width:450px !important;object-fit:contain;display:block;vertical-align:middle;"
             onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';" /><div style="display:none;font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`
     : `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`;
 
@@ -266,13 +266,13 @@ function buildA4Html(opts: PdfOptions): string {
     const k = c.key.toLowerCase();
     const isProductName = c.key === "product_name" || c.key === "name" || c.key === "item_name" || c.key === "description";
     if (SERIAL_KEYS.has(c.key)) return "width:7%;";
-    if (isProductName) return hasMoneyCol ? "width:32%;" : "width:55%;";
+    if (isProductName) return hasMoneyCol ? "width:28%;" : "width:55%;";
     if (k === "product_code" || k === "code" || k === "sku") return "width:10%;";
     if (k === "batch_number" || k === "batch") return "width:11%;";
     if (k === "expiry_date" || k === "expiry") return "width:10%;";
-    if (k === "quantity" || k === "qty") return "width:9%;";
+    if (k === "quantity" || k === "qty") return "width:11%;";
     if (k === "rate" || k === "tp_rate" || k === "price") return "width:8%;";
-    if (k === "mrp" || k === "mrp_inc_tax") return "width:10%;";
+    if (k === "mrp" || k === "mrp_inc_tax") return "width:11%;";
     if (k === "discount" || k === "discount_pct" || k === "disc") return "width:7%;";
     if (k === "tax" || k === "gst_rate" || k === "gst") return "width:7%;";
     if (k === "amount" || k === "line_total" || k === "total") return "width:12%;";
@@ -281,7 +281,7 @@ function buildA4Html(opts: PdfOptions): string {
 
   const headerCells = columns.map(c => {
     return `
-    <th style="padding:8px 6px;text-align:${thAlign(c)};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2px;color:${C.text};background:#eef0f3;border-bottom:2px solid ${C.text};${colWidth(c)}white-space:normal;line-height:1.2;word-break:break-word;overflow-wrap:anywhere;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.header)}</th>`;
+    <th style="padding:8px 4px;text-align:${thAlign(c)};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0;color:${C.text};background:#eef0f3;border-bottom:2px solid ${C.text};${colWidth(c)}white-space:normal;line-height:1.2;word-break:normal;overflow-wrap:normal;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.header)}</th>`;
   }).join("");
 
   const bodyRows = opts.rows.map((row, i) => {
