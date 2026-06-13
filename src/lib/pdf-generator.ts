@@ -803,13 +803,20 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
 </div></body></html>`;
 }
 
+function applyWarrantyPageMode(html: string, opts: WarrantyNoteOptions): string {
+  const mode = resolvePageMode(opts.pageMode, opts.items?.length || 0, HALF_PAGE_WARRANTY_LIMIT);
+  return mode === "half" ? wrapHalfPage(html) : tagFullPage(html);
+}
+
 export function generateWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
-  return buildWarrantyNoteHtml(opts);
+  return applyWarrantyPageMode(buildWarrantyNoteHtml(opts), opts);
 }
 
 export function generateWarrantyNoteViews(opts: WarrantyNoteOptions): PdfViewSpec[] {
+  const mode = resolvePageMode(opts.pageMode, opts.items?.length || 0, HALF_PAGE_WARRANTY_LIMIT);
+  const label = mode === "half" ? "Half A4" : "A4 Print";
   return [
-    { key: "a4", label: "A4 Print", color: "bg-slate-900 text-white border-slate-900", html: buildWarrantyNoteHtml(opts) },
+    { key: "a4", label, color: "bg-slate-900 text-white border-slate-900", html: applyWarrantyPageMode(buildWarrantyNoteHtml(opts), opts) },
   ];
 }
 
