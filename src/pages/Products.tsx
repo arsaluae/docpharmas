@@ -196,9 +196,22 @@ export default function Products() {
  p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || "").toLowerCase().includes(search.toLowerCase())
  );
 
+ // Landed cost = products.cost_price (kept in sync by product_landed_costs trigger).
+ // Falls back to purchase_cost when no landed entry exists yet.
+ const landedOf = (p: Product) => {
+   const purchase = Number((p as any).purchase_cost ?? p.cost_price ?? 0);
+   const cached = Number(p.cost_price ?? 0);
+   return cached > 0 ? cached : purchase;
+ };
  const margin = (p: Product) => {
- if (Number(p.selling_price) === 0) return "—";
- return ((Number(p.selling_price) - Number(p.cost_price)) / Number(p.selling_price) * 100).toFixed(1) + "%";
+   const sale = Number(p.selling_price);
+   if (sale <= 0) return "—";
+   return (((sale - landedOf(p)) / sale) * 100).toFixed(2) + "%";
+ };
+ const landedMissing = (p: Product) => {
+   const purchase = Number((p as any).purchase_cost ?? 0);
+   const landed = Number(p.cost_price ?? 0);
+   return purchase > 0 && Math.abs(landed - purchase) < 0.001;
  };
 
  const productNames = Object.fromEntries(products.map(p => [p.id, p.name]));
