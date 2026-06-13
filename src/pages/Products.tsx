@@ -339,26 +339,33 @@ export default function Products() {
  <Table>
  <TableHeader>
  <TableRow>
- <TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>SKU</TableHead><TableHead>Category</TableHead><TableHead>DRAP</TableHead>
- {!hideCost && <TableHead className="text-right">Cost</TableHead>}<TableHead className="text-right">Net Price</TableHead><TableHead className="text-right">MRP</TableHead>
- {!hideCost && <TableHead className="text-right">Margin</TableHead>}<TableHead className="text-right">Stock</TableHead>
+ <TableHead>SKU</TableHead><TableHead>Name</TableHead><TableHead>Category</TableHead>
+ {!hideCost && <TableHead className="text-right">Purchase</TableHead>}
+ {!hideCost && <TableHead className="text-right">Landed</TableHead>}
+ <TableHead className="text-right">Net Price</TableHead><TableHead className="text-right">MRP</TableHead>
+ {!hideCost && <TableHead className="text-right">Margin</TableHead>}
+ <TableHead className="text-right">Stock</TableHead>
  <TableHead className="text-center">Actions</TableHead>
  </TableRow>
  </TableHeader>
  <TableBody>
  {filtered.length === 0 ? (
- <TableRow><TableCell colSpan={hideCost ? 9 : 11} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
+ <TableRow><TableCell colSpan={hideCost ? 7 : 10} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
  ) : filtered.map(p => (
  <TableRow key={p.id} className={`${readOnly ? "" : "cursor-pointer"} table-row-hover ${p.is_active === false ? "opacity-50" : ""}`} onClick={() => { if (!readOnly) handleEdit(p); }}>
- <TableCell className="text-xs font-mono text-muted-foreground">{(p as any).product_code || "—"}</TableCell>
+ <TableCell className="text-xs font-mono">{p.sku || (p as any).product_code || "—"}</TableCell>
  <TableCell className="font-medium">{p.name}</TableCell>
- <TableCell className="text-xs text-muted-foreground">{p.sku || "—"}</TableCell>
  <TableCell><span className="status-pill bg-primary/10 text-primary capitalize">{p.category}</span></TableCell>
- <TableCell className="text-xs">{p.drap_reg_number || "—"}</TableCell>
- {!hideCost && <TableCell className="text-right font-mono">{Number(p.cost_price).toLocaleString()}</TableCell>}
- <TableCell className="text-right font-mono">{Number(p.selling_price).toLocaleString()}</TableCell>
- <TableCell className="text-right font-mono text-muted-foreground">{Number(p.mrp || 0) > 0 ? Number(p.mrp).toLocaleString() : "—"}</TableCell>
- {!hideCost && <TableCell className="text-right font-mono text-primary">{margin(p)}</TableCell>}
+ {!hideCost && <TableCell className="text-right font-mono tabular-nums">{Number((p as any).purchase_cost ?? p.cost_price).toLocaleString()}</TableCell>}
+ {!hideCost && <TableCell className="text-right font-mono tabular-nums">{landedOf(p).toLocaleString()}</TableCell>}
+ <TableCell className="text-right font-mono tabular-nums">{Number(p.selling_price).toLocaleString()}</TableCell>
+ <TableCell className="text-right font-mono tabular-nums text-muted-foreground">{Number(p.mrp || 0) > 0 ? Number(p.mrp).toLocaleString() : "—"}</TableCell>
+ {!hideCost && (
+   <TableCell className="text-right font-mono tabular-nums">
+     <span className="text-primary">{margin(p)}</span>
+     {landedMissing(p) && <Badge variant="outline" className="ml-1 text-[9px] py-0 px-1 text-warning border-warning/40">no landed</Badge>}
+   </TableCell>
+ )}
  <TableCell className="text-right">
  <span className={Number(p.stock_quantity) <= Number(p.reorder_level) ? "text-destructive font-semibold" : ""}>{Number(p.stock_quantity).toLocaleString()}</span>
  </TableCell>
