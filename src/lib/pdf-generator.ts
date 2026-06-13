@@ -265,12 +265,12 @@ function buildA4Html(opts: PdfOptions): string {
   const colWidth = (c: PdfColumn) => {
     const k = c.key.toLowerCase();
     const isProductName = c.key === "product_name" || c.key === "name" || c.key === "item_name" || c.key === "description";
-    if (SERIAL_KEYS.has(c.key)) return "width:7%;";
-    if (isProductName) return hasMoneyCol ? "width:28%;" : "width:55%;";
+    if (SERIAL_KEYS.has(c.key)) return "width:6%;";
+    if (isProductName) return hasMoneyCol ? "width:28%;" : "width:46%;";
     if (k === "product_code" || k === "code" || k === "sku") return "width:10%;";
-    if (k === "batch_number" || k === "batch") return "width:11%;";
-    if (k === "expiry_date" || k === "expiry") return "width:10%;";
-    if (k === "quantity" || k === "qty") return "width:11%;";
+    if (k === "batch_number" || k === "batch") return hasMoneyCol ? "width:11%;" : "width:16%;";
+    if (k === "expiry_date" || k === "expiry") return hasMoneyCol ? "width:10%;" : "width:14%;";
+    if (k === "quantity" || k === "qty") return hasMoneyCol ? "width:11%;" : "width:14%;";
     if (k === "rate" || k === "tp_rate" || k === "price") return "width:8%;";
     if (k === "mrp" || k === "mrp_inc_tax") return "width:11%;";
     if (k === "discount" || k === "discount_pct" || k === "disc") return "width:7%;";
