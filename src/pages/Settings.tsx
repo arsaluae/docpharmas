@@ -535,17 +535,35 @@ export default function Settings() {
                        />
                        <div className="text-[11px] text-muted-foreground space-y-1">
                          <p>Use blank lines to separate paragraphs. Lines beginning with <code>1.</code> <code>2.</code> render as hanging-indent numbered points. Leave empty to use the default template.</p>
-                         <p className="font-medium text-foreground mt-2">Available tokens:</p>
-                         <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                           <code>{"{{sales_rep_name}}"}</code>
-                           <code>{"{{father_name}}"}</code>
-                           <code>{"{{relation}}"}</code>
-                           <code>{"{{sales_rep_cnic}}"}</code>
-                           <code>{"{{agent_license_number}}"}</code>
-                           <code>{"{{agent_license_expiry}}"}</code>
-                           <code>{"{{company_name}}"}</code>
+                         <p className="font-medium text-foreground mt-2">Click a token to insert it at the cursor:</p>
+                         <div className="flex flex-wrap gap-1.5">
+                           {["{{sales_rep_name}}","{{father_name}}","{{relation}}","{{sales_rep_cnic}}","{{agent_license_number}}","{{agent_license_expiry}}","{{company_name}}"].map(tok => (
+                             <button
+                               key={tok}
+                               type="button"
+                               className="px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-accent hover:text-accent-foreground font-mono text-[10.5px] transition-colors"
+                               onClick={(e) => {
+                                 const ta = (e.currentTarget.closest('.space-y-2')?.querySelector('textarea')) as HTMLTextAreaElement | null;
+                                 const current = form.warranty_note_text || "";
+                                 if (ta) {
+                                   const start = ta.selectionStart ?? current.length;
+                                   const end = ta.selectionEnd ?? current.length;
+                                   const next = current.slice(0, start) + tok + current.slice(end);
+                                   setForm({ ...form, warranty_note_text: next });
+                                   requestAnimationFrame(() => {
+                                     ta.focus();
+                                     const pos = start + tok.length;
+                                     ta.setSelectionRange(pos, pos);
+                                   });
+                                 } else {
+                                   setForm({ ...form, warranty_note_text: current + tok });
+                                 }
+                               }}
+                             >{tok}</button>
+                           ))}
                          </div>
-                         <p>Tokens auto-fill from the Sales Rep selected on the warranty note.</p>
+                         <p>Tokens auto-fill from the Sales Rep selected on the warranty note. Leave the textarea empty to use the default template.</p>
+
                        </div>
                      </div>
                    )}
@@ -554,7 +572,7 @@ export default function Settings() {
                  <div className="pt-2 space-y-3 border-t border-border mt-2">
                    <div>
                      <p className="font-medium text-sm">Document Assets — Company Stamp & Signature</p>
-                     <p className="text-xs text-muted-foreground">PNG, JPG or WebP. Max 5MB. Transparent PNG preferred for stamps. Used on the Warranty Note (stamp left, signature right).</p>
+                     <p className="text-xs text-muted-foreground">PNG, JPG or WebP. Max 5MB. Transparent PNG preferred. Used on the Warranty Note — signature overlays the stamp on the right side of the footer.</p>
                    </div>
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <div className="rounded-md border border-border p-3 space-y-2">
