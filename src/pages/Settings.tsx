@@ -191,6 +191,11 @@ export default function Settings() {
         warranty_stamp_url: form.warranty_stamp_url || null,
         warranty_signature_url: form.warranty_signature_url || null,
         warranty_footer_text: form.warranty_footer_text || null,
+        warranty_show_company_stamp: form.warranty_show_company_stamp,
+        warranty_show_rep_signature: form.warranty_show_rep_signature,
+        warranty_show_prepared_by: form.warranty_show_prepared_by,
+        warranty_show_agent_license_number: form.warranty_show_agent_license_number,
+        warranty_show_agent_license_expiry: form.warranty_show_agent_license_expiry,
         document_page_mode: form.document_page_mode,
       };
 
