@@ -617,7 +617,7 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   ].filter(Boolean) as string[];
 
   const logo = s?.logo_url
-    ? `<img src="${s.logo_url}" alt="${escapeHtml(company)}" style="max-height:80px;max-width:180px;object-fit:contain;display:block;" />`
+    ? `<img src="${s.logo_url}" alt="${escapeHtml(company)}" style="height:84px;max-height:84px;width:auto;max-width:280px;object-fit:contain;display:block;" />`
     : "";
 
   const d = opts.distributor;
