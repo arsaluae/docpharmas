@@ -118,13 +118,14 @@ export default function Products() {
   if (!form.name.trim()) { toast.error("Product name required"); return; }
   // Stock quantity is intentionally NOT in update payload — all stock changes must
   // flow through stock_movements so triggers, audit, and negative-stock guard fire.
-   const basePayload = {
-   name: form.name, sku: form.sku || null, category: form.category,
-   drap_reg_number: form.drap_reg_number || null, pack_size: form.pack_size || null, unit: form.unit,
-   cost_price: Number(form.cost_price), selling_price: Number(form.selling_price),
-   mrp: Number(form.mrp) || 0,
-   gst_rate: Number(form.gst_rate), reorder_level: Number(form.reorder_level),
-   };
+    const basePayload = {
+    is_active: true,
+    name: form.name, sku: form.sku || null, category: form.category,
+    drap_reg_number: form.drap_reg_number || null, pack_size: form.pack_size || null, unit: form.unit,
+    cost_price: Number(form.cost_price), selling_price: Number(form.selling_price),
+    mrp: Number(form.mrp) || 0,
+    gst_rate: Number(form.gst_rate), reorder_level: Number(form.reorder_level),
+    };
   if (editId) {
   await supabase.from("products").update(basePayload).eq("id", editId);
   toast.success("Product updated");

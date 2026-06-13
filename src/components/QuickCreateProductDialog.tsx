@@ -43,6 +43,7 @@ export function QuickCreateProductDialog({ open, onOpenChange, onCreated, defaul
     try {
       const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "product" });
       const payload: any = {
+        is_active: true,
         name: name.trim(),
         sku: sku.trim() || null,
         category: "tablet",
