@@ -167,7 +167,7 @@ export default function Products() {
  setEditId(p.id);
  setForm({
  name: p.name, sku: p.sku || "", category: p.category, drap_reg_number: p.drap_reg_number || "",
- pack_size: p.pack_size || "", unit: p.unit, cost_price: String(p.cost_price), selling_price: String(p.selling_price),
+ pack_size: p.pack_size || "", unit: p.unit, purchase_cost: String((p as any).purchase_cost ?? p.cost_price), selling_price: String(p.selling_price),
  mrp: String(p.mrp ?? 0),
  gst_rate: String(p.gst_rate), stock_quantity: String(p.stock_quantity), reorder_level: String(p.reorder_level),
  });
