@@ -812,17 +812,14 @@ export default function ProformaInvoices() {
         { header: "Batch #", key: "batch_number" },
         { header: "Expiry", key: "expiry_date" },
         { header: "Qty", key: "quantity", align: "right" },
-        { header: "MRP", key: "mrp", align: "right" },
       ],
       rows: dnItems.map((i: any, idx: number) => {
         const exp = i.expiry_date || expiryMap[`${i.product_id}__${i.batch_number}`] || null;
-        const mrp = mrpMap[i.product_id] || 0;
         return {
           idx: idx + 1,
           product_name: i.product_name || "Item",
           batch_number: i.batch_number || "—",
           expiry_date: fmtExpiry(exp),
-          mrp: mrp > 0 ? mrp.toLocaleString() : "—",
           quantity: i.quantity,
         };
       }),
