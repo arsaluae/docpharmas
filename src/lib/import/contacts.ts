@@ -306,7 +306,7 @@ export function findDuplicate(
   const n = normalizeName(candidate.contact_name);
   for (const c of existing) {
     if (c.customer_id !== customerId) continue;
-    if (m && normalizeMobile(c.sms_mobile) === m) return c;
+    if (m && normalizeMobile(c.mobile) === m) return c;
     if (e && normalizeEmail(c.email) === e) return c;
     if (n && normalizeName(c.contact_name) === n) return c;
   }
