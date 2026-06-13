@@ -351,16 +351,18 @@ function buildA4Html(opts: PdfOptions): string {
     box-shadow:0 4px 18px rgba(0,0,0,0.18); }
   .toolbar-title { color:#fff; font-size:13px; font-weight:600; letter-spacing:0.3px; }
   .toolbar-btn { background:${C.primary}; color:#fff; border:none; padding:8px 18px; font-size:12.5px; font-weight:600; border-radius:4px; cursor:pointer; }
-  .page-frame { max-width:820px; margin:64px auto 36px; padding:28px 32px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); }
+  .page-frame { max-width:778px; margin:64px auto 36px; padding:24px 28px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); }
   .doc-header { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+  /* Pagination-safe defaults (apply during html2canvas snapshot too, not only @media print) */
+  table { page-break-inside:auto; }
+  thead { display:table-header-group; }
+  tfoot { display:table-footer-group; }
+  tr { page-break-inside:avoid; break-inside:avoid; }
   @media print {
     body { background:#fff; }
     *, *::before, *::after { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
     .toolbar { display:none !important; }
     .page-frame { border:none; box-shadow:none; max-width:100%; margin:0; padding:0; }
-    table { page-break-inside:auto; }
-    thead { display:table-header-group; }
-    tr { page-break-inside:avoid; }
     @page { margin:12mm 12mm; size:A4; }
   }
 </style></head><body>
