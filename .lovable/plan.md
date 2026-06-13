@@ -1,33 +1,35 @@
-## Issue
-In the rendered PDF, the logo sits tiny in the top-left while the company name block on the right is large and visually dominant. The two are not on the same baseline — the logo floats up because of `align-items:center` against a much taller right block, and the logo itself is capped too small (`max-height:90px`, `max-width:180px`, but in practice renders much smaller because the source SVG/PNG is wide-aspect and the height cap never kicks in).
+## What's still wrong
+The logo in the preview is rendering tiny (~40px tall) even though we set `height:84px`. Root cause: the logo image is being scaled by the browser's default `width:auto` calculation against a wide-aspect SVG, and `align-items:center` on the flex row leaves it floating mid-air against a much taller right-side text block. The company block is also too large, so it dwarfs the logo no matter what.
 
-## Fix (single file: `src/lib/pdf-generator.ts`)
+## Fix — single file: `src/lib/pdf-generator.ts`
 
-### 1. Header row — true alignment + bigger logo
-Replace the header block (lines 380–408) so logo and company text share the same row, vertically centered, with the logo sized to match the visual weight of the company name (≈ same height as the name + tagline stack).
+### A. Force the logo to a real, prominent size
+Inline style on the `<img>` (line 190):
+- Use `height:110px !important; width:auto !important; max-width:320px !important; object-fit:contain; display:block;`
+- Drop `max-height` (it was redundant and confused the browser when paired with explicit `height`).
+- Add `!important` so the half-page CSS doesn't compete.
 
-- `.doc-header`: `display:flex; align-items:center; justify-content:space-between; gap:28px; padding:4px 0 12px; border-bottom:1px solid <border>;`
-- Logo wrapper: `flex:0 0 auto; display:flex; align-items:center;`
-- Logo `<img>`: bump to `height:84px; max-height:84px; width:auto; max-width:280px; object-fit:contain; display:block;` (height is the binding dimension so wide logos still grow tall; max-width prevents extreme widescreen marks from blowing out).
-- Right block wrapper: `flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center;` so the text column matches the logo row height instead of pulling the logo upward.
-- Company name: keep `font-size:22px; font-weight:800; line-height:1.15;` (already correct).
+### B. Align top, not center — and shrink the company block so the two balance
+`.doc-header` (line 381):
+- `align-items: flex-start` so the logo sits flush with the company name baseline at the top.
+- `gap: 32px`.
 
-### 2. Half-A4 override — keep logo prominent
-In `HALF_PAGE_CSS` (line 452), raise the logo cap so the half-page Delivery Note also shows a real logo, not a thumbnail:
-- `.page-frame img { max-height: 72px !important; max-width: 220px !important; }`
+Company name (line 201): reduce from 22px → 19px so it doesn't tower over the logo.
+Address/phone/email lines (line 203): keep at 12.5px but reduce `line-height` to 1.45.
 
-### 3. Warranty template (lines ~740)
-Mirror the same change in the warranty header so the warranty invoice logo also matches: `height:84px; max-height:84px; max-width:280px; object-fit:contain;` and `vertical-align:middle` on both logo and company cells (already there).
+### C. Half-page override matches
+`HALF_PAGE_CSS` `.page-frame img` (line 453):
+- `max-height: 90px !important; max-width: 240px !important; height: 90px !important;` so the Delivery Note logo is also prominent.
 
-### 4. Remove dead top whitespace
-`.page-frame` `padding:14px 24px 18px` → `padding:10px 24px 18px` so the header sits flush to the top edge of the page without that extra band of empty space above the logo.
+### D. Warranty template (line 620)
+Match: `height:110px;width:auto;max-width:320px;object-fit:contain;display:block;`
 
-## Out of scope (not touched)
-- Table layout, totals card, customer card, watermark — all already redesigned in the previous pass.
-- `PdfPreviewDialog.tsx` — no changes needed; the larger logo flows through automatically.
+## Out of scope
+- Customer card, table, totals — all already redesigned.
+- `PdfPreviewDialog.tsx` — no change needed.
 
 ## QA
-- Open Sales Invoice SI-0003 preview → logo should be ~84px tall, baseline-centered with "Mouj Pharmaceuticals".
-- Save as PDF → logo renders at the same prominence as the company name block, no top whitespace band.
-- Delivery Note (half-A4) → logo is ~72px, still visible and balanced.
-- Warranty invoice → logo matches.
+- Reopen Sales Invoice preview → logo is ~110px tall, top-aligned with "Mouj Pharmaceuticals". No big white gap.
+- Save as PDF → same prominence preserved.
+- Delivery Note (half-A4) → logo ~90px, still readable.
+- No text missing (address, phone, email all render — they already do).

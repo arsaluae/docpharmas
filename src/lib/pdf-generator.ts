@@ -187,7 +187,7 @@ function buildA4Html(opts: PdfOptions): string {
   const safeCompany = escapeHtml(companyName);
   const logoHtml = s?.logo_url
     ? `<img src="${s.logo_url}" alt="${safeCompany}" crossorigin="anonymous"
-            style="height:84px;max-height:84px;width:auto;max-width:280px;object-fit:contain;display:block;"
+            style="height:110px !important;width:auto !important;max-width:320px !important;object-fit:contain;display:block;vertical-align:middle;"
             onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';" /><div style="display:none;font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`
     : `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`;
 
@@ -198,9 +198,9 @@ function buildA4Html(opts: PdfOptions): string {
 
   const companyBlock = `
     <div style="text-align:right;">
-      <div style="font-size:22px;font-weight:800;color:${C.text};letter-spacing:-0.2px;line-height:1.15;">${safeCompany}</div>
+      <div style="font-size:19px;font-weight:800;color:${C.text};letter-spacing:-0.2px;line-height:1.15;">${safeCompany}</div>
       ${tagline ? `<div style="font-size:13px;font-style:italic;color:${C.textMuted};margin-top:2px;">${escapeHtml(tagline)}</div>` : ""}
-      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:12.5px;color:${C.textMuted};line-height:1.5;margin-top:1px;word-break:break-word;">${escapeHtml(l)}</div>`).join("")}
+      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:12.5px;color:${C.textMuted};line-height:1.45;margin-top:1px;word-break:break-word;">${escapeHtml(l)}</div>`).join("")}
     </div>`;
 
   /* ── DOCUMENT TITLE (centered) ── */
@@ -378,9 +378,9 @@ function buildA4Html(opts: PdfOptions): string {
   .toolbar-title { color:#fff; font-size:13px; font-weight:600; letter-spacing:0.3px; }
   .toolbar-btn { background:${C.primary}; color:#fff; border:none; padding:8px 18px; font-size:12.5px; font-weight:600; border-radius:4px; cursor:pointer; }
   .page-frame { position:relative; max-width:794px; margin:0 auto; padding:10px 24px 18px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; }
-  .doc-header { display:flex; align-items:center; justify-content:space-between; gap:28px; padding:4px 0 12px; border-bottom:1px solid ${C.border}; }
-  .doc-header > div:first-child { flex:0 0 auto; display:flex; align-items:center; }
-  .doc-header > div:last-child { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; }
+  .doc-header { display:flex; align-items:flex-start; justify-content:space-between; gap:32px; padding:4px 0 12px; border-bottom:1px solid ${C.border}; }
+  .doc-header > div:first-child { flex:0 0 auto; display:flex; align-items:flex-start; }
+  .doc-header > div:last-child { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:flex-start; }
   /* Pagination-safe defaults (apply during html2canvas snapshot too, not only @media print) */
   table { page-break-inside:auto; }
   thead { display:table-header-group; }
@@ -450,7 +450,7 @@ const HALF_PAGE_CSS = `
   }
   /* Density pass — preserve layout, shrink chrome to fit upper half (~138mm content) */
   .page-frame .doc-header { padding-bottom: 6pt !important; }
-  .page-frame img { max-height: 72px !important; max-width: 220px !important; }
+  .page-frame img { height: 90px !important; max-height: 90px !important; max-width: 240px !important; }
   .page-frame [style*="font-size:46px"],
   .page-frame [style*="font-size:42px"],
   .page-frame [style*="font-size:38px"] { font-size: 22pt !important; line-height: 1.05 !important; }
@@ -617,7 +617,7 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   ].filter(Boolean) as string[];
 
   const logo = s?.logo_url
-    ? `<img src="${s.logo_url}" alt="${escapeHtml(company)}" style="height:84px;max-height:84px;width:auto;max-width:280px;object-fit:contain;display:block;" />`
+    ? `<img src="${s.logo_url}" alt="${escapeHtml(company)}" style="height:110px;width:auto;max-width:320px;object-fit:contain;display:block;" />`
     : "";
 
   const d = opts.distributor;
