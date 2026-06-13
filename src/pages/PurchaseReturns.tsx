@@ -55,7 +55,9 @@ export default function PurchaseReturns() {
 
   const bulk = useBulkSelection();
 
-  useEffect(() => { loadData(); }, [pagination.page]);
+  const debouncedSearch = useDebouncedValue(search, 300);
+  useEffect(() => { pagination.setPage(0); }, [debouncedSearch, dateRange]);
+  useEffect(() => { loadData(); }, [pagination.page, debouncedSearch]);
 
   const printReturn = async (r: any) => {
     const { data: its } = await supabase.from("purchase_return_items")
