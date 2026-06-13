@@ -139,7 +139,7 @@ export function ProductBatchProfileDialog({
               </div>
             </div>
             <div>
-              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Gross Margin</Label>
+              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Markup %</Label>
               <div className={`h-9 px-3 flex items-center rounded-md font-mono tabular-nums text-sm ${grossMarginPct !== null && grossMarginPct >= 0 ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"}`}>
                 {grossMarginPct === null ? "—" : `${grossMarginPct.toFixed(2)}%`}
               </div>
