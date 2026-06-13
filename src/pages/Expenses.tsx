@@ -93,8 +93,6 @@ export default function Expenses() {
   const [addCourierOpen, setAddCourierOpen] = useState(false);
   const [courierFilter, setCourierFilter] = useState("all");
 
-  useEffect(() => { load(); }, [pagination.page, activeTab, selectedLedger]);
-
   const debouncedSearch = useDebouncedValue(search, 300);
   useEffect(() => { pagination.setPage(0); }, [debouncedSearch, activeTab, catFilter, selectedLedger]);
   useEffect(() => { load(); }, [pagination.page, activeTab, selectedLedger, debouncedSearch, catFilter]);
