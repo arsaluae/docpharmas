@@ -378,9 +378,9 @@ function buildA4Html(opts: PdfOptions): string {
   .toolbar-title { color:#fff; font-size:13px; font-weight:600; letter-spacing:0.3px; }
   .toolbar-btn { background:${C.primary}; color:#fff; border:none; padding:8px 18px; font-size:12.5px; font-weight:600; border-radius:4px; cursor:pointer; }
   .page-frame { position:relative; max-width:794px; margin:0 auto; padding:10px 24px 18px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; }
-  .doc-header { display:flex; align-items:center; justify-content:space-between; gap:28px; padding:4px 0 12px; border-bottom:1px solid ${C.border}; }
-  .doc-header > div:first-child { flex:0 0 auto; display:flex; align-items:center; }
-  .doc-header > div:last-child { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; }
+  .doc-header { display:flex; align-items:flex-start; justify-content:space-between; gap:32px; padding:4px 0 12px; border-bottom:1px solid ${C.border}; }
+  .doc-header > div:first-child { flex:0 0 auto; display:flex; align-items:flex-start; }
+  .doc-header > div:last-child { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:flex-start; }
   /* Pagination-safe defaults (apply during html2canvas snapshot too, not only @media print) */
   table { page-break-inside:auto; }
   thead { display:table-header-group; }
@@ -450,7 +450,7 @@ const HALF_PAGE_CSS = `
   }
   /* Density pass — preserve layout, shrink chrome to fit upper half (~138mm content) */
   .page-frame .doc-header { padding-bottom: 6pt !important; }
-  .page-frame img { max-height: 72px !important; max-width: 220px !important; }
+  .page-frame img { height: 90px !important; max-height: 90px !important; max-width: 240px !important; }
   .page-frame [style*="font-size:46px"],
   .page-frame [style*="font-size:42px"],
   .page-frame [style*="font-size:38px"] { font-size: 22pt !important; line-height: 1.05 !important; }
