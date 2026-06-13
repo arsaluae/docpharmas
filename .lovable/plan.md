@@ -1,57 +1,69 @@
+# Global Search Across All Paginated Lists
 
-# Fix margin calculation + manage opening stock
+## Problem
+Search inputs on list pages currently filter the **already-loaded page** (50 rows). Typing a SKU/name that lives on page 3 returns nothing. Same issue on the Products tab, Stock Movements tab, and every other paginated list (Customers, Suppliers, Sales Invoices, POs, etc.).
 
-## 1. Margin formula → markup on cost
+## Fix — server-side debounced search
+Push the search term into the Supabase query (`.or(...ilike...)`) so the database searches the whole catalog and pagination follows the filtered set.
 
-Replace the current "margin on sale" formula everywhere it's shown in the Products module with **markup on cost**:
+### Pattern (applied identically to every list)
+```ts
+const [search, setSearch] = useState("");
+const [debounced, setDebounced] = useState("");
 
+useEffect(() => {
+  const t = setTimeout(() => setDebounced(search.trim()), 300);
+  return () => clearTimeout(t);
+}, [search]);
+
+// reset to page 1 whenever the search term changes
+useEffect(() => { pagination.setPage(1); }, [debounced]);
+
+// in loadAll(), before .range():
+if (debounced) {
+  const q = `%${debounced}%`;
+  query = query.or(`name.ilike.${q},sku.ilike.${q},product_code.ilike.${q}`);
+}
 ```
-landed  = product.cost_price > 0 ? product.cost_price : product.purchase_cost
-markup  = landed > 0 ? ((sale - landed) / landed) * 100 : null
-```
 
-Header label changes from `MARGIN` → `MARKUP %`. Tooltip on the column header explains "(Sale − Landed) ÷ Landed × 100".
+- Debounce 300 ms → no query storm while typing.
+- `count: "exact"` already in place → pagination footer stays accurate against the filtered set.
+- Remove the now-redundant client-side `.filter(...)` on `products` / `movements`.
 
-Expected values after change:
-- ivymik (38/50/65) → **30.00%**
-- Heamo (49/49/65) → **32.65%**
-- Coliza (115.5/115.5/140) → **21.21%**
-- Movial (83/83/110) → **32.53%**
+## Pages updated (same pattern, different searchable columns)
 
-Updated in: `src/pages/Products.tsx`, plus the same column in `ProductBatchProfileDialog.tsx` (landed-cost drawer live preview). "No Landed" chip logic stays as-is.
+| Page | Searchable columns |
+|---|---|
+| Products → Catalog tab (`Products.tsx`) | `name, sku, product_code, generic_name, brand` |
+| Products → Stock Movements tab | `batch_number, notes` + product name via cached map (kept client-side after fetch — DB join not available; will switch to server search on `batch_number, notes, reference_number` and keep product-name filter additive) |
+| Customers (`Customers.tsx`) | `name, contact_person, phone, city, customer_code` |
+| Suppliers (`Suppliers.tsx`) | `name, contact_person, phone, supplier_code` |
+| Sales Invoices (`SalesInvoicesList.tsx`, `ProformaInvoices.tsx`) | `invoice_number` + customer name via cached map server filter on `invoice_number` only; customer-name filter stays client-side because customers is a relation |
+| Purchase Proforma / Purchase Orders (`PurchaseProforma.tsx`) | `po_number, proforma_number` |
+| Sales Returns, Purchase Returns, Credit Notes, Debit Notes, Delivery Notes | their document-number column |
+| Payments, Expenses, Warranty Invoices, Landed Costs, Print Jobs, Printers, Bank Accounts | their primary number/name column |
 
-Reports (`ItemWiseReport`, `ProductPerformance`, `ProductCosting`, `ProfitLoss`) keep their existing **profit on sale** calculation — those are accounting P&L numbers and shouldn't change. Only the product-catalog screen flips to markup.
-
-## 2. Edit / delete opening stock — batch drawer
-
-`ProductBatchProfileDialog` → Active Batches panel: each batch row gets two new icon buttons (admin only, hidden for sales agents):
-
-- **Edit Qty** — small inline input + Save. Computes delta vs current on-hand and inserts a single `stock_movements` row with `movement_type='adjustment_in'` or `'adjustment_out'`, `batch_number=<row>`, `notes='Manual batch adjustment — was X, now Y'`. Never edits existing rows.
-- **Delete batch** — confirm dialog ("Remove all 35,620 of batch X? This writes a reversing adjustment."). Inserts one `adjustment_out` for the full on-hand, same batch number. After save, batch falls out of the list (on-hand = 0).
-
-Both actions write an `audit_log` entry (`logAudit({ action: 'stock_adjusted', ... })`) and refresh `getActiveBatches()`.
-
-## 3. Delete opening stock rows on Movements tab
-
-`StockMovements.tsx` (the Movements tab inside Products page): for rows where `movement_type IN ('opening','opening_stock')` AND user is admin, show a trash icon in a new Actions column.
-
-Click → confirm → `DELETE FROM stock_movements WHERE id = ?`. This is safe for opening rows because they have no ledger / invoice / GRN dependency. Refresh + audit log.
-
-Non-opening movement types stay read-only (deleting a sale/purchase movement would desync invoices).
-
-## 4. Cross-checks
-
-- Stock total on the Products table = sum of active batch on-hands (already true via `stock_movements` trigger). Verify after delete by reading `products.stock_quantity` and refetching the row.
-- Sales agent RLS already blocks the new delete/edit paths — UI also hides the buttons via `useIsSalesAgent()`.
-- `cost_price` (landed cache) is untouched by quantity edits — only `product_landed_costs` mutates it.
-
-## Files touched
-
-- `src/pages/Products.tsx` — markup formula + column header.
-- `src/components/ProductBatchProfileDialog.tsx` — per-batch Edit/Delete + markup display.
-- `src/pages/StockMovements.tsx` — delete action on opening rows (admin-only).
-- Memory: update `mem://features/product-pricing-mrp-vs-net` note about markup-on-cost on the catalog screen.
+For relation-based search (e.g. "find invoice by customer name") I'll add a second cheap query: when `debounced` is set, fetch matching customer/supplier ids with `ilike` and include `customer_id.in.(...)` in the main `.or()`. This keeps everything server-side.
 
 ## Out of scope
+- The Sales Order / Invoice **product picker** dropdown — you didn't include it in scope this round; it stays as is.
+- No schema changes. No new indexes (existing `name`/`sku` indexes are sufficient at current data volumes; can revisit if slow).
+- No UI redesign — only wiring change behind the same search inputs.
 
-PDFs, PO, reports (profit math stays sale-based for accounting integrity).
+## Files touched
+- `src/pages/Products.tsx`
+- `src/pages/StockMovements.tsx`
+- `src/pages/Customers.tsx`, `src/pages/Suppliers.tsx`
+- `src/pages/ProformaInvoices.tsx`, `src/pages/SalesInvoicesList.tsx`
+- `src/pages/PurchaseProforma.tsx`
+- `src/pages/SalesReturns.tsx`, `src/pages/PurchaseReturns.tsx`
+- `src/pages/CreditNotes.tsx`, `src/pages/DebitNotes.tsx`, `src/pages/DeliveryNotes.tsx`
+- `src/pages/Payments.tsx`, `src/pages/Expenses.tsx`
+- `src/pages/WarrantyInvoices.tsx`, `src/pages/LandedCosts.tsx`
+- `src/pages/PrintJobs.tsx`, `src/pages/Printers.tsx`, `src/pages/BankAccounts.tsx`
+
+## Verification
+1. Products: type a SKU known to live on page 4 → result appears immediately, pagination shows "1 of 1".
+2. Customers: search a name from a non-loaded page → found.
+3. Clear search → original paginated list restored, page resets to 1.
+4. No console errors; network shows one debounced query per keystroke burst.
