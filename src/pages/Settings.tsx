@@ -102,6 +102,7 @@ export default function Settings() {
     warranty_require_license_expiry: true,
     warranty_require_batch_number: true,
     warranty_require_batch_expiry: true,
+    document_page_mode: "auto" as "half" | "full" | "auto",
   });
 
  const { templates, loading: templatesLoading, updateTemplate } = useDocumentTemplates();
