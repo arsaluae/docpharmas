@@ -377,6 +377,7 @@ export default function WarrantyInvoices() {
  setSelectedCustomerId("");
  setSelectedInvoiceId("");
  setSelectedDistributorId("");
+ setSelectedRepId("");
  
  setItems([]);
  setDiscountType("percent");
@@ -391,6 +392,23 @@ export default function WarrantyInvoices() {
 
  const dist = distributors.find(d => d.id === selectedDistributorId);
  const pharmacyName = dist?.name || "N/A";
+ const rep = salesAgents.find(a => a.id === selectedRepId) || null;
+
+ // Pull customer warranty fields for the snapshot
+ let cust: any = null;
+ if (selectedCustomerId) {
+   const { data } = await supabase.from("customers")
+     .select("warranty_address, license_number, license_expiry, ntn, cnic, phone")
+     .eq("id", selectedCustomerId).maybeSingle();
+   cust = data;
+ }
+
+ // Created by name (current user / agent name)
+ let createdByName: string | null = rep?.name || null;
+ if (!createdByName) {
+   const { data: ur } = await supabase.auth.getUser();
+   createdByName = (ur.user?.user_metadata as any)?.full_name || ur.user?.email || null;
+ }
 
  let warrantyNumber: string | undefined;
  if (!editId) {
@@ -408,7 +426,7 @@ export default function WarrantyInvoices() {
  pharmacy_address: dist?.address || null,
  pharmacy_license_no: dist?.license_number || null,
  distributor_id: selectedDistributorId || null,
- sales_agent_id: null,
+ sales_agent_id: rep?.id || null,
 
  items: items as any,
  subtotal,
@@ -418,15 +436,40 @@ export default function WarrantyInvoices() {
  total,
  notes: formNotes || null,
  status: "issued",
+
+ // ── Sales rep snapshot ────────────────────────────────────────────
+ sales_rep_name: rep?.name || null,
+ sales_rep_father_name: rep?.father_name || null,
+ sales_rep_cnic: rep?.cnic || null,
+ sales_rep_gender: rep?.gender || null,
+ agent_license_number: rep?.license_number || null,
+ agent_license_expiry: rep?.license_expiry || null,
+ rep_signature_url: rep?.signature_url || null,
+ rep_stamp_url: rep?.stamp_url || null,
+
+ // ── Company stamp/signature snapshot ──────────────────────────────
+ company_stamp_url: (settings as any)?.warranty_stamp_url || null,
+ company_signature_url: (settings as any)?.warranty_signature_url || null,
+
+ // ── Customer warranty snapshot ────────────────────────────────────
+ customer_warranty_address: cust?.warranty_address || null,
+ customer_license_number: cust?.license_number || null,
+ customer_license_expiry: cust?.license_expiry || null,
+ customer_ntn: cust?.ntn || null,
+ customer_cnic: cust?.cnic || null,
+ customer_mobile: cust?.phone || null,
+
+ declaration_text_snapshot: (settings as any)?.warranty_note_text || null,
+ created_by_name: createdByName,
  };
 
  if (editId) {
  const { warranty_number, ...updatePayload } = payload;
  await supabase.from("warranty_invoices").update(updatePayload as any).eq("id", editId);
- toast.success("Warranty invoice updated");
+ toast.success("Warranty note updated");
  } else {
  await supabase.from("warranty_invoices").insert(payload as any);
- toast.success("Warranty invoice created");
+ toast.success("Warranty note created");
  }
  setOpen(false); resetForm(); load();
  };
@@ -436,6 +479,7 @@ export default function WarrantyInvoices() {
  setSelectedCustomerId(inv.customer_id || "");
  setSelectedInvoiceId(inv.source_invoice_id || "");
  setSelectedDistributorId(inv.distributor_id || "");
+ setSelectedRepId(inv.sales_agent_id || "");
  
  const invItems = Array.isArray(inv.items) ? inv.items as any : [];
  setItems(invItems);
@@ -454,6 +498,7 @@ export default function WarrantyInvoices() {
  setStep("edit_items");
  setOpen(true);
  };
+
 
 
  const handleDelete = async (id: string, e: React.MouseEvent) => {
