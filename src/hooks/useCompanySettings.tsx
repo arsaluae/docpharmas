@@ -34,6 +34,11 @@ export interface CompanySettings {
   warranty_stamp_url?: string | null;
   warranty_signature_url?: string | null;
   warranty_footer_text?: string | null;
+  warranty_show_company_stamp?: boolean;
+  warranty_show_rep_signature?: boolean;
+  warranty_show_prepared_by?: boolean;
+  warranty_show_agent_license_number?: boolean;
+  warranty_show_agent_license_expiry?: boolean;
   document_page_mode?: "half" | "full" | "auto";
 }
 

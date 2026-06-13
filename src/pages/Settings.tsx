@@ -105,6 +105,11 @@ export default function Settings() {
     warranty_stamp_url: "",
     warranty_signature_url: "",
     warranty_footer_text: "",
+    warranty_show_company_stamp: true,
+    warranty_show_rep_signature: true,
+    warranty_show_prepared_by: true,
+    warranty_show_agent_license_number: true,
+    warranty_show_agent_license_expiry: true,
     document_page_mode: "auto" as "half" | "full" | "auto",
   });
 
@@ -150,6 +155,11 @@ export default function Settings() {
           warranty_stamp_url: (data as any).warranty_stamp_url || "",
           warranty_signature_url: (data as any).warranty_signature_url || "",
           warranty_footer_text: (data as any).warranty_footer_text || "",
+          warranty_show_company_stamp: (data as any).warranty_show_company_stamp !== false,
+          warranty_show_rep_signature: (data as any).warranty_show_rep_signature !== false,
+          warranty_show_prepared_by: (data as any).warranty_show_prepared_by !== false,
+          warranty_show_agent_license_number: (data as any).warranty_show_agent_license_number !== false,
+          warranty_show_agent_license_expiry: (data as any).warranty_show_agent_license_expiry !== false,
           document_page_mode: ((data as any).document_page_mode || "auto") as "half" | "full" | "auto",
   });
 
@@ -181,6 +191,11 @@ export default function Settings() {
         warranty_stamp_url: form.warranty_stamp_url || null,
         warranty_signature_url: form.warranty_signature_url || null,
         warranty_footer_text: form.warranty_footer_text || null,
+        warranty_show_company_stamp: form.warranty_show_company_stamp,
+        warranty_show_rep_signature: form.warranty_show_rep_signature,
+        warranty_show_prepared_by: form.warranty_show_prepared_by,
+        warranty_show_agent_license_number: form.warranty_show_agent_license_number,
+        warranty_show_agent_license_expiry: form.warranty_show_agent_license_expiry,
         document_page_mode: form.document_page_mode,
       };
 
@@ -209,6 +224,8 @@ export default function Settings() {
 
  const uploadWarrantyAsset = async (file: File, kind: "stamp" | "signature"): Promise<string | null> => {
    if (!tenantId) { toast.error("Tenant not loaded"); return null; }
+   if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) { toast.error("Only PNG, JPG, or WebP images"); return null; }
+   if (file.size > 5 * 1024 * 1024) { toast.error("File too large — maximum 5MB"); return null; }
    const ext = file.name.split(".").pop() || "png";
    const path = `${tenantId}/warranty-${kind}-${Date.now()}.${ext}`;
    const { error } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true, contentType: file.type });
@@ -536,40 +553,78 @@ export default function Settings() {
 
                  <div className="pt-2 space-y-3 border-t border-border mt-2">
                    <div>
-                     <p className="font-medium text-sm">Warranty Stamp & Signature</p>
-                     <p className="text-xs text-muted-foreground">Printed at the bottom of every Warranty Note. Company stamp prints on the left, sales-rep signature on the right.</p>
+                     <p className="font-medium text-sm">Document Assets — Company Stamp & Signature</p>
+                     <p className="text-xs text-muted-foreground">PNG, JPG or WebP. Max 5MB. Transparent PNG preferred for stamps. Used on the Warranty Note (stamp left, signature right).</p>
                    </div>
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <div className="rounded-md border border-border p-3 space-y-2">
-                       <Label>Company Stamp</Label>
-                       <Input type="file" accept="image/*" onChange={async e => {
+                       <div className="flex items-center justify-between">
+                         <Label>Section 1 — Company Stamp</Label>
+                         {form.warranty_stamp_url && <a href={form.warranty_stamp_url} target="_blank" rel="noreferrer" className="text-[11px] text-primary underline">Preview</a>}
+                       </div>
+                       <Input type="file" accept="image/png,image/jpeg,image/webp" onChange={async e => {
                          const f = e.target.files?.[0]; if (!f) return;
                          const url = await uploadWarrantyAsset(f, "stamp");
-                         if (url) { setForm({ ...form, warranty_stamp_url: url }); toast.success("Stamp uploaded"); }
+                         if (url) { setForm({ ...form, warranty_stamp_url: url }); toast.success(form.warranty_stamp_url ? "Stamp replaced" : "Stamp uploaded"); }
+                         e.target.value = "";
                        }} />
                        {form.warranty_stamp_url ? (
                          <div className="flex items-center justify-between gap-2">
-                           <img src={form.warranty_stamp_url} alt="stamp" className="h-16 object-contain border border-border rounded bg-muted/30 p-1" />
-                           <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => setForm({ ...form, warranty_stamp_url: "" })}>Remove</Button>
+                           <img src={form.warranty_stamp_url} alt="company stamp" className="h-16 object-contain border border-border rounded bg-muted/30 p-1" />
+                           <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => setForm({ ...form, warranty_stamp_url: "" })}>Remove Stamp</Button>
                          </div>
-                       ) : <p className="text-[11px] text-muted-foreground">No stamp uploaded — printed area stays blank.</p>}
+                       ) : <p className="text-[11px] text-muted-foreground">No stamp uploaded.</p>}
                      </div>
                      <div className="rounded-md border border-border p-3 space-y-2">
-                       <Label>Default Signature (fallback)</Label>
-                       <Input type="file" accept="image/*" onChange={async e => {
+                       <div className="flex items-center justify-between">
+                         <Label>Section 2 — Company Authorized Signature</Label>
+                         {form.warranty_signature_url && <a href={form.warranty_signature_url} target="_blank" rel="noreferrer" className="text-[11px] text-primary underline">Preview</a>}
+                       </div>
+                       <Input type="file" accept="image/png,image/jpeg,image/webp" onChange={async e => {
                          const f = e.target.files?.[0]; if (!f) return;
                          const url = await uploadWarrantyAsset(f, "signature");
-                         if (url) { setForm({ ...form, warranty_signature_url: url }); toast.success("Signature uploaded"); }
+                         if (url) { setForm({ ...form, warranty_signature_url: url }); toast.success(form.warranty_signature_url ? "Signature replaced" : "Signature uploaded"); }
+                         e.target.value = "";
                        }} />
                        {form.warranty_signature_url ? (
                          <div className="flex items-center justify-between gap-2">
-                           <img src={form.warranty_signature_url} alt="signature" className="h-16 object-contain border border-border rounded bg-muted/30 p-1" />
-                           <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => setForm({ ...form, warranty_signature_url: "" })}>Remove</Button>
+                           <img src={form.warranty_signature_url} alt="company signature" className="h-16 object-contain border border-border rounded bg-muted/30 p-1" />
+                           <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => setForm({ ...form, warranty_signature_url: "" })}>Remove Signature</Button>
                          </div>
-                       ) : <p className="text-[11px] text-muted-foreground">Used only when the selected Sales Rep has no signature image.</p>}
+                       ) : <p className="text-[11px] text-muted-foreground">Used as fallback when the selected Sales Rep has no signature image.</p>}
                      </div>
                    </div>
                  </div>
+
+                 <div className="pt-2 space-y-3 border-t border-border mt-2">
+                   <div>
+                     <p className="font-medium text-sm">Warranty Note — Print Visibility</p>
+                     <p className="text-xs text-muted-foreground">Choose what prints in the signature block of every Warranty Note.</p>
+                   </div>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Show Company Stamp</span>
+                       <Switch checked={form.warranty_show_company_stamp} onCheckedChange={v => setForm({...form, warranty_show_company_stamp: v})} />
+                     </label>
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Show Sales Rep Signature</span>
+                       <Switch checked={form.warranty_show_rep_signature} onCheckedChange={v => setForm({...form, warranty_show_rep_signature: v})} />
+                     </label>
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Show "Prepared By"</span>
+                       <Switch checked={form.warranty_show_prepared_by} onCheckedChange={v => setForm({...form, warranty_show_prepared_by: v})} />
+                     </label>
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Show Agent License Number</span>
+                       <Switch checked={form.warranty_show_agent_license_number} onCheckedChange={v => setForm({...form, warranty_show_agent_license_number: v})} />
+                     </label>
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Show Agent License Expiry</span>
+                       <Switch checked={form.warranty_show_agent_license_expiry} onCheckedChange={v => setForm({...form, warranty_show_agent_license_expiry: v})} />
+                     </label>
+                   </div>
+                 </div>
+
 
                  <div className="pt-2 space-y-2 border-t border-border mt-2">
                    <Label>Warranty Note Footer Text</Label>

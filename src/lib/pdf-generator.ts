@@ -727,32 +727,47 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
       <div style="font-size:9.5pt;line-height:1.55;color:#0f172a;font-family:'Inter',sans-serif;">${declarationInner}</div>
     </section>` : "";
 
+  const showStamp = (s as any)?.warranty_show_company_stamp !== false;
+  const showRepSig = (s as any)?.warranty_show_rep_signature !== false;
+  const showPreparedBy = (s as any)?.warranty_show_prepared_by !== false;
+  const showLicNo = (s as any)?.warranty_show_agent_license_number !== false;
+  const showLicExp = (s as any)?.warranty_show_agent_license_expiry !== false;
+
   const stampImg = (opts.companyStampUrl || s?.warranty_stamp_url || rep.stampUrl);
   const sigImg = (rep.signatureUrl || opts.companySignatureUrl || s?.warranty_signature_url);
+  // .preview-only hides during print/PDF via @media print
   const stampHtml = stampImg
-    ? `<img src="${stampImg}" alt="Company Stamp" style="max-height:70pt;max-width:160pt;object-fit:contain;display:block;margin:0 auto 4pt;" />`
-    : `<div style="height:60pt;"></div>`;
+    ? `<img src="${stampImg}" alt="Company Stamp" style="max-height:70pt;max-width:160pt;width:auto;height:auto;object-fit:contain;display:block;margin:0 auto 4pt;" />`
+    : `<div class="preview-only" style="height:60pt;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:8.5pt;font-style:italic;border:0.5pt dashed #cbd5e1;border-radius:3pt;">No Company Stamp Uploaded</div><div class="print-only" style="height:60pt;"></div>`;
   const sigHtml = sigImg
-    ? `<img src="${sigImg}" alt="Signature" style="max-height:50pt;max-width:160pt;object-fit:contain;display:block;margin:0 auto 4pt;" />`
-    : `<div style="height:48pt;"></div>`;
+    ? `<img src="${sigImg}" alt="Signature" style="max-height:50pt;max-width:160pt;width:auto;height:auto;object-fit:contain;display:block;margin:0 auto 4pt;" />`
+    : `<div class="preview-only" style="height:48pt;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:8.5pt;font-style:italic;border:0.5pt dashed #cbd5e1;border-radius:3pt;">No Signature Uploaded</div><div class="print-only" style="height:48pt;"></div>`;
   const repName = rep.name ? `<div style="font-size:9pt;font-weight:600;color:#0f172a;margin-top:2pt;">${escapeHtml(rep.name)}</div>` : "";
+  const repLicNo = (showLicNo && rep.licenseNumber) ? `<div style="font-size:8.5pt;color:#475569;margin-top:1pt;">License #: ${escapeHtml(rep.licenseNumber)}</div>` : "";
+  const repLicExp = (showLicExp && rep.licenseExpiry) ? `<div style="font-size:8.5pt;color:#475569;margin-top:1pt;">License Expiry: ${escapeHtml(rep.licenseExpiry)}</div>` : "";
+  const preparedBy = showPreparedBy ? `<div style="font-size:7.5pt;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-top:1pt;">Prepared By</div>` : "";
 
-  const signatureHtml = `
-    <section class="no-break" data-pdf-section="signatures" style="margin-top:18pt;">
-      <table style="width:100%;border-collapse:collapse;">
-        <tr>
+  const stampCell = showStamp ? `
           <td style="width:50%;padding-right:16pt;vertical-align:bottom;text-align:center;">
             ${stampHtml}
             <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.08em;">Company Stamp</div>
-          </td>
+          </td>` : `<td style="width:50%;"></td>`;
+  const sigCell = showRepSig ? `
           <td style="width:50%;padding-left:16pt;vertical-align:bottom;text-align:center;">
             ${sigHtml}
-            <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.08em;">Sales Rep · Prepared By</div>
+            <div style="border-top:0.75pt solid #0f172a;padding-top:4pt;font-size:9pt;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.08em;">Sales Representative Signature</div>
             ${repName}
-          </td>
-        </tr>
+            ${repLicNo}
+            ${repLicExp}
+            ${preparedBy}
+          </td>` : `<td style="width:50%;"></td>`;
+
+  const signatureHtml = (showStamp || showRepSig) ? `
+    <section class="no-break" data-pdf-section="signatures" style="margin-top:18pt;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>${stampCell}${sigCell}</tr>
       </table>
-    </section>`;
+    </section>` : "";
 
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Warranty Note — ${escapeHtml(opts.invoiceNumber)}</title>
@@ -785,9 +800,12 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   .items-table thead { display: table-header-group; }
   .items-table tfoot { display: table-footer-group; }
   .no-break { page-break-inside: avoid; }
+  .print-only { display: none; }
   @media print {
     html, body { width: 210mm; margin:0; padding:0; overflow:visible; }
     .warranty-document { width: 190mm; max-width: 190mm; margin:0 auto; }
+    .preview-only { display: none !important; }
+    .print-only { display: block !important; }
   }
 </style></head><body><div class="warranty-document">
 
