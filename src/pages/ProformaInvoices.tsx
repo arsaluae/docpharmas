@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { GraceDeleteButton } from "@/components/GraceDeleteButton";
 import { generatePdfHtml, generateDocumentViews } from "@/lib/pdf-generator";
+import { calcLine as calcLineMath, calcTotals as calcTotalsMath } from "@/lib/invoice-math";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { SearchableSelect } from "@/components/SearchableSelect";
