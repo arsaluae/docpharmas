@@ -741,6 +741,7 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     -webkit-font-smoothing:antialiased;
   }
   .warranty-document {
+    position: relative;
     width: 190mm;
     max-width: 190mm;
     margin: 0 auto;
@@ -748,6 +749,9 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
     overflow: visible;
     box-sizing: border-box;
   }
+  .warranty-document > * { position: relative; z-index: 1; }
+  .warranty-watermark { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:0; overflow:hidden; }
+  .warranty-watermark span { font-size:78px; font-weight:900; letter-spacing:8px; color:rgba(15,23,42,0.055); transform:rotate(-26deg); white-space:nowrap; text-transform:uppercase; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   table { border-collapse: collapse; }
   .items-table {
     width: 100%;
