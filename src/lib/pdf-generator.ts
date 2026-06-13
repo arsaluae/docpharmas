@@ -761,7 +761,7 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   }
 </style></head><body><div class="warranty-document">
 
-  <div class="warranty-watermark" aria-hidden="true"><span>${escapeHtml(company)}</span></div>
+  
 
   <section data-pdf-section="header" class="no-break">
     <table style="width:100%;border-collapse:collapse;">
