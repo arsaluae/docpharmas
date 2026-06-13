@@ -43,7 +43,6 @@ const PRINT_CHROME_CSS = `
     break-after: avoid !important;
   }
   .page-frame::before, .corner { display:none !important; }
-  @page { size: A4 portrait; margin: 8mm; }
   /* Keep rows / sections together across page breaks during snapshot */
   table { page-break-inside: auto; }
   thead { display: table-header-group; }
@@ -52,13 +51,6 @@ const PRINT_CHROME_CSS = `
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
-  /* On-screen instruction banner — hidden during print */
-  .print-tip-banner {
-    margin: 8px auto; max-width: 794px; padding: 8px 14px;
-    background: #fef3c7; border: 1px solid #fde68a; border-left: 3px solid #f59e0b;
-    color: #78350f; font: 12px/1.4 -apple-system, 'Segoe UI', sans-serif; border-radius: 4px;
-  }
-  @media print { .print-tip-banner { display: none !important; } }
 `;
 
 function injectChromeCss(html: string): string {
