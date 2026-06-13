@@ -136,11 +136,8 @@ export default function DebitNotes() {
   const currentParties = partyType === "customer" ? customers : suppliers;
   const partyOptions = currentParties.map(p => ({ value: p.id, label: p.company || p.name }));
 
-  const filtered = notes.filter(n =>
-    n.debit_note_number.toLowerCase().includes(search.toLowerCase()) ||
-    (n.reason || "").toLowerCase().includes(search.toLowerCase()) ||
-    (partyNames[n.party_id] || "").toLowerCase().includes(search.toLowerCase())
-  );
+  // Server-side search already filters across all pages.
+  const filtered = notes;
   const totalAmount = filtered.reduce((s, n) => s + Number(n.amount), 0);
 
   const headerActions = (
