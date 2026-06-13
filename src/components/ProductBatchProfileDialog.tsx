@@ -5,10 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Package, Banknote, Truck, Printer } from "lucide-react";
+import { Package, Banknote, Plus, Trash2, Info } from "lucide-react";
 import { getActiveBatches, type ActiveBatch } from "@/lib/batches";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+type CostType = "printing" | "freight" | "customs" | "handling" | "other";
+interface CostRow { type: CostType; amount: string; label?: string; }
 
 interface Props {
   open: boolean;
@@ -16,34 +19,52 @@ interface Props {
   productId: string | null;
   productName?: string;
   productCode?: string;
-  currentCost?: number;
+  /** Purchase cost (supplier base only, NEVER overwritten by this dialog). */
+  purchaseCost?: number;
+  /** Current sale price for live margin preview. */
+  salePrice?: number;
+  /** Current stored landed cost (for initial display). */
+  currentLandedCost?: number;
+  onSaved?: () => void;
 }
 
-export function ProductBatchProfileDialog({ open, onOpenChange, productId, productName, productCode, currentCost = 0 }: Props) {
+export function ProductBatchProfileDialog({
+  open, onOpenChange, productId, productName, productCode,
+  purchaseCost = 0, salePrice = 0, currentLandedCost = 0, onSaved,
+}: Props) {
   const [batches, setBatches] = useState<ActiveBatch[]>([]);
+  const [stockQty, setStockQty] = useState<number>(0);
   const [loading, setLoading] = useState(false);
-
-  // Landed cost calc
-  const [base, setBase] = useState(String(currentCost || 0));
-  const [printing, setPrinting] = useState("0");
-  const [freight, setFreight] = useState("0");
+  const [rows, setRows] = useState<CostRow[]>([{ type: "printing", amount: "0" }, { type: "freight", amount: "0" }]);
   const [saving, setSaving] = useState(false);
 
-  const trueCost = useMemo(
-    () => Number(base || 0) + Number(printing || 0) + Number(freight || 0),
-    [base, printing, freight]
+  const landedCost = useMemo(
+    () => Number(purchaseCost || 0) + rows.reduce((s, r) => s + (Number(r.amount) || 0), 0),
+    [rows, purchaseCost]
   );
+
+  const grossMarginPct = useMemo(() => {
+    if (!salePrice || salePrice <= 0) return null;
+    return ((salePrice - landedCost) / salePrice) * 100;
+  }, [salePrice, landedCost]);
 
   useEffect(() => {
     if (!open || !productId) return;
-    setBase(String(currentCost || 0));
-    setPrinting("0");
-    setFreight("0");
+    setRows([{ type: "printing", amount: "0" }, { type: "freight", amount: "0" }]);
     setLoading(true);
-    getActiveBatches(productId)
-      .then((list) => setBatches(list))
-      .finally(() => setLoading(false));
-  }, [open, productId, currentCost]);
+    Promise.all([
+      getActiveBatches(productId),
+      supabase.from("products").select("stock_quantity").eq("id", productId).single(),
+    ]).then(([list, prod]) => {
+      setBatches(list);
+      setStockQty(Number((prod.data as any)?.stock_quantity ?? 0));
+    }).finally(() => setLoading(false));
+  }, [open, productId]);
+
+  const updateRow = (i: number, patch: Partial<CostRow>) =>
+    setRows(rs => rs.map((r, idx) => idx === i ? { ...r, ...patch } : r));
+  const addRow = () => setRows(rs => [...rs, { type: "other", amount: "0", label: "" }]);
+  const removeRow = (i: number) => setRows(rs => rs.filter((_, idx) => idx !== i));
 
   const statusBadge = (s: ActiveBatch["status"]) => {
     if (s === "expired") return <Badge variant="destructive" className="rounded-sm">Expired</Badge>;
@@ -51,20 +72,30 @@ export function ProductBatchProfileDialog({ open, onOpenChange, productId, produ
     return <Badge className="rounded-sm bg-success text-success-foreground">Active</Badge>;
   };
 
-  const handleSaveCost = async () => {
+  const handleSave = async () => {
     if (!productId) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("products").update({ cost_price: trueCost }).eq("id", productId);
+      const sum = (t: CostType) => rows.filter(r => r.type === t).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+      const otherRow = rows.find(r => r.type === "other" && Number(r.amount) > 0);
+      const payload: any = {
+        product_id: productId,
+        purchase_cost: Number(purchaseCost) || 0,
+        printing_cost: sum("printing"),
+        freight_cost: sum("freight"),
+        customs_cost: sum("customs"),
+        handling_cost: sum("handling"),
+        other_cost: sum("other"),
+        other_cost_label: otherRow?.label || null,
+        source: "manual",
+      };
+      const { error } = await supabase.from("product_landed_costs" as any).insert(payload);
       if (error) throw error;
-      // Persist component breakdown for audit
-      const rows: any[] = [];
-      if (Number(printing) > 0) rows.push({ reference_type: "product", reference_id: productId, cost_type: "printing", amount: Number(printing), description: "Landed cost — printing" });
-      if (Number(freight) > 0) rows.push({ reference_type: "product", reference_id: productId, cost_type: "freight", amount: Number(freight), description: "Landed cost — inward freight" });
-      if (rows.length) await supabase.from("additional_costs").insert(rows);
-      toast.success(`True cost updated to PKR ${trueCost.toLocaleString()}`);
+      toast.success(`Landed cost saved — PKR ${landedCost.toLocaleString()}`);
+      onSaved?.();
+      onOpenChange(false);
     } catch (e: any) {
-      toast.error("Failed to save: " + e.message);
+      toast.error("Failed: " + e.message);
     } finally {
       setSaving(false);
     }
@@ -72,7 +103,7 @@ export function ProductBatchProfileDialog({ open, onOpenChange, productId, produ
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl rounded-[4px]">
+      <DialogContent className="max-w-5xl rounded-[4px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-4 w-4 text-primary" />
@@ -83,32 +114,76 @@ export function ProductBatchProfileDialog({ open, onOpenChange, productId, produ
 
         {/* Landed cost engine */}
         <div className="rounded-[4px] border border-border bg-secondary/30 p-4 space-y-3">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Banknote className="h-4 w-4 text-primary" /> Landed Cost Engine
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Banknote className="h-4 w-4 text-primary" /> Landed Cost
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Current stored landed cost: <span className="font-mono text-foreground">PKR {Number(currentLandedCost).toLocaleString()}</span>
+            </div>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+
+          <div className="grid grid-cols-3 gap-3">
             <div>
-              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Supplier Base</Label>
-              <Input value={base} onChange={(e) => setBase(e.target.value)} type="number" className="rounded-[4px] tabular-nums" />
+              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Purchase Cost (locked)</Label>
+              <div className="h-9 px-3 flex items-center rounded-md border border-border bg-background font-mono tabular-nums text-sm">
+                PKR {Number(purchaseCost).toLocaleString()}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">Edit from the product form.</p>
             </div>
             <div>
-              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Printer className="h-3 w-3" />Printing</Label>
-              <Input value={printing} onChange={(e) => setPrinting(e.target.value)} type="number" className="rounded-[4px] tabular-nums" />
+              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Sale Price</Label>
+              <div className="h-9 px-3 flex items-center rounded-md border border-border bg-background font-mono tabular-nums text-sm">
+                PKR {Number(salePrice).toLocaleString()}
+              </div>
             </div>
             <div>
-              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Truck className="h-3 w-3" />Inward Freight</Label>
-              <Input value={freight} onChange={(e) => setFreight(e.target.value)} type="number" className="rounded-[4px] tabular-nums" />
-            </div>
-            <div className="flex flex-col justify-end">
-              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">True Cost</Label>
-              <div className="h-9 px-3 flex items-center rounded-[4px] bg-primary text-primary-foreground font-mono text-sm tabular-nums">
-                PKR {trueCost.toLocaleString()}
+              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Gross Margin</Label>
+              <div className={`h-9 px-3 flex items-center rounded-md font-mono tabular-nums text-sm ${grossMarginPct !== null && grossMarginPct >= 0 ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"}`}>
+                {grossMarginPct === null ? "—" : `${grossMarginPct.toFixed(2)}%`}
               </div>
             </div>
           </div>
-          <div className="flex justify-end">
-            <Button size="sm" className="rounded-[4px]" onClick={handleSaveCost} disabled={saving}>
-              {saving ? "Saving…" : "Save True Cost"}
+
+          <div className="space-y-2">
+            <div className="grid grid-cols-12 gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+              <div className="col-span-3">Cost Type</div>
+              <div className="col-span-3">Amount (PKR)</div>
+              <div className="col-span-5">Label / Notes</div>
+              <div className="col-span-1"></div>
+            </div>
+            {rows.map((r, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <select
+                  className="col-span-3 h-9 rounded-md border border-input bg-background px-2 text-sm"
+                  value={r.type}
+                  onChange={e => updateRow(i, { type: e.target.value as CostType })}
+                >
+                  <option value="printing">Printing</option>
+                  <option value="freight">Freight</option>
+                  <option value="customs">Customs</option>
+                  <option value="handling">Handling / Loading</option>
+                  <option value="other">Other</option>
+                </select>
+                <Input className="col-span-3 tabular-nums" type="number" value={r.amount} onChange={e => updateRow(i, { amount: e.target.value })} />
+                <Input className="col-span-5" value={r.label || ""} onChange={e => updateRow(i, { label: e.target.value })} placeholder={r.type === "other" ? "Describe (e.g. insurance)" : "optional notes"} />
+                <Button variant="ghost" size="icon" className="col-span-1 h-7 w-7 text-destructive" onClick={() => removeRow(i)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={addRow}>
+              <Plus className="h-3 w-3 mr-1" /> Add cost row
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between border-t pt-3">
+            <div className="text-sm">
+              <span className="text-muted-foreground">New Landed Cost: </span>
+              <span className="font-mono font-bold text-primary tabular-nums">PKR {landedCost.toLocaleString()}</span>
+            </div>
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : "Save Landed Cost"}
             </Button>
           </div>
         </div>
@@ -134,7 +209,18 @@ export function ProductBatchProfileDialog({ open, onOpenChange, productId, produ
                 {loading ? (
                   <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">Loading…</TableCell></TableRow>
                 ) : batches.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">No active batches.</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
+                      {stockQty > 0 ? (
+                        <div className="flex items-center justify-center gap-2 text-warning">
+                          <Info className="h-4 w-4" />
+                          Stock present ({stockQty.toLocaleString()}) but no batch history. Use “Add Opening Stock” to record batches.
+                        </div>
+                      ) : (
+                        "No active batches."
+                      )}
+                    </TableCell>
+                  </TableRow>
                 ) : batches.map((b) => (
                   <TableRow key={b.batch_number}>
                     <TableCell className="font-mono text-xs">{b.batch_number}</TableCell>
