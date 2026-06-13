@@ -220,6 +220,7 @@ const App = () => (
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/import" element={<DataImport />} />
                   <Route path="/import/wizard" element={<MigrationWizard />} />
+                  <Route path="/import/contacts" element={<ContactImportWizard />} />
                   <Route path="/import/history" element={<ImportHistory />} />
                   <Route path="/system-health" element={<SystemHealth />} />
                   <Route path="/settings/backups" element={<Backups />} />
