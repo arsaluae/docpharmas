@@ -82,44 +82,18 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
 
   const embeddedHtml = useMemo(() => injectChromeCss(activeHtml), [activeHtml]);
 
-  const handlePrint = () => {
-    const win = window.open("", "_blank");
-    if (win) {
-      // Inject a non-print on-screen tip telling the user to disable browser
-      // headers/footers (which print URL / date / page numbers).
-      const tipHtml = `<div class="print-tip-banner">For a clean printout, in the browser's print dialog open <b>More settings</b> and uncheck <b>Headers and footers</b>. Choose <b>A4</b> paper, <b>Default</b> margins.</div>`;
-      const withTip = /<body[^>]*>/i.test(embeddedHtml)
-        ? embeddedHtml.replace(/<body([^>]*)>/i, `<body$1>${tipHtml}`)
-        : tipHtml + embeddedHtml;
-      win.document.write(withTip);
-      win.document.close();
-      win.onload = () => { win.print(); };
-      setTimeout(() => { try { win.print(); } catch(e) {} }, 600);
-    }
-  };
-
   /**
-   * Render the active HTML into a hidden same-origin iframe, wait for the
-   * document + every <img> to decode, then snapshot the iframe body with
-   * html2pdf. This avoids:
-   *   • blank pages when images (logo / signature / stamp) haven't loaded
-   *   • B&W rendering when external stylesheets aren't carried over
-   *   • toolbar leaking onto the first page
+   * Build a PDF (jsPDF) from the active document HTML using a hidden iframe.
+   * Returns the jsPDF instance; caller decides save vs preview-in-new-tab.
+   * For half-A4 docs we constrain output to a single A4 page (top half = content,
+   * bottom half = blank), so neither Save nor Print spill onto a 2nd page.
    */
-  const handleDownloadPdf = async () => {
-    if (downloading) return;
-    setDownloading(true);
+  const buildPdf = async () => {
     const iframe = document.createElement("iframe");
-    // A4 portrait at 96dpi ≈ 794 x 1123 px.
-    const A4_W = 794;
+    const A4_W = 794;   // A4 portrait at 96dpi
     const A4_H = 1123;
-    iframe.style.position = "fixed";
-    iframe.style.left = "-10000px";
-    iframe.style.top = "0";
-    iframe.style.width = `${A4_W}px`;
-    iframe.style.height = `${A4_H}px`;
-    iframe.style.border = "0";
-    iframe.style.background = "#ffffff";
+    const HALF_H = Math.round(A4_H / 2); // 561 px ~ 148.5mm
+    iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${A4_W}px;height:${A4_H}px;border:0;background:#fff;`;
     iframe.setAttribute("aria-hidden", "true");
     document.body.appendChild(iframe);
 
@@ -128,96 +102,126 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
         iframe.onload = () => resolve();
         iframe.srcdoc = embeddedHtml;
       });
-
       const doc = iframe.contentDocument;
       if (!doc) throw new Error("PDF iframe failed to initialise");
 
+      // Wait for fonts + images so logos render
       const fontsReady = (doc as any).fonts?.ready?.catch(() => undefined) || Promise.resolve();
       const imgs = Array.from(doc.images);
       await Promise.all([
         fontsReady,
-        ...imgs.map((img) => {
-          if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-          return new Promise<void>((res) => {
-            img.addEventListener("load", () => res(), { once: true });
-            img.addEventListener("error", () => res(), { once: true });
-          });
-        }),
-        new Promise<void>((res) => setTimeout(res, 120)),
+        ...imgs.map((img) => img.complete && img.naturalWidth > 0
+          ? Promise.resolve()
+          : new Promise<void>((res) => {
+              img.addEventListener("load", () => res(), { once: true });
+              img.addEventListener("error", () => res(), { once: true });
+            })),
+        new Promise<void>((res) => setTimeout(res, 150)),
       ]);
 
       const filename = `${(title || "Document").replace(/[^a-z0-9\-_.]+/gi, "-")}.pdf`;
       const isHalfPage = doc.documentElement.getAttribute("data-page-mode") === "half";
 
-      const target = doc.body;
-      target.style.background = "#ffffff";
+      // Find the actual document sheet
+      const sheet = (doc.querySelector(".page-frame, .warranty-document, .page") as HTMLElement) || doc.body;
+      sheet.style.background = "#ffffff";
 
       if (isHalfPage) {
-        // Render exactly one A4 page; document occupies top 138mm, lower half blank.
-        // Force body to a full A4 sheet so html2canvas captures the blank lower half too.
-        target.style.width = `${A4_W}px`;
-        target.style.minHeight = `${A4_H}px`;
-        target.style.height = `${A4_H}px`;
-        target.style.padding = "0";
-        target.style.margin = "0";
-
-        await html2pdf()
-          .set({
-            margin: 0,
-            filename,
-            image: { type: "jpeg", quality: 0.98 },
-            html2canvas: {
-              scale: 2,
-              useCORS: true,
-              allowTaint: false,
-              backgroundColor: "#ffffff",
-              windowWidth: A4_W,
-              width: A4_W,
-              height: A4_H,
-              logging: false,
-              scrollX: 0,
-              scrollY: 0,
-            },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
-            pagebreak: { mode: ["css"] },
-          } as any)
-          .from(target)
-          .save();
+        // Capture only the sheet at its natural rendered height, clip to half-A4 height.
+        // Output exactly one A4 page; lower half blank because we add no further pages.
+        const captureHeight = Math.min(sheet.scrollHeight, HALF_H);
+        const config = {
+          margin: 0,
+          filename,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: {
+            scale: 2, useCORS: true, allowTaint: false, backgroundColor: "#ffffff",
+            windowWidth: A4_W, width: A4_W, height: captureHeight,
+            logging: false, scrollX: 0, scrollY: 0,
+          },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
+          pagebreak: { mode: ["avoid-all"] },
+        } as any;
+        // Build jsPDF; the canvas is only ~half-A4 tall, so the resulting PDF page renders
+        // the document on top and naturally leaves the bottom half empty.
+        const worker: any = html2pdf().set(config).from(sheet);
+        await worker.toContainer();
+        await worker.toCanvas();
+        const canvas: HTMLCanvasElement = await worker.get("canvas");
+        const pdf: any = await worker.get("pdf") || (await worker.toPdf().get("pdf"));
+        // Draw the canvas centered on the top half of A4
+        const imgData = canvas.toDataURL("image/jpeg", 0.98);
+        // Reset to single page
+        const pageCount = pdf.internal.getNumberOfPages();
+        for (let i = pageCount; i > 1; i--) pdf.deletePage(i);
+        const a4Wmm = 210;
+        const renderWmm = a4Wmm;
+        const renderHmm = (canvas.height / canvas.width) * renderWmm;
+        pdf.addImage(imgData, "JPEG", 0, 0, renderWmm, renderHmm, undefined, "FAST");
+        return { pdf, filename };
       } else {
-        // Full A4 multi-page (original path)
-        const measuredWidth = Math.min(
-          A4_W,
-          Math.max(target.scrollWidth, target.getBoundingClientRect().width || 0, A4_W)
-        );
-        await html2pdf()
-          .set({
-            margin: [8, 8, 8, 8],
-            filename,
-            image: { type: "jpeg", quality: 0.98 },
-            html2canvas: {
-              scale: 2,
-              useCORS: true,
-              allowTaint: false,
-              backgroundColor: "#ffffff",
-              windowWidth: measuredWidth,
-              width: measuredWidth,
-              logging: false,
-              scrollX: 0,
-              scrollY: 0,
-            },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
-            pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".no-break", "[data-pdf-section]"] },
-          } as any)
-          .from(target)
-          .save();
+        const measuredWidth = Math.min(A4_W, Math.max(sheet.scrollWidth, A4_W));
+        const config = {
+          margin: [8, 8, 8, 8],
+          filename,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: {
+            scale: 2, useCORS: true, allowTaint: false, backgroundColor: "#ffffff",
+            windowWidth: measuredWidth, width: measuredWidth,
+            logging: false, scrollX: 0, scrollY: 0,
+          },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
+          pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".no-break", "[data-pdf-section]", ".totals-card", ".signatures"] },
+        } as any;
+        const worker: any = html2pdf().set(config).from(sheet);
+        await worker.toPdf();
+        const pdf = await worker.get("pdf");
+        return { pdf, filename };
       }
+    } finally {
+      iframe.remove();
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const { pdf, filename } = await buildPdf();
+      pdf.save(filename);
     } catch (e) {
       console.error("PDF download failed", e);
     } finally {
-      iframe.remove();
       setDownloading(false);
     }
   };
+
+  /**
+   * Print = generate the same PDF we'd download, open it in a new tab as a blob,
+   * then trigger the browser's PDF viewer print. No app chrome, no browser
+   * header/footer drift, identical to Save as PDF output.
+   */
+  const handlePrint = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const { pdf } = await buildPdf();
+      const blob = pdf.output("blob");
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, "_blank");
+      if (win) {
+        // Give the embedded PDF viewer a moment, then ask it to print.
+        setTimeout(() => { try { win.focus(); win.print(); } catch (e) { /* viewer handles it */ } }, 800);
+      }
+      // Revoke later so the tab can keep using the URL
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e) {
+      console.error("Print failed", e);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
