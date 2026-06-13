@@ -769,11 +769,13 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   }
 </style></head><body><div class="warranty-document">
 
+  <div class="warranty-watermark" aria-hidden="true"><span>${escapeHtml(company)}</span></div>
+
   <section data-pdf-section="header" class="no-break">
     <table style="width:100%;border-collapse:collapse;">
       <tr>
-        <td style="width:35%;vertical-align:top;">${logo}</td>
-        <td style="width:65%;vertical-align:top;text-align:right;">
+        <td style="width:35%;vertical-align:middle;">${logo}</td>
+        <td style="width:65%;vertical-align:middle;text-align:right;">
           <div style="font-size:18pt;font-weight:800;letter-spacing:-0.3px;color:#0f172a;line-height:1.15;">${escapeHtml(company)}</div>
           ${companyLines.map(l => `<div style="font-size:9pt;color:#475569;line-height:1.5;margin-top:1pt;">${escapeHtml(l)}</div>`).join("")}
         </td>
