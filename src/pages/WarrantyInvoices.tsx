@@ -259,16 +259,30 @@ export default function WarrantyInvoices() {
    const idClause = custIds.length > 0 ? `,customer_id.in.(${custIds.join(",")})` : "";
    invQuery = invQuery.or(`warranty_number.ilike.%${safe}%,pharmacy_name.ilike.%${safe}%${idClause}`);
  }
- const [inv, cust, prod] = await Promise.all([
+ const [inv, cust, prod, agents] = await Promise.all([
  invQuery.range(pagination.from, pagination.to),
  supabase.from("customers").select("id, name, company").eq("is_active", true).order("name"),
  supabase.from("products").select("id, name, selling_price, mrp").eq("is_active", true).order("name"),
+ supabase.from("sales_agents").select("id, name, father_name, cnic, gender, license_number, license_expiry, signature_url, stamp_url").eq("status", "active").order("name"),
  ]);
  if (inv.data) setInvoices(inv.data as any);
  if (inv.count !== null && inv.count !== undefined) pagination.setTotalCount(inv.count);
  if (cust.data) setCustomers(cust.data);
  if (prod.data) setProducts(prod.data as any);
+ if (agents.data) {
+   setSalesAgents(agents.data as any);
+   // Default selected rep = current user's agent (if any)
+   if (!selectedRepId && !editId) {
+     const { data: userRes } = await supabase.auth.getUser();
+     const uid = userRes.user?.id;
+     if (uid) {
+       const { data: myAgent } = await supabase.from("sales_agents").select("id").eq("user_id", uid).maybeSingle();
+       if (myAgent?.id) setSelectedRepId(myAgent.id);
+     }
+   }
+ }
  };
+
 
 
  const handleSelectCustomer = async (customerId: string) => {
