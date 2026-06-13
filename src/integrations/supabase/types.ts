@@ -602,6 +602,11 @@ export type Database = {
           warranty_require_license_expiry: boolean
           warranty_require_license_no: boolean
           warranty_require_mobile: boolean
+          warranty_show_agent_license_expiry: boolean
+          warranty_show_agent_license_number: boolean
+          warranty_show_company_stamp: boolean
+          warranty_show_prepared_by: boolean
+          warranty_show_rep_signature: boolean
           warranty_signature_url: string | null
           warranty_stamp_url: string | null
           website: string | null
@@ -648,6 +653,11 @@ export type Database = {
           warranty_require_license_expiry?: boolean
           warranty_require_license_no?: boolean
           warranty_require_mobile?: boolean
+          warranty_show_agent_license_expiry?: boolean
+          warranty_show_agent_license_number?: boolean
+          warranty_show_company_stamp?: boolean
+          warranty_show_prepared_by?: boolean
+          warranty_show_rep_signature?: boolean
           warranty_signature_url?: string | null
           warranty_stamp_url?: string | null
           website?: string | null
@@ -694,6 +704,11 @@ export type Database = {
           warranty_require_license_expiry?: boolean
           warranty_require_license_no?: boolean
           warranty_require_mobile?: boolean
+          warranty_show_agent_license_expiry?: boolean
+          warranty_show_agent_license_number?: boolean
+          warranty_show_company_stamp?: boolean
+          warranty_show_prepared_by?: boolean
+          warranty_show_rep_signature?: boolean
           warranty_signature_url?: string | null
           warranty_stamp_url?: string | null
           website?: string | null
