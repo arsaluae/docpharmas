@@ -107,11 +107,8 @@ export default function DeliveryNotes() {
  setPdfTitle(`Delivery Note — ${dn.dn_number}`); setPdfOpen(true);
  };
 
- const filtered = notes.filter(n => {
- const matchSearch = n.dn_number.toLowerCase().includes(search.toLowerCase());
- const matchCourier = courierFilter === "all" || (n.delivery_type_label || "").toLowerCase() === courierFilter.toLowerCase();
- return matchSearch && matchCourier;
- });
+ // Server-side already filtered by search; only keep courier client filter.
+ const filtered = notes.filter(n => courierFilter === "all" || (n.delivery_type_label || "").toLowerCase() === courierFilter.toLowerCase());
  const courierOptions = Array.from(new Set(notes.map(n => n.delivery_type_label).filter(Boolean))) as string[];
  const courierColor = (label?: string | null) => {
  if (!label) return "bg-muted text-muted-foreground border-border";
