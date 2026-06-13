@@ -326,6 +326,7 @@ export default function SalesReturns() {
             </CardContent></Card>
           </div>
           <BulkActionBar selectedIds={bulk.selected} onClear={bulk.clear} onDeleteOne={deleteOne} entityLabel="sales return" onDone={loadData} />
+          <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} views={pdfViews} title={pdfTitle} />
     </AppLayout>
   );
 }
