@@ -444,6 +444,34 @@ export default function Settings() {
  </label>
                 </div>
 
+                  <div className="pt-2 space-y-3 border-t border-border mt-2">
+                    <div>
+                      <p className="font-medium text-sm">Document Print Size</p>
+                      <p className="text-xs text-muted-foreground">Applies to Sales/Purchase Orders, Invoices, Delivery Notes, Returns, Warranty Notes and Payment Receipts.</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {([
+                        { v: "half" as const, label: "Half A4", hint: "Top half of A4, lower half blank" },
+                        { v: "auto" as const, label: "Auto (Default)", hint: "≤5 items → Half · >5 items → Full" },
+                        { v: "full" as const, label: "Full A4", hint: "Traditional full-page layout" },
+                      ]).map(o => (
+                        <label key={o.v} className={`flex flex-col gap-1 rounded-md border p-3 cursor-pointer transition-colors ${form.document_page_mode === o.v ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/40"}`}>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="document_page_mode"
+                              value={o.v}
+                              checked={form.document_page_mode === o.v}
+                              onChange={() => setForm({ ...form, document_page_mode: o.v })}
+                            />
+                            <span className="text-sm font-medium">{o.label}</span>
+                          </div>
+                          <span className="text-[11px] text-muted-foreground pl-5">{o.hint}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
                  <div className="pt-2 space-y-4 border-t border-border mt-2">
                    <div className="flex items-center justify-between">
                      <div>
