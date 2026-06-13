@@ -488,7 +488,7 @@ function tagFullPage(html: string): string {
 }
 
 function applyPageMode(html: string, opts: PdfOptions): string {
-  const mode = resolvePageMode(opts.pageMode, opts.rows?.length || 0, HALF_PAGE_ROW_LIMIT);
+  const mode = resolvePageMode(opts.pageMode ?? (opts.settings as any)?.document_page_mode, opts.rows?.length || 0, HALF_PAGE_ROW_LIMIT);
   return mode === "half" ? wrapHalfPage(html) : tagFullPage(html);
 }
 
@@ -508,7 +508,7 @@ export interface PdfViewSpec { key: string; label: string; color: string; html: 
 
 /** Single polished A4 view. Single-item array → PdfPreviewDialog hides the switcher. */
 export function generateDocumentViews(opts: PdfOptions): PdfViewSpec[] {
-  const mode = resolvePageMode(opts.pageMode, opts.rows?.length || 0, HALF_PAGE_ROW_LIMIT);
+  const mode = resolvePageMode(opts.pageMode ?? (opts.settings as any)?.document_page_mode, opts.rows?.length || 0, HALF_PAGE_ROW_LIMIT);
   const label = mode === "half" ? "Half A4" : "A4 Print";
   return [
     { key: "a4", label, color: "bg-slate-900 text-white border-slate-900", html: applyPageMode(buildA4Html(opts), opts) },
@@ -804,7 +804,7 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
 }
 
 function applyWarrantyPageMode(html: string, opts: WarrantyNoteOptions): string {
-  const mode = resolvePageMode(opts.pageMode, opts.items?.length || 0, HALF_PAGE_WARRANTY_LIMIT);
+  const mode = resolvePageMode(opts.pageMode ?? (opts.settings as any)?.document_page_mode, opts.items?.length || 0, HALF_PAGE_WARRANTY_LIMIT);
   return mode === "half" ? wrapHalfPage(html) : tagFullPage(html);
 }
 
@@ -813,7 +813,7 @@ export function generateWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
 }
 
 export function generateWarrantyNoteViews(opts: WarrantyNoteOptions): PdfViewSpec[] {
-  const mode = resolvePageMode(opts.pageMode, opts.items?.length || 0, HALF_PAGE_WARRANTY_LIMIT);
+  const mode = resolvePageMode(opts.pageMode ?? (opts.settings as any)?.document_page_mode, opts.items?.length || 0, HALF_PAGE_WARRANTY_LIMIT);
   const label = mode === "half" ? "Half A4" : "A4 Print";
   return [
     { key: "a4", label, color: "bg-slate-900 text-white border-slate-900", html: applyWarrantyPageMode(buildWarrantyNoteHtml(opts), opts) },
