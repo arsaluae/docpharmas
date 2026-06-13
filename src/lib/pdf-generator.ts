@@ -370,19 +370,22 @@ function buildA4Html(opts: PdfOptions): string {
     box-shadow:0 4px 18px rgba(0,0,0,0.18); }
   .toolbar-title { color:#fff; font-size:13px; font-weight:600; letter-spacing:0.3px; }
   .toolbar-btn { background:${C.primary}; color:#fff; border:none; padding:8px 18px; font-size:12.5px; font-weight:600; border-radius:4px; cursor:pointer; }
-  .page-frame { max-width:778px; margin:64px auto 36px; padding:24px 28px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); }
-  .doc-header { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+  .page-frame { max-width:794px; margin:32px auto 0; padding:24px 28px 20px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; }
+  .doc-header { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
+  .doc-header > div:first-child { flex:0 0 340px; min-width:260px; }
   /* Pagination-safe defaults (apply during html2canvas snapshot too, not only @media print) */
   table { page-break-inside:auto; }
   thead { display:table-header-group; }
   tfoot { display:table-footer-group; }
   tr { page-break-inside:avoid; break-inside:avoid; }
+  .totals-card, .signatures, [data-pdf-section] { page-break-inside:avoid; break-inside:avoid; }
   @media print {
     body { background:#fff; }
     *, *::before, *::after { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
     .toolbar { display:none !important; }
-    .page-frame { border:none; box-shadow:none; max-width:100%; margin:0; padding:0; }
-    @page { margin:12mm 12mm; size:A4; }
+    .page-frame { border:none; box-shadow:none; max-width:100%; margin:0; padding:0; page-break-after:avoid !important; }
+    html, body { height:auto !important; }
+    @page { margin:8mm 10mm; size:A4; }
   }
 </style></head><body>
 <div class="toolbar">
