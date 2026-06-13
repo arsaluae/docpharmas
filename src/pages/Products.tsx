@@ -23,6 +23,8 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useTenant } from "@/hooks/useTenant";
 import { useRoles } from "@/hooks/useRoles";
 import { isSalesAgentRole } from "@/lib/rbac";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchProductIds } from "@/lib/search-helpers";
 
 const categories = ["tablet", "capsule", "syrup", "injection", "cream", "ointment", "drops", "sachet", "other"] as const;
 const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", "return_out", "adjustment", "adjustment_in", "adjustment_out", "opening", "damage", "expired"];
