@@ -102,14 +102,14 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
     if (downloading) return;
     setDownloading(true);
     const iframe = document.createElement("iframe");
-    // A4 portrait at 96dpi ≈ 794 x 1123 px. Render the document at the EXACT
-    // pixel width that html2canvas will capture so layout & wrap match preview.
-    const CAPTURE_WIDTH = 794;
+    // A4 portrait at 96dpi ≈ 794 x 1123 px.
+    const A4_W = 794;
+    const A4_H = 1123;
     iframe.style.position = "fixed";
     iframe.style.left = "-10000px";
     iframe.style.top = "0";
-    iframe.style.width = `${CAPTURE_WIDTH}px`;
-    iframe.style.height = "1123px";
+    iframe.style.width = `${A4_W}px`;
+    iframe.style.height = `${A4_H}px`;
     iframe.style.border = "0";
     iframe.style.background = "#ffffff";
     iframe.setAttribute("aria-hidden", "true");
@@ -124,7 +124,6 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
       const doc = iframe.contentDocument;
       if (!doc) throw new Error("PDF iframe failed to initialise");
 
-      // Wait for fonts + every image to fully decode before snapshot.
       const fontsReady = (doc as any).fonts?.ready?.catch(() => undefined) || Promise.resolve();
       const imgs = Array.from(doc.images);
       await Promise.all([
@@ -140,37 +139,70 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
       ]);
 
       const filename = `${(title || "Document").replace(/[^a-z0-9\-_.]+/gi, "-")}.pdf`;
+      const isHalfPage = doc.documentElement.getAttribute("data-page-mode") === "half";
 
-      // Prefer the actual document body width so warranty (190mm) and A4
-      // templates both render flush. Clamp to CAPTURE_WIDTH to avoid clipping.
       const target = doc.body;
       target.style.background = "#ffffff";
-      const measuredWidth = Math.min(
-        CAPTURE_WIDTH,
-        Math.max(target.scrollWidth, target.getBoundingClientRect().width || 0, CAPTURE_WIDTH)
-      );
 
-      await html2pdf()
-        .set({
-          margin: [8, 8, 8, 8], // mm — small safety margin so edge content isn't trimmed
-          filename,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            allowTaint: false,
-            backgroundColor: "#ffffff",
-            windowWidth: measuredWidth,
-            width: measuredWidth,
-            logging: false,
-            scrollX: 0,
-            scrollY: 0,
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
-          pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".no-break", "[data-pdf-section]"] },
-        } as any)
-        .from(target)
-        .save();
+      if (isHalfPage) {
+        // Render exactly one A4 page; document occupies top 138mm, lower half blank.
+        // Force body to a full A4 sheet so html2canvas captures the blank lower half too.
+        target.style.width = `${A4_W}px`;
+        target.style.minHeight = `${A4_H}px`;
+        target.style.height = `${A4_H}px`;
+        target.style.padding = "0";
+        target.style.margin = "0";
+
+        await html2pdf()
+          .set({
+            margin: 0,
+            filename,
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              allowTaint: false,
+              backgroundColor: "#ffffff",
+              windowWidth: A4_W,
+              width: A4_W,
+              height: A4_H,
+              logging: false,
+              scrollX: 0,
+              scrollY: 0,
+            },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
+            pagebreak: { mode: ["css"] },
+          } as any)
+          .from(target)
+          .save();
+      } else {
+        // Full A4 multi-page (original path)
+        const measuredWidth = Math.min(
+          A4_W,
+          Math.max(target.scrollWidth, target.getBoundingClientRect().width || 0, A4_W)
+        );
+        await html2pdf()
+          .set({
+            margin: [8, 8, 8, 8],
+            filename,
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              allowTaint: false,
+              backgroundColor: "#ffffff",
+              windowWidth: measuredWidth,
+              width: measuredWidth,
+              logging: false,
+              scrollX: 0,
+              scrollY: 0,
+            },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
+            pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".no-break", "[data-pdf-section]"] },
+          } as any)
+          .from(target)
+          .save();
+      }
     } catch (e) {
       console.error("PDF download failed", e);
     } finally {

@@ -1,0 +1,1 @@
+ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS document_page_mode TEXT NOT NULL DEFAULT 'auto' CHECK (document_page_mode IN ('half','full','auto'));

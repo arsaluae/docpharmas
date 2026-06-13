@@ -37,6 +37,17 @@ export interface PdfOptions {
   template?: DocumentTemplate | null;
   statusTheme?: StatusTheme;
   numbered?: boolean;
+  /** Page format. "auto" = half when rows ≤ HALF_PAGE_ROW_LIMIT, else full. Default "auto". */
+  pageMode?: "half" | "full" | "auto";
+}
+
+export const HALF_PAGE_ROW_LIMIT = 5;
+export const HALF_PAGE_WARRANTY_LIMIT = 4;
+
+function resolvePageMode(mode: "half" | "full" | "auto" | undefined, itemCount: number, limit: number): "half" | "full" {
+  if (mode === "half") return "half";
+  if (mode === "full") return "full";
+  return itemCount <= limit ? "half" : "full";
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -390,28 +401,122 @@ function buildA4Html(opts: PdfOptions): string {
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
+   HALF-PAGE TRANSFORMER
+   Wraps already-built A4 HTML so the document occupies only the top half of an
+   A4 sheet. Lower half remains blank. Preview, Print and PDF all honor it via
+   the same CSS (size:A4, .page-frame constrained to 138mm + overflow hidden).
+════════════════════════════════════════════════════════════════════════════ */
+const HALF_PAGE_CSS = `
+  /* === Half-A4 overrides — top 138mm of an A4 sheet === */
+  @page { size: A4 portrait; margin: 10mm; }
+  html, body { background:#fff !important; }
+  body { margin:0 !important; padding:0 !important; }
+  .toolbar { display:none !important; }
+  .page-frame, .warranty-document, .page {
+    width: 190mm !important;
+    max-width: 190mm !important;
+    height: 138mm !important;
+    max-height: 138mm !important;
+    margin: 0 auto !important;
+    padding: 4mm 5mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    overflow: hidden !important;
+    page-break-after: always !important;
+    box-sizing: border-box !important;
+    display: flex; flex-direction: column;
+  }
+  /* Density pass — preserve layout, shrink chrome */
+  .page-frame img { max-height: 56px !important; }
+  .page-frame [style*="font-size:42px"],
+  .page-frame [style*="font-size:26px"] { font-size: 14pt !important; }
+  .page-frame [style*="font-size:24px"] { font-size: 12pt !important; }
+  .page-frame [style*="font-size:19px"] { font-size: 10.5pt !important; }
+  .page-frame [style*="font-size:16px"],
+  .page-frame [style*="font-size:15px"] { font-size: 9pt !important; line-height: 1.35 !important; }
+  .page-frame [style*="font-size:14px"] { font-size: 8.5pt !important; line-height: 1.3 !important; }
+  .page-frame [style*="font-size:13px"],
+  .page-frame [style*="font-size:13.5px"] { font-size: 8pt !important; line-height: 1.3 !important; }
+  .page-frame [style*="font-size:12px"],
+  .page-frame [style*="font-size:12.5px"],
+  .page-frame [style*="font-size:11px"] { font-size: 7.5pt !important; }
+  .page-frame [style*="font-size:30px"] { font-size: 13pt !important; }
+  /* Tight spacing */
+  .page-frame [style*="margin-top:42px"],
+  .page-frame [style*="margin-top:22px"],
+  .page-frame [style*="margin-top:18px"],
+  .page-frame [style*="margin-top:16px"],
+  .page-frame [style*="margin-top:14px"],
+  .page-frame [style*="margin-top:12px"] { margin-top: 3pt !important; }
+  .page-frame [style*="padding:11px 10px"],
+  .page-frame [style*="padding:10px"] { padding: 3pt 4pt !important; }
+  .page-frame [style*="padding:14px 16px"],
+  .page-frame [style*="padding:16px 18px"],
+  .page-frame [style*="padding:8px 16px"] { padding: 4pt 6pt !important; }
+  /* Totals card narrower */
+  .page-frame [style*="width:380px"] { width: 220pt !important; max-width: 60% !important; }
+  /* Signatures squeeze */
+  .page-frame [style*="margin-top:42px"] { margin-top: 8pt !important; }
+  /* Inline notice for auto-promoted docs (only rendered when full) */
+  .half-overflow-banner { display:none; }
+  @media screen {
+    body { background:#e2e8f0 !important; padding: 12px 0 !important; }
+    .page-frame, .warranty-document, .page {
+      box-shadow: 0 4px 18px rgba(0,0,0,0.08) !important;
+      outline: 1px dashed #cbd5e1;
+    }
+  }
+`;
+
+function wrapHalfPage(html: string): string {
+  const styleBlock = `<style data-half-page="1">${HALF_PAGE_CSS}</style>`;
+  if (/<html\b/i.test(html)) {
+    html = html.replace(/<html\b([^>]*)>/i, `<html$1 data-page-mode="half">`);
+  }
+  if (/<\/head>/i.test(html)) {
+    return html.replace(/<\/head>/i, `${styleBlock}</head>`);
+  }
+  return styleBlock + html;
+}
+
+function tagFullPage(html: string): string {
+  if (/<html\b/i.test(html)) {
+    return html.replace(/<html\b([^>]*)>/i, `<html$1 data-page-mode="full">`);
+  }
+  return html;
+}
+
+function applyPageMode(html: string, opts: PdfOptions): string {
+  const mode = resolvePageMode(opts.pageMode ?? (opts.settings as any)?.document_page_mode, opts.rows?.length || 0, HALF_PAGE_ROW_LIMIT);
+  return mode === "half" ? wrapHalfPage(html) : tagFullPage(html);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
    PUBLIC API
 ════════════════════════════════════════════════════════════════════════════ */
 export function generatePdfHtml(opts: PdfOptions): string {
-  return buildA4Html(opts);
+  return applyPageMode(buildA4Html(opts), opts);
 }
 
 /** Kept for backward compatibility — returns same polished A4 HTML. */
 export function generateWhatsAppHtml(opts: PdfOptions): string {
-  return buildA4Html(opts);
+  return applyPageMode(buildA4Html(opts), opts);
 }
 
 export interface PdfViewSpec { key: string; label: string; color: string; html: string; disabled?: boolean; }
 
 /** Single polished A4 view. Single-item array → PdfPreviewDialog hides the switcher. */
 export function generateDocumentViews(opts: PdfOptions): PdfViewSpec[] {
+  const mode = resolvePageMode(opts.pageMode ?? (opts.settings as any)?.document_page_mode, opts.rows?.length || 0, HALF_PAGE_ROW_LIMIT);
+  const label = mode === "half" ? "Half A4" : "A4 Print";
   return [
-    { key: "a4", label: "A4 Print", color: "bg-slate-900 text-white border-slate-900", html: buildA4Html(opts) },
+    { key: "a4", label, color: "bg-slate-900 text-white border-slate-900", html: applyPageMode(buildA4Html(opts), opts) },
   ];
 }
 
 export function generatePdf(opts: PdfOptions) {
-  const html = buildA4Html(opts);
+  const html = applyPageMode(buildA4Html(opts), opts);
   const win = window.open("", "_blank");
   if (win) { win.document.write(html); win.document.close(); }
 }
@@ -464,6 +569,7 @@ export interface WarrantyNoteOptions {
     stampUrl?: string | null;
   } | null;
   settings: CompanySettings | null;
+  pageMode?: "half" | "full" | "auto";
 }
 
 function fmtMoney(n: number): string {
@@ -697,13 +803,20 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
 </div></body></html>`;
 }
 
+function applyWarrantyPageMode(html: string, opts: WarrantyNoteOptions): string {
+  const mode = resolvePageMode(opts.pageMode ?? (opts.settings as any)?.document_page_mode, opts.items?.length || 0, HALF_PAGE_WARRANTY_LIMIT);
+  return mode === "half" ? wrapHalfPage(html) : tagFullPage(html);
+}
+
 export function generateWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
-  return buildWarrantyNoteHtml(opts);
+  return applyWarrantyPageMode(buildWarrantyNoteHtml(opts), opts);
 }
 
 export function generateWarrantyNoteViews(opts: WarrantyNoteOptions): PdfViewSpec[] {
+  const mode = resolvePageMode(opts.pageMode ?? (opts.settings as any)?.document_page_mode, opts.items?.length || 0, HALF_PAGE_WARRANTY_LIMIT);
+  const label = mode === "half" ? "Half A4" : "A4 Print";
   return [
-    { key: "a4", label: "A4 Print", color: "bg-slate-900 text-white border-slate-900", html: buildWarrantyNoteHtml(opts) },
+    { key: "a4", label, color: "bg-slate-900 text-white border-slate-900", html: applyWarrantyPageMode(buildWarrantyNoteHtml(opts), opts) },
   ];
 }
 
