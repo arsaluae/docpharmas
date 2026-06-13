@@ -1340,10 +1340,6 @@ export default function ProformaInvoices() {
                   <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Product…" triggerClassName="h-10 text-[14px]" />
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-[11px] text-muted-foreground">MRP</Label>
-                      <Input type="number" value={item.mrp ?? ""} onChange={e => updateItem(idx, "mrp", e.target.value)} className="h-10 text-right text-[15px] font-mono" placeholder="MRP" />
-                    </div>
-                    <div>
                       <Label className="text-[11px] text-muted-foreground">Qty</Label>
                       <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="h-10 text-right text-[15px] font-mono" />
                     </div>
@@ -1361,6 +1357,10 @@ export default function ProformaInvoices() {
                         <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="h-10 text-right text-[15px] font-mono" />
                       </div>
                     )}
+                    <div>
+                      <Label className="text-[11px] text-muted-foreground">MRP <span className="text-[9px] uppercase tracking-wider">(ref)</span></Label>
+                      <Input type="number" value={item.mrp ?? ""} onChange={e => updateItem(idx, "mrp", e.target.value)} className="h-10 text-right text-[15px] font-mono text-muted-foreground" placeholder="MRP" />
+                    </div>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t border-border">
                     <span className="text-[12px] uppercase tracking-wider text-muted-foreground">Line Total</span>
