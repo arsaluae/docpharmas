@@ -280,10 +280,8 @@ function buildA4Html(opts: PdfOptions): string {
   };
 
   const headerCells = columns.map(c => {
-    const k = c.key.toLowerCase();
-    const canWrap = k === "mrp" || k === "mrp_inc_tax" || k === "amount" || k === "line_total" || k === "discount" || k === "discount_pct" || k === "tax" || k === "gst_rate" || k === "received";
     return `
-    <th style="padding:9px 8px;text-align:${thAlign(c)};font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:${C.text};background:#eef0f3;border-bottom:2px solid ${C.text};${colWidth(c)}${canWrap ? "white-space:normal;line-height:1.15;" : "white-space:nowrap;"}-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.header)}</th>`;
+    <th style="padding:8px 6px;text-align:${thAlign(c)};font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:${C.text};background:#eef0f3;border-bottom:2px solid ${C.text};${colWidth(c)}white-space:normal;line-height:1.2;word-break:break-word;overflow-wrap:anywhere;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.header)}</th>`;
   }).join("");
 
   const bodyRows = opts.rows.map((row, i) => {
@@ -296,8 +294,8 @@ function buildA4Html(opts: PdfOptions): string {
       const valStr = value === null || value === undefined ? "" : String(value);
       const fontFamily = isNum || isSerial || /batch|code|expiry/i.test(c.key) ? "'JetBrains Mono','Courier New',monospace" : "'Inter',sans-serif";
       const fontWeight = isProductName ? "600" : isNum ? "600" : "400";
-      const wrap = isProductName ? "white-space:normal;word-break:break-word;line-height:1.45;" : "white-space:nowrap;";
-      return `<td style="padding:8px;font-size:13px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};font-family:${fontFamily};font-weight:${fontWeight};${wrap}${colWidth(c)}">${escapeHtml(valStr)}</td>`;
+      const wrap = "white-space:normal;word-break:break-word;overflow-wrap:anywhere;line-height:1.35;";
+      return `<td style="padding:7px 6px;font-size:12.5px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};font-family:${fontFamily};font-weight:${fontWeight};${wrap}${colWidth(c)}">${escapeHtml(valStr)}</td>`;
     }).join("");
     return `<tr style="background:${bg};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${cells}</tr>`;
   }).join("");
