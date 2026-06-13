@@ -267,7 +267,15 @@ export default function Products() {
  <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Product</DialogTitle></DialogHeader>
  <div className="grid grid-cols-2 gap-3 mt-2">
  <div className="col-span-2"><Label>Product Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
- <div><Label>SKU</Label><Input value={form.sku} onChange={e => setForm({...form, sku: e.target.value})} /></div>
+ <div>
+   <Label>SKU {!editId && <span className="text-[10px] text-muted-foreground">(auto if blank)</span>}</Label>
+   <Input
+     value={form.sku}
+     readOnly={!editId && !isAdmin}
+     onChange={e => setForm({...form, sku: e.target.value})}
+     placeholder={editId ? "" : "PRD-0001"}
+   />
+ </div>
  <div>
  <Label>Category</Label>
  <Select value={form.category} onValueChange={v => setForm({...form, category: v})}>
@@ -279,10 +287,10 @@ export default function Products() {
  <div><Label>Pack Size</Label><Input value={form.pack_size} onChange={e => setForm({...form, pack_size: e.target.value})} placeholder="e.g. 10x10" /></div>
  <div><Label>Unit</Label><Input value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} /></div>
  {settings?.gst_enabled && <div><Label>GST Rate (%)</Label><Input type="number" value={form.gst_rate} onChange={e => setForm({...form, gst_rate: e.target.value})} /></div>}
- {!hideCost && <div><Label>Cost Price (PKR)</Label><Input type="number" value={form.cost_price} onChange={e => setForm({...form, cost_price: e.target.value})} /></div>}
+ {!hideCost && <div><Label>Purchase Cost (PKR)</Label><Input type="number" value={form.purchase_cost} onChange={e => setForm({...form, purchase_cost: e.target.value})} /><p className="text-[10px] text-muted-foreground mt-1">Supplier base. Landed cost is managed in the batch/landed-cost drawer.</p></div>}
  <div><Label>Net Price (PKR) *</Label><Input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} placeholder="Hits all ledgers" /><p className="text-[10px] text-muted-foreground mt-1">Used for every calculation, tax, COGS & ledger posting.</p></div>
  <div><Label>MRP (PKR)</Label><Input type="number" value={form.mrp} onChange={e => setForm({...form, mrp: e.target.value})} placeholder="Display only" /><p className="text-[10px] text-muted-foreground mt-1">Market Retail Price — shown on invoices for reference only, never used in math.</p></div>
- {!editId && <div><Label>Opening Stock</Label><Input type="number" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} placeholder="0" /><p className="text-xs text-muted-foreground mt-1">Only set on creation. Use Stock Movements to adjust later.</p></div>}
+ {!editId && <div><Label>Opening Stock</Label><Input type="number" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} placeholder="0" /><p className="text-xs text-muted-foreground mt-1">For multi-batch opening stock, use the “Add Opening Stock” button.</p></div>}
  <div><Label>Reorder Level</Label><Input type="number" value={form.reorder_level} onChange={e => setForm({...form, reorder_level: e.target.value})} /></div>
  </div>
  <Button onClick={handleSave} className="w-full mt-4">{editId ? "Update" : "Create"} Product</Button>
