@@ -187,7 +187,7 @@ function buildA4Html(opts: PdfOptions): string {
   const safeCompany = escapeHtml(companyName);
   const logoHtml = s?.logo_url
     ? `<img src="${s.logo_url}" alt="${safeCompany}" crossorigin="anonymous"
-            style="height:auto;max-height:90px;max-width:180px;width:auto;object-fit:contain;display:block;"
+            style="height:84px;max-height:84px;width:auto;max-width:280px;object-fit:contain;display:block;"
             onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';" /><div style="display:none;font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`
     : `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`;
 
