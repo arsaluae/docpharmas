@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, RotateCcw, Search, Loader2 } from "lucide-react";
+import { Plus, Trash2, RotateCcw, Search, Loader2, Download } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +16,10 @@ import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { BulkActionBar, useBulkSelection, RowCheckbox } from "@/components/BulkActionBar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
+import { generateDocumentViews } from "@/lib/pdf-generator";
+import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 
 interface ReturnItem { product_id: string; batch_number: string; quantity: string; rate: string; }
 
@@ -41,10 +45,55 @@ export default function PurchaseReturns() {
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState("all");
   const pagination = usePagination();
+  const { settings } = useCompanySettings();
+  const { getTemplate } = useDocumentTemplates();
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const [pdfViews, setPdfViews] = useState<any>(undefined);
 
   const bulk = useBulkSelection();
 
   useEffect(() => { loadData(); }, [pagination.page]);
+
+  const printReturn = async (r: any) => {
+    const { data: its } = await supabase.from("purchase_return_items")
+      .select("*, products(name)").eq("return_id", r.id);
+    const { data: sup } = r.supplier_id
+      ? await supabase.from("suppliers").select("name, phone, city, address, supplier_code").eq("id", r.supplier_id).single()
+      : { data: null } as any;
+    const rows = (its || []).map((i: any, idx: number) => ({
+      idx: idx + 1,
+      product_name: i.products?.name || "Item",
+      batch_number: i.batch_number || "—",
+      quantity: i.quantity,
+      rate: Number(i.rate).toLocaleString(),
+      amount: Number(i.amount).toLocaleString(),
+    }));
+    const opts: any = {
+      title: "PURCHASE RETURN", documentNumber: r.return_number, date: r.date, statusTheme: "draft" as const,
+      partyLabel: "Supplier",
+      partyName: sup?.name || r.suppliers?.name || "—",
+      partyCode: sup?.supplier_code || undefined,
+      partyPhone: sup?.phone || undefined,
+      partyCity: sup?.city || undefined,
+      partyAddress: sup?.address || undefined,
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "product_name" },
+        { header: "Batch #", key: "batch_number" },
+        { header: "Qty", key: "quantity", align: "right" as const },
+        { header: "Rate", key: "rate", align: "right" as const },
+        { header: "Amount", key: "amount", align: "right" as const },
+      ],
+      rows,
+      totals: [{ label: "Total", value: `PKR ${Number(r.total).toLocaleString()}` }],
+      notes: r.reason || undefined,
+      settings, template: getTemplate("purchase_order"),
+    };
+    setPdfViews(generateDocumentViews(opts));
+    setPdfTitle(`Purchase Return — ${r.return_number}`);
+    setPdfOpen(true);
+  };
 
   const deleteOne = async (id: string) => {
     await supabase.from("stock_movements").delete().eq("reference_type", "purchase_return").eq("reference_id", id);
@@ -206,15 +255,15 @@ export default function PurchaseReturns() {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && bulk.selected.length === filtered.length} onCheckedChange={() => bulk.toggleAll(filtered.map(r => r.id))} /></TableHead>
-                  <TableHead>Return #</TableHead><TableHead>Date</TableHead><TableHead>Supplier</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Status</TableHead>
+                  <TableHead>Return #</TableHead><TableHead>Date</TableHead><TableHead>Supplier</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Status</TableHead><TableHead className="w-20">Actions</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {loading ? (
                     Array.from({ length: 3 }).map((_, i) => (
-                      <TableRow key={i}>{Array.from({ length: 7 }).map((_, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}</TableRow>
+                      <TableRow key={i}>{Array.from({ length: 8 }).map((_, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}</TableRow>
                     ))
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground"><RotateCcw className="h-8 w-8 mx-auto mb-2 opacity-40" />No purchase returns found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground"><RotateCcw className="h-8 w-8 mx-auto mb-2 opacity-40" />No purchase returns found.</TableCell></TableRow>
                   ) : filtered.map(r => (
                     <TableRow key={r.id} data-state={bulk.isSelected(r.id) ? "selected" : undefined}>
                       <TableCell><RowCheckbox checked={bulk.isSelected(r.id)} onCheckedChange={() => bulk.toggle(r.id)} /></TableCell>
@@ -222,6 +271,11 @@ export default function PurchaseReturns() {
                       <TableCell>{r.suppliers?.name || "—"}</TableCell><TableCell className="text-xs text-muted-foreground">{r.reason || "—"}</TableCell>
                       <TableCell className="text-right font-mono">{Number(r.total).toLocaleString()}</TableCell>
                       <TableCell><span className="status-pill bg-warning/10 text-warning">{r.status}</span></TableCell>
+                      <TableCell>
+                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => printReturn(r)}>
+                          <Download className="h-3 w-3" /> PDF
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -230,6 +284,7 @@ export default function PurchaseReturns() {
             </CardContent></Card>
           </div>
           <BulkActionBar selectedIds={bulk.selected} onClear={bulk.clear} onDeleteOne={deleteOne} entityLabel="purchase return" onDone={loadData} />
+          <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} views={pdfViews} title={pdfTitle} />
     </AppLayout>
   );
 }

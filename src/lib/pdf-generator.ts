@@ -181,10 +181,19 @@ function buildA4Html(opts: PdfOptions): string {
   const bankDetailsText = t?.bank_details_text || "";
   const footerText = t?.footer_text || "";
 
-  /* ── HEADER: logo left · company right ── */
+  /* ── HEADER: logo left · company right ──
+     Logo uses crossorigin + onerror fallback so a broken/blocked image swaps to
+     a large branded text block instead of leaving the left side blank. */
+  const safeCompany = escapeHtml(companyName);
+  const logoFallback = `<div style="font-size:38px;font-weight:800;color:${C.text};letter-spacing:-0.5px;line-height:1.05;">${safeCompany}</div>`;
   const logoHtml = s?.logo_url
-    ? `<img src="${s.logo_url}" alt="${escapeHtml(companyName)}" style="height:140px;max-height:140px;max-width:340px;width:auto;object-fit:contain;display:block;" />`
-    : `<div style="font-size:46px;font-weight:800;color:${C.text};letter-spacing:-0.5px;">${escapeHtml(companyName)}</div>`;
+    ? `<div class="brand-logo-wrap" style="min-height:120px;display:flex;align-items:center;">
+         <img src="${s.logo_url}" alt="${safeCompany}" crossorigin="anonymous"
+              style="height:auto;max-height:140px;max-width:360px;width:auto;object-fit:contain;display:block;"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
+         <div style="display:none;font-size:38px;font-weight:800;color:${C.text};letter-spacing:-0.5px;line-height:1.05;">${safeCompany}</div>
+       </div>`
+    : logoFallback;
 
   const addressLine = [s?.address, (s as any)?.city].filter(Boolean).join(", ");
   const phoneLine = [s?.phone ? `Tel: ${s.phone}` : null, (s as any)?.whatsapp_number ? `Mob: ${(s as any).whatsapp_number}` : null].filter(Boolean).join("  ·  ");
@@ -193,7 +202,7 @@ function buildA4Html(opts: PdfOptions): string {
 
   const companyBlock = `
     <div style="text-align:right;">
-      ${s?.logo_url ? `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.2px;line-height:1.2;">${escapeHtml(companyName)}</div>` : ""}
+      ${s?.logo_url ? `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.2px;line-height:1.2;">${safeCompany}</div>` : ""}
       ${tagline ? `<div style="font-size:14px;font-style:italic;color:${C.textMuted};margin-top:3px;">${escapeHtml(tagline)}</div>` : ""}
       ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:14px;color:${C.textMuted};line-height:1.65;margin-top:2px;word-break:break-word;">${escapeHtml(l)}</div>`).join("")}
     </div>`;
@@ -444,10 +453,12 @@ const HALF_PAGE_CSS = `
     break-after: avoid !important;
   }
   /* Density pass — preserve layout, shrink chrome to fit upper half (~138mm content) */
-  .page-frame img, .warranty-document img { max-height: 70px !important; max-width: 220px !important; }
+  .page-frame .brand-logo-wrap { min-height: 90px !important; }
+  .page-frame img, .warranty-document img { max-height: 95px !important; max-width: 280px !important; }
   .page-frame [style*="font-size:46px"],
-  .page-frame [style*="font-size:42px"] { font-size: 16pt !important; }
-  .page-frame [style*="font-size:26px"] { font-size: 13pt !important; }
+  .page-frame [style*="font-size:42px"],
+  .page-frame [style*="font-size:38px"] { font-size: 22pt !important; line-height: 1.05 !important; }
+  .page-frame [style*="font-size:26px"] { font-size: 14pt !important; }
   .page-frame [style*="font-size:24px"] { font-size: 12pt !important; }
   .page-frame [style*="font-size:19px"] { font-size: 10.5pt !important; }
   .page-frame [style*="font-size:16px"],
