@@ -123,11 +123,12 @@ export default function ProformaInvoices() {
   // Draft autosave for the Create Sales Order form
   const { tenantId } = useTenant();
   const draftKey = `sales-order:${tenantId ?? "anon"}`;
-  const { existingDraft, save: saveDraft, clear: clearDraft } = useDraftAutosave<{
+  const { existingDraft, save: saveDraft, flush: flushDraft, clear: clearDraft } = useDraftAutosave<{
     customerId: string; pfDate: string; validityDays: string;
     paymentInstructions: string; agentId: string; items: ProformaItem[];
   }>({ key: draftKey, enabled: createOpen });
   const [draftDismissed, setDraftDismissed] = useState(false);
+  const [draftRehydrated, setDraftRehydrated] = useState(false);
 
   // Extended customer details fetched on selection (for the composer summary panel)
   const [customerDetail, setCustomerDetail] = useState<{
