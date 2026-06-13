@@ -449,7 +449,7 @@ const HALF_PAGE_CSS = `
   }
   /* Density pass — preserve layout, shrink chrome to fit upper half (~138mm content) */
   .page-frame .doc-header { padding-bottom: 6pt !important; }
-  .page-frame img { height: 90px !important; max-height: 90px !important; max-width: 240px !important; }
+  .page-frame img { height: 135px !important; max-height: 135px !important; max-width: 360px !important; }
   .page-frame [style*="font-size:46px"],
   .page-frame [style*="font-size:42px"],
   .page-frame [style*="font-size:38px"] { font-size: 22pt !important; line-height: 1.05 !important; }
