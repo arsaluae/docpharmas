@@ -189,14 +189,11 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
   };
 
 
-  // Detect docKind from the active HTML so we can show the "2 per A4" button only for delivery notes.
-  const isDeliveryNote = useMemo(() => /data-doc-kind="delivery-note"|name="doc-kind"\s+content="delivery-note"/i.test(activeHtml), [activeHtml]);
-
-  const handleDownloadPdf = async (mode: "auto" | "twoup" = "auto") => {
+  const handleDownloadPdf = async () => {
     if (downloading) return;
     setDownloading(true);
     try {
-      const { pdf, filename } = await buildPdf(mode);
+      const { pdf, filename } = await buildPdf();
       pdf.save(filename);
     } catch (e) {
       console.error("PDF download failed", e);
@@ -205,11 +202,11 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
     }
   };
 
-  const handlePrint = async (mode: "auto" | "twoup" = "auto") => {
+  const handlePrint = async () => {
     if (downloading) return;
     setDownloading(true);
     try {
-      const { pdf } = await buildPdf(mode);
+      const { pdf } = await buildPdf();
       const blob = pdf.output("blob");
       const url = URL.createObjectURL(blob);
       const win = window.open(url, "_blank");
@@ -257,17 +254,13 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
             </div>
           )}
           <div className="flex items-center gap-2">
-            {isDeliveryNote && (
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => handleDownloadPdf("twoup")} disabled={downloading} title="Save two delivery notes on a single A4 sheet">
-                <Download className="h-3.5 w-3.5" /> 2 per A4
-              </Button>
-            )}
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => handlePrint("auto")} disabled={downloading}>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => handlePrint()} disabled={downloading}>
               <Printer className="h-3.5 w-3.5" /> Print
             </Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => handleDownloadPdf("auto")} disabled={downloading}>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => handleDownloadPdf()} disabled={downloading}>
               <Download className="h-3.5 w-3.5" /> {downloading ? "Saving…" : "Save as PDF"}
             </Button>
+
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" />
             </Button>
