@@ -45,8 +45,10 @@ export default function StockMovements() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
+  const debouncedSearch = useDebouncedValue(search, 300);
   useEffect(() => { loadProducts(); }, []);
-  useEffect(() => { load(); }, [pagination.page, typeFilter]);
+  useEffect(() => { pagination.setPage(0); }, [debouncedSearch, typeFilter]);
+  useEffect(() => { load(); }, [pagination.page, typeFilter, debouncedSearch]);
 
   const loadProducts = async () => {
     const { data } = await supabase.from("products").select("id, name, stock_quantity");
@@ -61,6 +63,13 @@ export default function StockMovements() {
   const load = async () => {
     let query = supabase.from("stock_movements").select("*", { count: "exact" }).order("created_at", { ascending: false });
     if (typeFilter !== "all") query = query.eq("movement_type", typeFilter);
+    const q = debouncedSearch.trim();
+    if (q) {
+      const safe = escIlike(q);
+      const prodIds = await searchProductIds(q);
+      const idClause = prodIds.length > 0 ? `,product_id.in.(${prodIds.join(",")})` : "";
+      query = query.or(`batch_number.ilike.%${safe}%,notes.ilike.%${safe}%,reference_number.ilike.%${safe}%${idClause}`);
+    }
     query = query.range(pagination.from, pagination.to);
     const { data, count } = await query;
     if (data) setMovements(data);
