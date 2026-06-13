@@ -453,10 +453,12 @@ const HALF_PAGE_CSS = `
     break-after: avoid !important;
   }
   /* Density pass — preserve layout, shrink chrome to fit upper half (~138mm content) */
-  .page-frame img, .warranty-document img { max-height: 70px !important; max-width: 220px !important; }
+  .page-frame .brand-logo-wrap { min-height: 90px !important; }
+  .page-frame img, .warranty-document img { max-height: 95px !important; max-width: 280px !important; }
   .page-frame [style*="font-size:46px"],
-  .page-frame [style*="font-size:42px"] { font-size: 16pt !important; }
-  .page-frame [style*="font-size:26px"] { font-size: 13pt !important; }
+  .page-frame [style*="font-size:42px"],
+  .page-frame [style*="font-size:38px"] { font-size: 22pt !important; line-height: 1.05 !important; }
+  .page-frame [style*="font-size:26px"] { font-size: 14pt !important; }
   .page-frame [style*="font-size:24px"] { font-size: 12pt !important; }
   .page-frame [style*="font-size:19px"] { font-size: 10.5pt !important; }
   .page-frame [style*="font-size:16px"],
