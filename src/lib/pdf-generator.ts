@@ -800,9 +800,12 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   .items-table thead { display: table-header-group; }
   .items-table tfoot { display: table-footer-group; }
   .no-break { page-break-inside: avoid; }
+  .print-only { display: none; }
   @media print {
     html, body { width: 210mm; margin:0; padding:0; overflow:visible; }
     .warranty-document { width: 190mm; max-width: 190mm; margin:0 auto; }
+    .preview-only { display: none !important; }
+    .print-only { display: block !important; }
   }
 </style></head><body><div class="warranty-document">
 
