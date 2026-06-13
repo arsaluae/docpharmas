@@ -253,33 +253,98 @@ export function ProductBatchProfileDialog({
                   <TableHead className="text-[11px] uppercase tracking-wide">Expiry</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wide text-right">On-hand</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wide text-center">Status</TableHead>
+                  {!isSalesAgent && <TableHead className="text-[11px] uppercase tracking-wide text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">Loading…</TableCell></TableRow>
-                ) : batches.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
-                      {stockQty > 0 ? (
-                        <div className="flex items-center justify-center gap-2 text-warning">
-                          <Info className="h-4 w-4" />
-                          Stock present ({stockQty.toLocaleString()}) but no batch history. Use “Add Opening Stock” to record batches.
-                        </div>
-                      ) : (
-                        "No active batches."
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ) : batches.map((b) => (
-                  <TableRow key={b.batch_number}>
-                    <TableCell className="font-mono text-xs">{b.batch_number}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{b.mfg_date || "—"}</TableCell>
-                    <TableCell className="text-xs">{b.expiry_date || "—"}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{b.on_hand.toLocaleString()}</TableCell>
-                    <TableCell className="text-center">{statusBadge(b.status)}</TableCell>
-                  </TableRow>
-                ))}
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">Loading…</TableCell></TableRow>
+                ) : (() => {
+                  const batchSum = batches.reduce((s, b) => s + b.on_hand, 0);
+                  const orphanQty = Math.max(0, stockQty - batchSum);
+                  const rowsToRender: (ActiveBatch | { batch_number: null; on_hand: number; mfg_date: null; expiry_date: null; status: "active" })[] = [...batches];
+                  if (orphanQty > 0) rowsToRender.push({ batch_number: null, on_hand: orphanQty, mfg_date: null, expiry_date: null, status: "active" });
+                  if (rowsToRender.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">No active batches.</TableCell>
+                      </TableRow>
+                    );
+                  }
+                  return rowsToRender.map((b) => {
+                    const key = b.batch_number ?? "__nobatch__";
+                    const isEditing = editingBatch === key;
+                    const isBusy = busyBatch === key;
+                    return (
+                      <TableRow key={key}>
+                        <TableCell className="font-mono text-xs">
+                          {b.batch_number || <span className="italic text-muted-foreground">no batch</span>}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{b.mfg_date || "—"}</TableCell>
+                        <TableCell className="text-xs">{b.expiry_date || "—"}</TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">
+                          {isEditing ? (
+                            <Input
+                              type="number"
+                              autoFocus
+                              value={editQty}
+                              onChange={e => setEditQty(e.target.value)}
+                              className="h-7 w-28 ml-auto text-right tabular-nums"
+                            />
+                          ) : b.on_hand.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-center">{statusBadge(b.status as ActiveBatch["status"])}</TableCell>
+                        {!isSalesAgent && (
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {isEditing ? (
+                                <>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-success" disabled={isBusy}
+                                    onClick={() => {
+                                      const n = Number(editQty);
+                                      if (!Number.isFinite(n) || n < 0) { toast.error("Enter a valid quantity ≥ 0"); return; }
+                                      adjustBatch(b.batch_number, b.on_hand, n, `Manual batch adjustment — was ${b.on_hand}, now ${n}`);
+                                    }}>
+                                    <Check className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => setEditingBatch(null)}>
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-primary" disabled={isBusy}
+                                    onClick={() => { setEditingBatch(key); setEditQty(String(b.on_hand)); }} title="Edit qty">
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" disabled={isBusy} title="Delete batch">
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Remove {b.on_hand.toLocaleString()} units{b.batch_number ? ` of batch ${b.batch_number}` : ""}?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Writes a reversing adjustment-out movement. Stock count updates immediately. This is audit-logged.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => deleteBatch(b as ActiveBatch)}>Remove stock</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  });
+                })()}
               </TableBody>
             </Table>
           </div>
