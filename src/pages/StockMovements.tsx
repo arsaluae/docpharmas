@@ -118,11 +118,8 @@ export default function StockMovements() {
     load(); loadProducts();
   };
 
-  const filtered = movements.filter(m => {
-    const matchSearch = (productNames[m.product_id] || "").toLowerCase().includes(search.toLowerCase()) ||
-      (m.batch_number || "").toLowerCase().includes(search.toLowerCase());
-    return matchSearch;
-  });
+  // Server-side search already filters movements across all pages.
+  const filtered = movements;
 
   const typeBadge = (t: string) => {
     if (t.includes("in")) return <Badge variant="default" className="bg-primary/10 text-primary border-0">{t.replace("_", " ")}</Badge>;
