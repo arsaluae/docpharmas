@@ -817,6 +817,9 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
 
   const stampImg = (opts.companyStampUrl || s?.warranty_stamp_url || rep.stampUrl);
   const sigImg = (rep.signatureUrl || opts.companySignatureUrl || s?.warranty_signature_url);
+  const repName = rep.name ? `<div style="font-size:9pt;font-weight:600;color:#0f172a;margin-top:2pt;">${escapeHtml(rep.name)}</div>` : "";
+  const repLicNo = (showLicNo && rep.licenseNumber) ? `<div style="font-size:8.5pt;color:#475569;margin-top:1pt;">License #: ${escapeHtml(rep.licenseNumber)}</div>` : "";
+  const repLicExp = (showLicExp && rep.licenseExpiry) ? `<div style="font-size:8.5pt;color:#475569;margin-top:1pt;">License Expiry: ${escapeHtml(rep.licenseExpiry)}</div>` : "";
   // Overlay layout: stamp sits behind signature on the right; "Prepared By" goes left.
   const stampOverlay = (showStamp && stampImg)
     ? `<img src="${stampImg}" alt="Company Stamp" style="position:absolute;right:8pt;bottom:26pt;max-height:115pt;max-width:170pt;width:auto;height:auto;object-fit:contain;opacity:0.92;z-index:1;" />`
