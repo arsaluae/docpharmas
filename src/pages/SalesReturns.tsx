@@ -295,15 +295,15 @@ export default function SalesReturns() {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && bulk.selected.length === filtered.length} onCheckedChange={() => bulk.toggleAll(filtered.map(r => r.id))} /></TableHead>
-                  <TableHead>Return #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Status</TableHead>
+                  <TableHead>Return #</TableHead><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Status</TableHead><TableHead className="w-20">Actions</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {loading ? (
                     Array.from({ length: 3 }).map((_, i) => (
-                      <TableRow key={i}>{Array.from({ length: 7 }).map((_, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}</TableRow>
+                      <TableRow key={i}>{Array.from({ length: 8 }).map((_, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}</TableRow>
                     ))
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground"><RotateCcw className="h-8 w-8 mx-auto mb-2 opacity-40" />No sales returns found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground"><RotateCcw className="h-8 w-8 mx-auto mb-2 opacity-40" />No sales returns found.</TableCell></TableRow>
                   ) : filtered.map(r => (
                     <TableRow key={r.id} data-state={bulk.isSelected(r.id) ? "selected" : undefined}>
                       <TableCell><RowCheckbox checked={bulk.isSelected(r.id)} onCheckedChange={() => bulk.toggle(r.id)} /></TableCell>
@@ -313,6 +313,11 @@ export default function SalesReturns() {
                       <TableCell className="text-xs text-muted-foreground">{r.reason || "—"}</TableCell>
                       <TableCell className="text-right font-mono">{Number(r.total).toLocaleString()}</TableCell>
                       <TableCell><span className="status-pill bg-warning/10 text-warning">{r.status}</span></TableCell>
+                      <TableCell>
+                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => printReturn(r)}>
+                          <Download className="h-3 w-3" /> PDF
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
