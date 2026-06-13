@@ -401,13 +401,13 @@ function buildA4Html(opts: PdfOptions): string {
     html, body { height:auto !important; }
     @page { margin:8mm 10mm; size:A4; }
   }
-</style></head><body>
+</style></head><body data-doc-kind="${docKind}" data-item-count="${opts.rows.length}">
 <div class="toolbar">
   <div class="toolbar-title">${escapeHtml(docTitle)} — ${escapeHtml(opts.documentNumber)}</div>
   <button class="toolbar-btn" onclick="window.print()">Download / Print</button>
 </div>
 
-<div class="page-frame">
+<div class="page-frame" data-doc-kind="${docKind}" data-item-count="${opts.rows.length}">
   
   <table class="doc-header"><tr>
     <td style="width:55%;text-align:left;">${logoHtml}</td>
