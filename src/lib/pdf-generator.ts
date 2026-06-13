@@ -377,9 +377,10 @@ function buildA4Html(opts: PdfOptions): string {
     box-shadow:0 4px 18px rgba(0,0,0,0.18); }
   .toolbar-title { color:#fff; font-size:13px; font-weight:600; letter-spacing:0.3px; }
   .toolbar-btn { background:${C.primary}; color:#fff; border:none; padding:8px 18px; font-size:12.5px; font-weight:600; border-radius:4px; cursor:pointer; }
-  .page-frame { position:relative; max-width:794px; margin:0 auto; padding:14px 24px 18px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; }
-  .doc-header { display:flex; align-items:center; justify-content:space-between; gap:24px; padding-bottom:10px; border-bottom:1px solid ${C.border}; }
-  .doc-header > div:first-child { flex:0 0 auto; }
+  .page-frame { position:relative; max-width:794px; margin:0 auto; padding:10px 24px 18px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; }
+  .doc-header { display:flex; align-items:center; justify-content:space-between; gap:28px; padding:4px 0 12px; border-bottom:1px solid ${C.border}; }
+  .doc-header > div:first-child { flex:0 0 auto; display:flex; align-items:center; }
+  .doc-header > div:last-child { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; }
   /* Pagination-safe defaults (apply during html2canvas snapshot too, not only @media print) */
   table { page-break-inside:auto; }
   thead { display:table-header-group; }
