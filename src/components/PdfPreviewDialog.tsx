@@ -127,37 +127,25 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
       sheet.style.background = "#ffffff";
 
       if (isHalfPage) {
-        // Capture only the sheet at its natural rendered height, clip to half-A4 height.
-        // Output exactly one A4 page; lower half blank because we add no further pages.
-        const captureHeight = Math.min(sheet.scrollHeight, HALF_H);
+        // Half-A4: content sheet is naturally short. Render at its real height so
+        // the PDF is exactly ONE page with blank lower half.
         const config = {
-          margin: 0,
+          margin: [6, 8, 6, 8],
           filename,
           image: { type: "jpeg", quality: 0.98 },
           html2canvas: {
             scale: 2, useCORS: true, allowTaint: false, backgroundColor: "#ffffff",
-            windowWidth: A4_W, width: A4_W, height: captureHeight,
+            windowWidth: A4_W, width: A4_W,
             logging: false, scrollX: 0, scrollY: 0,
           },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
-          pagebreak: { mode: ["avoid-all"] },
+          pagebreak: { mode: ["avoid-all"], avoid: ["tr", ".no-break", "[data-pdf-section]", ".totals-card", ".signatures"] },
         } as any;
-        // Build jsPDF; the canvas is only ~half-A4 tall, so the resulting PDF page renders
-        // the document on top and naturally leaves the bottom half empty.
-        const worker: any = html2pdf().set(config).from(sheet);
-        await worker.toContainer();
-        await worker.toCanvas();
-        const canvas: HTMLCanvasElement = await worker.get("canvas");
-        const pdf: any = await worker.get("pdf") || (await worker.toPdf().get("pdf"));
-        // Draw the canvas centered on the top half of A4
-        const imgData = canvas.toDataURL("image/jpeg", 0.98);
-        // Reset to single page
-        const pageCount = pdf.internal.getNumberOfPages();
-        for (let i = pageCount; i > 1; i--) pdf.deletePage(i);
-        const a4Wmm = 210;
-        const renderWmm = a4Wmm;
-        const renderHmm = (canvas.height / canvas.width) * renderWmm;
-        pdf.addImage(imgData, "JPEG", 0, 0, renderWmm, renderHmm, undefined, "FAST");
+        const worker: any = html2pdf().set(config).from(sheet).toPdf();
+        const pdf: any = await worker.get("pdf");
+        // Hard-cap to one page in case content slightly overflows.
+        const total = pdf.internal.getNumberOfPages();
+        for (let i = total; i > 1; i--) pdf.deletePage(i);
         return { pdf, filename };
       } else {
         const measuredWidth = Math.min(A4_W, Math.max(sheet.scrollWidth, A4_W));
@@ -173,8 +161,7 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
           pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".no-break", "[data-pdf-section]", ".totals-card", ".signatures"] },
         } as any;
-        const worker: any = html2pdf().set(config).from(sheet);
-        await worker.toPdf();
+        const worker: any = html2pdf().set(config).from(sheet).toPdf();
         const pdf = await worker.get("pdf");
         return { pdf, filename };
       }
