@@ -83,14 +83,14 @@ export default function Products() {
   const q = debouncedSearch.trim();
   const safe = escIlike(q);
 
-  // Stock movements query — server-side filter on batch_number / notes / reference_number,
+  // Stock movements query — server-side filter on batch_number / notes,
   // plus product_id ∈ (matching products) so searching by product name finds the right rows.
   let moveQuery = supabase.from("stock_movements").select("*", { count: "exact" }).order("created_at", { ascending: false });
   if (moveTypeFilter !== "all") moveQuery = moveQuery.eq("movement_type", moveTypeFilter);
   if (q) {
     const prodIds = await searchProductIds(q);
     const idClause = prodIds.length > 0 ? `,product_id.in.(${prodIds.join(",")})` : "";
-    moveQuery = moveQuery.or(`batch_number.ilike.%${safe}%,notes.ilike.%${safe}%,reference_number.ilike.%${safe}%${idClause}`);
+    moveQuery = moveQuery.or(`batch_number.ilike.%${safe}%,notes.ilike.%${safe}%${idClause}`);
   }
   moveQuery = moveQuery.range(movementPagination.from, movementPagination.to);
 
