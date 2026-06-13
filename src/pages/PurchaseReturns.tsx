@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchSupplierIds } from "@/lib/search-helpers";
 import { BulkActionBar, useBulkSelection, RowCheckbox } from "@/components/BulkActionBar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
