@@ -45,10 +45,58 @@ export default function SalesReturns() {
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState("all");
   const pagination = usePagination();
+  const { settings } = useCompanySettings();
+  const { getTemplate } = useDocumentTemplates();
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const [pdfViews, setPdfViews] = useState<any>(undefined);
 
   const bulk = useBulkSelection();
 
   useEffect(() => { loadData(); }, [pagination.page]);
+
+  const printReturn = async (r: any) => {
+    const { data: its } = await supabase.from("sales_return_items")
+      .select("*, products(name)").eq("return_id", r.id);
+    const { data: cust } = r.customer_id
+      ? await supabase.from("customers").select("name, phone, sms_mobile, city, area, address, customer_code, old_erp_account_code").eq("id", r.customer_id).single()
+      : { data: null } as any;
+    const rows = (its || []).map((i: any, idx: number) => ({
+      idx: idx + 1,
+      product_name: i.products?.name || "Item",
+      batch_number: i.batch_number || "—",
+      quantity: i.quantity,
+      rate: Number(i.rate).toLocaleString(),
+      amount: Number(i.amount).toLocaleString(),
+    }));
+    const opts: any = {
+      title: "SALES RETURN", documentNumber: r.return_number, date: r.date, statusTheme: "draft" as const,
+      partyLabel: "Customer",
+      partyName: cust?.name || r.customers?.name || "—",
+      partyCode: cust?.customer_code || undefined,
+      partyMobile: cust?.sms_mobile || undefined,
+      partyPhone: cust?.phone || undefined,
+      partyCity: cust?.city || undefined,
+      partyArea: cust?.area || undefined,
+      partyAddress: cust?.address || undefined,
+      partyAccountCode: cust?.old_erp_account_code || undefined,
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "product_name" },
+        { header: "Batch #", key: "batch_number" },
+        { header: "Qty", key: "quantity", align: "right" as const },
+        { header: "Rate", key: "rate", align: "right" as const },
+        { header: "Amount", key: "amount", align: "right" as const },
+      ],
+      rows,
+      totals: [{ label: "Total", value: `PKR ${Number(r.total).toLocaleString()}` }],
+      notes: r.reason || undefined,
+      settings, template: getTemplate("sales_invoice"),
+    };
+    setPdfViews(generateDocumentViews(opts));
+    setPdfTitle(`Sales Return — ${r.return_number}`);
+    setPdfOpen(true);
+  };
 
   const deleteOne = async (id: string) => {
     // Delete child stock movements first so balance trigger reverses cleanly
