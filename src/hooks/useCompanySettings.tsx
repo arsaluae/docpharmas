@@ -31,6 +31,7 @@ export interface CompanySettings {
   warranty_require_license_expiry?: boolean;
   warranty_require_batch_number?: boolean;
   warranty_require_batch_expiry?: boolean;
+  document_page_mode?: "half" | "full" | "auto";
 }
 
 export function useCompanySettings() {
