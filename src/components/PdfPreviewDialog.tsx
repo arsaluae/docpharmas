@@ -84,17 +84,21 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
 
   /**
    * Build a PDF (jsPDF) from the active document HTML using a hidden iframe.
-   * Modes:
-   *  - "auto"  → half-A4, single-A5 (short delivery note), or A4 multi-page (default).
-   *  - "twoup" → delivery-note-only; stacks the same sheet twice on one A4 page.
+   * Auto-detects A5 (delivery notes / `data-page-mode="a5"`), Half-A4, or A4.
    */
-  const buildPdf = async (mode: "auto" | "twoup" = "auto") => {
+  const buildPdf = async () => {
     const iframe = document.createElement("iframe");
     const A4_W = 794;   // A4 portrait at 96dpi
     const A4_H = 1123;
     const A5_W = 559;   // A5 portrait at 96dpi (148mm)
+    const A5_H = 794;
 
-    iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${A4_W}px;height:${A4_H}px;border:0;background:#fff;`;
+    // Detect page format from the active HTML before mounting so we size the iframe right.
+    const isA5Doc = /data-page-mode="a5"|data-doc-format="a5"/i.test(activeHtml);
+    const iframeW = isA5Doc ? A5_W : A4_W;
+    const iframeH = isA5Doc ? A5_H : A4_H;
+
+    iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${iframeW}px;height:${iframeH}px;border:0;background:#fff;`;
     iframe.setAttribute("aria-hidden", "true");
     document.body.appendChild(iframe);
 
@@ -106,7 +110,6 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
       const doc = iframe.contentDocument;
       if (!doc) throw new Error("PDF iframe failed to initialise");
 
-      // Wait for fonts + images so logos render
       const fontsReady = (doc as any).fonts?.ready?.catch(() => undefined) || Promise.resolve();
       const imgs = Array.from(doc.images);
       await Promise.all([
@@ -120,51 +123,29 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
         new Promise<void>((res) => setTimeout(res, 150)),
       ]);
 
-      const filename = `${(title || "Document").replace(/[^a-z0-9\-_.]+/gi, "-")}${mode === "twoup" ? "-2up" : ""}.pdf`;
-      const isHalfPage = doc.documentElement.getAttribute("data-page-mode") === "half";
+      const filename = `${(title || "Document").replace(/[^a-z0-9\-_.]+/gi, "-")}.pdf`;
+      const pageMode = doc.documentElement.getAttribute("data-page-mode") || "";
+      const isHalfPage = pageMode === "half";
+      const isA5 = pageMode === "a5";
 
-      // Find the actual document sheet
       const sheet = (doc.querySelector(".page-frame, .warranty-document, .page") as HTMLElement) || doc.body;
       sheet.style.background = "#ffffff";
 
-      const docKind = sheet.getAttribute("data-doc-kind")
-        || doc.querySelector('meta[name="doc-kind"]')?.getAttribute("content")
-        || "";
-      const itemCount = Number(sheet.getAttribute("data-item-count") || doc.querySelector('meta[name="item-count"]')?.getAttribute("content") || "0");
-      const isDeliveryNote = docKind === "delivery-note";
-
-      // ── DELIVERY NOTE — 2-up on one A4 ──
-      if (mode === "twoup" && isDeliveryNote) {
+      // ── A5 (Delivery Note default) ─────────────────────────────────
+      if (isA5) {
         const { default: html2canvasLib } = await import("html2canvas");
         const canvas = await html2canvasLib(sheet, {
           scale: 2, useCORS: true, backgroundColor: "#ffffff",
-          windowWidth: A4_W, width: A4_W, logging: false,
+          windowWidth: A5_W, width: A5_W, logging: false,
         });
         const { jsPDF } = await import("jspdf");
-        const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
-        const PAGE_W = 210, PAGE_H = 297, MARGIN = 8, GAP = 4;
-        const halfH = (PAGE_H - MARGIN * 2 - GAP) / 2;
-        const usableW = PAGE_W - MARGIN * 2;
-        // Fit each copy within the half-page box (preserve aspect ratio).
-        const aspect = canvas.height / canvas.width;
-        let w = usableW;
-        let h = w * aspect;
-        if (h > halfH) { h = halfH; w = h / aspect; }
-        const x = (PAGE_W - w) / 2;
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        pdf.addImage(imgData, "JPEG", x, MARGIN, w, h, undefined, "FAST");
-        // Cut line
-        pdf.setDrawColor(200);
-        pdf.setLineDashPattern([2, 2], 0);
-        pdf.line(MARGIN, MARGIN + halfH + GAP / 2, PAGE_W - MARGIN, MARGIN + halfH + GAP / 2);
-        pdf.setLineDashPattern([], 0);
-        pdf.addImage(imgData, "JPEG", x, MARGIN + halfH + GAP, w, h, undefined, "FAST");
+        const pdf = new jsPDF({ unit: "mm", format: "a5", orientation: "portrait", compress: true });
+        // Fill the whole A5 page — the sheet CSS already includes its own margins.
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 148, 210, undefined, "FAST");
         return { pdf, filename };
       }
 
       if (isHalfPage) {
-        // Half-A4: content sheet is naturally short. Render at its real height so
-        // the PDF is exactly ONE page with blank lower half.
         const config = {
           margin: [6, 8, 6, 8],
           filename,
@@ -182,30 +163,6 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
         const pdf: any = await worker.get("pdf");
         const total = pdf.internal.getNumberOfPages();
         for (let i = total; i > 1; i--) pdf.deletePage(i);
-        return { pdf, filename };
-      }
-
-      // ── DELIVERY NOTE — auto A5 (short) or A4 (long) single page ──
-      if (isDeliveryNote) {
-        const useA5 = itemCount <= 8;
-        const { default: html2canvasLib } = await import("html2canvas");
-        const canvas = await html2canvasLib(sheet, {
-          scale: 2, useCORS: true, backgroundColor: "#ffffff",
-          windowWidth: A4_W, width: A4_W, logging: false,
-        });
-        const { jsPDF } = await import("jspdf");
-        const pdf = new jsPDF({ unit: "mm", format: useA5 ? "a5" : "a4", orientation: "portrait", compress: true });
-        const PAGE_W = useA5 ? 148 : 210;
-        const PAGE_H = useA5 ? 210 : 297;
-        const MARGIN = useA5 ? 6 : 10;
-        const usableW = PAGE_W - MARGIN * 2;
-        const usableH = PAGE_H - MARGIN * 2;
-        const aspect = canvas.height / canvas.width;
-        let w = usableW;
-        let h = w * aspect;
-        if (h > usableH) { h = usableH; w = h / aspect; }
-        const x = (PAGE_W - w) / 2;
-        pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", x, MARGIN, w, h, undefined, "FAST");
         return { pdf, filename };
       }
 
@@ -231,14 +188,12 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
     }
   };
 
-  // Detect docKind from the active HTML so we can show the "2 per A4" button only for delivery notes.
-  const isDeliveryNote = useMemo(() => /data-doc-kind="delivery-note"|name="doc-kind"\s+content="delivery-note"/i.test(activeHtml), [activeHtml]);
 
-  const handleDownloadPdf = async (mode: "auto" | "twoup" = "auto") => {
+  const handleDownloadPdf = async () => {
     if (downloading) return;
     setDownloading(true);
     try {
-      const { pdf, filename } = await buildPdf(mode);
+      const { pdf, filename } = await buildPdf();
       pdf.save(filename);
     } catch (e) {
       console.error("PDF download failed", e);
@@ -247,11 +202,11 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
     }
   };
 
-  const handlePrint = async (mode: "auto" | "twoup" = "auto") => {
+  const handlePrint = async () => {
     if (downloading) return;
     setDownloading(true);
     try {
-      const { pdf } = await buildPdf(mode);
+      const { pdf } = await buildPdf();
       const blob = pdf.output("blob");
       const url = URL.createObjectURL(blob);
       const win = window.open(url, "_blank");
@@ -299,17 +254,13 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
             </div>
           )}
           <div className="flex items-center gap-2">
-            {isDeliveryNote && (
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => handleDownloadPdf("twoup")} disabled={downloading} title="Save two delivery notes on a single A4 sheet">
-                <Download className="h-3.5 w-3.5" /> 2 per A4
-              </Button>
-            )}
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => handlePrint("auto")} disabled={downloading}>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => handlePrint()} disabled={downloading}>
               <Printer className="h-3.5 w-3.5" /> Print
             </Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => handleDownloadPdf("auto")} disabled={downloading}>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => handleDownloadPdf()} disabled={downloading}>
               <Download className="h-3.5 w-3.5" /> {downloading ? "Saving…" : "Save as PDF"}
             </Button>
+
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" />
             </Button>
