@@ -401,7 +401,7 @@ function buildA4Html(opts: PdfOptions): string {
 </div>
 
 <div class="page-frame">
-  <div class="doc-watermark" aria-hidden="true"><span>${safeCompany}</span></div>
+  
   <div class="doc-header">
     <div>${logoHtml}</div>
     <div style="min-width:0;">${companyBlock}</div>
