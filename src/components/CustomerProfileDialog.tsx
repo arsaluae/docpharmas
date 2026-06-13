@@ -218,8 +218,11 @@ export function CustomerProfileDialog({ open, onOpenChange, customerId, customer
  </div>
  )}
 
- {/* Allocated Products */}
- {customerId && <AllocatedProducts partyId={customerId} partyType="customer" />}
+  {/* Allocated Products */}
+  {customerId && <AllocatedProducts partyId={customerId} partyType="customer" />}
+
+  {/* Contact Persons */}
+  {customerId && <CustomerContactsCard customerId={customerId} />}
 
  {/* Warranty Invoices history */}
  <div>
