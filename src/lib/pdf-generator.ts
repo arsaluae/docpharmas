@@ -250,14 +250,22 @@ function buildA4Html(opts: PdfOptions): string {
     </div>`;
 
   /* ── ITEMS TABLE ── */
+  // Detect "logistics-style" tables (Delivery Note / Sales Return without prices)
+  // so the Product Name column gets the slack instead of leaving a giant gap.
+  const hasMoneyCol = columns.some(c => {
+    const k = c.key.toLowerCase();
+    return k === "rate" || k === "tp_rate" || k === "amount" || k === "line_total" || k === "mrp" || k === "mrp_inc_tax" || k === "price";
+  });
   const thAlign = (c: PdfColumn) => c.align || "left";
   const colWidth = (c: PdfColumn) => {
     const k = c.key.toLowerCase();
+    const isProductName = c.key === "product_name" || c.key === "name" || c.key === "item_name" || c.key === "description";
     if (SERIAL_KEYS.has(c.key)) return "width:36px;";
+    if (isProductName) return hasMoneyCol ? "width:32%;" : "width:55%;";
     if (k === "product_code" || k === "code" || k === "sku") return "width:90px;";
-    if (k === "batch_number" || k === "batch") return "width:88px;";
-    if (k === "expiry_date" || k === "expiry") return "width:78px;";
-    if (k === "quantity" || k === "qty") return "width:64px;";
+    if (k === "batch_number" || k === "batch") return hasMoneyCol ? "width:88px;" : "width:14%;";
+    if (k === "expiry_date" || k === "expiry") return hasMoneyCol ? "width:78px;" : "width:12%;";
+    if (k === "quantity" || k === "qty") return hasMoneyCol ? "width:64px;" : "width:12%;";
     if (k === "rate" || k === "tp_rate" || k === "price") return "width:84px;";
     if (k === "mrp" || k === "mrp_inc_tax") return "width:80px;";
     if (k === "discount" || k === "discount_pct" || k === "disc") return "width:70px;";
