@@ -180,7 +180,9 @@ export default function WarrantyInvoices() {
  const [searchParams, setSearchParams] = useSearchParams();
  const [autoSourceHandled, setAutoSourceHandled] = useState(false);
 
- useEffect(() => { load(); }, [pagination.page]);
+ const debouncedSearch = useDebouncedValue(search, 300);
+ useEffect(() => { pagination.setPage(0); }, [debouncedSearch]);
+ useEffect(() => { load(); }, [pagination.page, debouncedSearch]);
 
  // Auto-open dialog and load from sales invoice if ?source_invoice=<id> is present
  useEffect(() => {
