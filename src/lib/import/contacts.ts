@@ -44,7 +44,7 @@ export interface CustomerLite {
   city: string | null;
   area: string | null;
   phone: string | null;
-  mobile: string | null;
+  sms_mobile: string | null;
 }
 
 export type MatchMethod = "Code" | "Exact" | "Normalized" | "Fuzzy" | "Manual" | "Created" | "None";
