@@ -169,8 +169,9 @@ export default function Settings() {
        warranty_require_license_no: form.warranty_require_license_no,
        warranty_require_license_expiry: form.warranty_require_license_expiry,
        warranty_require_batch_number: form.warranty_require_batch_number,
-       warranty_require_batch_expiry: form.warranty_require_batch_expiry,
-     };
+        warranty_require_batch_expiry: form.warranty_require_batch_expiry,
+        document_page_mode: form.document_page_mode,
+      };
  if (settingsId) {
  await supabase.from("company_settings").update(payload as any).eq("id", settingsId);
  } else {
