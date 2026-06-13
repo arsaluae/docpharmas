@@ -143,6 +143,7 @@ export default function Settings() {
           warranty_require_license_expiry: (data as any).warranty_require_license_expiry !== false,
           warranty_require_batch_number: (data as any).warranty_require_batch_number !== false,
           warranty_require_batch_expiry: (data as any).warranty_require_batch_expiry !== false,
+          document_page_mode: ((data as any).document_page_mode || "auto") as "half" | "full" | "auto",
   });
  }
  setLoading(false);
