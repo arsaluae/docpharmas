@@ -185,15 +185,11 @@ function buildA4Html(opts: PdfOptions): string {
      Logo uses crossorigin + onerror fallback so a broken/blocked image swaps to
      a large branded text block instead of leaving the left side blank. */
   const safeCompany = escapeHtml(companyName);
-  const logoFallback = `<div style="font-size:38px;font-weight:800;color:${C.text};letter-spacing:-0.5px;line-height:1.05;">${safeCompany}</div>`;
   const logoHtml = s?.logo_url
-    ? `<div class="brand-logo-wrap" style="min-height:120px;display:flex;align-items:center;">
-         <img src="${s.logo_url}" alt="${safeCompany}" crossorigin="anonymous"
-              style="height:auto;max-height:140px;max-width:360px;width:auto;object-fit:contain;display:block;"
-              onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
-         <div style="display:none;font-size:38px;font-weight:800;color:${C.text};letter-spacing:-0.5px;line-height:1.05;">${safeCompany}</div>
-       </div>`
-    : logoFallback;
+    ? `<img src="${s.logo_url}" alt="${safeCompany}" crossorigin="anonymous"
+            style="height:64px;max-height:64px;max-width:260px;width:auto;object-fit:contain;display:block;"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';" /><div style="display:none;font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`
+    : `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`;
 
   const addressLine = [s?.address, (s as any)?.city].filter(Boolean).join(", ");
   const phoneLine = [s?.phone ? `Tel: ${s.phone}` : null, (s as any)?.whatsapp_number ? `Mob: ${(s as any).whatsapp_number}` : null].filter(Boolean).join("  ·  ");
@@ -202,9 +198,9 @@ function buildA4Html(opts: PdfOptions): string {
 
   const companyBlock = `
     <div style="text-align:right;">
-      ${s?.logo_url ? `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.2px;line-height:1.2;">${safeCompany}</div>` : ""}
-      ${tagline ? `<div style="font-size:14px;font-style:italic;color:${C.textMuted};margin-top:3px;">${escapeHtml(tagline)}</div>` : ""}
-      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:14px;color:${C.textMuted};line-height:1.65;margin-top:2px;word-break:break-word;">${escapeHtml(l)}</div>`).join("")}
+      <div style="font-size:22px;font-weight:800;color:${C.text};letter-spacing:-0.2px;line-height:1.15;">${safeCompany}</div>
+      ${tagline ? `<div style="font-size:13px;font-style:italic;color:${C.textMuted};margin-top:2px;">${escapeHtml(tagline)}</div>` : ""}
+      ${[addressLine, phoneLine, webLine, idLine].filter(Boolean).map(l => `<div style="font-size:12.5px;color:${C.textMuted};line-height:1.5;margin-top:1px;word-break:break-word;">${escapeHtml(l)}</div>`).join("")}
     </div>`;
 
   /* ── DOCUMENT TITLE (centered) ── */
