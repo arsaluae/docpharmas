@@ -187,7 +187,7 @@ function buildA4Html(opts: PdfOptions): string {
   const safeCompany = escapeHtml(companyName);
   const logoHtml = s?.logo_url
     ? `<img src="${s.logo_url}" alt="${safeCompany}" crossorigin="anonymous"
-            style="height:110px !important;width:auto !important;max-width:320px !important;object-fit:contain;display:block;vertical-align:middle;"
+            style="height:96px !important;width:auto !important;max-width:300px !important;object-fit:contain;display:block;vertical-align:middle;"
             onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';" /><div style="display:none;font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`
     : `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`;
 
@@ -205,7 +205,7 @@ function buildA4Html(opts: PdfOptions): string {
 
   /* ── DOCUMENT TITLE (centered) ── */
   const titleBlock = `
-    <div style="text-align:center;margin-top:14px;">
+    <div style="text-align:center;margin-top:10px;">
       <div style="font-size:24px;font-weight:800;color:${C.text};letter-spacing:1.2px;text-transform:uppercase;">${escapeHtml(docTitle)}</div>
       <div style="height:2px;width:90px;background:${C.primary};margin:7px auto 0;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div>
     </div>`;
@@ -268,20 +268,20 @@ function buildA4Html(opts: PdfOptions): string {
     if (SERIAL_KEYS.has(c.key)) return "width:7%;";
     if (isProductName) return hasMoneyCol ? "width:32%;" : "width:55%;";
     if (k === "product_code" || k === "code" || k === "sku") return "width:10%;";
-    if (k === "batch_number" || k === "batch") return "width:12%;";
-    if (k === "expiry_date" || k === "expiry") return "width:11%;";
-    if (k === "quantity" || k === "qty") return "width:8%;";
-    if (k === "rate" || k === "tp_rate" || k === "price") return "width:9%;";
-    if (k === "mrp" || k === "mrp_inc_tax") return "width:8%;";
+    if (k === "batch_number" || k === "batch") return "width:11%;";
+    if (k === "expiry_date" || k === "expiry") return "width:10%;";
+    if (k === "quantity" || k === "qty") return "width:9%;";
+    if (k === "rate" || k === "tp_rate" || k === "price") return "width:8%;";
+    if (k === "mrp" || k === "mrp_inc_tax") return "width:10%;";
     if (k === "discount" || k === "discount_pct" || k === "disc") return "width:7%;";
     if (k === "tax" || k === "gst_rate" || k === "gst") return "width:7%;";
-    if (k === "amount" || k === "line_total" || k === "total") return "width:13%;";
+    if (k === "amount" || k === "line_total" || k === "total") return "width:12%;";
     return "";
   };
 
   const headerCells = columns.map(c => {
     return `
-    <th style="padding:8px 6px;text-align:${thAlign(c)};font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:${C.text};background:#eef0f3;border-bottom:2px solid ${C.text};${colWidth(c)}white-space:normal;line-height:1.2;word-break:break-word;overflow-wrap:anywhere;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.header)}</th>`;
+    <th style="padding:8px 6px;text-align:${thAlign(c)};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2px;color:${C.text};background:#eef0f3;border-bottom:2px solid ${C.text};${colWidth(c)}white-space:normal;line-height:1.2;word-break:break-word;overflow-wrap:anywhere;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${escapeHtml(c.header)}</th>`;
   }).join("");
 
   const bodyRows = opts.rows.map((row, i) => {
@@ -377,10 +377,9 @@ function buildA4Html(opts: PdfOptions): string {
     box-shadow:0 4px 18px rgba(0,0,0,0.18); }
   .toolbar-title { color:#fff; font-size:13px; font-weight:600; letter-spacing:0.3px; }
   .toolbar-btn { background:${C.primary}; color:#fff; border:none; padding:8px 18px; font-size:12.5px; font-weight:600; border-radius:4px; cursor:pointer; }
-  .page-frame { position:relative; max-width:794px; margin:0 auto; padding:10px 24px 18px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; }
-  .doc-header { display:flex; align-items:flex-start; justify-content:space-between; gap:32px; padding:4px 0 12px; border-bottom:1px solid ${C.border}; }
-  .doc-header > div:first-child { flex:0 0 auto; display:flex; align-items:flex-start; }
-  .doc-header > div:last-child { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:flex-start; }
+  .page-frame { position:relative; max-width:794px; margin:0 auto; padding:6px 24px 18px; background:#fff; border:1px solid ${C.border}; box-shadow:0 8px 30px rgba(0,0,0,0.08); page-break-after:avoid; break-after:avoid; }
+  table.doc-header { width:100%; border-collapse:collapse; border-bottom:1px solid ${C.border}; margin-bottom:4px; }
+  table.doc-header td { vertical-align:middle; padding:8px 0; }
   /* Pagination-safe defaults (apply during html2canvas snapshot too, not only @media print) */
   table { page-break-inside:auto; }
   thead { display:table-header-group; }
@@ -403,10 +402,10 @@ function buildA4Html(opts: PdfOptions): string {
 
 <div class="page-frame">
   
-  <div class="doc-header">
-    <div>${logoHtml}</div>
-    <div style="min-width:0;">${companyBlock}</div>
-  </div>
+  <table class="doc-header"><tr>
+    <td style="width:55%;text-align:left;">${logoHtml}</td>
+    <td style="width:45%;text-align:right;">${companyBlock}</td>
+  </tr></table>
   ${titleBlock}
   ${metaBlock}
   ${itemsTable}
