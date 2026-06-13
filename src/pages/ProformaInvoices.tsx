@@ -807,8 +807,8 @@ export default function ProformaInvoices() {
         { header: "Product", key: "product_name" },
         { header: "Batch #", key: "batch_number" },
         { header: "Expiry", key: "expiry_date" },
-        { header: "MRP", key: "mrp", align: "right" },
         { header: "Qty", key: "quantity", align: "right" },
+        { header: "MRP", key: "mrp", align: "right" },
       ],
       rows: dnItems.map((i: any, idx: number) => {
         const exp = i.expiry_date || expiryMap[`${i.product_id}__${i.batch_number}`] || null;
