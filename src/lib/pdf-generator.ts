@@ -310,7 +310,7 @@ function buildA4Html(opts: PdfOptions): string {
   const totalsCard = totals.length ? `
     <div style="display:flex;margin-top:22px;">
       <div style="flex:1;"></div>
-      <div style="width:380px;max-width:58%;border:1px solid ${C.border};border-radius:3px;overflow:hidden;background:#fff;">
+      <div class="totals-card" style="width:380px;max-width:58%;border:1px solid ${C.border};border-radius:3px;overflow:hidden;background:#fff;">
         ${subRows.map(r => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;font-size:15px;border-bottom:1px solid ${C.borderLight};">
             <span style="color:${C.textMuted};">${escapeHtml(r.label)}</span>
