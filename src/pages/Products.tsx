@@ -203,11 +203,13 @@ export default function Products() {
    const cached = Number(p.cost_price ?? 0);
    return cached > 0 ? cached : purchase;
  };
- const margin = (p: Product) => {
-   const sale = Number(p.selling_price);
-   if (sale <= 0) return "—";
-   return (((sale - landedOf(p)) / sale) * 100).toFixed(2) + "%";
- };
+  // Markup on cost: (Sale − Landed) ÷ Landed × 100. Pharma distribution standard.
+  const margin = (p: Product) => {
+    const sale = Number(p.selling_price);
+    const landed = landedOf(p);
+    if (landed <= 0 || sale <= 0) return "—";
+    return (((sale - landed) / landed) * 100).toFixed(2) + "%";
+  };
  const landedMissing = (p: Product) => {
    const purchase = Number((p as any).purchase_cost ?? 0);
    const landed = Number(p.cost_price ?? 0);
