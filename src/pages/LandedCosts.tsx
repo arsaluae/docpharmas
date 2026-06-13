@@ -105,12 +105,8 @@ export default function LandedCosts() {
  setDeleteId(null); load();
  };
 
- const filtered = costs.filter(c => {
- const matchSearch = (c.description || "").toLowerCase().includes(search.toLowerCase()) ||
- c.cost_type.toLowerCase().includes(search.toLowerCase()) ||
- (supplierNames[c.vendor_id || ""] || "").toLowerCase().includes(search.toLowerCase());
- return matchSearch;
- });
+ // Server-side search already filters across all pages.
+ const filtered = costs;
 
  // Summary by type
  const summaryByType = COST_TYPES.map(t => ({
