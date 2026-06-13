@@ -195,6 +195,8 @@ export default function WarrantyInvoices() {
  const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
  const [distributors, setDistributors] = useState<Distributor[]>([]);
  const [selectedDistributorId, setSelectedDistributorId] = useState("");
+ const [salesAgents, setSalesAgents] = useState<SalesAgent[]>([]);
+ const [selectedRepId, setSelectedRepId] = useState("");
  
  const [items, setItems] = useState<LineItem[]>([]);
  const [discountType, setDiscountType] = useState<"percent" | "amount">("percent");
@@ -202,6 +204,7 @@ export default function WarrantyInvoices() {
  const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
  const [formNotes, setFormNotes] = useState("");
  const [addDistOpen, setAddDistOpen] = useState(false);
+
  // Cache of active batches per product id (FEFO ordered).
  const [batchCache, setBatchCache] = useState<Record<string, ActiveBatch[]>>({});
 
