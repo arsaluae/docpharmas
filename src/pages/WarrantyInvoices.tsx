@@ -211,8 +211,16 @@ export default function WarrantyInvoices() {
 
 
  const load = async () => {
+ let invQuery = supabase.from("warranty_invoices").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false });
+ const term = debouncedSearch.trim();
+ if (term) {
+   const safe = escIlike(term);
+   const custIds = await searchCustomerIds(term);
+   const idClause = custIds.length > 0 ? `,customer_id.in.(${custIds.join(",")})` : "";
+   invQuery = invQuery.or(`warranty_number.ilike.%${safe}%,invoice_number.ilike.%${safe}%${idClause}`);
+ }
  const [inv, cust, prod] = await Promise.all([
- supabase.from("warranty_invoices").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to),
+ invQuery.range(pagination.from, pagination.to),
  supabase.from("customers").select("id, name, company").eq("is_active", true).order("name"),
  supabase.from("products").select("id, name, selling_price, mrp").eq("is_active", true).order("name"),
  ]);
