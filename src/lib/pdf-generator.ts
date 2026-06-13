@@ -854,8 +854,9 @@ function buildWarrantyNoteHtml(opts: WarrantyNoteOptions): string {
   ${signatureHtml}
 
   <section data-pdf-section="footer" class="no-break" style="margin-top:14pt;padding-top:6pt;border-top:0.5pt solid #cbd5e1;text-align:center;">
-    <div style="font-size:8pt;color:#94a3b8;font-style:italic;">This is a system generated document and does not require any signatures.</div>
+    <div style="font-size:8pt;color:#94a3b8;font-style:italic;">${escapeHtml(s?.warranty_footer_text || "This is a system generated invoice and does not require any signatures.")}</div>
   </section>
+
 
 </div></body></html>`;
 }
