@@ -205,8 +205,8 @@ function buildA4Html(opts: PdfOptions): string {
 
   /* ── DOCUMENT TITLE (centered) ── */
   const titleBlock = `
-    <div style="text-align:center;margin-top:22px;padding-top:16px;border-top:2px solid ${C.text};">
-      <div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:1.2px;text-transform:uppercase;">${escapeHtml(docTitle)}</div>
+    <div style="text-align:center;margin-top:14px;">
+      <div style="font-size:24px;font-weight:800;color:${C.text};letter-spacing:1.2px;text-transform:uppercase;">${escapeHtml(docTitle)}</div>
       <div style="height:2px;width:90px;background:${C.primary};margin:7px auto 0;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div>
     </div>`;
 
