@@ -11,7 +11,7 @@ export interface ActiveBatch {
   status: "active" | "expiring" | "expired";
 }
 
-const IN_TYPES = ["purchase", "purchase_in", "return_in", "adjustment_in", "opening"];
+const IN_TYPES = ["purchase", "purchase_in", "return_in", "adjustment_in", "opening", "opening_stock"];
 const OUT_TYPES = ["sale", "sale_out", "return_out", "adjustment_out", "damage", "expired"];
 
 export async function getActiveBatches(productId: string): Promise<ActiveBatch[]> {

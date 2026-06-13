@@ -586,6 +586,10 @@ export type Database = {
           show_customer_phone_on_docs: boolean
           show_supplier_mobile_on_docs: boolean
           show_supplier_phone_on_docs: boolean
+          sku_auto_generate: boolean
+          sku_manual_override_admin_only: boolean
+          sku_next_number: number
+          sku_prefix: string
           strn: string | null
           tenant_id: string | null
           updated_at: string
@@ -625,6 +629,10 @@ export type Database = {
           show_customer_phone_on_docs?: boolean
           show_supplier_mobile_on_docs?: boolean
           show_supplier_phone_on_docs?: boolean
+          sku_auto_generate?: boolean
+          sku_manual_override_admin_only?: boolean
+          sku_next_number?: number
+          sku_prefix?: string
           strn?: string | null
           tenant_id?: string | null
           updated_at?: string
@@ -664,6 +672,10 @@ export type Database = {
           show_customer_phone_on_docs?: boolean
           show_supplier_mobile_on_docs?: boolean
           show_supplier_phone_on_docs?: boolean
+          sku_auto_generate?: boolean
+          sku_manual_override_admin_only?: boolean
+          sku_next_number?: number
+          sku_prefix?: string
           strn?: string | null
           tenant_id?: string | null
           updated_at?: string
@@ -2910,6 +2922,95 @@ export type Database = {
           },
         ]
       }
+      product_landed_costs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customs_cost: number
+          effective_from: string
+          freight_cost: number
+          handling_cost: number
+          id: string
+          landed_cost: number | null
+          notes: string | null
+          other_cost: number
+          other_cost_label: string | null
+          printing_cost: number
+          product_id: string
+          purchase_cost: number
+          source: string
+          source_ref: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customs_cost?: number
+          effective_from?: string
+          freight_cost?: number
+          handling_cost?: number
+          id?: string
+          landed_cost?: number | null
+          notes?: string | null
+          other_cost?: number
+          other_cost_label?: string | null
+          printing_cost?: number
+          product_id: string
+          purchase_cost?: number
+          source?: string
+          source_ref?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customs_cost?: number
+          effective_from?: string
+          freight_cost?: number
+          handling_cost?: number
+          id?: string
+          landed_cost?: number | null
+          notes?: string | null
+          other_cost?: number
+          other_cost_label?: string | null
+          printing_cost?: number
+          product_id?: string
+          purchase_cost?: number
+          source?: string
+          source_ref?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_landed_costs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_landed_costs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_landed_costs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_landed_costs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_staging: {
         Row: {
           barcode: string | null
@@ -3081,6 +3182,7 @@ export type Database = {
           old_erp_id: string | null
           pack_size: string | null
           product_code: string | null
+          purchase_cost: number
           reorder_level: number
           retail_price: number | null
           selling_price: number
@@ -3120,6 +3222,7 @@ export type Database = {
           old_erp_id?: string | null
           pack_size?: string | null
           product_code?: string | null
+          purchase_cost?: number
           reorder_level?: number
           retail_price?: number | null
           selling_price?: number
@@ -3159,6 +3262,7 @@ export type Database = {
           old_erp_id?: string | null
           pack_size?: string | null
           product_code?: string | null
+          purchase_cost?: number
           reorder_level?: number
           retail_price?: number | null
           selling_price?: number
@@ -5597,6 +5701,7 @@ export type Database = {
         Args: { p_document_type: string; p_tenant_id: string }
         Returns: string
       }
+      generate_sku: { Args: never; Returns: string }
       get_user_tenant_id: { Args: never; Returns: string }
       get_user_tenant_role: { Args: never; Returns: string }
       has_role: {

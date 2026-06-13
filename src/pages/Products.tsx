@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Plus, Search, Package, Trash2, Upload, ArrowDownUp, Banknote, AlertTriangle, TrendingUp, Layers, Power } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { ProductBatchProfileDialog } from "@/components/ProductBatchProfileDialog";
+import { OpeningStockDialog } from "@/components/OpeningStockDialog";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useTenant } from "@/hooks/useTenant";
@@ -28,7 +29,7 @@ const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", 
 
 interface Product {
  id: string; name: string; sku: string | null; category: string; drap_reg_number: string | null;
- pack_size: string | null; unit: string; cost_price: number; selling_price: number; gst_rate: number;
+ pack_size: string | null; unit: string; cost_price: number; purchase_cost?: number; selling_price: number; gst_rate: number;
  stock_quantity: number; reorder_level: number; created_at: string; is_active?: boolean; mrp?: number | null;
 }
 
@@ -39,7 +40,7 @@ interface StockMovement {
 
 const emptyForm = {
  name: "", sku: "", category: "tablet" as string, drap_reg_number: "", pack_size: "", unit: "pcs",
- cost_price: "0", selling_price: "0", mrp: "0", gst_rate: "17", stock_quantity: "0", reorder_level: "0",
+ purchase_cost: "0", selling_price: "0", mrp: "0", gst_rate: "17", stock_quantity: "0", reorder_level: "0",
 };
 
 export default function Products() {
@@ -59,6 +60,7 @@ export default function Products() {
  const [editId, setEditId] = useState<string | null>(null);
  const [activeTab, setActiveTab] = useState("catalog");
  const [profileProduct, setProfileProduct] = useState<Product | null>(null);
+ const [openingOpen, setOpeningOpen] = useState(false);
 
  // Stock movement form
  const [moveOpen, setMoveOpen] = useState(false);
@@ -118,24 +120,31 @@ export default function Products() {
   if (!form.name.trim()) { toast.error("Product name required"); return; }
   // Stock quantity is intentionally NOT in update payload — all stock changes must
   // flow through stock_movements so triggers, audit, and negative-stock guard fire.
-    const basePayload = {
+    const basePayload: any = {
     is_active: true,
     name: form.name, sku: form.sku || null, category: form.category,
     drap_reg_number: form.drap_reg_number || null, pack_size: form.pack_size || null, unit: form.unit,
-    cost_price: Number(form.cost_price), selling_price: Number(form.selling_price),
+    purchase_cost: Number(form.purchase_cost), selling_price: Number(form.selling_price),
     mrp: Number(form.mrp) || 0,
     gst_rate: Number(form.gst_rate), reorder_level: Number(form.reorder_level),
     };
   if (editId) {
+  // Don't touch cost_price (landed cache) on plain edit — only purchase_cost changes here.
   await supabase.from("products").update(basePayload).eq("id", editId);
   toast.success("Product updated");
   } else {
-  const { data: code } = await supabase.rpc("generate_document_number", { p_document_type: "product" });
-  // Opening stock on create still allowed — write the product then post an opening movement.
+  // Auto-generate SKU if missing
+  let sku = (form.sku || "").trim();
+  if (!sku) {
+    const { data: gen } = await supabase.rpc("generate_sku" as any);
+    sku = (gen as string) || null as any;
+  }
+  // Seed landed cache = purchase cost until landed-cost engine runs.
+  const insertPayload = { ...basePayload, sku, cost_price: Number(form.purchase_cost), stock_quantity: 0 };
   const openingQty = Number(form.stock_quantity) || 0;
   const { data: created, error: createErr } = await supabase
   .from("products")
-  .insert({ ...basePayload, stock_quantity: 0, product_code: code || null } as any)
+  .insert(insertPayload)
   .select("id")
   .single();
   if (createErr) { toast.error("Failed: " + createErr.message); return; }
@@ -149,7 +158,7 @@ export default function Products() {
   notes: "Opening stock set on product creation",
   } as any);
   }
-  toast.success("Product created");
+  toast.success(`Product created — SKU ${sku}`);
   }
   setOpen(false); setForm(emptyForm); setEditId(null); loadAll();
   };
@@ -158,7 +167,7 @@ export default function Products() {
  setEditId(p.id);
  setForm({
  name: p.name, sku: p.sku || "", category: p.category, drap_reg_number: p.drap_reg_number || "",
- pack_size: p.pack_size || "", unit: p.unit, cost_price: String(p.cost_price), selling_price: String(p.selling_price),
+ pack_size: p.pack_size || "", unit: p.unit, purchase_cost: String((p as any).purchase_cost ?? p.cost_price), selling_price: String(p.selling_price),
  mrp: String(p.mrp ?? 0),
  gst_rate: String(p.gst_rate), stock_quantity: String(p.stock_quantity), reorder_level: String(p.reorder_level),
  });
@@ -187,9 +196,22 @@ export default function Products() {
  p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || "").toLowerCase().includes(search.toLowerCase())
  );
 
+ // Landed cost = products.cost_price (kept in sync by product_landed_costs trigger).
+ // Falls back to purchase_cost when no landed entry exists yet.
+ const landedOf = (p: Product) => {
+   const purchase = Number((p as any).purchase_cost ?? p.cost_price ?? 0);
+   const cached = Number(p.cost_price ?? 0);
+   return cached > 0 ? cached : purchase;
+ };
  const margin = (p: Product) => {
- if (Number(p.selling_price) === 0) return "—";
- return ((Number(p.selling_price) - Number(p.cost_price)) / Number(p.selling_price) * 100).toFixed(1) + "%";
+   const sale = Number(p.selling_price);
+   if (sale <= 0) return "—";
+   return (((sale - landedOf(p)) / sale) * 100).toFixed(2) + "%";
+ };
+ const landedMissing = (p: Product) => {
+   const purchase = Number((p as any).purchase_cost ?? 0);
+   const landed = Number(p.cost_price ?? 0);
+   return purchase > 0 && Math.abs(landed - purchase) < 0.001;
  };
 
  const productNames = Object.fromEntries(products.map(p => [p.id, p.name]));
@@ -223,6 +245,7 @@ export default function Products() {
  ) : (
  <>
  <Button variant="outline" size="sm" onClick={() => navigate("/import?tab=products")}><Upload className="h-4 w-4 mr-1" /> Import</Button>
+ {activeTab !== "movements" && <Button variant="outline" size="sm" onClick={() => setOpeningOpen(true)}><Layers className="h-4 w-4 mr-1" /> Add Opening Stock</Button>}
  {activeTab === "movements" ? (
  <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
  <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Movement</Button></DialogTrigger>
@@ -258,7 +281,15 @@ export default function Products() {
  <DialogHeader><DialogTitle>{editId ? "Edit" : "New"} Product</DialogTitle></DialogHeader>
  <div className="grid grid-cols-2 gap-3 mt-2">
  <div className="col-span-2"><Label>Product Name *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
- <div><Label>SKU</Label><Input value={form.sku} onChange={e => setForm({...form, sku: e.target.value})} /></div>
+ <div>
+   <Label>SKU {!editId && <span className="text-[10px] text-muted-foreground">(auto if blank)</span>}</Label>
+   <Input
+     value={form.sku}
+     readOnly={!editId && !isAdmin}
+     onChange={e => setForm({...form, sku: e.target.value})}
+     placeholder={editId ? "" : "PRD-0001"}
+   />
+ </div>
  <div>
  <Label>Category</Label>
  <Select value={form.category} onValueChange={v => setForm({...form, category: v})}>
@@ -270,10 +301,10 @@ export default function Products() {
  <div><Label>Pack Size</Label><Input value={form.pack_size} onChange={e => setForm({...form, pack_size: e.target.value})} placeholder="e.g. 10x10" /></div>
  <div><Label>Unit</Label><Input value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} /></div>
  {settings?.gst_enabled && <div><Label>GST Rate (%)</Label><Input type="number" value={form.gst_rate} onChange={e => setForm({...form, gst_rate: e.target.value})} /></div>}
- {!hideCost && <div><Label>Cost Price (PKR)</Label><Input type="number" value={form.cost_price} onChange={e => setForm({...form, cost_price: e.target.value})} /></div>}
+ {!hideCost && <div><Label>Purchase Cost (PKR)</Label><Input type="number" value={form.purchase_cost} onChange={e => setForm({...form, purchase_cost: e.target.value})} /><p className="text-[10px] text-muted-foreground mt-1">Supplier base. Landed cost is managed in the batch/landed-cost drawer.</p></div>}
  <div><Label>Net Price (PKR) *</Label><Input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} placeholder="Hits all ledgers" /><p className="text-[10px] text-muted-foreground mt-1">Used for every calculation, tax, COGS & ledger posting.</p></div>
  <div><Label>MRP (PKR)</Label><Input type="number" value={form.mrp} onChange={e => setForm({...form, mrp: e.target.value})} placeholder="Display only" /><p className="text-[10px] text-muted-foreground mt-1">Market Retail Price — shown on invoices for reference only, never used in math.</p></div>
- {!editId && <div><Label>Opening Stock</Label><Input type="number" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} placeholder="0" /><p className="text-xs text-muted-foreground mt-1">Only set on creation. Use Stock Movements to adjust later.</p></div>}
+ {!editId && <div><Label>Opening Stock</Label><Input type="number" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} placeholder="0" /><p className="text-xs text-muted-foreground mt-1">For multi-batch opening stock, use the “Add Opening Stock” button.</p></div>}
  <div><Label>Reorder Level</Label><Input type="number" value={form.reorder_level} onChange={e => setForm({...form, reorder_level: e.target.value})} /></div>
  </div>
  <Button onClick={handleSave} className="w-full mt-4">{editId ? "Update" : "Create"} Product</Button>
@@ -308,26 +339,33 @@ export default function Products() {
  <Table>
  <TableHeader>
  <TableRow>
- <TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>SKU</TableHead><TableHead>Category</TableHead><TableHead>DRAP</TableHead>
- {!hideCost && <TableHead className="text-right">Cost</TableHead>}<TableHead className="text-right">Net Price</TableHead><TableHead className="text-right">MRP</TableHead>
- {!hideCost && <TableHead className="text-right">Margin</TableHead>}<TableHead className="text-right">Stock</TableHead>
+ <TableHead>SKU</TableHead><TableHead>Name</TableHead><TableHead>Category</TableHead>
+ {!hideCost && <TableHead className="text-right">Purchase</TableHead>}
+ {!hideCost && <TableHead className="text-right">Landed</TableHead>}
+ <TableHead className="text-right">Net Price</TableHead><TableHead className="text-right">MRP</TableHead>
+ {!hideCost && <TableHead className="text-right">Margin</TableHead>}
+ <TableHead className="text-right">Stock</TableHead>
  <TableHead className="text-center">Actions</TableHead>
  </TableRow>
  </TableHeader>
  <TableBody>
  {filtered.length === 0 ? (
- <TableRow><TableCell colSpan={hideCost ? 9 : 11} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
+ <TableRow><TableCell colSpan={hideCost ? 7 : 10} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
  ) : filtered.map(p => (
  <TableRow key={p.id} className={`${readOnly ? "" : "cursor-pointer"} table-row-hover ${p.is_active === false ? "opacity-50" : ""}`} onClick={() => { if (!readOnly) handleEdit(p); }}>
- <TableCell className="text-xs font-mono text-muted-foreground">{(p as any).product_code || "—"}</TableCell>
+ <TableCell className="text-xs font-mono">{p.sku || (p as any).product_code || "—"}</TableCell>
  <TableCell className="font-medium">{p.name}</TableCell>
- <TableCell className="text-xs text-muted-foreground">{p.sku || "—"}</TableCell>
  <TableCell><span className="status-pill bg-primary/10 text-primary capitalize">{p.category}</span></TableCell>
- <TableCell className="text-xs">{p.drap_reg_number || "—"}</TableCell>
- {!hideCost && <TableCell className="text-right font-mono">{Number(p.cost_price).toLocaleString()}</TableCell>}
- <TableCell className="text-right font-mono">{Number(p.selling_price).toLocaleString()}</TableCell>
- <TableCell className="text-right font-mono text-muted-foreground">{Number(p.mrp || 0) > 0 ? Number(p.mrp).toLocaleString() : "—"}</TableCell>
- {!hideCost && <TableCell className="text-right font-mono text-primary">{margin(p)}</TableCell>}
+ {!hideCost && <TableCell className="text-right font-mono tabular-nums">{Number((p as any).purchase_cost ?? p.cost_price).toLocaleString()}</TableCell>}
+ {!hideCost && <TableCell className="text-right font-mono tabular-nums">{landedOf(p).toLocaleString()}</TableCell>}
+ <TableCell className="text-right font-mono tabular-nums">{Number(p.selling_price).toLocaleString()}</TableCell>
+ <TableCell className="text-right font-mono tabular-nums text-muted-foreground">{Number(p.mrp || 0) > 0 ? Number(p.mrp).toLocaleString() : "—"}</TableCell>
+ {!hideCost && (
+   <TableCell className="text-right font-mono tabular-nums">
+     <span className="text-primary">{margin(p)}</span>
+     {landedMissing(p) && <Badge variant="outline" className="ml-1 text-[9px] py-0 px-1 text-warning border-warning/40">no landed</Badge>}
+   </TableCell>
+ )}
  <TableCell className="text-right">
  <span className={Number(p.stock_quantity) <= Number(p.reorder_level) ? "text-destructive font-semibold" : ""}>{Number(p.stock_quantity).toLocaleString()}</span>
  </TableCell>
@@ -488,8 +526,16 @@ export default function Products() {
  onOpenChange={(o) => { if (!o) setProfileProduct(null); }}
  productId={profileProduct?.id || null}
  productName={profileProduct?.name}
- productCode={(profileProduct as any)?.product_code}
- currentCost={Number(profileProduct?.cost_price || 0)}
+ productCode={profileProduct?.sku || (profileProduct as any)?.product_code}
+ purchaseCost={Number((profileProduct as any)?.purchase_cost ?? profileProduct?.cost_price ?? 0)}
+ salePrice={Number(profileProduct?.selling_price || 0)}
+ currentLandedCost={Number(profileProduct?.cost_price || 0)}
+ onSaved={loadAll}
+ />
+ <OpeningStockDialog
+ open={openingOpen}
+ onOpenChange={setOpeningOpen}
+ onSaved={loadAll}
  />
  </AppLayout>
  );
