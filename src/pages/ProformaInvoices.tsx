@@ -730,16 +730,16 @@ export default function ProformaInvoices() {
       partyAddress: __c.address || undefined,
       partyAccountCode: __c.old_erp_account_code || undefined,
       paymentTerms: (inv as any).payment_terms || undefined,
-      columns: [
-        { header: "#", key: "idx" },
-        { header: "Product", key: "name" },
-        { header: "Batch #", key: "batch_number" },
-        { header: "Expiry", key: "expiry_date" },
-        { header: "MRP", key: "mrp", align: "right" },
-        { header: "Qty", key: "quantity", align: "right" },
-        { header: "Rate", key: "rate", align: "right" },
-        { header: "Amount", key: "amount", align: "right" },
-      ],
+       columns: [
+         { header: "#", key: "idx" },
+         { header: "Product", key: "name" },
+         { header: "Batch #", key: "batch_number" },
+         { header: "Expiry", key: "expiry_date" },
+         { header: "Qty", key: "quantity", align: "right" },
+         { header: "Rate", key: "rate", align: "right" },
+         { header: "Amount", key: "amount", align: "right" },
+         { header: "MRP", key: "mrp", align: "right" },
+       ],
       rows: items.map((i: any, idx: number) => {
         const exp = i.expiry_date || expiryMap[`${i.product_id}__${i.batch_number}`] || null;
         const mrp = Number(i.products?.mrp || 0);
