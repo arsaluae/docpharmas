@@ -107,7 +107,9 @@ export default function PrintJobs() {
  const { settings } = useCompanySettings();
 
  const [searchParams, setSearchParams] = useSearchParams();
- useEffect(() => { load(); }, [pagination.page, tab, filterPrinter, filterProduct]);
+ const debouncedSearch = useDebouncedValue(search, 300);
+ useEffect(() => { pagination.setPage(0); }, [debouncedSearch, tab, filterPrinter, filterProduct, filterSupplier]);
+ useEffect(() => { load(); }, [pagination.page, tab, filterPrinter, filterProduct, debouncedSearch]);
 
  // Prefill create dialog from URL params (?product_id=…&supplier_id=…&qty=…)
  useEffect(() => {
