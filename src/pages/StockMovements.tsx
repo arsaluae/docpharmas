@@ -16,6 +16,8 @@ import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useTenant } from "@/hooks/useTenant";
 import { logAudit } from "@/lib/audit";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchProductIds } from "@/lib/search-helpers";
 
 const ADJUSTMENT_TYPES = new Set(["adjustment", "adjustment_in", "adjustment_out"]);
 
@@ -43,8 +45,10 @@ export default function StockMovements() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
 
+  const debouncedSearch = useDebouncedValue(search, 300);
   useEffect(() => { loadProducts(); }, []);
-  useEffect(() => { load(); }, [pagination.page, typeFilter]);
+  useEffect(() => { pagination.setPage(0); }, [debouncedSearch, typeFilter]);
+  useEffect(() => { load(); }, [pagination.page, typeFilter, debouncedSearch]);
 
   const loadProducts = async () => {
     const { data } = await supabase.from("products").select("id, name, stock_quantity");
@@ -59,6 +63,13 @@ export default function StockMovements() {
   const load = async () => {
     let query = supabase.from("stock_movements").select("*", { count: "exact" }).order("created_at", { ascending: false });
     if (typeFilter !== "all") query = query.eq("movement_type", typeFilter);
+    const q = debouncedSearch.trim();
+    if (q) {
+      const safe = escIlike(q);
+      const prodIds = await searchProductIds(q);
+      const idClause = prodIds.length > 0 ? `,product_id.in.(${prodIds.join(",")})` : "";
+      query = query.or(`batch_number.ilike.%${safe}%,notes.ilike.%${safe}%${idClause}`);
+    }
     query = query.range(pagination.from, pagination.to);
     const { data, count } = await query;
     if (data) setMovements(data);
@@ -107,11 +118,8 @@ export default function StockMovements() {
     load(); loadProducts();
   };
 
-  const filtered = movements.filter(m => {
-    const matchSearch = (productNames[m.product_id] || "").toLowerCase().includes(search.toLowerCase()) ||
-      (m.batch_number || "").toLowerCase().includes(search.toLowerCase());
-    return matchSearch;
-  });
+  // Server-side search already filters movements across all pages.
+  const filtered = movements;
 
   const typeBadge = (t: string) => {
     if (t.includes("in")) return <Badge variant="default" className="bg-primary/10 text-primary border-0">{t.replace("_", " ")}</Badge>;

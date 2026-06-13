@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchSupplierIds, searchProductIds } from "@/lib/search-helpers";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -105,7 +107,9 @@ export default function PrintJobs() {
  const { settings } = useCompanySettings();
 
  const [searchParams, setSearchParams] = useSearchParams();
- useEffect(() => { load(); }, [pagination.page, tab, filterPrinter, filterProduct]);
+ const debouncedSearch = useDebouncedValue(search, 300);
+ useEffect(() => { pagination.setPage(0); }, [debouncedSearch, tab, filterPrinter, filterProduct, filterSupplier]);
+ useEffect(() => { load(); }, [pagination.page, tab, filterPrinter, filterProduct, debouncedSearch]);
 
  // Prefill create dialog from URL params (?product_id=…&supplier_id=…&qty=…)
  useEffect(() => {
@@ -131,6 +135,16 @@ export default function PrintJobs() {
  if (tab !== "all") jobQuery = jobQuery.eq("status", tab);
  if (filterPrinter !== "all") jobQuery = jobQuery.eq("printer_id", filterPrinter);
  if (filterProduct !== "all") jobQuery = jobQuery.eq("product_id", filterProduct);
+ const term = debouncedSearch.trim();
+ if (term) {
+   const safe = escIlike(term);
+   const [prodIds, supIds] = await Promise.all([searchProductIds(term), searchSupplierIds(term)]);
+   const clauses: string[] = [];
+   if (prodIds.length) clauses.push(`product_id.in.(${prodIds.join(",")})`);
+   if (supIds.length) clauses.push(`allotted_supplier_id.in.(${supIds.join(",")})`);
+   const tail = clauses.length ? "," + clauses.join(",") : "";
+   jobQuery = jobQuery.or(`job_number.ilike.%${safe}%,notes.ilike.%${safe}%,factory_name.ilike.%${safe}%${tail}`);
+ }
  jobQuery = jobQuery.range(pagination.from, pagination.to);
  const [j, pr, prod, sup] = await Promise.all([
  jobQuery,
@@ -321,11 +335,9 @@ export default function PrintJobs() {
  setDeleteId(null); load();
  };
 
+ // Server-side already filters by job_number / product / supplier. Keep dispatched-supplier
+ // narrowing (which needs the loaded dispatchesByJob map).
  const filtered = jobs.filter(j => {
- const matchSearch = j.job_number.toLowerCase().includes(search.toLowerCase()) ||
- (printerNames[j.printer_id || ""] || "").toLowerCase().includes(search.toLowerCase()) ||
- (productNames[j.product_id || ""] || "").toLowerCase().includes(search.toLowerCase());
- if (!matchSearch) return false;
  if (filterSupplier !== "all") {
    const disp = dispatchesByJob[j.id] || [];
    const hasSupplier = j.allotted_supplier_id === filterSupplier || disp.some(d => d.supplier_id === filterSupplier);

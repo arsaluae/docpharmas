@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchCustomerIds } from "@/lib/search-helpers";
 
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -178,7 +180,9 @@ export default function WarrantyInvoices() {
  const [searchParams, setSearchParams] = useSearchParams();
  const [autoSourceHandled, setAutoSourceHandled] = useState(false);
 
- useEffect(() => { load(); }, [pagination.page]);
+ const debouncedSearch = useDebouncedValue(search, 300);
+ useEffect(() => { pagination.setPage(0); }, [debouncedSearch]);
+ useEffect(() => { load(); }, [pagination.page, debouncedSearch]);
 
  // Auto-open dialog and load from sales invoice if ?source_invoice=<id> is present
  useEffect(() => {
@@ -207,8 +211,16 @@ export default function WarrantyInvoices() {
 
 
  const load = async () => {
+ let invQuery = supabase.from("warranty_invoices").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false });
+ const term = debouncedSearch.trim();
+ if (term) {
+   const safe = escIlike(term);
+   const custIds = await searchCustomerIds(term);
+   const idClause = custIds.length > 0 ? `,customer_id.in.(${custIds.join(",")})` : "";
+   invQuery = invQuery.or(`warranty_number.ilike.%${safe}%,pharmacy_name.ilike.%${safe}%${idClause}`);
+ }
  const [inv, cust, prod] = await Promise.all([
- supabase.from("warranty_invoices").select("*, customers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to),
+ invQuery.range(pagination.from, pagination.to),
  supabase.from("customers").select("id, name, company").eq("is_active", true).order("name"),
  supabase.from("products").select("id, name, selling_price, mrp").eq("is_active", true).order("name"),
  ]);
@@ -398,13 +410,11 @@ export default function WarrantyInvoices() {
 
  const customerOptions = customers.map(c => ({ value: c.id, label: c.name + (c.company ? ` — ${c.company}` : "") }));
 
+ // Server-side search already filtered. Keep status + customer client narrowing.
  const filtered = invoices.filter(i => {
- const matchSearch = i.warranty_number.toLowerCase().includes(search.toLowerCase()) ||
- i.pharmacy_name.toLowerCase().includes(search.toLowerCase()) ||
- (i.customers?.name || "").toLowerCase().includes(search.toLowerCase());
  const matchStatus = statusFilter === "all" || i.status === statusFilter;
  const matchCustomer = !customerFilter || i.customer_id === customerFilter;
- return matchSearch && matchStatus && matchCustomer;
+ return matchStatus && matchCustomer;
  });
 
  const issuedCount = invoices.filter(i => i.status === "issued").length;

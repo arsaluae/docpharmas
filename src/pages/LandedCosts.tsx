@@ -16,6 +16,8 @@ import { Plus, Search, Trash2, Banknote, Package, Truck, Printer, ShieldCheck, T
 import { toast } from "sonner";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchSupplierIds } from "@/lib/search-helpers";
 
 const COST_TYPES = [
  { value: "packaging", label: "Packaging", icon: Package },
@@ -55,11 +57,20 @@ export default function LandedCosts() {
  const [costDate, setCostDate] = useState(new Date().toISOString().split("T")[0]);
  const [costNotes, setCostNotes] = useState("");
 
- useEffect(() => { load(); }, [pagination.page, typeFilter]);
+ const debouncedSearch = useDebouncedValue(search, 300);
+ useEffect(() => { pagination.setPage(0); }, [debouncedSearch, typeFilter]);
+ useEffect(() => { load(); }, [pagination.page, typeFilter, debouncedSearch]);
 
  const load = async () => {
  let q = supabase.from("additional_costs").select("*", { count: "exact" }).order("created_at", { ascending: false });
  if (typeFilter !== "all") q = q.eq("cost_type", typeFilter);
+ const term = debouncedSearch.trim();
+ if (term) {
+   const safe = escIlike(term);
+   const vendorIds = await searchSupplierIds(term);
+   const idClause = vendorIds.length > 0 ? `,vendor_id.in.(${vendorIds.join(",")})` : "";
+   q = q.or(`description.ilike.%${safe}%,notes.ilike.%${safe}%,cost_type.ilike.%${safe}%${idClause}`);
+ }
  q = q.range(pagination.from, pagination.to);
  const [costsRes, suppRes] = await Promise.all([q, supabase.from("suppliers").select("id, name").eq("is_active", true)]);
  if (costsRes.data) setCosts(costsRes.data as any);
@@ -94,12 +105,8 @@ export default function LandedCosts() {
  setDeleteId(null); load();
  };
 
- const filtered = costs.filter(c => {
- const matchSearch = (c.description || "").toLowerCase().includes(search.toLowerCase()) ||
- c.cost_type.toLowerCase().includes(search.toLowerCase()) ||
- (supplierNames[c.vendor_id || ""] || "").toLowerCase().includes(search.toLowerCase());
- return matchSearch;
- });
+ // Server-side search already filters across all pages.
+ const filtered = costs;
 
  // Summary by type
  const summaryByType = COST_TYPES.map(t => ({

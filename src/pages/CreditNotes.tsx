@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchCustomerIds, searchSupplierIds } from "@/lib/search-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,13 +64,26 @@ export default function CreditNotes() {
   // Party name cache
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
 
-  useEffect(() => { load(); }, [pagination.page, activeTab]);
+  const debouncedSearch = useDebouncedValue(search, 300);
+  useEffect(() => { pagination.setPage(0); }, [debouncedSearch, activeTab]);
+  useEffect(() => { load(); }, [pagination.page, activeTab, debouncedSearch]);
 
   const load = async () => {
     let query = supabase.from("credit_notes").select("*", { count: "exact" })
       .order("created_at", { ascending: false });
     if (activeTab === "customer") query = query.eq("party_type", "customer");
     if (activeTab === "supplier") query = query.eq("party_type", "supplier");
+    const q = debouncedSearch.trim();
+    if (q) {
+      const safe = escIlike(q);
+      const partyIds = activeTab === "supplier"
+        ? await searchSupplierIds(q)
+        : activeTab === "customer"
+        ? await searchCustomerIds(q)
+        : [...(await searchCustomerIds(q)), ...(await searchSupplierIds(q))];
+      const idClause = partyIds.length > 0 ? `,party_id.in.(${partyIds.join(",")})` : "";
+      query = query.or(`credit_note_number.ilike.%${safe}%,reason.ilike.%${safe}%,reference.ilike.%${safe}%${idClause}`);
+    }
     query = query.range(pagination.from, pagination.to);
 
     const [res, custs, supps] = await Promise.all([
@@ -130,11 +145,8 @@ export default function CreditNotes() {
   const currentParties = partyType === "customer" ? customers : suppliers;
   const partyOptions = currentParties.map(p => ({ value: p.id, label: p.company || p.name }));
 
-  const filtered = notes.filter(n =>
-    n.credit_note_number.toLowerCase().includes(search.toLowerCase()) ||
-    (n.reason || "").toLowerCase().includes(search.toLowerCase()) ||
-    (partyNames[n.party_id] || "").toLowerCase().includes(search.toLowerCase())
-  );
+  // Server-side search already filters across all pages.
+  const filtered = notes;
 
   const totalAmount = filtered.reduce((s, n) => s + Number(n.amount), 0);
 

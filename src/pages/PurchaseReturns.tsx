@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchSupplierIds } from "@/lib/search-helpers";
 import { BulkActionBar, useBulkSelection, RowCheckbox } from "@/components/BulkActionBar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -53,7 +55,9 @@ export default function PurchaseReturns() {
 
   const bulk = useBulkSelection();
 
-  useEffect(() => { loadData(); }, [pagination.page]);
+  const debouncedSearch = useDebouncedValue(search, 300);
+  useEffect(() => { pagination.setPage(0); }, [debouncedSearch, dateRange]);
+  useEffect(() => { loadData(); }, [pagination.page, debouncedSearch]);
 
   const printReturn = async (r: any) => {
     const { data: its } = await supabase.from("purchase_return_items")
@@ -104,8 +108,16 @@ export default function PurchaseReturns() {
 
   const loadData = async () => {
     setLoading(true);
+    let retQuery = supabase.from("purchase_returns").select("*, suppliers(name)", { count: "exact" }).order("created_at", { ascending: false });
+    const term = debouncedSearch.trim();
+    if (term) {
+      const safe = escIlike(term);
+      const supIds = await searchSupplierIds(term);
+      const idClause = supIds.length > 0 ? `,supplier_id.in.(${supIds.join(",")})` : "";
+      retQuery = retQuery.or(`return_number.ilike.%${safe}%,reason.ilike.%${safe}%${idClause}`);
+    }
     const [{ data: r, count }, { data: s }, { data: inv }, { data: p }] = await Promise.all([
-      supabase.from("purchase_returns").select("*, suppliers(name)", { count: "exact" }).order("created_at", { ascending: false }).range(pagination.from, pagination.to),
+      retQuery.range(pagination.from, pagination.to),
       supabase.from("suppliers").select("id, name"),
       supabase.from("purchase_invoices").select("id, bill_number, supplier_id"),
       supabase.from("products").select("id, name, cost_price"),
@@ -190,12 +202,10 @@ export default function PurchaseReturns() {
     return null;
   };
 
+  // Server-side search already filters. Keep client date-range narrowing.
   const filtered = returns.filter(r => {
-    const matchSearch = r.return_number.toLowerCase().includes(search.toLowerCase()) ||
-      (r.suppliers?.name || "").toLowerCase().includes(search.toLowerCase());
     const dateStart = getDateFilter();
-    const matchDate = !dateStart || r.date >= dateStart;
-    return matchSearch && matchDate;
+    return !dateStart || r.date >= dateStart;
   });
 
   const totalValue = filtered.reduce((s, r) => s + Number(r.total), 0);

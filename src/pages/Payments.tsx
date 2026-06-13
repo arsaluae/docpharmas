@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchCustomerIds, searchSupplierIds } from "@/lib/search-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,12 +82,21 @@ export default function Payments() {
  }
  }, [searchParams]);
 
- useEffect(() => { load(); }, [pagination.page, tab]);
+ const debouncedSearch = useDebouncedValue(search, 300);
+ useEffect(() => { pagination.setPage(0); }, [debouncedSearch, tab]);
+ useEffect(() => { load(); }, [pagination.page, tab, debouncedSearch]);
 
  const load = async () => {
  let payQuery = supabase.from("payments").select("*", { count: "exact" }).order("created_at", { ascending: false });
  if (tab === "received") payQuery = payQuery.eq("type", "received");
  if (tab === "made") payQuery = payQuery.eq("type", "made");
+ const q = debouncedSearch.trim();
+ if (q) {
+   const safe = escIlike(q);
+   const partyIds = [...(await searchCustomerIds(q)), ...(await searchSupplierIds(q))];
+   const idClause = partyIds.length > 0 ? `,party_id.in.(${partyIds.join(",")})` : "";
+   payQuery = payQuery.or(`payment_number.ilike.%${safe}%,reference.ilike.%${safe}%,cheque_number.ilike.%${safe}%,notes.ilike.%${safe}%${idClause}`);
+ }
  payQuery = payQuery.range(pagination.from, pagination.to);
  const [pay, cust, sup, banks, prnt] = await Promise.all([
  payQuery,
@@ -186,11 +197,8 @@ export default function Payments() {
  const parties = partyType === "customer" ? customers : partyType === "supplier" ? suppliers : printersList;
  const partyOptions = parties.map(p => ({ value: p.id, label: p.name }));
 
- const filtered = payments.filter(p => {
- const matchSearch = p.payment_number.toLowerCase().includes(search.toLowerCase()) ||
- (partyNames[p.party_id] || "").toLowerCase().includes(search.toLowerCase());
- return matchSearch;
- });
+ // Server-side search already filters across all pages.
+ const filtered = payments;
 
  const headerActions = (
  <Dialog open={open} onOpenChange={o => { if (!o) resetForm(); else setOpen(true); }}>

@@ -23,6 +23,8 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useTenant } from "@/hooks/useTenant";
 import { useRoles } from "@/hooks/useRoles";
 import { isSalesAgentRole } from "@/lib/rbac";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchProductIds } from "@/lib/search-helpers";
 
 const categories = ["tablet", "capsule", "syrup", "injection", "cream", "ointment", "drops", "sachet", "other"] as const;
 const MOVE_TYPES = ["purchase", "purchase_in", "sale", "sale_out", "return_in", "return_out", "adjustment", "adjustment_in", "adjustment_out", "opening", "damage", "expired"];
@@ -73,21 +75,39 @@ export default function Products() {
  const [moveTypeFilter, setMoveTypeFilter] = useState("all");
  const [showInactive, setShowInactive] = useState(false);
 
- useEffect(() => { loadAll(); }, [productPagination.page, movementPagination.page, moveTypeFilter, showInactive]);
+  const debouncedSearch = useDebouncedValue(search, 300);
+  useEffect(() => { productPagination.setPage(0); movementPagination.setPage(0); /* reset to first page when search changes */ }, [debouncedSearch]);
+  useEffect(() => { loadAll(); }, [productPagination.page, movementPagination.page, moveTypeFilter, showInactive, debouncedSearch]);
 
- const loadAll = async () => {
- let moveQuery = supabase.from("stock_movements").select("*", { count: "exact" }).order("created_at", { ascending: false });
- if (moveTypeFilter !== "all") moveQuery = moveQuery.eq("movement_type", moveTypeFilter);
- moveQuery = moveQuery.range(movementPagination.from, movementPagination.to);
- // Sales agents read from the cost-free catalog view (sa_deny_products blocks direct reads).
- let prodQuery: any = hideCost
-   ? supabase.from("sales_product_catalog_view").select("*", { count: "exact" }).order("product_name", { ascending: true })
-   : supabase.from("products").select("*", { count: "exact" }).order("created_at", { ascending: false });
- if (!hideCost && !showInactive) prodQuery = prodQuery.eq("is_active", true);
- const [prodRes, moveRes] = await Promise.all([
- prodQuery.range(productPagination.from, productPagination.to),
- moveQuery,
- ]);
+  const loadAll = async () => {
+  const q = debouncedSearch.trim();
+  const safe = escIlike(q);
+
+  // Stock movements query — server-side filter on batch_number / notes,
+  // plus product_id ∈ (matching products) so searching by product name finds the right rows.
+  let moveQuery = supabase.from("stock_movements").select("*", { count: "exact" }).order("created_at", { ascending: false });
+  if (moveTypeFilter !== "all") moveQuery = moveQuery.eq("movement_type", moveTypeFilter);
+  if (q) {
+    const prodIds = await searchProductIds(q);
+    const idClause = prodIds.length > 0 ? `,product_id.in.(${prodIds.join(",")})` : "";
+    moveQuery = moveQuery.or(`batch_number.ilike.%${safe}%,notes.ilike.%${safe}%${idClause}`);
+  }
+  moveQuery = moveQuery.range(movementPagination.from, movementPagination.to);
+
+  // Sales agents read from the cost-free catalog view (sa_deny_products blocks direct reads).
+  let prodQuery: any = hideCost
+    ? supabase.from("sales_product_catalog_view").select("*", { count: "exact" }).order("product_name", { ascending: true })
+    : supabase.from("products").select("*", { count: "exact" }).order("created_at", { ascending: false });
+  if (!hideCost && !showInactive) prodQuery = prodQuery.eq("is_active", true);
+  if (q) {
+    prodQuery = hideCost
+      ? prodQuery.or(`product_name.ilike.%${safe}%,sku.ilike.%${safe}%,product_code.ilike.%${safe}%,generic_name.ilike.%${safe}%,brand.ilike.%${safe}%`)
+      : prodQuery.or(`name.ilike.%${safe}%,sku.ilike.%${safe}%,product_code.ilike.%${safe}%,generic_name.ilike.%${safe}%,brand.ilike.%${safe}%`);
+  }
+  const [prodRes, moveRes] = await Promise.all([
+  prodQuery.range(productPagination.from, productPagination.to),
+  moveQuery,
+  ]);
  if (prodRes.data) {
    // Normalize view rows → Product-shaped objects (no cost data exposed)
    const rows = hideCost
@@ -192,9 +212,8 @@ export default function Products() {
  loadAll();
  };
 
- const filtered = products.filter(p =>
- p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || "").toLowerCase().includes(search.toLowerCase())
- );
+  // Server-side search is now applied in loadAll(), so the rendered list is already filtered.
+  const filtered = products;
 
  // Landed cost = products.cost_price (kept in sync by product_landed_costs trigger).
  // Falls back to purchase_cost when no landed entry exists yet.
@@ -224,11 +243,8 @@ export default function Products() {
  const lowStockCount = products.filter(p => Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= Number(p.reorder_level)).length;
  const outOfStockCount = products.filter(p => Number(p.stock_quantity) <= 0).length;
 
- const filteredMovements = movements.filter(m => {
- const matchSearch = (productNames[m.product_id] || "").toLowerCase().includes(search.toLowerCase()) ||
- (m.batch_number || "").toLowerCase().includes(search.toLowerCase());
- return matchSearch;
- });
+  // Server-side search already filters movements.
+  const filteredMovements = movements;
 
  const typeBadge = (t: string) => {
  if (t.includes("in")) return <Badge variant="default" className="bg-primary/10 text-primary border-0">{t.replace("_", " ")}</Badge>;

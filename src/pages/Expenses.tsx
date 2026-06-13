@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePagination } from "@/hooks/usePagination";
 import { PaginationControls } from "@/components/PaginationControls";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike } from "@/lib/search-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,7 +93,9 @@ export default function Expenses() {
   const [addCourierOpen, setAddCourierOpen] = useState(false);
   const [courierFilter, setCourierFilter] = useState("all");
 
-  useEffect(() => { load(); }, [pagination.page, activeTab, selectedLedger]);
+  const debouncedSearch = useDebouncedValue(search, 300);
+  useEffect(() => { pagination.setPage(0); }, [debouncedSearch, activeTab, catFilter, selectedLedger]);
+  useEffect(() => { load(); }, [pagination.page, activeTab, selectedLedger, debouncedSearch, catFilter]);
 
   const load = async () => {
     let expQuery = supabase.from("expenses").select("*", { count: "exact" }).order("created_at", { ascending: false });
@@ -99,6 +103,12 @@ export default function Expenses() {
       expQuery = expQuery.eq("ledger_id", selectedLedger.id);
     } else if (activeTab !== "all") {
       expQuery = expQuery.eq("expense_type", activeTab);
+    }
+    if (catFilter !== "all") expQuery = expQuery.eq("category", catFilter);
+    const q = debouncedSearch.trim();
+    if (q) {
+      const safe = escIlike(q);
+      expQuery = expQuery.or(`expense_number.ilike.%${safe}%,description.ilike.%${safe}%,notes.ilike.%${safe}%,category.ilike.%${safe}%`);
     }
     expQuery = expQuery.range(pagination.from, pagination.to);
 
@@ -228,12 +238,8 @@ export default function Expenses() {
   const allDefaultCats = [...new Set([...DEFAULT_BUSINESS_CATEGORIES, ...DEFAULT_PERSONAL_CATEGORIES])];
   const filterCats = activeTab === "all" ? allDefaultCats : activeTab === "personal" ? DEFAULT_PERSONAL_CATEGORIES : DEFAULT_BUSINESS_CATEGORIES;
 
-  const filtered = expenses.filter(e => {
-    const matchSearch = e.expense_number.toLowerCase().includes(search.toLowerCase()) ||
-      (e.description || "").toLowerCase().includes(search.toLowerCase());
-    const matchCat = catFilter === "all" || e.category === catFilter;
-    return matchSearch && matchCat;
-  });
+  // Server-side already filtered by search + category — no further client filter needed.
+  const filtered = expenses;
 
   const totalBusiness = expenses.filter(e => e.expense_type === "business").reduce((s, e) => s + Number(e.amount), 0);
   const totalPersonal = expenses.filter(e => e.expense_type === "personal").reduce((s, e) => s + Number(e.amount), 0);

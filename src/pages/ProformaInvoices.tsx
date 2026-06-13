@@ -35,6 +35,8 @@ import { SalesReturnDialog } from "@/components/sales/SalesReturnDialog";
 import { useDraftAutosave } from "@/hooks/useDraftAutosave";
 import { useTenant } from "@/hooks/useTenant";
 import { useIsSalesAgent } from "@/hooks/useIsSalesAgent";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { escIlike, searchCustomerIds } from "@/lib/search-helpers";
 
 interface Customer { id: string; name: string; company: string | null; phone: string | null; address: string | null; area: string | null; }
 interface Product { id: string; name: string; selling_price: number; gst_rate: number; mrp?: number | null; }
@@ -259,15 +261,26 @@ export default function ProformaInvoices() {
  }
  };
 
- // ── SIMPLIFIED LOAD: proforma_invoices only ──
- const load = async () => {
- setLoading(true);
- let pfQuery = supabase.from("proforma_invoices").select("*, customers(customer_code, name, company, phone, sms_mobile, address, city, area, old_erp_account_code)", { count: "exact" }).order("created_at", { ascending: false });
- if (statusFilter !== "all") {
- if (statusFilter === "draft") pfQuery = pfQuery.eq("status", "draft");
- else pfQuery = pfQuery.neq("status", "draft"); // simplified for server-side
- }
- pfQuery = pfQuery.range(pagination.from, pagination.to);
+  // ── SIMPLIFIED LOAD: proforma_invoices only ──
+  const debouncedSearch = useDebouncedValue(search, 300);
+  useEffect(() => { pagination.setPage(0); }, [debouncedSearch, statusFilter, dateRange]);
+  useEffect(() => { load(); }, [pagination.page, statusFilter, debouncedSearch]);
+
+  const load = async () => {
+  setLoading(true);
+  let pfQuery = supabase.from("proforma_invoices").select("*, customers(customer_code, name, company, phone, sms_mobile, address, city, area, old_erp_account_code)", { count: "exact" }).order("created_at", { ascending: false });
+  if (statusFilter !== "all") {
+  if (statusFilter === "draft") pfQuery = pfQuery.eq("status", "draft");
+  else pfQuery = pfQuery.neq("status", "draft"); // simplified for server-side
+  }
+  const q = debouncedSearch.trim();
+  if (q) {
+    const safe = escIlike(q);
+    const custIds = await searchCustomerIds(q);
+    const idClause = custIds.length > 0 ? `,customer_id.in.(${custIds.join(",")})` : "";
+    pfQuery = pfQuery.or(`proforma_number.ilike.%${safe}%${idClause}`);
+  }
+  pfQuery = pfQuery.range(pagination.from, pagination.to);
  // Sales agents cannot read the products base table (cost columns hidden by RLS).
  // Use the cost-free agent_stock_availability view instead — same live data, no cost exposure.
  const prodQuery = isSalesAgent
@@ -1066,17 +1079,15 @@ export default function ProformaInvoices() {
  };
 
 
- const filtered = orders.filter(p => {
- const q = search.toLowerCase();
- const matchSearch = !q || p.proforma_number.toLowerCase().includes(q) ||
- ((p.customers as any)?.name || "").toLowerCase().includes(q) ||
- (p.invoice_number || "").toLowerCase().includes(q);
- const matchStatus = statusFilter === "all" || p.status === statusFilter ||
- (statusFilter === "invoiced" && (p.status === "invoiced" || p.status === "dispatched" || p.status === "partial" || p.status === "paid"));
- const dateStart = getDateFilter();
- const matchDate = !dateStart || p.date >= dateStart;
- return matchSearch && matchStatus && matchDate;
- });
+  // Server-side already filtered by search + statusFilter. Keep client date range +
+  // narrower status grouping (e.g. "invoiced" group includes dispatched/partial/paid).
+  const filtered = orders.filter(p => {
+  const matchStatus = statusFilter === "all" || p.status === statusFilter ||
+  (statusFilter === "invoiced" && (p.status === "invoiced" || p.status === "dispatched" || p.status === "partial" || p.status === "paid"));
+  const dateStart = getDateFilter();
+  const matchDate = !dateStart || p.date >= dateStart;
+  return matchStatus && matchDate;
+  });
 
  // Month selector for stats
  const now = new Date();
