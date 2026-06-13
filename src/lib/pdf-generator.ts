@@ -265,17 +265,17 @@ function buildA4Html(opts: PdfOptions): string {
   const colWidth = (c: PdfColumn) => {
     const k = c.key.toLowerCase();
     const isProductName = c.key === "product_name" || c.key === "name" || c.key === "item_name" || c.key === "description";
-    if (SERIAL_KEYS.has(c.key)) return "width:32px;";
-    if (isProductName) return hasMoneyCol ? "width:26%;" : "width:50%;";
-    if (k === "product_code" || k === "code" || k === "sku") return "width:80px;";
-    if (k === "batch_number" || k === "batch") return hasMoneyCol ? "width:9%;" : "width:14%;";
-    if (k === "expiry_date" || k === "expiry") return hasMoneyCol ? "width:8%;" : "width:12%;";
-    if (k === "quantity" || k === "qty") return hasMoneyCol ? "width:7%;" : "width:14%;";
+    if (SERIAL_KEYS.has(c.key)) return "width:7%;";
+    if (isProductName) return hasMoneyCol ? "width:32%;" : "width:55%;";
+    if (k === "product_code" || k === "code" || k === "sku") return "width:10%;";
+    if (k === "batch_number" || k === "batch") return "width:12%;";
+    if (k === "expiry_date" || k === "expiry") return "width:11%;";
+    if (k === "quantity" || k === "qty") return "width:8%;";
     if (k === "rate" || k === "tp_rate" || k === "price") return "width:9%;";
-    if (k === "mrp" || k === "mrp_inc_tax") return "width:11%;";
+    if (k === "mrp" || k === "mrp_inc_tax") return "width:8%;";
     if (k === "discount" || k === "discount_pct" || k === "disc") return "width:7%;";
     if (k === "tax" || k === "gst_rate" || k === "gst") return "width:7%;";
-    if (k === "amount" || k === "line_total" || k === "total") return "width:12%;";
+    if (k === "amount" || k === "line_total" || k === "total") return "width:13%;";
     return "";
   };
 
