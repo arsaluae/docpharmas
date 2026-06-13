@@ -45,10 +45,55 @@ export default function PurchaseReturns() {
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState("all");
   const pagination = usePagination();
+  const { settings } = useCompanySettings();
+  const { getTemplate } = useDocumentTemplates();
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const [pdfViews, setPdfViews] = useState<any>(undefined);
 
   const bulk = useBulkSelection();
 
   useEffect(() => { loadData(); }, [pagination.page]);
+
+  const printReturn = async (r: any) => {
+    const { data: its } = await supabase.from("purchase_return_items")
+      .select("*, products(name)").eq("return_id", r.id);
+    const { data: sup } = r.supplier_id
+      ? await supabase.from("suppliers").select("name, phone, city, address, supplier_code").eq("id", r.supplier_id).single()
+      : { data: null } as any;
+    const rows = (its || []).map((i: any, idx: number) => ({
+      idx: idx + 1,
+      product_name: i.products?.name || "Item",
+      batch_number: i.batch_number || "—",
+      quantity: i.quantity,
+      rate: Number(i.rate).toLocaleString(),
+      amount: Number(i.amount).toLocaleString(),
+    }));
+    const opts: any = {
+      title: "PURCHASE RETURN", documentNumber: r.return_number, date: r.date, statusTheme: "draft" as const,
+      partyLabel: "Supplier",
+      partyName: sup?.name || r.suppliers?.name || "—",
+      partyCode: sup?.supplier_code || undefined,
+      partyPhone: sup?.phone || undefined,
+      partyCity: sup?.city || undefined,
+      partyAddress: sup?.address || undefined,
+      columns: [
+        { header: "#", key: "idx" },
+        { header: "Product", key: "product_name" },
+        { header: "Batch #", key: "batch_number" },
+        { header: "Qty", key: "quantity", align: "right" as const },
+        { header: "Rate", key: "rate", align: "right" as const },
+        { header: "Amount", key: "amount", align: "right" as const },
+      ],
+      rows,
+      totals: [{ label: "Total", value: `PKR ${Number(r.total).toLocaleString()}` }],
+      notes: r.reason || undefined,
+      settings, template: getTemplate("purchase_order"),
+    };
+    setPdfViews(generateDocumentViews(opts));
+    setPdfTitle(`Purchase Return — ${r.return_number}`);
+    setPdfOpen(true);
+  };
 
   const deleteOne = async (id: string) => {
     await supabase.from("stock_movements").delete().eq("reference_type", "purchase_return").eq("reference_id", id);
