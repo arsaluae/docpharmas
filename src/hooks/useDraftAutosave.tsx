@@ -47,6 +47,17 @@ export function useDraftAutosave<T>(opts: Options) {
     }, debounceMs);
   }, [enabled, debounceMs, storageKey]);
 
+  /** Synchronously write the latest draft. Use on visibilitychange / beforeunload. */
+  const flush = useCallback((data: T) => {
+    if (!enabled) return;
+    if (timer.current) { window.clearTimeout(timer.current); timer.current = null; }
+    try {
+      const payload: DraftMeta<T> = { data, savedAt: Date.now() };
+      localStorage.setItem(storageKey, JSON.stringify(payload));
+      setExistingDraft(payload);
+    } catch { /* ignore */ }
+  }, [enabled, storageKey]);
+
   const clear = useCallback(() => {
     if (timer.current) window.clearTimeout(timer.current);
     try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
@@ -56,5 +67,5 @@ export function useDraftAutosave<T>(opts: Options) {
   // Cleanup pending timer on unmount
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
 
-  return { existingDraft, save, clear };
+  return { existingDraft, save, flush, clear };
 }
