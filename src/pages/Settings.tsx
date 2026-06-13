@@ -516,10 +516,72 @@ export default function Settings() {
                          placeholder={WARRANTY_NOTE_TEXT}
                          className="text-xs leading-relaxed font-mono"
                        />
-                       <p className="text-[11px] text-muted-foreground">Use blank lines to separate paragraphs. Lines beginning with <code>1.</code> <code>2.</code> render as hanging-indent numbered points. Leave empty to use the default template.</p>
+                       <div className="text-[11px] text-muted-foreground space-y-1">
+                         <p>Use blank lines to separate paragraphs. Lines beginning with <code>1.</code> <code>2.</code> render as hanging-indent numbered points. Leave empty to use the default template.</p>
+                         <p className="font-medium text-foreground mt-2">Available tokens:</p>
+                         <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                           <code>{"{{sales_rep_name}}"}</code>
+                           <code>{"{{father_name}}"}</code>
+                           <code>{"{{relation}}"}</code>
+                           <code>{"{{sales_rep_cnic}}"}</code>
+                           <code>{"{{agent_license_number}}"}</code>
+                           <code>{"{{agent_license_expiry}}"}</code>
+                           <code>{"{{company_name}}"}</code>
+                         </div>
+                         <p>Tokens auto-fill from the Sales Rep selected on the warranty note.</p>
+                       </div>
                      </div>
                    )}
                  </div>
+
+                 <div className="pt-2 space-y-3 border-t border-border mt-2">
+                   <div>
+                     <p className="font-medium text-sm">Warranty Stamp & Signature</p>
+                     <p className="text-xs text-muted-foreground">Printed at the bottom of every Warranty Note. Company stamp prints on the left, sales-rep signature on the right.</p>
+                   </div>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <div className="rounded-md border border-border p-3 space-y-2">
+                       <Label>Company Stamp</Label>
+                       <Input type="file" accept="image/*" onChange={async e => {
+                         const f = e.target.files?.[0]; if (!f) return;
+                         const url = await uploadWarrantyAsset(f, "stamp");
+                         if (url) { setForm({ ...form, warranty_stamp_url: url }); toast.success("Stamp uploaded"); }
+                       }} />
+                       {form.warranty_stamp_url ? (
+                         <div className="flex items-center justify-between gap-2">
+                           <img src={form.warranty_stamp_url} alt="stamp" className="h-16 object-contain border border-border rounded bg-muted/30 p-1" />
+                           <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => setForm({ ...form, warranty_stamp_url: "" })}>Remove</Button>
+                         </div>
+                       ) : <p className="text-[11px] text-muted-foreground">No stamp uploaded — printed area stays blank.</p>}
+                     </div>
+                     <div className="rounded-md border border-border p-3 space-y-2">
+                       <Label>Default Signature (fallback)</Label>
+                       <Input type="file" accept="image/*" onChange={async e => {
+                         const f = e.target.files?.[0]; if (!f) return;
+                         const url = await uploadWarrantyAsset(f, "signature");
+                         if (url) { setForm({ ...form, warranty_signature_url: url }); toast.success("Signature uploaded"); }
+                       }} />
+                       {form.warranty_signature_url ? (
+                         <div className="flex items-center justify-between gap-2">
+                           <img src={form.warranty_signature_url} alt="signature" className="h-16 object-contain border border-border rounded bg-muted/30 p-1" />
+                           <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => setForm({ ...form, warranty_signature_url: "" })}>Remove</Button>
+                         </div>
+                       ) : <p className="text-[11px] text-muted-foreground">Used only when the selected Sales Rep has no signature image.</p>}
+                     </div>
+                   </div>
+                 </div>
+
+                 <div className="pt-2 space-y-2 border-t border-border mt-2">
+                   <Label>Warranty Note Footer Text</Label>
+                   <Input
+                     value={form.warranty_footer_text}
+                     onChange={e => setForm({ ...form, warranty_footer_text: e.target.value })}
+                     placeholder="This is a system generated invoice and does not require any signatures."
+                   />
+                   <p className="text-[11px] text-muted-foreground">Prints centred at the very bottom of every Warranty Note. Leave blank for the default.</p>
+                 </div>
+
+
 
                  <div className="pt-2 space-y-3 border-t border-border mt-2">
                    <div>
