@@ -202,12 +202,10 @@ export default function PurchaseReturns() {
     return null;
   };
 
+  // Server-side search already filters. Keep client date-range narrowing.
   const filtered = returns.filter(r => {
-    const matchSearch = r.return_number.toLowerCase().includes(search.toLowerCase()) ||
-      (r.suppliers?.name || "").toLowerCase().includes(search.toLowerCase());
     const dateStart = getDateFilter();
-    const matchDate = !dateStart || r.date >= dateStart;
-    return matchSearch && matchDate;
+    return !dateStart || r.date >= dateStart;
   });
 
   const totalValue = filtered.reduce((s, r) => s + Number(r.total), 0);
