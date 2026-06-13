@@ -1263,14 +1263,14 @@ export default function ProformaInvoices() {
             <div className="hidden md:block rounded-lg border border-border overflow-hidden bg-card">
               <div className="overflow-x-auto">
                 <div className="min-w-[1000px]">
-                  <div className="grid grid-cols-[32px_minmax(260px,1fr)_100px_80px_100px_80px_80px_140px_40px] gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <div className="grid grid-cols-[32px_minmax(260px,1fr)_80px_100px_80px_80px_100px_140px_40px] gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
                     <div>#</div>
                     <div>Product</div>
-                    <div className="text-right">MRP</div>
                     <div className="text-right">Qty</div>
                     <div className="text-right">Rate</div>
                     <div className="text-right">Disc %</div>
                     {settings?.gst_enabled ? <div className="text-right">GST %</div> : <div />}
+                    <div className="text-right">MRP</div>
                     <div className="text-right">Line Total</div>
                     <div />
                   </div>
@@ -1281,16 +1281,13 @@ export default function ProformaInvoices() {
                     const effectiveMrp = Number(item.mrp || catalogMrp || 0);
                     const aboveMrp = effectiveMrp > 0 && Number(item.rate) > effectiveMrp;
                     return (
-                    <div key={idx} className="grid grid-cols-[32px_minmax(260px,1fr)_100px_80px_100px_80px_80px_140px_40px] gap-2 px-3 py-2 items-center border-t border-border/60 hover:bg-muted/20">
+                    <div key={idx} className="grid grid-cols-[32px_minmax(260px,1fr)_80px_100px_80px_80px_100px_140px_40px] gap-2 px-3 py-2 items-center border-t border-border/60 hover:bg-muted/20">
                       <div className="text-[12px] font-mono text-muted-foreground">{idx + 1}</div>
                       <div className="min-w-0">
                         <SearchableSelect options={productOptions} value={item.product_id} onChange={v => updateItem(idx, "product_id", v)} placeholder="Search by name, code, supplier…" triggerClassName="h-9 text-[14px]" />
                         {item.last_price !== undefined && item.last_price !== null && (
                           <div className="text-[11px] text-success mt-0.5 ml-1">Last: PKR {Number(item.last_price).toLocaleString()}</div>
                         )}
-                      </div>
-                      <div>
-                        <Input type="number" value={item.mrp ?? ""} onChange={e => updateItem(idx, "mrp", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder={catalogMrp ? String(catalogMrp) : "0"} />
                       </div>
                       <div>
                         <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="0" />
@@ -1307,6 +1304,9 @@ export default function ProformaInvoices() {
                           <Input type="number" value={item.gst_rate} onChange={e => updateItem(idx, "gst_rate", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums" placeholder="17" />
                         </div>
                       ) : <div />}
+                      <div>
+                        <Input type="number" value={item.mrp ?? ""} onChange={e => updateItem(idx, "mrp", e.target.value)} className="h-9 text-right text-[14px] font-mono tabular-nums text-muted-foreground" placeholder={catalogMrp ? String(catalogMrp) : "—"} title="Market Retail Price — printed for reference, not used in totals" />
+                      </div>
                       <div className="text-right text-[15px] font-mono font-semibold text-foreground tabular-nums">
                         {Number(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </div>
@@ -1318,6 +1318,9 @@ export default function ProformaInvoices() {
                     </div>
                   );})}
                 </div>
+              </div>
+              <div className="px-3 py-2 text-[11px] text-muted-foreground border-t border-border bg-muted/20">
+                MRP is the Market Retail Price printed on the pack — shown for reference only and never included in line totals or invoice math.
               </div>
             </div>
 
