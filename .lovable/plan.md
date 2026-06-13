@@ -1,134 +1,126 @@
-## Goal
+# Document Polish + Clean Print Preview + Draft Autosave
 
-All transactional documents render on the **top half of an A4 page** (≈148mm), with the lower half blank. When content exceeds the safe threshold, automatically switch to full-A4 multipage. Preview = Print = PDF, pixel-faithful.
+Targets all 11 transactional documents through the single pipeline (`pdf-generator.ts` + `PdfPreviewDialog.tsx`) plus a new standalone route. Logo is currently sized at `max-height:210px` (per code) but renders small because the layout cell is narrow — that's a CSS issue, fixed below.
 
-## Scope (document types)
+## Part 1 — Template polish (`src/lib/pdf-generator.ts`)
 
-Sales Order, Sales Invoice, Delivery Note, Warranty Note, Sales Return, Purchase Order, Purchase Invoice, Purchase Return, Payment Receipt, Customer Ledger (compact).
+**Header**
+- Widen logo cell to `min-width:280px` and bump logo to `max-height:120px; max-width:300px` (~220% of the visually-rendered size). Half-A4 override stays at `max-height:64px`.
+- Keep flex layout: logo left, company block right; both `vertical-align:top`.
 
-All of these flow through two builders:
-- `src/lib/pdf-generator.ts` → `buildA4Html` / `buildWarrantyNoteHtml`
-- `src/components/PdfPreviewDialog.tsx` (preview + print + PDF download)
+**Customer / Supplier block**
+- Always render Code, Phone, Mobile, City, Address (currently mobile/phone hidden when `show_customer_phone_on_docs=false`). Override that flag for invoice family — phone/mobile required by spec.
+- Order: **Name** (16px bold) → **Code · City** (13px muted) → **Phone / Mobile** (13px) → **Address** (13px, wraps).
 
-One change in those two files reaches every page (`DeliveryNotes`, `ProformaInvoices`, `PurchaseProforma`, `WarrantyInvoices`, `PrintJobs`).
+**Typography (full-A4 mode)**
+- Title 22px, party name 16px, party details 13.5px, table head 12.5px, table row 12.5px, grand total 26px.
+- Global `line-height:1.3`, `word-break:break-word`, remove every `overflow:hidden`/fixed-height on text cells.
 
-## Design
+**Items table (all documents)**
+- Fixed `table-layout:fixed` with explicit `<colgroup>`:
+  - Sales/Purchase Invoice: SR 4% · Product 34% · Batch 10% · Expiry 9% · Qty 7% · Rate 10% · Amount 12% · MRP 14%
+  - Delivery Note: SR 5% · Product 55% · Batch 15% · Expiry 12% · Qty 13% (fixes the giant gap in screenshot #2)
+- `text-align`: SR/Qty/Rate/Amount/MRP right, Batch/Expiry center, Product left with `white-space:normal`.
 
-### 1. New page size mode
+## Part 2 — Half-A4 / page-break hardening
 
-Add a `pageMode: "half" | "full" | "auto"` field to `PdfOptions` and `WarrantyNoteOptions`. Default = `"auto"`.
+Existing `pageMode` setting stays. Tighten:
+- Add `.page-frame { page-break-after: avoid; }` and `.half-doc { page-break-after: avoid; }` so a trailing empty page never spawns.
+- Remove the bottom 36px margin on `.page-frame` (currently `margin:64px auto 36px`) — that's the most common cause of the spurious 2nd PDF page. Use `margin:0 auto`.
+- `box-sizing:border-box` on `html, body, .page-frame, .warranty-document, table, td, th`.
+- Auto threshold unchanged (≤5 rows → half).
 
-```text
-auto:  rows ≤ 5  → half       rows > 5  → full
-half:  always half (caller acknowledges overflow risk; we still hard-clip via @page)
-full:  current A4 behavior
+## Part 3 — Clean print route
+
+New file **`src/pages/PrintPreview.tsx`** at route `/print-preview/:docType/:docId` (registered in `App.tsx` outside `AppLayout` — no sidebar/topbar).
+
+Layout:
+```
+┌─ minimal toolbar (no-print): [← Back] [Print] [Download PDF]  ┐
+│ banner (no-print): "For clean print, disable browser          │
+│ Headers/Footers in print settings (Chrome → More settings)."  │
+├───────────────────────────────────────────────────────────────┤
+│ <iframe srcDoc={html}> rendered via same `generatePdfHtml`    │
+└───────────────────────────────────────────────────────────────┘
 ```
 
-Resolution happens inside the builder using `opts.rows.length` (and `opts.items.length` for warranty). When auto promotes to full, builder also emits a small inline banner:
+- `docType` ∈ `sales-order | sales-invoice | delivery-note | warranty-note | sales-return | purchase-order | purchase-invoice | purchase-return | payment-receipt | customer-ledger | supplier-ledger`.
+- Fetches the document + items + party using the same queries the list pages use (extracted into `src/lib/print-fetchers.ts`).
+- Sets `document.title = "<DOC_NO> — <PARTY>"` so browser print filename is clean.
+- `@media print` hides toolbar + banner, leaves only the document.
 
-> "Document exceeds half-page layout. Using full-page format."
+## Part 4 — Save as PDF flow
 
-### 2. Half-A4 template geometry
+**`PdfPreviewDialog`** "Save as PDF" button changes from in-place html2pdf snapshot → `window.open('/print-preview/<type>/<id>?action=download', '_blank')`. The new route, on `?action=download`, runs the existing html2pdf path on its own clean iframe and triggers download. Print button same pattern with `?action=print`.
 
-Half-page printable target = **190mm × 138mm** (10mm @page margins; 138mm leaves a 1mm safety strip before the fold).
+In-modal preview keeps current behaviour (so users still get instant preview), but the heavy capture moves to the clean route → preview = print = PDF (same HTML generator, same iframe sandbox).
 
-```text
-@page { size: A4 portrait; margin: 10mm; }
-.half-doc {
-  width: 190mm;
-  height: 138mm;
-  max-height: 138mm;
-  overflow: hidden;            /* hard guarantee no spill */
-  page-break-after: always;    /* lower half stays blank */
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-}
+## Part 5 — PDF engine
+
+Keep `html2pdf.js` (already wired). Improvements:
+- Capture target = `.page-frame` (or `.warranty-document`), not `body`, so no surrounding chrome contributes height.
+- `html2canvas.scale: 2`, `windowWidth: 794` for full-A4, `794×1123` fixed for half.
+- `pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '[data-pdf-section]', '.no-break', '.totals-card', '.signatures'] }`.
+- `jsPDF.margin: [8,8,8,8]` full / `0` half.
+
+## Part 6 — Form autosave
+
+Reuse existing `useDraftAutosave` hook (already present, localStorage-backed, 1s debounce).
+
+Wire into the five create/edit dialogs:
+- `ProformaInvoices.tsx` (Sales Order + Sales Invoice tabs use same dialog state)
+- `DeliveryNotes.tsx`
+- `WarrantyInvoices.tsx`
+- `PurchaseProforma.tsx` (Purchase Order + Purchase Invoice)
+
+For each:
+1. `useDraftAutosave({ key: 'sales-order:new' | 'sales-invoice:<id>' | ..., enabled: dialogOpen && !submitting })`.
+2. On every form-state change → `save(formState)` (debounced).
+3. On dialog open + new doc, if `existingDraft` → show `Alert` banner: *"Unsaved draft from {relative time} restored."* with **Discard** button → `clear()`.
+4. On successful submit → `clear()`.
+5. Add `window.beforeunload` listener while dialog has dirty state → native confirm.
+
+**Database draft table** (cross-browser restore):
+
+```sql
+CREATE TABLE public.document_drafts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL,
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  document_type text NOT NULL,         -- 'sales_order' | 'sales_invoice' | ...
+  document_id uuid,                    -- null for new docs
+  draft_data jsonb NOT NULL,
+  last_saved_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, user_id, document_type, document_id)
+);
+-- GRANT + RLS scoped to auth.uid() + get_user_tenant_id()
 ```
 
-Density adjustments inside `.half-doc` (only when half mode is active):
-- Logo max-height 80px → 56px; company info font 14px → 11px
-- Title block padding 16px → 6px; underline accent shrinks
-- Doc-info / party card padding 14/16 → 6/10; font 15px → 11px
-- Items table row padding 10px → 5px; font 15px → 10.5px; header 14px → 10px
-- Totals card width 380px → 260px; grand-total font 30px → 18px
-- Amount-in-words / notes / bank / footer-cert collapse to single 9.5pt lines (or omit when missing)
-- Signatures top-margin 42px → 14px, line height 36 → 18
+Autosave writes to both localStorage (instant) and `document_drafts` (every 5s via debounced upsert). Restore prefers DB draft when newer than local.
 
-Columns auto-trim in half mode: drop optional `mrp_inc_tax`, `discount_pct`, and tax columns when their values are all empty, to keep the table readable.
+## Part 7 — Document numbering
 
-### 3. Warranty Note half mode
+No change needed — current `generate_document_number` RPC is only called inside `submit` paths, drafts never consume numbers. Draft UI shows `DRAFT-####` placeholder until submitted.
 
-`buildWarrantyNoteHtml` already uses 190mm container. Add a `compact` variant:
-- Drop description column, narrow Sr/Batch
-- Warranty declaration: render as a single justified paragraph (joined clauses) at 8pt
-- Signature block collapses to a single row
-- If declaration text length × items > budget, fall back to full A4 with the banner
+## Part 8 — QA
 
-### 4. PdfPreviewDialog — same surface for preview / print / download
+After implementation, render the iframe HTML into a 794×1123 canvas (existing path) for: Sales Order (1, 5, 6 items), Sales Invoice with long product name + long address, Delivery Note (5 items), Warranty Note (declaration). Assert:
+- Half mode: bottom half pixel-blank below y=560
+- Full mode: no orphan page (last page height > 80px content)
+- Phone number rendered in party block
+- Logo natural height ≥ 96px in canvas
 
-Add an HTML hint the builder emits on the root: `<html data-page-mode="half">`. The dialog reads it and:
+## Files
 
-- **Preview iframe**: wraps the document in a CSS shell that paints a full A4 sheet (210×297mm) with the half-doc anchored to the top; lower half is visibly blank so the user sees print truth.
-- **Print** (`handlePrint`): the same HTML opens in a new tab; `@page A4 portrait + margin 10mm` plus `.half-doc { height: 138mm; overflow: hidden; page-break-after: always; }` keep content in the top half. No browser-side scaling — content is already sized in mm.
-- **Download** (`handleDownloadPdf`): switch from "capture body, paginate by canvas height" to **fixed A4-page snapshot**:
-  - Render iframe at `794 × 1123 px` (A4 @96dpi).
-  - In half mode, force the iframe body min-height to 1123 so the lower half is captured as white.
-  - Use `html2pdf` with `pagebreak: { mode: ['css'], before: '.html2pdf__page-break' }` and have the builder insert a `<div class="html2pdf__page-break"></div>` after `.half-doc` only when more than one half-doc is rendered (e.g., future batch printing). For single-doc half mode, no page break needed — content fits.
-  - `jsPDF.margin: 0` (margins live inside the HTML via `@page` + `.half-doc` positioning).
-  - This guarantees PDF page count = HTML page count and preview = PDF.
+**New**
+- `src/pages/PrintPreview.tsx`
+- `src/lib/print-fetchers.ts`
+- Migration: `document_drafts` table + RLS + GRANT
 
-### 5. New setting: Documents → Print Size
+**Edited**
+- `src/lib/pdf-generator.ts` — header, party block, table colgroups, margin fix, page-break guards
+- `src/components/PdfPreviewDialog.tsx` — Save as PDF / Print buttons open `/print-preview/...` in new tab
+- `src/App.tsx` — register `/print-preview/:docType/:docId` outside `AppLayout`
+- `src/pages/ProformaInvoices.tsx`, `DeliveryNotes.tsx`, `WarrantyInvoices.tsx`, `PurchaseProforma.tsx` — wire `useDraftAutosave` + beforeunload + restore banner
 
-Add to `company_settings` (already has 36 columns):
-- `document_page_mode TEXT NOT NULL DEFAULT 'auto'` — `'half' | 'full' | 'auto'`
-
-UI: Settings → Documents tab adds a radio group:
-```
-Document Print Size
-  ○ Half A4 (Default for short docs)
-  ● Auto  — ≤5 items half, >5 items full
-  ○ Full A4
-```
-
-All call sites pass `pageMode: settings?.document_page_mode ?? 'auto'` into `generatePdfHtml` / warranty builder. No per-call wiring beyond that one prop.
-
-### 6. Smart-switch threshold
-
-Constant `HALF_PAGE_ROW_LIMIT = 5` in `pdf-generator.ts`. Warranty uses `HALF_PAGE_WARRANTY_LIMIT = 4` (declaration eats space).
-
-When auto promotes to full, builder logs to console + renders the banner; no toast (preview already shows result).
-
-## Testing plan
-
-For each row count {1, 3, 5, 6, 10} on Sales Invoice (representative) + Warranty Note:
-1. Open Preview → confirm A4 sheet with content in top half, lower half blank
-2. Click Print → use Chrome's Save-as-PDF; compare to preview screenshot
-3. Click Save as PDF → open output; verify
-   - PDF page is A4
-   - Content sits in top half only
-   - Totals visible, signatures visible
-   - No clipping at the 138mm fold
-4. Repeat with setting forced to `half` then `full` to verify override
-
-QA harness: render the iframe HTML to a 794×1123 canvas (already in download flow) and assert non-white pixels are 0 below y=560px (half-fold) when pageMode resolves to half.
-
-## Files touched
-
-- `src/lib/pdf-generator.ts` — `PdfOptions.pageMode`, `WarrantyNoteOptions.pageMode`, half-mode CSS branches, smart-switch logic, banner
-- `src/components/PdfPreviewDialog.tsx` — read `data-page-mode`, A4-sheet preview shell, simplified fixed-page PDF capture
-- `src/pages/Settings.tsx` — Documents tab radio for `document_page_mode`
-- `src/hooks/useCompanySettings.ts` — type addition (no logic change)
-- Migration: `ALTER TABLE company_settings ADD COLUMN document_page_mode TEXT NOT NULL DEFAULT 'auto'`
-- Call sites (one-liner each): `DeliveryNotes.tsx`, `ProformaInvoices.tsx`, `PurchaseProforma.tsx`, `WarrantyInvoices.tsx`, `PrintJobs.tsx` — pass `pageMode` from settings
-
-No layout redesign, no changes to fields or columns shown.
-
-## Acceptance checklist
-
-- Preview, Print, PDF all show identical top-half-only output
-- Lower half remains blank (verified pixel-wise)
-- Totals + signatures stay inside the top half in half mode
-- >5-item docs auto-promote to full A4 with banner
-- Setting respected (Half / Full / Auto)
-- All 9 document types behave identically (single pipeline)
+No business logic changes (stock posting, ledger, totals untouched).
