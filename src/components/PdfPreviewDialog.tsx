@@ -93,7 +93,13 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
   const handlePrint = () => {
     const win = window.open("", "_blank");
     if (win) {
-      win.document.write(embeddedHtml);
+      // Inject a non-print on-screen tip telling the user to disable browser
+      // headers/footers (which print URL / date / page numbers).
+      const tipHtml = `<div class="print-tip-banner">For a clean printout, in the browser's print dialog open <b>More settings</b> and uncheck <b>Headers and footers</b>. Choose <b>A4</b> paper, <b>Default</b> margins.</div>`;
+      const withTip = /<body[^>]*>/i.test(embeddedHtml)
+        ? embeddedHtml.replace(/<body([^>]*)>/i, `<body$1>${tipHtml}`)
+        : tipHtml + embeddedHtml;
+      win.document.write(withTip);
       win.document.close();
       win.onload = () => { win.print(); };
       setTimeout(() => { try { win.print(); } catch(e) {} }, 600);
