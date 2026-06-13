@@ -121,6 +121,21 @@ export default function StockMovements() {
 
   const { tenantRole, isAdmin } = useTenant();
   const readOnly = tenantRole === "staff" && !isAdmin;
+  const canDeleteOpening = !readOnly;
+
+  const handleDeleteOpening = async (m: StockMovement) => {
+    const { error } = await supabase.from("stock_movements").delete().eq("id", m.id);
+    if (error) { toast.error("Delete failed: " + error.message); return; }
+    void logAudit({
+      action: "stock_adjusted",
+      entity_type: "stock_movement",
+      entity_id: m.id,
+      entity_number: m.batch_number || "opening",
+      changes: { deleted: true, product: productNames[m.product_id], quantity: m.quantity, type: m.movement_type },
+    });
+    toast.success("Opening stock row deleted");
+    load(); loadProducts();
+  };
 
   const headerActions = readOnly ? (
     <span className="text-xs uppercase tracking-wider px-2 py-1 rounded-full border border-border text-muted-foreground">Read-only</span>
