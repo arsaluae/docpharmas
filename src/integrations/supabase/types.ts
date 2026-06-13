@@ -571,6 +571,7 @@ export type Database = {
           created_at: string
           default_gst_rate: number
           default_wht_rate: number
+          document_page_mode: string
           email: string | null
           fbr_enabled: boolean
           gst_enabled: boolean
@@ -609,6 +610,7 @@ export type Database = {
           created_at?: string
           default_gst_rate?: number
           default_wht_rate?: number
+          document_page_mode?: string
           email?: string | null
           fbr_enabled?: boolean
           gst_enabled?: boolean
@@ -647,6 +649,7 @@ export type Database = {
           created_at?: string
           default_gst_rate?: number
           default_wht_rate?: number
+          document_page_mode?: string
           email?: string | null
           fbr_enabled?: boolean
           gst_enabled?: boolean
