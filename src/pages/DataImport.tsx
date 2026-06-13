@@ -202,6 +202,9 @@ export default function DataImport({ lockedEntity, onComplete, embedded = false 
               </p>
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => nav("/import/contacts")}>
+                <Sparkles className="h-4 w-4 mr-2" /> Contact Persons Import
+              </Button>
               <Button variant="outline" size="sm" onClick={() => nav("/import/wizard")}>
                 <Sparkles className="h-4 w-4 mr-2" /> ERP Migration Wizard
               </Button>
