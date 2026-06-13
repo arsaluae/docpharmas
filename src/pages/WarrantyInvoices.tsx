@@ -93,26 +93,34 @@ export default function WarrantyInvoices() {
     return `${d}/${m}/${y}`;
   };
 
-  // Build the warranty-note options payload from a saved invoice, fetching the
-  // full distributor record so phone / license expiry / address are accurate.
+  // Build the warranty-note options payload from a saved invoice. Uses snapshot
+  // fields stored on the row first, falls back to live distributor / agent.
   const buildWarrantyOpts = async (inv: WarrantyInvoice): Promise<WarrantyNoteOptions> => {
     let dist: Distributor | null = null;
     if (inv.distributor_id) {
       const { data } = await supabase.from("customer_distributors").select("*").eq("id", inv.distributor_id).single() as { data: Distributor | null };
       dist = data;
     }
+    // Live fallback for sales rep when snapshot is missing (legacy rows)
+    let liveRep: SalesAgent | null = null;
+    if (!inv.sales_rep_name && inv.sales_agent_id) {
+      const { data } = await supabase.from("sales_agents").select("*").eq("id", inv.sales_agent_id).single() as { data: SalesAgent | null };
+      liveRep = data;
+    }
     const items = Array.isArray(inv.items) ? inv.items as any[] : [];
     return {
       invoiceNumber: inv.warranty_number,
       date: fmtDate(inv.date),
       dueDate: fmtDate(inv.date),
-      createdBy: undefined,
+      createdBy: inv.created_by_name || undefined,
       distributor: {
         name: dist?.name || inv.pharmacy_name || "—",
-        address: dist?.address || inv.pharmacy_address || null,
-        phone: dist?.phone || null,
-        licenseNumber: dist?.license_number || inv.pharmacy_license_no || null,
-        licenseExpiry: dist?.license_expiry ? fmtDate(dist.license_expiry) : null,
+        address: inv.customer_warranty_address || dist?.address || inv.pharmacy_address || null,
+        phone: inv.customer_mobile || dist?.phone || null,
+        licenseNumber: inv.customer_license_number || dist?.license_number || inv.pharmacy_license_no || null,
+        licenseExpiry: inv.customer_license_expiry ? fmtDate(inv.customer_license_expiry) : (dist?.license_expiry ? fmtDate(dist.license_expiry) : null),
+        ntn: inv.customer_ntn || null,
+        cnic: inv.customer_cnic || null,
       },
       items: items.map((i: any) => ({
         product_name: i.product_name || "",
@@ -129,10 +137,22 @@ export default function WarrantyInvoices() {
       discountAmount: Number(inv.discount_amount || 0),
       discountLabel: Number(inv.discount_percent || 0) > 0 ? `Discount (${inv.discount_percent}%)` : "Discount",
       total: Number(inv.total || 0),
-      salesRep: null,
+      salesRep: {
+        name: inv.sales_rep_name || liveRep?.name || null,
+        fatherName: inv.sales_rep_father_name || liveRep?.father_name || null,
+        cnic: inv.sales_rep_cnic || liveRep?.cnic || null,
+        gender: inv.sales_rep_gender || liveRep?.gender || null,
+        licenseNumber: inv.agent_license_number || liveRep?.license_number || null,
+        licenseExpiry: inv.agent_license_expiry ? fmtDate(inv.agent_license_expiry) : (liveRep?.license_expiry ? fmtDate(liveRep.license_expiry) : null),
+        signatureUrl: inv.rep_signature_url || liveRep?.signature_url || null,
+        stampUrl: inv.rep_stamp_url || liveRep?.stamp_url || null,
+      },
+      companyStampUrl: inv.company_stamp_url || null,
+      companySignatureUrl: inv.company_signature_url || null,
       settings,
     };
   };
+
 
 
   const validateForPdf = async (inv: WarrantyInvoice): Promise<string[]> => {
