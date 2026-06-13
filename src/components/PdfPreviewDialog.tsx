@@ -84,15 +84,16 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
 
   /**
    * Build a PDF (jsPDF) from the active document HTML using a hidden iframe.
-   * Returns the jsPDF instance; caller decides save vs preview-in-new-tab.
-   * For half-A4 docs we constrain output to a single A4 page (top half = content,
-   * bottom half = blank), so neither Save nor Print spill onto a 2nd page.
+   * Modes:
+   *  - "auto"  → half-A4, single-A5 (short delivery note), or A4 multi-page (default).
+   *  - "twoup" → delivery-note-only; stacks the same sheet twice on one A4 page.
    */
-  const buildPdf = async () => {
+  const buildPdf = async (mode: "auto" | "twoup" = "auto") => {
     const iframe = document.createElement("iframe");
     const A4_W = 794;   // A4 portrait at 96dpi
     const A4_H = 1123;
-    
+    const A5_W = 559;   // A5 portrait at 96dpi (148mm)
+
     iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${A4_W}px;height:${A4_H}px;border:0;background:#fff;`;
     iframe.setAttribute("aria-hidden", "true");
     document.body.appendChild(iframe);
@@ -119,12 +120,47 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
         new Promise<void>((res) => setTimeout(res, 150)),
       ]);
 
-      const filename = `${(title || "Document").replace(/[^a-z0-9\-_.]+/gi, "-")}.pdf`;
+      const filename = `${(title || "Document").replace(/[^a-z0-9\-_.]+/gi, "-")}${mode === "twoup" ? "-2up" : ""}.pdf`;
       const isHalfPage = doc.documentElement.getAttribute("data-page-mode") === "half";
 
       // Find the actual document sheet
       const sheet = (doc.querySelector(".page-frame, .warranty-document, .page") as HTMLElement) || doc.body;
       sheet.style.background = "#ffffff";
+
+      const docKind = sheet.getAttribute("data-doc-kind")
+        || doc.querySelector('meta[name="doc-kind"]')?.getAttribute("content")
+        || "";
+      const itemCount = Number(sheet.getAttribute("data-item-count") || doc.querySelector('meta[name="item-count"]')?.getAttribute("content") || "0");
+      const isDeliveryNote = docKind === "delivery-note";
+
+      // ── DELIVERY NOTE — 2-up on one A4 ──
+      if (mode === "twoup" && isDeliveryNote) {
+        const { default: html2canvasLib } = await import("html2canvas");
+        const canvas = await html2canvasLib(sheet, {
+          scale: 2, useCORS: true, backgroundColor: "#ffffff",
+          windowWidth: A4_W, width: A4_W, logging: false,
+        });
+        const { jsPDF } = await import("jspdf");
+        const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
+        const PAGE_W = 210, PAGE_H = 297, MARGIN = 8, GAP = 4;
+        const halfH = (PAGE_H - MARGIN * 2 - GAP) / 2;
+        const usableW = PAGE_W - MARGIN * 2;
+        // Fit each copy within the half-page box (preserve aspect ratio).
+        const aspect = canvas.height / canvas.width;
+        let w = usableW;
+        let h = w * aspect;
+        if (h > halfH) { h = halfH; w = h / aspect; }
+        const x = (PAGE_W - w) / 2;
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        pdf.addImage(imgData, "JPEG", x, MARGIN, w, h, undefined, "FAST");
+        // Cut line
+        pdf.setDrawColor(200);
+        pdf.setLineDashPattern([2, 2], 0);
+        pdf.line(MARGIN, MARGIN + halfH + GAP / 2, PAGE_W - MARGIN, MARGIN + halfH + GAP / 2);
+        pdf.setLineDashPattern([], 0);
+        pdf.addImage(imgData, "JPEG", x, MARGIN + halfH + GAP, w, h, undefined, "FAST");
+        return { pdf, filename };
+      }
 
       if (isHalfPage) {
         // Half-A4: content sheet is naturally short. Render at its real height so
@@ -144,39 +180,65 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
         } as any;
         const worker: any = html2pdf().set(config).from(sheet).toPdf();
         const pdf: any = await worker.get("pdf");
-        // Hard-cap to one page in case content slightly overflows.
         const total = pdf.internal.getNumberOfPages();
         for (let i = total; i > 1; i--) pdf.deletePage(i);
         return { pdf, filename };
-      } else {
-        const measuredWidth = Math.min(A4_W, Math.max(sheet.scrollWidth, A4_W));
-        const config = {
-          margin: [8, 8, 8, 8],
-          filename,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 3, useCORS: true, allowTaint: false, backgroundColor: "#ffffff",
-            windowWidth: measuredWidth, width: measuredWidth,
-            logging: false, scrollX: 0, scrollY: 0,
-            letterRendering: true, imageTimeout: 0,
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
-          pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".no-break", "[data-pdf-section]", ".totals-card", ".signatures"] },
-        } as any;
-        const worker: any = html2pdf().set(config).from(sheet).toPdf();
-        const pdf = await worker.get("pdf");
+      }
+
+      // ── DELIVERY NOTE — auto A5 (short) or A4 (long) single page ──
+      if (isDeliveryNote) {
+        const useA5 = itemCount <= 8;
+        const { default: html2canvasLib } = await import("html2canvas");
+        const canvas = await html2canvasLib(sheet, {
+          scale: 2, useCORS: true, backgroundColor: "#ffffff",
+          windowWidth: A4_W, width: A4_W, logging: false,
+        });
+        const { jsPDF } = await import("jspdf");
+        const pdf = new jsPDF({ unit: "mm", format: useA5 ? "a5" : "a4", orientation: "portrait", compress: true });
+        const PAGE_W = useA5 ? 148 : 210;
+        const PAGE_H = useA5 ? 210 : 297;
+        const MARGIN = useA5 ? 6 : 10;
+        const usableW = PAGE_W - MARGIN * 2;
+        const usableH = PAGE_H - MARGIN * 2;
+        const aspect = canvas.height / canvas.width;
+        let w = usableW;
+        let h = w * aspect;
+        if (h > usableH) { h = usableH; w = h / aspect; }
+        const x = (PAGE_W - w) / 2;
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", x, MARGIN, w, h, undefined, "FAST");
         return { pdf, filename };
       }
+
+      const measuredWidth = Math.min(A4_W, Math.max(sheet.scrollWidth, A4_W));
+      const config = {
+        margin: [8, 8, 8, 8],
+        filename,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: {
+          scale: 3, useCORS: true, allowTaint: false, backgroundColor: "#ffffff",
+          windowWidth: measuredWidth, width: measuredWidth,
+          logging: false, scrollX: 0, scrollY: 0,
+          letterRendering: true, imageTimeout: 0,
+        },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
+        pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".no-break", "[data-pdf-section]", ".totals-card", ".signatures"] },
+      } as any;
+      const worker: any = html2pdf().set(config).from(sheet).toPdf();
+      const pdf = await worker.get("pdf");
+      return { pdf, filename };
     } finally {
       iframe.remove();
     }
   };
 
-  const handleDownloadPdf = async () => {
+  // Detect docKind from the active HTML so we can show the "2 per A4" button only for delivery notes.
+  const isDeliveryNote = useMemo(() => /data-doc-kind="delivery-note"|name="doc-kind"\s+content="delivery-note"/i.test(activeHtml), [activeHtml]);
+
+  const handleDownloadPdf = async (mode: "auto" | "twoup" = "auto") => {
     if (downloading) return;
     setDownloading(true);
     try {
-      const { pdf, filename } = await buildPdf();
+      const { pdf, filename } = await buildPdf(mode);
       pdf.save(filename);
     } catch (e) {
       console.error("PDF download failed", e);
@@ -185,24 +247,17 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
     }
   };
 
-  /**
-   * Print = generate the same PDF we'd download, open it in a new tab as a blob,
-   * then trigger the browser's PDF viewer print. No app chrome, no browser
-   * header/footer drift, identical to Save as PDF output.
-   */
-  const handlePrint = async () => {
+  const handlePrint = async (mode: "auto" | "twoup" = "auto") => {
     if (downloading) return;
     setDownloading(true);
     try {
-      const { pdf } = await buildPdf();
+      const { pdf } = await buildPdf(mode);
       const blob = pdf.output("blob");
       const url = URL.createObjectURL(blob);
       const win = window.open(url, "_blank");
       if (win) {
-        // Give the embedded PDF viewer a moment, then ask it to print.
         setTimeout(() => { try { win.focus(); win.print(); } catch (e) { /* viewer handles it */ } }, 800);
       }
-      // Revoke later so the tab can keep using the URL
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (e) {
       console.error("Print failed", e);
@@ -244,10 +299,15 @@ export function PdfPreviewDialog({ open, onOpenChange, html, title, views, defau
             </div>
           )}
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handlePrint} disabled={downloading}>
+            {isDeliveryNote && (
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => handleDownloadPdf("twoup")} disabled={downloading} title="Save two delivery notes on a single A4 sheet">
+                <Download className="h-3.5 w-3.5" /> 2 per A4
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => handlePrint("auto")} disabled={downloading}>
               <Printer className="h-3.5 w-3.5" /> Print
             </Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={handleDownloadPdf} disabled={downloading}>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => handleDownloadPdf("auto")} disabled={downloading}>
               <Download className="h-3.5 w-3.5" /> {downloading ? "Saving…" : "Save as PDF"}
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>

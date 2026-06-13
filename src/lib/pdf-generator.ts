@@ -187,7 +187,7 @@ function buildA4Html(opts: PdfOptions): string {
   const safeCompany = escapeHtml(companyName);
   const logoHtml = s?.logo_url
     ? `<img src="${s.logo_url}" alt="${safeCompany}" crossorigin="anonymous"
-            style="height:144px !important;width:auto !important;max-width:450px !important;object-fit:contain;display:block;vertical-align:middle;"
+            style="height:216px !important;width:auto !important;max-width:675px !important;object-fit:contain;display:block;vertical-align:middle;"
             onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';" /><div style="display:none;font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`
     : `<div style="font-size:26px;font-weight:800;color:${C.text};letter-spacing:-0.3px;line-height:1;">${safeCompany}</div>`;
 
@@ -265,12 +265,12 @@ function buildA4Html(opts: PdfOptions): string {
   const colWidth = (c: PdfColumn) => {
     const k = c.key.toLowerCase();
     const isProductName = c.key === "product_name" || c.key === "name" || c.key === "item_name" || c.key === "description";
-    if (SERIAL_KEYS.has(c.key)) return "width:7%;";
-    if (isProductName) return hasMoneyCol ? "width:28%;" : "width:55%;";
+    if (SERIAL_KEYS.has(c.key)) return "width:6%;";
+    if (isProductName) return hasMoneyCol ? "width:28%;" : "width:46%;";
     if (k === "product_code" || k === "code" || k === "sku") return "width:10%;";
-    if (k === "batch_number" || k === "batch") return "width:11%;";
-    if (k === "expiry_date" || k === "expiry") return "width:10%;";
-    if (k === "quantity" || k === "qty") return "width:11%;";
+    if (k === "batch_number" || k === "batch") return hasMoneyCol ? "width:11%;" : "width:16%;";
+    if (k === "expiry_date" || k === "expiry") return hasMoneyCol ? "width:10%;" : "width:14%;";
+    if (k === "quantity" || k === "qty") return hasMoneyCol ? "width:11%;" : "width:14%;";
     if (k === "rate" || k === "tp_rate" || k === "price") return "width:8%;";
     if (k === "mrp" || k === "mrp_inc_tax") return "width:11%;";
     if (k === "discount" || k === "discount_pct" || k === "disc") return "width:7%;";
@@ -297,7 +297,7 @@ function buildA4Html(opts: PdfOptions): string {
       const wrap = "white-space:normal;word-break:break-word;overflow-wrap:anywhere;line-height:1.35;";
       return `<td style="padding:7px 6px;font-size:12.5px;text-align:${thAlign(c)};border-bottom:1px solid ${C.border};color:${C.text};font-family:${fontFamily};font-weight:${fontWeight};${wrap}${colWidth(c)}">${escapeHtml(valStr)}</td>`;
     }).join("");
-    return `<tr style="background:${bg};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${cells}</tr>`;
+    return `<tr data-row="item" style="background:${bg};-webkit-print-color-adjust:exact;print-color-adjust:exact;">${cells}</tr>`;
   }).join("");
 
   const itemsTable = `
@@ -366,7 +366,14 @@ function buildA4Html(opts: PdfOptions): string {
         </div>`).join("")}
     </div>`;
 
+  const docKind = /delivery\s*note/i.test(docTitle) ? "delivery-note"
+    : /sales\s*order|proforma/i.test(docTitle) ? "sales-order"
+    : /invoice/i.test(docTitle) ? "sales-invoice"
+    : "document";
+
   return `<!DOCTYPE html><html><head>
+<meta name="doc-kind" content="${docKind}">
+<meta name="item-count" content="${opts.rows.length}">
 <title>${escapeHtml(docTitle)} — ${escapeHtml(opts.documentNumber)}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
@@ -394,13 +401,13 @@ function buildA4Html(opts: PdfOptions): string {
     html, body { height:auto !important; }
     @page { margin:8mm 10mm; size:A4; }
   }
-</style></head><body>
+</style></head><body data-doc-kind="${docKind}" data-item-count="${opts.rows.length}">
 <div class="toolbar">
   <div class="toolbar-title">${escapeHtml(docTitle)} — ${escapeHtml(opts.documentNumber)}</div>
   <button class="toolbar-btn" onclick="window.print()">Download / Print</button>
 </div>
 
-<div class="page-frame">
+<div class="page-frame" data-doc-kind="${docKind}" data-item-count="${opts.rows.length}">
   
   <table class="doc-header"><tr>
     <td style="width:55%;text-align:left;">${logoHtml}</td>
@@ -449,7 +456,7 @@ const HALF_PAGE_CSS = `
   }
   /* Density pass — preserve layout, shrink chrome to fit upper half (~138mm content) */
   .page-frame .doc-header { padding-bottom: 6pt !important; }
-  .page-frame img { height: 90px !important; max-height: 90px !important; max-width: 240px !important; }
+  .page-frame img { height: 135px !important; max-height: 135px !important; max-width: 360px !important; }
   .page-frame [style*="font-size:46px"],
   .page-frame [style*="font-size:42px"],
   .page-frame [style*="font-size:38px"] { font-size: 22pt !important; line-height: 1.05 !important; }

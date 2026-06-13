@@ -1,159 +1,56 @@
-# Warranty Note — Standalone Module Redesign
+## Goals
 
-Make Warranty Note a fully independent document: own settings, own data sources, own template, own PDF — no shared layout with Sales Invoice.
+1. Remove the "Validity" row from the Sales Order / Sales Invoice document.
+2. Make the logo ~1.5× larger in all document templates.
+3. Delivery Note: tighten Product Name ↔ Batch No spacing, eliminate large whitespace at the bottom, fix preview/print misalignment.
+4. Print / Save-as-PDF for Delivery Note: auto-pick **A5 (single)** when items are few, **A4 (single)** when many, and offer a **"2-up on A4"** mode so two delivery notes print on one A4 sheet (day-end batching).
+5. Fix Sales Order create dialog losing data when user switches browser tab and comes back.
 
----
+## Changes
 
-## 1. Database changes
+### 1. Sales Invoice / Sales Order — remove Validity
+- `src/pages/ProformaInvoices.tsx` line 651 — drop the `validity: \`Valid for ${order.validity_days} days\`` field passed to the PDF generator (keep `validity_days` in DB / form for internal expiry logic, just stop printing it).
+- `src/lib/pdf-generator.ts` — keep the `validity` option but no callers will pass it; the row simply won't render.
 
-### `customers` — add missing warranty fields
-- `warranty_address` (text, multi-line)
-- `license_number` (text)
-- `license_expiry` (date)
-- `ntn` (text)
-- `cnic` (text)
+### 2. Logo size × 1.5
+- `src/lib/pdf-generator.ts`:
+  - Legacy template (`.page-frame img` rule, line 452): `height: 90px → 135px`, `max-width: 240px → 360px`.
+  - New A4 template logo (line 624): `width:200px → 300px`, `max-width:220px → 330px`, `max-height:140px → 200px`.
+- Applies uniformly to Sales Order, Sales Invoice, Delivery Note, Warranty Note headers.
 
-Keep existing `customer_licenses` untouched; warranty pulls from `customers.*` first, falls back to latest active row in `customer_licenses` if blank.
+### 3. Delivery Note layout fixes
+In the Delivery Note template block of `src/lib/pdf-generator.ts`:
+- Tighten the product table: reduce the empty column gap between **Product Name** and **Batch No** by changing column widths so Product Name no longer spans 55% — distribute as `SR 6% · Product 44% · Batch 16% · Expiry 14% · Qty 12% · (rest)`.
+- Remove forced minimum row heights and bottom padding that produce the long blank tail.
+- Wrap the document body in a sized `.delivery-note` container so the preview iframe and the printed PDF render identically (no overflow, no large white gap before Dispatched/Received).
 
-### `sales_agents` — add rep/warranty fields
-- `father_name` (text)
-- `cnic` (text)
-- `agent_license_number` (text)
-- `agent_license_expiry` (date)
-- `signature_url` (text — Storage path)
+### 4. Delivery Note PDF — A5 / A4 / 2-up
+`src/components/PdfPreviewDialog.tsx` already builds the PDF with html2pdf/jsPDF. Add Delivery-Note-aware sizing:
 
-### `staff` (or `profiles`) — current-user fallback
-Same five fields as above so a logged-in user without a `sales_agents` row can still sign.
+- Detect the doc kind from a new `data-doc-kind="delivery-note"` attribute on the root `.page`.
+- Compute item count from `tr[data-row="item"]` count (added in the template).
+- Sizing rule:
+  - `≤ 8 items` → **A5 portrait, single page**.
+  - `> 8 items` → **A4 portrait, single page** (existing behaviour).
+- Add a third pill button next to Print / Save-as-PDF: **"2 per A4"**. When clicked, render the same delivery-note HTML twice stacked into a single A4 sheet (top half + bottom half separated by a cut line). Uses the existing iframe rendering pipeline, just changes the jsPDF `format` and stacks the sheet element twice via html2canvas before `addImage`.
+- Section-aware page-break logic from the reference snippet (`data-pdf-section`, `avoid-all` for small docs) is applied so nothing is split mid-row.
 
-Resolution order at warranty creation: selected `sales_agents` row → current user's `staff/profile` → blanks.
+### 5. Sales Order draft restore on tab return
+`src/pages/ProformaInvoices.tsx`:
+- The autosave hook already persists to localStorage but the **restore prompt** only shows when `items.length === 0 && !customerId` (line 1166). That hides the draft as soon as the user has typed anything, and on dialog close the in-memory state is wiped.
+- Fix:
+  - Auto-rehydrate the form state from `existingDraft` on dialog open (one-shot) instead of waiting for the user to click "Restore".
+  - Keep autosaving while the dialog is open (already works) **and** on `visibilitychange` / `beforeunload` so a fresh tab switch always flushes the latest values.
+  - Only `clearDraft()` after a successful save, not on dialog close.
 
-### `company_settings` — stamp & signature
-- `warranty_stamp_url` (text)
-- `warranty_signature_url` (text — optional company-wide default)
-- `warranty_declaration_text` (text — overrides default in `src/lib/warranty-declaration.ts`)
-- `warranty_footer_text` (text)
+## Files to edit
+- `src/pages/ProformaInvoices.tsx` — remove validity from PDF payload, auto-rehydrate draft, flush on visibilitychange.
+- `src/lib/pdf-generator.ts` — logo sizing, delivery-note column widths, remove trailing whitespace, add `data-doc-kind` + `data-row="item"` hooks.
+- `src/components/PdfPreviewDialog.tsx` — A5/A4 auto-detect for delivery notes, new "2 per A4" action.
 
-### `warranty_invoices` — snapshot fields
-Snapshot at issue time so historical notes don't change if master data is edited:
-- `sales_rep_name`, `sales_rep_father_name`, `sales_rep_cnic`
-- `agent_license_number`, `agent_license_expiry`
-- `signature_url`, `stamp_url`
-- `customer_warranty_address`, `customer_license_number`, `customer_license_expiry`, `customer_ntn`, `customer_cnic`, `customer_mobile`
-
-### Storage
-New private bucket `warranty-assets` with RLS scoped by `tenant_id` for: company stamps, company signatures, agent signatures.
-
----
-
-## 2. Settings UI
-
-### Settings → Company → Warranty Documents (new sub-section)
-- Upload Company Stamp (image)
-- Upload Default Signature (image, optional)
-
-### Settings → Documents → Warranty Note (new tab)
-- Editable Warranty Declaration text (with `{{placeholders}}` reference panel)
-- Editable Footer text
-- Live preview using sample data
-
-### Settings → Sales Agents → Agent Profile (extend existing dialog)
-- Father Name, CNIC, Agent License #, Agent License Expiry, Signature upload
-
-### Settings → Team Members / My Profile
-- Same five fields for current-user fallback
-
-### Customers → Profile dialog (extend)
-- Warranty Address (textarea), License #, License Expiry, NTN, CNIC
-
----
-
-## 3. Warranty Note Page (`src/pages/WarrantyInvoices.tsx`)
-- Create dialog: pick customer → auto-fill warranty/license fields (editable); pick sales rep (default = current user agent) → auto-fill rep block
-- Line items already exist (TP = MRP × 0.85 logic preserved)
-- On save: snapshot rep + customer + stamp/signature URLs into the warranty row
-
----
-
-## 4. PDF / Print Template — brand-new
-
-New file: `src/lib/warranty-note-pdf.ts` (or React component for `PdfPreviewDialog`) — does NOT reuse sales invoice template.
-
-### Layout (A4 portrait)
-```text
-┌──────────────────────────────────────────────────────┐
-│ [LOGO 200px]              Company Name (right-align) │
-│                           Address                    │
-│                           City                       │
-│                           Mobile                     │
-├──────────────────────────────────────────────────────┤
-│ WARRANTY NOTE  (22px bold, left)                     │
-├──────────────────────────────────────────────────────┤
-│ Mobile: …               │ Warranty Note #: …         │
-│ Warranty Address: …     │ Date: …                    │
-│   (multi-line, no clip) │ Due Date: …                │
-│ License #: …            │ Created By: …              │
-│ License Expiry: …       │ Sales Rep: …               │
-│ NTN: … | CNIC: …        │                            │
-├──────────────────────────────────────────────────────┤
-│ Sr│ Product │ Desc │ Qty │ Rate │ Batch │ Exp │ Disc │ Amount │ MRP Inc Tax │
-│  1│ …       │ …    │  10 │ 100  │ B-12  │ … │  5%  │ 950    │ 117         │
-│  …                                                    │
-├──────────────────────────────────────────────────────┤
-│                                Total: Rs. 12,345.00  │
-├──────────────────────────────────────────────────────┤
-│ Note                                                 │
-│ It is certified that I {{sales_rep_name}} D/O …      │
-│ (full declaration, 2 numbered clauses + trailer)     │
-├──────────────────────────────────────────────────────┤
-│ Total in Words: …                                    │
-│ Inv Balance in Words: …                              │
-├──────────────────────────────────────────────────────┤
-│ [STAMP]                              [SIGNATURE]     │
-│ Company Stamp                        Sales Rep       │
-│                                      Prepared By     │
-├──────────────────────────────────────────────────────┤
-│ This is a system generated invoice and does not …    │
-│                                          Page 1 of N │
-└──────────────────────────────────────────────────────┘
-```
-
-### PDF rules enforced
-- A4 portrait, 15mm margins
-- Multi-page auto-flow with repeating header + table header
-- Long product descriptions wrap (no truncate)
-- Right-align amounts, center qty/batch
-- No content overlaps signature block (signature pins to last page bottom-right)
-
----
-
-## 5. Files touched
-
-**Migrations (1)**
-- Add columns to `customers`, `sales_agents`, `staff`, `company_settings`, `warranty_invoices`; create `warranty-assets` bucket + RLS
-
-**New files**
-- `src/lib/warranty-note-pdf.ts` — standalone PDF generator
-- `src/components/WarrantyNoteTemplate.tsx` — on-screen + print template
-- `src/components/settings/WarrantyDocumentSettings.tsx`
-- `src/components/settings/WarrantyNoteTemplateSettings.tsx`
-- `src/components/settings/SalesRepProfileFields.tsx`
-
-**Edited**
-- `src/pages/Settings.tsx` — wire new tabs/sections
-- `src/pages/WarrantyInvoices.tsx` — create flow snapshot + new PDF preview
-- `src/components/PdfPreviewDialog.tsx` — route warranty docs to new template
-- `src/components/CustomerProfileDialog.tsx` — add warranty fields
-- `src/pages/SalesAgents.tsx` — add rep/license/signature fields
-- `src/lib/warranty-declaration.ts` — read override from `company_settings`
-
----
-
-## 6. Acceptance checklist
-- Warranty Note renders with own template (no sales-invoice CSS reuse)
-- Warranty Declaration block always present, editable via settings
-- Customer Mobile, Warranty Address, License #, License Expiry, NTN, CNIC visible
-- Stamp + Signature uploads work; auto-pulled into PDF
-- Sales Rep details auto-fill from agent → user fallback
-- Total in Words + Inv Balance in Words present
-- Preview == Print == PDF (A4, no clipping, no overflow)
-- Long descriptions wrap cleanly across pages
+## Acceptance
+- Sales Order / Sales Invoice PDF and preview no longer show "Validity: Valid for N days".
+- Logo visually ~1.5× larger on all three document tabs.
+- Delivery Note: Product Name and Batch No sit close together, no large empty band before the signatures, single A5 page for short notes, single A4 for long notes, and **2 per A4** stacks two notes on one sheet.
+- Preview iframe matches the saved/printed PDF exactly (no clipping, no extra whitespace).
+- Opening "Add Sales Order", typing a customer/items, switching browser tab, and returning restores all entered data automatically without showing an empty form.
