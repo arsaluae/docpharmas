@@ -57,6 +57,8 @@ export interface MatchResult {
   confidence: number;
   matchMethod: MatchMethod;
   status: MatchStatus;
+  /** Human-readable reason a row is in review/unmatched state. Empty when fully matched. */
+  reason?: string;
 }
 
 // ---------- Header auto-detection ----------
