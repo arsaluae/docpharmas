@@ -323,6 +323,11 @@ export function AppSidebar() {
                 <button onClick={() => goAndClose("/import")} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
                   <Upload className="h-4 w-4 opacity-70" /> Data Import
                 </button>
+                {isOwner && (
+                  <button onClick={() => goAndClose("/admin/data-cleanup")} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
+                    <Shield className="h-4 w-4 opacity-70" /> Data Cleanup
+                  </button>
+                )}
                 <div className="my-1 h-px bg-border/60" />
                 <button onClick={() => { toggleTheme(); }} className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-sm hover:bg-accent text-foreground transition-colors">
                   {theme === "light" ? <Moon className="h-4 w-4 opacity-70" /> : <Sun className="h-4 w-4 opacity-70" />}
