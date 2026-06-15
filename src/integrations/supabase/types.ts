@@ -6326,6 +6326,7 @@ export type Database = {
       }
       is_agent_customer: { Args: { p_customer_id: string }; Returns: boolean }
       is_authenticated: { Args: never; Returns: boolean }
+      is_tenant_owner: { Args: { _user_id: string }; Returns: boolean }
       merge_customers: {
         Args: { p_duplicates: string[]; p_master: string; p_reason?: string }
         Returns: Json
@@ -6449,8 +6450,8 @@ export type Database = {
       suppliers_cities: { Args: never; Returns: string[] }
       suppliers_summary: { Args: never; Returns: Json }
       table_resource: { Args: { p_table: string }; Returns: string }
-      unmerge_customer: { Args: { p_old_id: string }; Returns: Json }
-      unmerge_supplier: { Args: { p_old_id: string }; Returns: Json }
+      unmerge_customer: { Args: { p_duplicate: string }; Returns: Json }
+      unmerge_supplier: { Args: { p_duplicate: string }; Returns: Json }
       user_prod_tenant_id: { Args: never; Returns: string }
       void_document: {
         Args: { p_id: string; p_reason: string; p_table: string }
