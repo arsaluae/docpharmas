@@ -65,6 +65,7 @@ const ContactImportWizard = lazy(() => import("./pages/ContactImportWizard"));
 const Settings = lazy(() => import("./pages/Settings"));
 const SystemHealth = lazy(() => import("./pages/SystemHealth"));
 const Backups = lazy(() => import("./pages/Backups"));
+const DataCleanup = lazy(() => import("./pages/DataCleanup"));
 
 const ProfitLoss = lazy(() => import("./pages/reports/ProfitLoss"));
 const BalanceSheet = lazy(() => import("./pages/reports/BalanceSheet"));
