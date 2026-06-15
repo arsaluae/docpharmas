@@ -318,9 +318,20 @@ export default function Products() {
       <div><Label>Reorder Level</Label><Input type="number" value={form.reorder_level} onChange={e => setForm({...form, reorder_level: e.target.value})} /></div>
     </div>
 
-    {/* RIGHT — opening stock / batches */}
+    {/* RIGHT — opening stock now lives in a dedicated workspace */}
     <div className="border-l-0 lg:border-l border-border lg:pl-6">
-      <OpeningStockPanel ref={openingPanelRef} productId={editId} />
+      <div className="rounded-md border border-dashed border-border p-5 h-full flex flex-col justify-center">
+        <div className="flex items-center gap-2 mb-2">
+          <Package className="h-4 w-4 text-primary" />
+          <h3 className="font-heading text-sm">Opening stock</h3>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Opening balances (multi-batch, multi-product) are recorded in the dedicated <span className="font-medium text-foreground">Opening Stock</span> workspace. This keeps stock movements clean and avoids hitting the supplier ledger.
+        </p>
+        <Button variant="outline" size="sm" onClick={() => { setOpen(false); navigate("/opening-stock"); }}>
+          Open Opening Stock workspace →
+        </Button>
+      </div>
     </div>
   </div>
   <div className="flex gap-2 justify-end mt-5">
