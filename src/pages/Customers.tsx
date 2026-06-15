@@ -354,9 +354,12 @@ export default function Customers() {
  </TableCell>
  </TableRow>
  ) : filtered.map(c => {
+ // Prefer the SMS/primary mobile (populated by Contact Import + Customer Profile sync),
+ // then fall back to the legacy comma-separated `phone` column for older records.
+ const smsMobile = ((c as any).sms_mobile || "").trim();
  const phones = (c.phone || "").split(",").map(p => p.trim()).filter(Boolean);
- const mobile = phones[0] || "";
- const phone2 = phones.slice(1).join(", ");
+ const mobile = smsMobile || phones[0] || "";
+ const phone2 = (smsMobile ? phones : phones.slice(1)).join(", ");
  const overLimit = Number(c.balance) > Number(c.credit_limit) && Number(c.credit_limit) > 0;
  return (
  <TableRow key={c.id} className={`cursor-pointer table-row-hover ${c.is_active === false ? "opacity-50" : ""}`} onClick={() => handleEdit(c)}>
