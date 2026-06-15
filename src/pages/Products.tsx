@@ -624,6 +624,15 @@ export default function Products() {
  currentLandedCost={Number(profileProduct?.cost_price || 0)}
  onSaved={loadAll}
  />
+ <ProductDetailDrawer
+   open={!!detailProductId}
+   onOpenChange={(o) => { if (!o) setDetailProductId(null); }}
+   productId={detailProductId}
+   onEdit={(id) => {
+     const p = products.find((x) => x.id === id);
+     if (p) { setDetailProductId(null); handleEdit(p); }
+   }}
+ />
  </AppLayout>
  );
 }
