@@ -169,11 +169,7 @@ export default function Products() {
      if (createErr) { toast.error("Failed: " + createErr.message); return; }
      savedId = created?.id || null;
    }
-   // Persist opening-stock batch changes (inserts, updates, deletes) via the panel.
-   if (savedId && openingPanelRef.current) {
-     const ok = await openingPanelRef.current.save(savedId);
-     if (!ok) return; // keep dialog open so user can fix
-   }
+    // Opening stock is now managed from /opening-stock (dedicated workspace).
    toast.success(editId ? "Product updated" : "Product created");
    setOpen(false); setForm(emptyForm); setEditId(null); loadAll();
    };
