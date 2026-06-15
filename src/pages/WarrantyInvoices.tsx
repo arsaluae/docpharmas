@@ -115,7 +115,7 @@ export default function WarrantyInvoices() {
  const [discountType, setDiscountType] = useState<"percent" | "amount">("percent");
  const [discountValue, setDiscountValue] = useState(0);
  const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
- const [formNotes, setFormNotes] = useState("");
+ const [formNotes, setFormNotes] = useState(""); // rich HTML — saved to warranty_invoices.notes_html
  const [addDistOpen, setAddDistOpen] = useState(false);
 
  // Cache of active batches per product id (FEFO ordered).
@@ -347,7 +347,8 @@ export default function WarrantyInvoices() {
  discount_amount: discountCalc,
  gst_amount: 0,
  total,
- notes: formNotes || null,
+ notes: null,
+ notes_html: formNotes || null,
  status: "issued",
 
  // ── Sales rep snapshot ────────────────────────────────────────────
@@ -407,7 +408,7 @@ export default function WarrantyInvoices() {
  setDiscountType(inv.discount_percent > 0 ? "percent" : "amount");
  setDiscountValue(inv.discount_percent > 0 ? inv.discount_percent : inv.discount_amount);
  setFormDate(inv.date);
- setFormNotes(inv.notes || "");
+ setFormNotes((inv as any).notes_html || inv.notes || (settings as any)?.warranty_notes_template_html || DEFAULT_WARRANTY_NOTES_HTML);
  setStep("edit_items");
  setOpen(true);
  };
@@ -739,7 +740,10 @@ export default function WarrantyInvoices() {
           </div>
         </div>
 
-        <div><Label>Notes</Label><Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={2} /></div>
+        <div>
+          <Label>Notes / Declaration <span className="text-[10px] text-muted-foreground font-normal">(rich text — supports bold, underline, lists, variables)</span></Label>
+          <NotesEditor value={formNotes} onChange={setFormNotes} minHeight={160} placeholder="Defaults to template from Settings → Warranty Invoice Template. Override per-invoice here." />
+        </div>
         <Button onClick={handleSave} className="w-full" size="lg">{editId ? "Update" : "Create"} Warranty Invoice</Button>
       </div>
     );
