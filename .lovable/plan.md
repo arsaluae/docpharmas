@@ -1,93 +1,56 @@
-# Customer Contact Import Wizard
+# Fix: Contact Import → Sync Back to Customer Record
 
-A dedicated 6-step wizard to bulk-import contact persons from Excel, smart-match them to existing customers, dedupe, and surface them across sales/payment/WhatsApp flows.
+## What's wrong today
 
-## 1. Database
+The wizard inserts rows into `customer_contacts` correctly (431 rows already exist), but **the customer record itself is never updated**. So when you open a customer, fields like `contact_person`, `phone`, `email`, `sms_mobile` still look empty — it feels like "nothing happened" even though contacts were saved.
 
-New table `public.customer_contacts` (tenant-scoped, RLS via `get_user_tenant_id()`):
+Only one half-implementation exists: `sms_mobile` is updated when blank (or when the lone `Overwrite mobile` toggle is on). `contact_person`, `phone`, `email` are ignored entirely.
 
-- `customer_id` (FK → customers, cascade delete)
-- `contact_name`, `designation`
-- `mobile`, `phone`, `email`
-- `is_primary` (bool, default false)
-- `source` (`manual` | `import`), `notes`
-- standard `tenant_id`, `created_at`, `updated_at`, audit timestamps
+## Fix
 
-Indexes on `(customer_id)`, `(tenant_id, mobile)`, `(tenant_id, email)` for duplicate detection.
-Partial unique index ensuring only one `is_primary = true` per customer.
-GRANTs to `authenticated` + `service_role`, RLS policies mirroring `customers`.
+Extend the import step so the **primary contact** for each customer is mirrored onto the `customers` table.
 
-## 2. Import Wizard (new route `/data-import/customer-contacts`)
+### 1. Sync block in `runImport` (`src/pages/ContactImportWizard.tsx`)
 
-Reachable as a card on the existing **Data Import** page (`src/pages/DataImport.tsx`) and from **Customers → Import Contacts** button.
+For each customer being imported into, pick the contact that will become primary (existing primary if any, else the first imported row) and update the customer row using these rules:
 
-### Step 1 — Upload
-- Drop Excel/CSV. Accepted headers (case-insensitive, alias-mapped via `src/lib/import/aliases.ts` extension):
-  `Customer Name, Customer Code, Contact Person, Mobile, Phone, Designation, Email`
-- Download template button (xlsx with sample rows).
-- Parse with existing `xlsx` util; show row count + raw preview.
+| Customer column | Source              | When to write                          |
+| --------------- | ------------------- | -------------------------------------- |
+| `contact_person`| `contact_name`      | blank on customer OR overwrite toggle  |
+| `sms_mobile`    | `mobile`            | blank on customer OR overwrite toggle  |
+| `phone`         | `phone` ?? `mobile` | blank on customer OR overwrite toggle  |
+| `email`         | `email`             | blank on customer OR overwrite toggle  |
 
-### Step 2 — Smart Match (client-side)
-For each row, match against `customers` in this priority:
-1. `customer_code` exact (confidence 100)
-2. Exact `name` / `company` (confidence 95)
-3. Normalized name — lowercase, strip punctuation, collapse whitespace, drop suffixes (`pharmacy`, `medicos`, `pvt ltd`) — fuzzy via Dice/Levenshtein (confidence = similarity %)
-   - ≥85 = auto-accept, 60–84 = needs review, <60 = unmatched
+One `UPDATE` per customer (deduped via `Map<customerId, payload>`), batched after the contact inserts.
 
-### Step 3 — Verification Screen
-Table with columns: Excel Customer | Matched ERP Customer (searchable dropdown) | Confidence badge | Status | Actions.
+### 2. Sync options UI (Step 3 — Verify)
 
-Per-row actions: **Accept**, **Change Match** (opens customer search), **Skip**, **Create Customer** (opens quick-create dialog prefilled from row).
+Replace the single `Overwrite mobile` checkbox with a small "Sync to customer record" panel:
 
-Bulk actions: Accept all ≥85, Skip all unmatched. Filter chips: All / Auto-matched / Needs Review / Unmatched / Skipped.
+- ☑ Contact Person
+- ☑ Mobile (sms_mobile)
+- ☐ Phone (landline)
+- ☐ Email
+- Mode: **Fill blanks only** (default) / **Overwrite existing**
 
-User cannot proceed to import until every row is Accepted / Skipped / linked to a Created customer.
+Defaults match current behaviour (Contact Person + Mobile, fill-blanks).
 
-### Step 4 — Duplicate Detection
-Before insert, for each contact compare against existing `customer_contacts` for the matched customer:
-- same `mobile` (normalized digits only)
-- same `email` (lowercased)
-- same `contact_name` (normalized)
+### 3. Summary screen (Step 4)
 
-For each conflict prompt: **Update existing**, **Skip**, **Create Duplicate**. Offer "apply choice to all remaining".
+Add a new line: **"Customer records updated: N"** so the user can see the sync actually happened.
 
-### Step 5 — Import
-Batch insert (chunks of 500). First contact per customer with no existing primary → `is_primary = true`.
+### 4. Manual entry path
 
-### Step 6 — Summary
-Show: Total Rows, Matched, Unmatched, Contacts Imported, Updated, Duplicates Skipped, Errors. Export error rows as CSV. Log run to `audit_log` via `logAudit()`.
+`CustomerContactsCard` (Add / Edit / Set-as-Primary) — when a contact is set primary OR is the first contact created, mirror the same four fields onto `customers` (fill-blanks-only, no toggle needed here — this is a deliberate user action).
 
-## 3. Customer Screen Integration
+## Out of scope
 
-- `CustomerProfileDialog`: new **Contact Persons** tab listing primary (badge) + additional contacts; inline add/edit/delete; "Set as primary" action.
-- `Customers.tsx` list: show primary contact name + mobile in expanded row / mobile card.
+- Touching `customers.phones` (jsonb array) — leave as-is.
+- Backfilling the 431 contacts already imported (can be a one-off SQL run if you want it; tell me and I'll add a follow-up).
+- Supplier contacts.
 
-## 4. ERP Contact Selectors
+## Acceptance
 
-Add optional `contact_id` field where a customer is chosen, defaulting to that customer's primary:
-- Sales Orders (Proforma), Sales Invoices, Delivery Notes — store on header, render on PDFs as "Attn: {contact_name} ({designation}) — {mobile}".
-- Payments (CollectPayment) — informational only.
-- Customer Ledger — filter/header chip.
-- WhatsApp share (`src/lib/whatsapp-share.ts`) — use selected contact's mobile instead of customer phone when present.
-
-Schema additions: `contact_id uuid` (nullable FK) on `sales_invoices`, `proforma_invoices`, `delivery_notes`, `payments`. No data migration needed — old rows stay null.
-
-## Technical Notes
-
-- New files: `src/pages/ContactImportWizard.tsx`, `src/lib/import/contacts.ts` (parse/match/dedupe helpers), `src/components/customer/ContactsTab.tsx`, `src/components/customer/ContactPicker.tsx`.
-- Reuse existing import primitives (`cleaners.ts`, xlsx parser, `SearchableSelect`, `QuickCreateCustomer`-style dialog).
-- All matching runs client-side after a single bulk customers fetch (id, customer_code, name, company) — same pattern as bulk reports.
-- Mobile normalization: strip non-digits, keep last 10; treat `+92300...` and `0300...` as equal.
-
-## Out of Scope
-
-- Importing contacts for suppliers (can be cloned later).
-- Per-contact RBAC.
-- Bulk WhatsApp blast to contacts (separate feature).
-
-## Acceptance Criteria
-
-- Wizard rejects import until 100% of rows are resolved.
-- Re-importing the same file produces 0 new contacts (all caught as duplicates).
-- Primary contact auto-flows into a new Sales Invoice's contact field, editable via dropdown.
-- Customer profile shows contacts and supports add/edit/delete/set-primary.
+- Import a sheet → open a matched customer → `Contact Person` and `Mobile` are populated on the main customer card (not just inside the Contact Persons tab).
+- Re-importing the same sheet does not overwrite already-filled fields unless "Overwrite existing" is on.
+- Summary shows `Customer records updated: N` matching how many customers had at least one field changed.
