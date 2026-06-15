@@ -794,15 +794,96 @@ export default function ContactImportWizard() {
                 <p className="text-sm text-muted-foreground">Summary of this batch</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Stat label="Total Rows" v={summary.total} />
-              <Stat label="Matched" v={summary.matched} tone="primary" />
-              <Stat label="Unmatched" v={summary.unmatched} tone="muted" />
-              <Stat label="Contacts Imported" v={summary.imported} tone="primary" />
-              <Stat label="Updated" v={summary.updated} />
+              <Stat label="Rows Linked to Customers" v={summary.matched} tone="primary" />
+              <Stat label="Unmatched Rows" v={summary.unmatched} tone={summary.unmatched ? "danger" : "muted"} />
+              <Stat label="Duplicates Skipped" v={summary.duplicatesSkipped} />
+              <Stat label="Contact Rows Created" v={summary.imported} tone="primary" />
+              <Stat label="Contact Rows Updated" v={summary.updated} />
               <Stat label="Customer Records Synced" v={summary.customersUpdated} tone="primary" />
               <Stat label="Errors" v={summary.errors.length} tone={summary.errors.length ? "danger" : "muted"} />
             </div>
+
+            {/* Row-level validation table */}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Row-by-row results
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {([
+                    ["all", "All"],
+                    ["created", "Created"],
+                    ["updated", "Updated"],
+                    ["skipped_duplicate", "Duplicates"],
+                    ["unmatched", "Unmatched"],
+                    ["skipped", "Skipped"],
+                    ["error", "Errors"],
+                  ] as const).map(([key, label]) => {
+                    const n = key === "all" ? summary.rowResults.length
+                      : summary.rowResults.filter(r => r.outcome === key).length;
+                    return (
+                      <button key={key} onClick={() => setSummaryFilter(key as any)}
+                        className={`px-2 py-1 rounded text-[11px] border ${
+                          summaryFilter === key
+                            ? "border-primary text-primary bg-primary/5"
+                            : "border-border text-muted-foreground hover:bg-foreground/[0.04]"
+                        }`}>
+                        {label} ({n})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <ScrollArea className="max-h-[50vh] border border-border rounded">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>Excel Name</TableHead>
+                      <TableHead>Contact Person</TableHead>
+                      <TableHead>Matched Customer</TableHead>
+                      <TableHead>Outcome</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(summaryFilter === "all"
+                      ? summary.rowResults
+                      : summary.rowResults.filter(r => r.outcome === summaryFilter)
+                    ).slice(0, 500).map(r => {
+                      const tone =
+                        r.outcome === "created" ? "bg-emerald-500/10 text-emerald-500" :
+                        r.outcome === "updated" ? "bg-primary/10 text-primary" :
+                        r.outcome === "skipped_duplicate" ? "bg-muted/60 text-muted-foreground" :
+                        r.outcome === "skipped" ? "bg-muted/60 text-muted-foreground" :
+                        r.outcome === "unmatched" ? "bg-destructive/10 text-destructive" :
+                        "bg-destructive/10 text-destructive";
+                      const label =
+                        r.outcome === "skipped_duplicate" ? "Duplicate" :
+                        r.outcome.charAt(0).toUpperCase() + r.outcome.slice(1);
+                      return (
+                        <TableRow key={r.rowNumber}>
+                          <TableCell className="text-[11px] text-muted-foreground tabular-nums">{r.rowNumber}</TableCell>
+                          <TableCell className="text-xs font-medium">{r.excelName}</TableCell>
+                          <TableCell className="text-xs">{r.contactName}</TableCell>
+                          <TableCell className="text-xs">{r.customerLabel}</TableCell>
+                          <TableCell><span className={`px-2 py-0.5 rounded text-[11px] ${tone}`}>{label}</span></TableCell>
+                          <TableCell className="text-[11px] text-muted-foreground">{r.reason}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {summary.rowResults.length > 500 && (
+                      <TableRow><TableCell colSpan={6} className="text-[11px] text-muted-foreground text-center">
+                        Showing first 500 rows.
+                      </TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
+
             {!!summary.errors.length && (
               <div className="border border-destructive/20 bg-destructive/5 rounded p-3 max-h-48 overflow-auto">
                 {summary.errors.slice(0, 20).map((e, i) => (
