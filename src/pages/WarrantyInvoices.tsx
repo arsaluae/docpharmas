@@ -899,7 +899,7 @@ export default function WarrantyInvoices() {
  </CardContent>
  </Card>
  </div>
- <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} views={pdfOpts ? generateWarrantyNoteViews(pdfOpts) : undefined} title={pdfTitle} />
+ {/* Legacy PdfPreviewDialog removed — preview/print/PDF now go through /print-preview/warranty-invoice/:id */}
  <AddDistributorDialog
  open={addDistOpen}
  onOpenChange={setAddDistOpen}
