@@ -6459,8 +6459,8 @@ export type Database = {
         Returns: boolean
       }
       check_purchase_invoice_lock: {
-        Args: { _invoice_id: string }
-        Returns: string
+        Args: { p_invoice_id: string }
+        Returns: undefined
       }
       current_sales_agent_id: { Args: never; Returns: string }
       current_tenant_role: {
@@ -6532,6 +6532,16 @@ export type Database = {
           supplier_code: string
           supplier_id: string
         }[]
+      }
+      edit_purchase_bill_line: {
+        Args: {
+          p_grn_item_id: string
+          p_invoice_id: string
+          p_new_qty: number
+          p_new_rate: number
+          p_reason: string
+        }
+        Returns: Json
       }
       generate_document_number: {
         Args: { p_document_type: string }
@@ -6644,6 +6654,10 @@ export type Database = {
           p_to: string
         }
         Returns: Json
+      }
+      reverse_payment: {
+        Args: { p_payment_id: string; p_reason: string }
+        Returns: string
       }
       rollback_import_batch: {
         Args: { p_batch_id: string; p_reason: string }

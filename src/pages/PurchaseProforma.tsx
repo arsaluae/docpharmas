@@ -28,6 +28,7 @@ import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PrintAvailabilityPanel } from "@/components/PrintAvailabilityPanel";
 import { QuickCreateProductDialog } from "@/components/QuickCreateProductDialog";
+import { EditSubmittedInvoiceDialog } from "@/components/purchase/EditSubmittedInvoiceDialog";
 
 
 interface Supplier { id: string; name: string; wht_rate: number; company?: string | null; phone?: string | null; address?: string | null; }
@@ -83,8 +84,10 @@ export default function PurchaseProforma() {
  const [pdfTitle, setPdfTitle] = useState("");
  const [pdfOpts, setPdfOpts] = useState<any | null>(null);
  // Edit Dialog
- const [editOpen, setEditOpen] = useState(false);
- const [editOrder, setEditOrder] = useState<PurchaseOrder | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editOrder, setEditOrder] = useState<PurchaseOrder | null>(null);
+  const [editBillOpen, setEditBillOpen] = useState(false);
+  const [editBillTarget, setEditBillTarget] = useState<{ id: string; number?: string } | null>(null);
  const [editSupplierId, setEditSupplierId] = useState("");
  const [editDate, setEditDate] = useState("");
  const [editValidity, setEditValidity] = useState("30");
@@ -1311,7 +1314,12 @@ export default function PurchaseProforma() {
  <DropdownMenuItem onClick={() => shareWhatsApp(order)}><MessageCircle className="h-3.5 w-3.5 mr-2 text-success" /> WhatsApp</DropdownMenuItem>
  {order.converted_po_id && <DropdownMenuItem onClick={() => printPurchaseInvoice(order)}><FileText className="h-3.5 w-3.5 mr-2" /> Invoice PDF</DropdownMenuItem>}
  {order.converted_po_id && <DropdownMenuItem onClick={() => printPurchaseDeliveryNote(order)}><Truck className="h-3.5 w-3.5 mr-2" /> Delivery Note</DropdownMenuItem>}
- {(order.status === "draft" || ((order.status === "ordered" || order.status === "confirmed") && !order.grn_number)) && <DropdownMenuItem onClick={() => openEditSheet(order)}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>}
+  {(order.status === "draft" || ((order.status === "ordered" || order.status === "confirmed") && !order.grn_number)) && <DropdownMenuItem onClick={() => openEditSheet(order)}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>}
+  {order.bill_id && (order.status === "received" || order.status === "paid") && (
+    <DropdownMenuItem onClick={() => { setEditBillTarget({ id: order.bill_id!, number: order.bill_number }); setEditBillOpen(true); }}>
+      <FileEdit className="h-3.5 w-3.5 mr-2" /> Edit Submitted Bill
+    </DropdownMenuItem>
+  )}
  {(order.status === "ordered" || order.status === "confirmed") && <DropdownMenuItem onClick={() => promptVoid(order)} className="text-destructive"><RotateCcw className="h-3.5 w-3.5 mr-2" /> Void</DropdownMenuItem>}
  {order.status === "draft" && <DropdownMenuItem onClick={() => promptDelete([order.id])} className="text-destructive"><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>}
  </DropdownMenuContent>
@@ -1628,11 +1636,19 @@ export default function PurchaseProforma() {
  </DialogContent>
  </Dialog>
 
- <QuickCreateProductDialog
-   open={quickProductOpen}
-   onOpenChange={setQuickProductOpen}
-   onCreated={handleQuickProductCreated}
- />
+  <QuickCreateProductDialog
+    open={quickProductOpen}
+    onOpenChange={setQuickProductOpen}
+    onCreated={handleQuickProductCreated}
+  />
+
+  <EditSubmittedInvoiceDialog
+    open={editBillOpen}
+    onOpenChange={setEditBillOpen}
+    invoiceId={editBillTarget?.id ?? null}
+    invoiceNumber={editBillTarget?.number}
+    onSaved={() => load()}
+  />
  </AppLayout>
  );
 }

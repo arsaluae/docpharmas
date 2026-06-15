@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
 import { FreightProvidersCard } from "@/components/settings/FreightProvidersCard";
+import { PurchaseEditWindowCard } from "@/components/settings/PurchaseEditWindowCard";
 import { WhatsAppTemplatesCard } from "@/components/settings/WhatsAppTemplatesCard";
 import { SandboxTestingTab } from "@/components/settings/SandboxTestingTab";
 import { FlaskConical } from "lucide-react";
@@ -367,10 +368,12 @@ export default function Settings() {
  ))}
  </div>
  </CardContent>
- </Card>
+  </Card>
 
- <FreightProvidersCard />
- </TabsContent>
+  <PurchaseEditWindowCard />
+
+  <FreightProvidersCard />
+  </TabsContent>
 
 
 
