@@ -111,10 +111,21 @@ export default function ContactImportWizard() {
 
   // Step 4 — summary
   const [posting, setPosting] = useState(false);
+  type RowOutcome = "created" | "updated" | "skipped_duplicate" | "skipped" | "unmatched" | "error";
+  interface RowResult {
+    rowNumber: number;
+    excelName: string;
+    contactName: string;
+    customerLabel: string;
+    outcome: RowOutcome;
+    reason: string;
+  }
   const [summary, setSummary] = useState<{
     total: number; matched: number; unmatched: number; imported: number;
     updated: number; duplicatesSkipped: number; customersUpdated: number; errors: string[];
+    rowResults: RowResult[];
   } | null>(null);
+  const [summaryFilter, setSummaryFilter] = useState<"all" | RowOutcome>("all");
 
   async function onFile(f: File) {
     setFileName(f.name);
@@ -252,10 +263,31 @@ export default function ContactImportWizard() {
   async function runImport() {
     setPosting(true);
     try {
+      // Initialize per-row outcomes for ALL parsed matches so the summary can
+      // show every row, including ones the user skipped or that never matched.
+      const outcomes = new Map<number, RowResult>();
+      for (const m of matches) {
+        let outcome: RowOutcome = "unmatched";
+        let reason = m.reason || "No ERP customer matched";
+        if (m.status === "skipped") { outcome = "skipped"; reason = "Skipped by user"; }
+        else if (!m.matchedCustomerId) { outcome = "unmatched"; }
+        outcomes.set(m.row.rowNumber, {
+          rowNumber: m.row.rowNumber,
+          excelName: m.row.matchName || "—",
+          contactName: m.row.contact_name || "—",
+          customerLabel: m.matchedLabel || "—",
+          outcome,
+          reason,
+        });
+      }
+
       const ready = matches.filter(m =>
         (m.status === "accepted" || m.status === "auto" || m.status === "created") && m.matchedCustomerId);
 
-      if (!ready.length) { toast.error("Nothing to import"); setPosting(false); return; }
+      if (!ready.length) {
+        toast.error("Nothing to import — accept matches or create customers first");
+        setPosting(false); return;
+      }
 
       const customerIds = [...new Set(ready.map(m => m.matchedCustomerId!))];
 
@@ -277,11 +309,11 @@ export default function ContactImportWizard() {
         list.push(m); byCustomer.set(m.matchedCustomerId!, list);
       }
 
-      let imported = 0, updated = 0;
-      const dupSkipped = 0;
+      let imported = 0, updated = 0, dupSkipped = 0;
       const errors: string[] = [];
-      const inserts: any[] = [];
-      const updates: { id: string; payload: any }[] = [];
+      // Inserts tracked alongside the originating row so we can mark errors back.
+      const inserts: { rowNumber: number; payload: any }[] = [];
+      const updates: { rowNumber: number; id: string; payload: any }[] = [];
       const customerSyncUpdates = new Map<string, Record<string, string>>();
 
       for (const [custId, list] of byCustomer) {
@@ -292,10 +324,10 @@ export default function ContactImportWizard() {
         let assignedPrimary = !!hasPrimary;
         const cust = customers.find(c => c.id === custId);
 
-        // Track the contact that will become primary (existing primary OR first imported row).
         let primaryContactForSync: { contact_name: string; mobile: string; phone: string; email: string } | null = null;
 
         for (const m of list) {
+          const rn = m.row.rowNumber;
           const candidate = {
             contact_name: m.row.contact_name,
             designation: m.row.designation || null,
@@ -309,8 +341,20 @@ export default function ContactImportWizard() {
             email: m.row.email,
           }, customerExisting);
           if (dup) {
+            // Identical row with nothing new to add → true duplicate skip.
+            const hasNewInfo = (candidate.mobile && candidate.mobile !== dup.mobile)
+              || (candidate.email && candidate.email !== dup.email)
+              || (candidate.designation || candidate.phone);
+            if (!hasNewInfo) {
+              dupSkipped++;
+              outcomes.set(rn, {
+                ...outcomes.get(rn)!, outcome: "skipped_duplicate",
+                reason: `Already exists on ${m.matchedLabel}`,
+              });
+              continue;
+            }
             updates.push({
-              id: dup.id,
+              rowNumber: rn, id: dup.id,
               payload: {
                 contact_name: candidate.contact_name || dup.contact_name,
                 mobile: candidate.mobile || dup.mobile,
@@ -320,14 +364,25 @@ export default function ContactImportWizard() {
               },
             });
             updated++;
+            outcomes.set(rn, {
+              ...outcomes.get(rn)!, outcome: "updated",
+              reason: `Merged into existing contact on ${m.matchedLabel}`,
+            });
             continue;
           }
           const isThisPrimary = !assignedPrimary;
           inserts.push({
-            customer_id: custId,
-            ...candidate,
-            is_primary: isThisPrimary,
-            source: "import",
+            rowNumber: rn,
+            payload: {
+              customer_id: custId,
+              ...candidate,
+              is_primary: isThisPrimary,
+              source: "import",
+            },
+          });
+          outcomes.set(rn, {
+            ...outcomes.get(rn)!, outcome: "created",
+            reason: `Linked to ${m.matchedLabel}${isThisPrimary ? " (set as primary)" : ""}`,
           });
           if (isThisPrimary && !primaryContactForSync) {
             primaryContactForSync = {
@@ -341,7 +396,6 @@ export default function ContactImportWizard() {
           imported++;
         }
 
-        // ---- Sync primary contact details back to the customer record ----
         if (cust && primaryContactForSync) {
           const c = primaryContactForSync;
           const payload: Record<string, string> = {};
@@ -364,41 +418,65 @@ export default function ContactImportWizard() {
 
       for (let i = 0; i < inserts.length; i += 500) {
         const slice = inserts.slice(i, i + 500);
-        const { error } = await supabase.from("customer_contacts" as any).insert(slice);
-        if (error) { errors.push(error.message); imported -= slice.length; }
+        const { error } = await supabase.from("customer_contacts" as any).insert(slice.map(s => s.payload));
+        if (error) {
+          errors.push(error.message);
+          imported -= slice.length;
+          for (const s of slice) {
+            outcomes.set(s.rowNumber, {
+              ...outcomes.get(s.rowNumber)!, outcome: "error",
+              reason: `Insert failed: ${error.message}`,
+            });
+          }
+        }
       }
       for (const u of updates) {
         const { error } = await supabase.from("customer_contacts" as any).update(u.payload).eq("id", u.id);
-        if (error) errors.push(error.message);
+        if (error) {
+          errors.push(error.message);
+          updated--;
+          outcomes.set(u.rowNumber, {
+            ...outcomes.get(u.rowNumber)!, outcome: "error",
+            reason: `Update failed: ${error.message}`,
+          });
+        }
       }
-      // Apply customer sync updates (deduped, one row per customer).
       let customersUpdated = 0;
       for (const [id, payload] of customerSyncUpdates) {
         const { error } = await supabase.from("customers").update(payload as any).eq("id", id);
         if (error) errors.push(error.message); else customersUpdated++;
       }
 
+      const rowResults = Array.from(outcomes.values()).sort((a, b) => a.rowNumber - b.rowNumber);
       const sum = {
         total: matches.length,
         matched: matches.filter(m => m.matchedCustomerId).length,
-        unmatched: matches.filter(m => !m.matchedCustomerId && m.status !== "skipped").length,
+        unmatched: rowResults.filter(r => r.outcome === "unmatched").length,
         imported,
         updated,
         duplicatesSkipped: dupSkipped,
         customersUpdated,
         errors,
+        rowResults,
       };
       setSummary(sum);
+      setSummaryFilter("all");
 
       await logAudit({
         entity_type: "import_batch",
         entity_id: null,
         action: "import_completed",
-        changes: { kind: "customer_contacts", note: `${imported} new, ${updated} updated, ${customersUpdated} customers synced`, ...sum } as any,
+        changes: {
+          kind: "customer_contacts",
+          note: `${imported} new, ${updated} updated, ${dupSkipped} duplicates skipped, ${customersUpdated} customers synced`,
+          total: sum.total, matched: sum.matched, unmatched: sum.unmatched,
+          imported, updated, duplicatesSkipped: dupSkipped, customersUpdated,
+          errors,
+        } as any,
       });
 
       setStep(4);
-      toast.success(`Imported ${imported} contacts · ${customersUpdated} customer records synced`);
+      toast.success(`Imported ${imported} contacts · ${updated} updated · ${customersUpdated} customers synced`);
     } catch (e: any) {
       toast.error(e?.message ?? "Import failed");
     } finally {
@@ -653,7 +731,12 @@ export default function ContactImportWizard() {
                       </TableCell>
                       <TableCell className="text-[11px] text-muted-foreground">{m.matchMethod}</TableCell>
                       <TableCell className="text-center"><ConfidenceBadge value={m.confidence} /></TableCell>
-                      <TableCell><StatusPill s={m.status} /></TableCell>
+                      <TableCell>
+                        <StatusPill s={m.status} />
+                        {m.reason && (m.status === "review" || m.status === "unmatched") && (
+                          <div className="text-[10px] text-muted-foreground mt-1 max-w-[180px]">{m.reason}</div>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           {m.matchedCustomerId && m.status !== "accepted" && m.status !== "created" && (
@@ -711,15 +794,96 @@ export default function ContactImportWizard() {
                 <p className="text-sm text-muted-foreground">Summary of this batch</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Stat label="Total Rows" v={summary.total} />
-              <Stat label="Matched" v={summary.matched} tone="primary" />
-              <Stat label="Unmatched" v={summary.unmatched} tone="muted" />
-              <Stat label="Contacts Imported" v={summary.imported} tone="primary" />
-              <Stat label="Updated" v={summary.updated} />
+              <Stat label="Rows Linked to Customers" v={summary.matched} tone="primary" />
+              <Stat label="Unmatched Rows" v={summary.unmatched} tone={summary.unmatched ? "danger" : "muted"} />
+              <Stat label="Duplicates Skipped" v={summary.duplicatesSkipped} />
+              <Stat label="Contact Rows Created" v={summary.imported} tone="primary" />
+              <Stat label="Contact Rows Updated" v={summary.updated} />
               <Stat label="Customer Records Synced" v={summary.customersUpdated} tone="primary" />
               <Stat label="Errors" v={summary.errors.length} tone={summary.errors.length ? "danger" : "muted"} />
             </div>
+
+            {/* Row-level validation table */}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Row-by-row results
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {([
+                    ["all", "All"],
+                    ["created", "Created"],
+                    ["updated", "Updated"],
+                    ["skipped_duplicate", "Duplicates"],
+                    ["unmatched", "Unmatched"],
+                    ["skipped", "Skipped"],
+                    ["error", "Errors"],
+                  ] as const).map(([key, label]) => {
+                    const n = key === "all" ? summary.rowResults.length
+                      : summary.rowResults.filter(r => r.outcome === key).length;
+                    return (
+                      <button key={key} onClick={() => setSummaryFilter(key as any)}
+                        className={`px-2 py-1 rounded text-[11px] border ${
+                          summaryFilter === key
+                            ? "border-primary text-primary bg-primary/5"
+                            : "border-border text-muted-foreground hover:bg-foreground/[0.04]"
+                        }`}>
+                        {label} ({n})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <ScrollArea className="max-h-[50vh] border border-border rounded">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>Excel Name</TableHead>
+                      <TableHead>Contact Person</TableHead>
+                      <TableHead>Matched Customer</TableHead>
+                      <TableHead>Outcome</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(summaryFilter === "all"
+                      ? summary.rowResults
+                      : summary.rowResults.filter(r => r.outcome === summaryFilter)
+                    ).slice(0, 500).map(r => {
+                      const tone =
+                        r.outcome === "created" ? "bg-emerald-500/10 text-emerald-500" :
+                        r.outcome === "updated" ? "bg-primary/10 text-primary" :
+                        r.outcome === "skipped_duplicate" ? "bg-muted/60 text-muted-foreground" :
+                        r.outcome === "skipped" ? "bg-muted/60 text-muted-foreground" :
+                        r.outcome === "unmatched" ? "bg-destructive/10 text-destructive" :
+                        "bg-destructive/10 text-destructive";
+                      const label =
+                        r.outcome === "skipped_duplicate" ? "Duplicate" :
+                        r.outcome.charAt(0).toUpperCase() + r.outcome.slice(1);
+                      return (
+                        <TableRow key={r.rowNumber}>
+                          <TableCell className="text-[11px] text-muted-foreground tabular-nums">{r.rowNumber}</TableCell>
+                          <TableCell className="text-xs font-medium">{r.excelName}</TableCell>
+                          <TableCell className="text-xs">{r.contactName}</TableCell>
+                          <TableCell className="text-xs">{r.customerLabel}</TableCell>
+                          <TableCell><span className={`px-2 py-0.5 rounded text-[11px] ${tone}`}>{label}</span></TableCell>
+                          <TableCell className="text-[11px] text-muted-foreground">{r.reason}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {summary.rowResults.length > 500 && (
+                      <TableRow><TableCell colSpan={6} className="text-[11px] text-muted-foreground text-center">
+                        Showing first 500 rows.
+                      </TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
+
             {!!summary.errors.length && (
               <div className="border border-destructive/20 bg-destructive/5 rounded p-3 max-h-48 overflow-auto">
                 {summary.errors.slice(0, 20).map((e, i) => (

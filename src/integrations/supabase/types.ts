@@ -5908,6 +5908,7 @@ export type Database = {
       is_agent_customer: { Args: { p_customer_id: string }; Returns: boolean }
       is_authenticated: { Args: never; Returns: boolean }
       migration_pre_snapshot: { Args: never; Returns: Json }
+      normalize_supplier_name: { Args: { s: string }; Returns: string }
       preview_wipe_counts: { Args: never; Returns: Json }
       recalc_customer_invoice_status: {
         Args: { p_customer_id: string }

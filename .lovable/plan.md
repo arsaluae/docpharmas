@@ -1,56 +1,62 @@
-# Fix: Contact Import → Sync Back to Customer Record
+## Plan
 
-## What's wrong today
+1. **Customer Contact Import: real post-import validation**
+   - Add row-level import results after posting: `created`, `updated`, `linked`, `skipped duplicate`, `unmatched`, `error`.
+   - Add clear unmatched reasons, for example:
+     - no customer code/name mapped
+     - blank customer/contact value after mapping
+     - no ERP customer above match threshold
+     - row still pending review
+   - Show a final validation table in the Summary step with row number, Excel name used, contact person, matched customer, outcome, and reason.
+   - Fix the current misleading summary so it shows:
+     - Total Rows
+     - Contact Rows Created
+     - Contact Rows Updated
+     - Rows Linked to Customers
+     - Customer Records Synced
+     - Duplicates Found
+     - Unmatched Rows
+     - Errors
 
-The wizard inserts rows into `customer_contacts` correctly (431 rows already exist), but **the customer record itself is never updated**. So when you open a customer, fields like `contact_person`, `phone`, `email`, `sms_mobile` still look empty — it feels like "nothing happened" even though contacts were saved.
+2. **Improve contact matching visibility**
+   - Add an `unmatchedReason` / `reason` field to contact matching results.
+   - Keep the existing flexible column mapping, but make the verification screen expose why a row did not match instead of silently showing “unmatched”.
+   - Keep import blocked until pending review/unmatched rows are accepted, manually mapped, created, or skipped.
 
-Only one half-implementation exists: `sms_mobile` is updated when blank (or when the lone `Overwrite mobile` toggle is on). `contact_person`, `phone`, `email` are ignored entirely.
+3. **Prevent duplicate suppliers**
+   - Add a database-level duplicate guard so future duplicate suppliers are blocked even if they are created from another screen/import path.
+   - Block duplicates by tenant using:
+     - normalized supplier name
+     - supplier code when present
+   - Existing duplicate supplier rows will remain for now, but new duplicates will be prevented.
+   - Add friendly checks in the Suppliers form so users see “Supplier already exists” before save.
+   - Update supplier import posting so it detects existing suppliers first, skips duplicates, and reports them as skipped with row-level reasons instead of inserting another supplier.
 
-## Fix
+4. **Purchase Order editing**
+   - Keep draft purchase orders editable as today.
+   - Also allow editing approved/confirmed purchase orders **before GRN/receipt or paid invoice activity**.
+   - When editing an approved PO, sync changes to both:
+     - the source purchase proforma
+     - the linked purchase order and purchase order items
+   - Do not allow edits after stock receipt/payment activity, because those affect stock and accounting history.
 
-Extend the import step so the **primary contact** for each customer is mirrored onto the `customers` table.
+5. **Ledger sync behavior**
+   - Keep supplier ledger syncing on purchase invoice/bill creation, not on draft PO creation.
+   - Make the PO screen clearer by ensuring edits before receipt update the linked bill if one was auto-created and still unpaid/unreceived.
+   - Avoid changing ledger balances directly from purchase orders, so accounting stays tied to purchase invoices.
 
-### 1. Sync block in `runImport` (`src/pages/ContactImportWizard.tsx`)
+## Technical notes
 
-For each customer being imported into, pick the contact that will become primary (existing primary if any, else the first imported row) and update the customer row using these rules:
-
-| Customer column | Source              | When to write                          |
-| --------------- | ------------------- | -------------------------------------- |
-| `contact_person`| `contact_name`      | blank on customer OR overwrite toggle  |
-| `sms_mobile`    | `mobile`            | blank on customer OR overwrite toggle  |
-| `phone`         | `phone` ?? `mobile` | blank on customer OR overwrite toggle  |
-| `email`         | `email`             | blank on customer OR overwrite toggle  |
-
-One `UPDATE` per customer (deduped via `Map<customerId, payload>`), batched after the contact inserts.
-
-### 2. Sync options UI (Step 3 — Verify)
-
-Replace the single `Overwrite mobile` checkbox with a small "Sync to customer record" panel:
-
-- ☑ Contact Person
-- ☑ Mobile (sms_mobile)
-- ☐ Phone (landline)
-- ☐ Email
-- Mode: **Fill blanks only** (default) / **Overwrite existing**
-
-Defaults match current behaviour (Contact Person + Mobile, fill-blanks).
-
-### 3. Summary screen (Step 4)
-
-Add a new line: **"Customer records updated: N"** so the user can see the sync actually happened.
-
-### 4. Manual entry path
-
-`CustomerContactsCard` (Add / Edit / Set-as-Primary) — when a contact is set primary OR is the first contact created, mirror the same four fields onto `customers` (fill-blanks-only, no toggle needed here — this is a deliberate user action).
-
-## Out of scope
-
-- Touching `customers.phones` (jsonb array) — leave as-is.
-- Backfilling the 431 contacts already imported (can be a one-off SQL run if you want it; tell me and I'll add a follow-up).
-- Supplier contacts.
-
-## Acceptance
-
-- Import a sheet → open a matched customer → `Contact Person` and `Mobile` are populated on the main customer card (not just inside the Contact Persons tab).
-- Re-importing the same sheet does not overwrite already-filled fields unless "Overwrite existing" is on.
-- Summary shows `Customer records updated: N` matching how many customers had at least one field changed.
+- Files to change:
+  - `src/lib/import/contacts.ts`
+  - `src/pages/ContactImportWizard.tsx`
+  - `src/lib/import/posters.ts`
+  - `src/pages/DataImport.tsx`
+  - `src/pages/Suppliers.tsx`
+  - `src/pages/PurchaseProforma.tsx`
+- Database migration:
+  - Add a supplier duplicate-prevention trigger/function for normalized names and supplier codes.
+- Validation:
+  - Confirm contact import summary shows actual created/updated/linked counts.
+  - Confirm supplier duplicate attempts are blocked from manual add and skipped during import.
+  - Confirm editable purchase orders save changes into linked PO records before receipt/payment.

@@ -96,6 +96,22 @@ export default function Suppliers() {
 
  const handleSave = async () => {
  if (!form.name.trim()) { toast.error("Company Name is required"); return; }
+
+ // Friendly pre-save duplicate check (DB trigger is the source of truth).
+ const norm = form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+ const { data: existing } = await supabase
+   .from("suppliers")
+   .select("id, name, supplier_code");
+ const clash = (existing || []).find((s: any) => {
+   if (editId && s.id === editId) return false;
+   const sn = String(s.name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+   return sn === norm;
+ });
+ if (clash) {
+   toast.error(`"${(clash as any).name}" already exists${(clash as any).supplier_code ? ` (${(clash as any).supplier_code})` : ""} — open it instead of creating a duplicate.`);
+   return;
+ }
+
  const basePayload: any = {
  name: form.name, company: form.company || null, ntn: form.ntn || null, strn: form.strn || null,
  phone: form.phone || null, email: form.email || null, address: form.address || null, city: form.city || null,

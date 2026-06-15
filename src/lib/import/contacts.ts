@@ -57,6 +57,8 @@ export interface MatchResult {
   confidence: number;
   matchMethod: MatchMethod;
   status: MatchStatus;
+  /** Human-readable reason a row is in review/unmatched state. Empty when fully matched. */
+  reason?: string;
 }
 
 // ---------- Header auto-detection ----------
@@ -270,17 +272,29 @@ export function matchRow(row: ContactRow, customers: CustomerLite[]): MatchResul
     if (best && best.score >= 0.55) {
       const conf = Math.round(best.score * 100);
       const status: MatchStatus = conf >= 90 ? "auto" : conf >= 70 ? "review" : "unmatched";
+      const reason = status === "auto" ? undefined
+        : status === "review" ? `Fuzzy match ${conf}% — needs review`
+        : `Best fuzzy match only ${conf}% (below 70% threshold)`;
       return {
         row, matchedCustomerId: best.c.id,
         matchedLabel: best.c.name || best.c.company || "—",
-        confidence: conf, matchMethod: "Fuzzy", status,
+        confidence: conf, matchMethod: "Fuzzy", status, reason,
       };
     }
   }
 
+  // Nothing matched — explain why.
+  let reason = "No similar ERP customer found";
+  if (!row.matchName.trim()) {
+    reason = row.matchNameSource === "empty"
+      ? "Blank Customer Name and Contact Person — nothing to match on"
+      : "Blank value in mapped column";
+  } else if (row.customer_code && !target) {
+    reason = `Customer code "${row.customer_code}" not found in ERP`;
+  }
   return {
     row, matchedCustomerId: null, matchedLabel: "",
-    confidence: 0, matchMethod: "None", status: "unmatched",
+    confidence: 0, matchMethod: "None", status: "unmatched", reason,
   };
 }
 
