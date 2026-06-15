@@ -17,8 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Plus, Search, Package, Trash2, Upload, ArrowDownUp, Banknote, AlertTriangle, TrendingUp, Layers, Power } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { ProductBatchProfileDialog } from "@/components/ProductBatchProfileDialog";
-import { OpeningStockPanel, type OpeningStockPanelHandle } from "@/components/products/OpeningStockPanel";
-import { useRef } from "react";
+// Opening Stock is now a dedicated workspace at /opening-stock (multi-product, multi-batch document).
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useTenant } from "@/hooks/useTenant";
