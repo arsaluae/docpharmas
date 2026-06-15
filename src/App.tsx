@@ -105,6 +105,7 @@ const SalesInvoicesList = lazy(() => import("./pages/SalesInvoicesList"));
 const AgentReports = lazy(() => import("./pages/AgentReports"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PrintWarrantyInvoice = lazy(() => import("./pages/PrintWarrantyInvoice"));
+const OpeningStock = lazy(() => import("./pages/OpeningStock"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
