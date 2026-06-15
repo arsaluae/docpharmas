@@ -1314,7 +1314,12 @@ export default function PurchaseProforma() {
  <DropdownMenuItem onClick={() => shareWhatsApp(order)}><MessageCircle className="h-3.5 w-3.5 mr-2 text-success" /> WhatsApp</DropdownMenuItem>
  {order.converted_po_id && <DropdownMenuItem onClick={() => printPurchaseInvoice(order)}><FileText className="h-3.5 w-3.5 mr-2" /> Invoice PDF</DropdownMenuItem>}
  {order.converted_po_id && <DropdownMenuItem onClick={() => printPurchaseDeliveryNote(order)}><Truck className="h-3.5 w-3.5 mr-2" /> Delivery Note</DropdownMenuItem>}
- {(order.status === "draft" || ((order.status === "ordered" || order.status === "confirmed") && !order.grn_number)) && <DropdownMenuItem onClick={() => openEditSheet(order)}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>}
+  {(order.status === "draft" || ((order.status === "ordered" || order.status === "confirmed") && !order.grn_number)) && <DropdownMenuItem onClick={() => openEditSheet(order)}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>}
+  {order.bill_id && (order.status === "received" || order.status === "paid") && (
+    <DropdownMenuItem onClick={() => { setEditBillTarget({ id: order.bill_id!, number: order.bill_number }); setEditBillOpen(true); }}>
+      <FileEdit className="h-3.5 w-3.5 mr-2" /> Edit Submitted Bill
+    </DropdownMenuItem>
+  )}
  {(order.status === "ordered" || order.status === "confirmed") && <DropdownMenuItem onClick={() => promptVoid(order)} className="text-destructive"><RotateCcw className="h-3.5 w-3.5 mr-2" /> Void</DropdownMenuItem>}
  {order.status === "draft" && <DropdownMenuItem onClick={() => promptDelete([order.id])} className="text-destructive"><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>}
  </DropdownMenuContent>
