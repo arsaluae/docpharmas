@@ -111,10 +111,21 @@ export default function ContactImportWizard() {
 
   // Step 4 — summary
   const [posting, setPosting] = useState(false);
+  type RowOutcome = "created" | "updated" | "skipped_duplicate" | "skipped" | "unmatched" | "error";
+  interface RowResult {
+    rowNumber: number;
+    excelName: string;
+    contactName: string;
+    customerLabel: string;
+    outcome: RowOutcome;
+    reason: string;
+  }
   const [summary, setSummary] = useState<{
     total: number; matched: number; unmatched: number; imported: number;
     updated: number; duplicatesSkipped: number; customersUpdated: number; errors: string[];
+    rowResults: RowResult[];
   } | null>(null);
+  const [summaryFilter, setSummaryFilter] = useState<"all" | RowOutcome>("all");
 
   async function onFile(f: File) {
     setFileName(f.name);
