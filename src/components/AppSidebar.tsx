@@ -50,6 +50,7 @@ const allSections: Section[] = [
   ]},
   { label: "Inventory", icon: Package, resource: "inventory", items: [
     { title: "Products & Stock", url: "/products", icon: Package, resource: "inventory" },
+    { title: "Opening Stock", url: "/opening-stock", icon: PackagePlus, resource: "inventory" },
     { title: "Stock Movements", url: "/stock", icon: RotateCcw, resource: "inventory" },
     { title: "Landed Costs", url: "/landed-costs", icon: Banknote, resource: "purchase" },
     { title: "Printers", url: "/printers", icon: Printer, resource: "inventory" },
