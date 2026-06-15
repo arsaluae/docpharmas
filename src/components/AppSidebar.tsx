@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Truck, Package, LogOut, FileText,
   ClipboardList, Wallet, CreditCard, Landmark,
   BarChart3, RotateCcw, Upload, Settings, Printer, ChevronDown,
-  Banknote, Building2, Keyboard, Moon, Sun, BookOpen, Shield,
+  Banknote, Building2, Keyboard, Moon, Sun, BookOpen, Shield, PackagePlus,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -50,6 +50,7 @@ const allSections: Section[] = [
   ]},
   { label: "Inventory", icon: Package, resource: "inventory", items: [
     { title: "Products & Stock", url: "/products", icon: Package, resource: "inventory" },
+    { title: "Opening Stock", url: "/opening-stock", icon: PackagePlus, resource: "inventory" },
     { title: "Stock Movements", url: "/stock", icon: RotateCcw, resource: "inventory" },
     { title: "Landed Costs", url: "/landed-costs", icon: Banknote, resource: "purchase" },
     { title: "Printers", url: "/printers", icon: Printer, resource: "inventory" },

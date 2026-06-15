@@ -105,6 +105,7 @@ const SalesInvoicesList = lazy(() => import("./pages/SalesInvoicesList"));
 const AgentReports = lazy(() => import("./pages/AgentReports"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PrintWarrantyInvoice = lazy(() => import("./pages/PrintWarrantyInvoice"));
+const OpeningStock = lazy(() => import("./pages/OpeningStock"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -212,6 +213,7 @@ const App = () => (
                 <Route element={<RequireCap resource="inventory" action="write" />}>
                   <Route path="/stock" element={<StockMovements />} />
                   <Route path="/stock-audit" element={<StockAudit />} />
+                  <Route path="/opening-stock" element={<OpeningStock />} />
                 </Route>
 
                 {/* Accounting */}
