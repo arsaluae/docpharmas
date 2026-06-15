@@ -367,10 +367,12 @@ export default function Settings() {
  ))}
  </div>
  </CardContent>
- </Card>
+  </Card>
 
- <FreightProvidersCard />
- </TabsContent>
+  <PurchaseEditWindowCard />
+
+  <FreightProvidersCard />
+  </TabsContent>
 
 
 
