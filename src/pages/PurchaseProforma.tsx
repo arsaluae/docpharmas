@@ -28,6 +28,7 @@ import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PrintAvailabilityPanel } from "@/components/PrintAvailabilityPanel";
 import { QuickCreateProductDialog } from "@/components/QuickCreateProductDialog";
+import { EditSubmittedInvoiceDialog } from "@/components/purchase/EditSubmittedInvoiceDialog";
 
 
 interface Supplier { id: string; name: string; wht_rate: number; company?: string | null; phone?: string | null; address?: string | null; }
