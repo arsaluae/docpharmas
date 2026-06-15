@@ -91,99 +91,14 @@ export default function WarrantyInvoices() {
     return `${d}/${m}/${y}`;
   };
 
-  // Build the warranty-note options payload from a saved invoice. Uses snapshot
-  // fields stored on the row first, falls back to live distributor / agent.
-  const buildWarrantyOpts = async (inv: WarrantyInvoice): Promise<WarrantyNoteOptions> => {
-    let dist: Distributor | null = null;
-    if (inv.distributor_id) {
-      const { data } = await supabase.from("customer_distributors").select("*").eq("id", inv.distributor_id).single() as { data: Distributor | null };
-      dist = data;
-    }
-    // Live fallback for sales rep when snapshot is missing (legacy rows)
-    let liveRep: SalesAgent | null = null;
-    if (!inv.sales_rep_name && inv.sales_agent_id) {
-      const { data } = await supabase.from("sales_agents").select("*").eq("id", inv.sales_agent_id).single() as { data: SalesAgent | null };
-      liveRep = data;
-    }
-    const items = Array.isArray(inv.items) ? inv.items as any[] : [];
-    return {
-      invoiceNumber: inv.warranty_number,
-      date: fmtDate(inv.date),
-      dueDate: fmtDate(inv.date),
-      createdBy: inv.created_by_name || undefined,
-      distributor: {
-        name: dist?.name || inv.pharmacy_name || "—",
-        address: inv.customer_warranty_address || dist?.address || inv.pharmacy_address || null,
-        phone: inv.customer_mobile || dist?.phone || null,
-        licenseNumber: inv.customer_license_number || dist?.license_number || inv.pharmacy_license_no || null,
-        licenseExpiry: inv.customer_license_expiry ? fmtDate(inv.customer_license_expiry) : (dist?.license_expiry ? fmtDate(dist.license_expiry) : null),
-        ntn: inv.customer_ntn || null,
-        cnic: inv.customer_cnic || null,
-      },
-      items: items.map((i: any) => ({
-        product_name: i.product_name || "",
-        product_description: i.product_description || i.product_name || "",
-        batch_number: i.batch_number || "",
-        expiry_date: i.expiry_date || "",
-        quantity: Number(i.quantity || 0),
-        tp_rate: Number(i.tp_rate || 0),
-        mrp: Number(i.mrp || 0),
-        discount: Number(i.discount || 0),
-        amount: Number(i.amount || 0),
-      })),
-      subtotal: Number(inv.subtotal || 0),
-      discountAmount: Number(inv.discount_amount || 0),
-      discountLabel: Number(inv.discount_percent || 0) > 0 ? `Discount (${inv.discount_percent}%)` : "Discount",
-      total: Number(inv.total || 0),
-      salesRep: {
-        name: inv.sales_rep_name || liveRep?.name || null,
-        fatherName: inv.sales_rep_father_name || liveRep?.father_name || null,
-        cnic: inv.sales_rep_cnic || liveRep?.cnic || null,
-        gender: inv.sales_rep_gender || liveRep?.gender || null,
-        licenseNumber: inv.agent_license_number || liveRep?.license_number || null,
-        licenseExpiry: inv.agent_license_expiry ? fmtDate(inv.agent_license_expiry) : (liveRep?.license_expiry ? fmtDate(liveRep.license_expiry) : null),
-        signatureUrl: inv.rep_signature_url || liveRep?.signature_url || null,
-        stampUrl: inv.rep_stamp_url || liveRep?.stamp_url || null,
-      },
-      companyStampUrl: inv.company_stamp_url || null,
-      companySignatureUrl: inv.company_signature_url || null,
-      settings,
-    };
+  // Open the new bare-page print preview / print / pdf route. All three
+  // entrypoints share one renderer (WarrantyInvoiceTemplate) so preview ≡
+  // print ≡ PDF.
+  const openPreview = (inv: WarrantyInvoice, action?: "print" | "pdf") => {
+    const q = action ? `?action=${action}` : "";
+    window.open(`/print-preview/warranty-invoice/${inv.id}${q}`, "_blank", "noopener,noreferrer");
   };
 
-
-
-  const validateForPdf = async (inv: WarrantyInvoice): Promise<string[]> => {
-    const errs: string[] = [];
-    const s = settings as any;
-    if (!s) return errs;
-    let dist: Distributor | null = null;
-    if (inv.distributor_id) {
-      const { data } = await supabase.from("customer_distributors").select("*").eq("id", inv.distributor_id).single() as { data: Distributor | null };
-      dist = data;
-    }
-    if (s.warranty_require_mobile !== false && !dist?.phone) errs.push("Warranty Address mobile is missing");
-    if (s.warranty_require_address !== false && !dist?.address && !inv.pharmacy_address) errs.push("Warranty Address is missing");
-    if (s.warranty_require_license_no !== false && !dist?.license_number && !inv.pharmacy_license_no) errs.push("Distributor licence number is missing");
-    if (s.warranty_require_license_expiry !== false && !dist?.license_expiry) errs.push("Distributor licence expiry is missing");
-    const items = Array.isArray(inv.items) ? inv.items as any[] : [];
-    if (s.warranty_require_batch_number !== false && items.some(i => !i.batch_number)) errs.push("One or more items are missing a Batch Number");
-    if (s.warranty_require_batch_expiry !== false && items.some(i => !i.expiry_date)) errs.push("One or more items are missing a Batch Expiry");
-    return errs;
-  };
-
-  const openPdf = async (inv: WarrantyInvoice) => {
-    const errs = await validateForPdf(inv);
-    if (errs.length) {
-      toast.error("Cannot download Warranty Note", { description: errs.join(" · ") });
-      return;
-    }
-    const opts = await buildWarrantyOpts(inv);
-    setPdfOpts(opts);
-    setPdfHtml(generateWarrantyNoteHtml(opts));
-    setPdfTitle(`Warranty-Note-${inv.warranty_number}-${(inv.customers?.name || inv.pharmacy_name || "Customer").replace(/[^a-z0-9-_]+/gi, "-")}`);
-    setPdfOpen(true);
-  };
 
 
  // Creation flow state
