@@ -226,6 +226,7 @@ const App = () => (
                   <Route path="/system-health" element={<SystemHealth />} />
                   <Route path="/settings/backups" element={<Backups />} />
                   <Route path="/audit-log" element={<AuditLog />} />
+                  <Route path="/admin/data-cleanup" element={<DataCleanup />} />
                 </Route>
 
                 {/* Reports */}
