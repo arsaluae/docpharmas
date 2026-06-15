@@ -247,8 +247,42 @@ async function postCustomers(rows: Row[], batchId: string): Promise<PostResult> 
 async function postSuppliers(rows: Row[], batchId: string): Promise<PostResult> {
   const tenantId = await getTenantId();
   const errors: string[] = [];
-  let posted = 0;
-  for (const c of chunk(rows, 500)) {
+  let posted = 0, skippedDup = 0;
+
+  // Pre-load existing suppliers to skip duplicates by normalized name or code.
+  const { data: existingRows } = await supabase
+    .from("suppliers")
+    .select("name, supplier_code")
+    .eq("tenant_id", tenantId);
+  const norm = (s: unknown) =>
+    String(s ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+  const existingNames = new Set<string>();
+  const existingCodes = new Set<string>();
+  (existingRows ?? []).forEach((s: any) => {
+    const n = norm(s.name);
+    if (n) existingNames.add(n);
+    const c = norm(s.supplier_code);
+    if (c) existingCodes.add(c);
+  });
+
+  const fresh: Row[] = [];
+  const seenNames = new Set<string>();
+  const seenCodes = new Set<string>();
+  for (const r of rows) {
+    const n = norm(r.normalized.name);
+    const c = norm(r.normalized.supplier_code);
+    if ((n && (existingNames.has(n) || seenNames.has(n))) ||
+        (c && (existingCodes.has(c) || seenCodes.has(c)))) {
+      skippedDup++;
+      errors.push(`Row ${r.rowNumber}: skipped — supplier "${r.normalized.name}" already exists`);
+      continue;
+    }
+    if (n) seenNames.add(n);
+    if (c) seenCodes.add(c);
+    fresh.push(r);
+  }
+
+  for (const c of chunk(fresh, 500)) {
     const payload = c.map(r => ({
       tenant_id: tenantId,
       name: r.normalized.name,
@@ -282,6 +316,9 @@ async function postSuppliers(rows: Row[], batchId: string): Promise<PostResult> 
     const { error, data } = await supabase.from("suppliers").insert(payload as any).select("id");
     if (error) errors.push(error.message);
     else posted += data?.length ?? 0;
+  }
+  if (skippedDup > 0) {
+    errors.unshift(`${skippedDup} duplicate supplier row(s) skipped — already exist in the workspace`);
   }
   return { posted, skipped: rows.length - posted, errors };
 }
