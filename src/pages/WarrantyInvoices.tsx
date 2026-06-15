@@ -296,7 +296,7 @@ export default function WarrantyInvoices() {
  setDiscountType("percent");
  setDiscountValue(0);
  setFormDate(new Date().toISOString().split("T")[0]);
- setFormNotes("");
+ setFormNotes((settings as any)?.warranty_notes_template_html || DEFAULT_WARRANTY_NOTES_HTML);
  setEditId(null);
  };
 
