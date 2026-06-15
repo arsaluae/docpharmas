@@ -264,7 +264,7 @@ export default function Products() {
  ) : (
  <>
  <Button variant="outline" size="sm" onClick={() => navigate("/import?tab=products")}><Upload className="h-4 w-4 mr-1" /> Import</Button>
- {activeTab !== "movements" && <Button variant="outline" size="sm" onClick={() => setOpeningOpen(true)}><Layers className="h-4 w-4 mr-1" /> Add Opening Stock</Button>}
+ {activeTab !== "movements" && !readOnly && <Button variant="outline" size="sm" onClick={() => { setEditId(null); setForm(emptyForm); setOpen(true); }}><Layers className="h-4 w-4 mr-1" /> New Product + Batches</Button>}
  {activeTab === "movements" ? (
  <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
  <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Record Movement</Button></DialogTrigger>
