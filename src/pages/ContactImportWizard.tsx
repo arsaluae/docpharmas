@@ -717,6 +717,7 @@ export default function ContactImportWizard() {
               <Stat label="Unmatched" v={summary.unmatched} tone="muted" />
               <Stat label="Contacts Imported" v={summary.imported} tone="primary" />
               <Stat label="Updated" v={summary.updated} />
+              <Stat label="Customer Records Synced" v={summary.customersUpdated} tone="primary" />
               <Stat label="Errors" v={summary.errors.length} tone={summary.errors.length ? "danger" : "muted"} />
             </div>
             {!!summary.errors.length && (
