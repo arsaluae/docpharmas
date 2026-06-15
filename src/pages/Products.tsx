@@ -149,40 +149,36 @@ export default function Products() {
     mrp: Number(form.mrp) || 0,
     gst_rate: Number(form.gst_rate), reorder_level: Number(form.reorder_level),
     };
-  if (editId) {
-  // Don't touch cost_price (landed cache) on plain edit — only purchase_cost changes here.
-  await supabase.from("products").update(basePayload).eq("id", editId);
-  toast.success("Product updated");
-  } else {
-  // Auto-generate SKU if missing
-  let sku = (form.sku || "").trim();
-  if (!sku) {
-    const { data: gen } = await supabase.rpc("generate_sku" as any);
-    sku = (gen as string) || null as any;
-  }
-  // Seed landed cache = purchase cost until landed-cost engine runs.
-  const insertPayload = { ...basePayload, sku, cost_price: Number(form.purchase_cost), stock_quantity: 0 };
-  const openingQty = Number(form.stock_quantity) || 0;
-  const { data: created, error: createErr } = await supabase
-  .from("products")
-  .insert(insertPayload)
-  .select("id")
-  .single();
-  if (createErr) { toast.error("Failed: " + createErr.message); return; }
-  if (openingQty > 0 && created?.id) {
-  await supabase.from("stock_movements").insert({
-  product_id: created.id,
-  quantity: openingQty,
-  movement_type: "opening",
-  date: new Date().toISOString().slice(0, 10),
-  reference_type: "opening_balance",
-  notes: "Opening stock set on product creation",
-  } as any);
-  }
-  toast.success(`Product created — SKU ${sku}`);
-  }
-  setOpen(false); setForm(emptyForm); setEditId(null); loadAll();
-  };
+   let savedId = editId;
+   if (editId) {
+     // Don't touch cost_price (landed cache) on plain edit — only purchase_cost changes here.
+     const { error } = await supabase.from("products").update(basePayload).eq("id", editId);
+     if (error) { toast.error("Failed: " + error.message); return; }
+   } else {
+     // Auto-generate SKU if missing
+     let sku = (form.sku || "").trim();
+     if (!sku) {
+       const { data: gen } = await supabase.rpc("generate_sku" as any);
+       sku = (gen as string) || null as any;
+     }
+     // Seed landed cache = purchase cost until landed-cost engine runs.
+     const insertPayload = { ...basePayload, sku, cost_price: Number(form.purchase_cost), stock_quantity: 0 };
+     const { data: created, error: createErr } = await supabase
+       .from("products")
+       .insert(insertPayload)
+       .select("id")
+       .single();
+     if (createErr) { toast.error("Failed: " + createErr.message); return; }
+     savedId = created?.id || null;
+   }
+   // Persist opening-stock batch changes (inserts, updates, deletes) via the panel.
+   if (savedId && openingPanelRef.current) {
+     const ok = await openingPanelRef.current.save(savedId);
+     if (!ok) return; // keep dialog open so user can fix
+   }
+   toast.success(editId ? "Product updated" : "Product created");
+   setOpen(false); setForm(emptyForm); setEditId(null); loadAll();
+   };
 
  const handleEdit = (p: Product) => {
  setEditId(p.id);
