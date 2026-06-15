@@ -559,20 +559,49 @@ export default function ContactImportWizard() {
         {/* ============ STEP 3: VERIFY ============ */}
         {step === 3 && (
           <Card className="p-0 overflow-hidden">
-            <div className="p-4 border-b border-border flex flex-wrap items-center gap-3">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-              <div className="flex-1 min-w-[200px]">
-                <p className="font-medium text-sm">Verify matches</p>
-                <p className="text-xs text-muted-foreground">
-                  {counts.auto} auto · {counts.review} review · {counts.unmatched} unmatched · {counts.skipped} skipped
-                </p>
+            <div className="p-4 border-b border-border space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                <div className="flex-1 min-w-[200px]">
+                  <p className="font-medium text-sm">Verify matches</p>
+                  <p className="text-xs text-muted-foreground">
+                    {counts.auto} auto · {counts.review} review · {counts.unmatched} unmatched · {counts.skipped} skipped
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={acceptAllAuto}>Accept all auto-matched</Button>
+                <Button size="sm" variant="outline" onClick={skipUnmatched}>Skip all unmatched</Button>
               </div>
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <input type="checkbox" className="accent-primary" checked={overwriteMobile} onChange={e => setOverwriteMobile(e.target.checked)} />
-                Overwrite customer mobile when present
-              </label>
-              <Button size="sm" variant="outline" onClick={acceptAllAuto}>Accept all auto-matched</Button>
-              <Button size="sm" variant="outline" onClick={skipUnmatched}>Skip all unmatched</Button>
+              <div className="rounded border border-border bg-muted/20 p-3 space-y-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Sync primary contact back to customer record
+                </p>
+                <div className="flex flex-wrap items-center gap-4 text-xs">
+                  {(["contact_person", "sms_mobile", "phone", "email"] as const).map((f) => (
+                    <label key={f} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="accent-primary"
+                        checked={syncOptions[f]}
+                        onChange={(e) => setSyncOptions(s => ({ ...s, [f]: e.target.checked }))}
+                      />
+                      {f === "contact_person" ? "Contact Person" :
+                       f === "sms_mobile" ? "Mobile" :
+                       f === "phone" ? "Phone (landline)" : "Email"}
+                    </label>
+                  ))}
+                  <span className="text-muted-foreground">·</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="accent-primary"
+                      checked={syncOptions.overwrite}
+                      onChange={(e) => setSyncOptions(s => ({ ...s, overwrite: e.target.checked }))}
+                    />
+                    Overwrite existing values
+                    <span className="text-muted-foreground">(default: fill blanks only)</span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div className="px-4 pt-3 flex flex-wrap gap-2">
