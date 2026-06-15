@@ -14,9 +14,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Search, Package, Trash2, Upload, ArrowDownUp, Banknote, AlertTriangle, TrendingUp, Layers, Power } from "lucide-react";
+import { Plus, Search, Package, Trash2, Upload, ArrowDownUp, Banknote, AlertTriangle, TrendingUp, Layers, Power, Pencil, Eye } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { ProductBatchProfileDialog } from "@/components/ProductBatchProfileDialog";
+import { ProductDetailDrawer } from "@/components/products/ProductDetailDrawer";
 // Opening Stock is now a dedicated workspace at /opening-stock (multi-product, multi-batch document).
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -62,6 +63,10 @@ export default function Products() {
  const [editId, setEditId] = useState<string | null>(null);
  const [activeTab, setActiveTab] = useState("catalog");
  const [profileProduct, setProfileProduct] = useState<Product | null>(null);
+ const [detailProductId, setDetailProductId] = useState<string | null>(null);
+ const [supplierMap, setSupplierMap] = useState<Record<string, string>>({});
+ const [batchSummary, setBatchSummary] = useState<Record<string, { count: number; nearest: string | null }>>({});
+
 
  // Stock movement form
  const [moveOpen, setMoveOpen] = useState(false);
@@ -107,24 +112,51 @@ export default function Products() {
   prodQuery.range(productPagination.from, productPagination.to),
   moveQuery,
   ]);
- if (prodRes.data) {
-   // Normalize view rows → Product-shaped objects (no cost data exposed)
-   const rows = hideCost
-     ? (prodRes.data as any[]).map((r) => ({
-         id: r.product_id, name: r.product_name ?? r.name, sku: r.sku, product_code: r.product_code,
-         category: r.category, pack_size: r.pack_size, unit: r.unit,
-         cost_price: 0, selling_price: r.selling_price ?? r.sale_price ?? 0, mrp: r.mrp ?? 0,
-         gst_rate: r.gst_rate ?? 0, stock_quantity: r.available_qty ?? 0,
-         reorder_level: r.reorder_level ?? 0, is_active: true,
-         drap_reg_number: null, generic_name: r.generic_name, brand: r.brand,
-         supplier_name: r.supplier_name, batch_count: r.batch_count, nearest_expiry: r.nearest_expiry,
-       }))
-     : prodRes.data;
-   setProducts(rows as any);
- }
- if (prodRes.count !== null) productPagination.setTotalCount(prodRes.count);
- if (moveRes.data) setMovements(moveRes.data);
- if (moveRes.count !== null) movementPagination.setTotalCount(moveRes.count);
+  if (prodRes.data) {
+    // Normalize view rows → Product-shaped objects (no cost data exposed)
+    const rows = hideCost
+      ? (prodRes.data as any[]).map((r) => ({
+          id: r.product_id, name: r.product_name ?? r.name, sku: r.sku, product_code: r.product_code,
+          category: r.category, pack_size: r.pack_size, unit: r.unit,
+          cost_price: 0, selling_price: r.selling_price ?? r.sale_price ?? 0, mrp: r.mrp ?? 0,
+          gst_rate: r.gst_rate ?? 0, stock_quantity: r.available_qty ?? 0,
+          reorder_level: r.reorder_level ?? 0, is_active: true,
+          drap_reg_number: null, generic_name: r.generic_name, brand: r.brand,
+          supplier_name: r.supplier_name, batch_count: r.batch_count, nearest_expiry: r.nearest_expiry,
+        }))
+      : prodRes.data;
+    setProducts(rows as any);
+
+    // Bulk enrich (admin view only — sales-agent view already has these fields).
+    if (!hideCost) {
+      const productIds = (rows as any[]).map((p) => p.id).filter(Boolean);
+      const supplierIds = Array.from(new Set((rows as any[]).map((p) => p.supplier_id).filter(Boolean)));
+      const [{ data: sups }, { data: grnRows }] = await Promise.all([
+        supplierIds.length
+          ? supabase.from("suppliers").select("id, name").in("id", supplierIds)
+          : Promise.resolve({ data: [] as any[] }),
+        productIds.length
+          ? supabase.from("grn_items").select("product_id, expiry_date, batch_number").in("product_id", productIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const sMap: Record<string, string> = {};
+      (sups as any[] || []).forEach((s) => { sMap[s.id] = s.name; });
+      setSupplierMap(sMap);
+
+      const bSummary: Record<string, { count: number; nearest: string | null }> = {};
+      (grnRows as any[] || []).forEach((g) => {
+        if (!g.product_id) return;
+        const cur = bSummary[g.product_id] || { count: 0, nearest: null as string | null };
+        if (g.batch_number) cur.count += 1;
+        if (g.expiry_date && (!cur.nearest || g.expiry_date < cur.nearest)) cur.nearest = g.expiry_date;
+        bSummary[g.product_id] = cur;
+      });
+      setBatchSummary(bSummary);
+    }
+  }
+  if (prodRes.count !== null) productPagination.setTotalCount(prodRes.count);
+  if (moveRes.data) setMovements(moveRes.data);
+  if (moveRes.count !== null) movementPagination.setTotalCount(moveRes.count);
  };
 
  const toggleActive = async (p: Product, e: React.MouseEvent) => {
@@ -365,65 +397,95 @@ export default function Products() {
  </label>
  </div>
  <Card className="glass-card">
- <CardContent className="p-0">
- <Table>
+ <CardContent className="p-0 overflow-x-auto">
+ <Table className="min-w-[1400px]">
  <TableHeader>
  <TableRow>
- <TableHead>SKU</TableHead><TableHead>Name</TableHead><TableHead>Category</TableHead>
+ <TableHead>SKU</TableHead>
+ <TableHead>Name</TableHead>
+ <TableHead>Supplier</TableHead>
+ <TableHead>Category</TableHead>
+ <TableHead>Unit</TableHead>
  {!hideCost && <TableHead className="text-right">Purchase</TableHead>}
  {!hideCost && <TableHead className="text-right">Landed</TableHead>}
- <TableHead className="text-right">Net Price</TableHead><TableHead className="text-right">MRP</TableHead>
- {!hideCost && <TableHead className="text-right" title="(Sale − Landed) ÷ Landed × 100">Markup %</TableHead>}
+ <TableHead className="text-right">Sale</TableHead>
+ <TableHead className="text-right">MRP</TableHead>
+ {!hideCost && <TableHead className="text-right" title="(Sale − Landed) ÷ Landed × 100">Margin %</TableHead>}
  <TableHead className="text-right">Stock</TableHead>
+ <TableHead className="text-right">Batches</TableHead>
+ <TableHead>Nearest expiry</TableHead>
+ <TableHead className="text-right">Reorder</TableHead>
+ <TableHead className="text-center">Status</TableHead>
  <TableHead className="text-center">Actions</TableHead>
  </TableRow>
  </TableHeader>
  <TableBody>
  {filtered.length === 0 ? (
- <TableRow><TableCell colSpan={hideCost ? 7 : 10} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
- ) : filtered.map(p => (
- <TableRow key={p.id} className={`${readOnly ? "" : "cursor-pointer"} table-row-hover ${p.is_active === false ? "opacity-50" : ""}`} onClick={() => { if (!readOnly) handleEdit(p); }}>
- <TableCell className="text-xs font-mono">{p.sku || (p as any).product_code || "—"}</TableCell>
- <TableCell className="font-medium">{p.name}</TableCell>
- <TableCell><span className="status-pill bg-primary/10 text-primary capitalize">{p.category}</span></TableCell>
- {!hideCost && <TableCell className="text-right font-mono tabular-nums">{Number((p as any).purchase_cost ?? p.cost_price).toLocaleString()}</TableCell>}
- {!hideCost && <TableCell className="text-right font-mono tabular-nums">{landedOf(p).toLocaleString()}</TableCell>}
- <TableCell className="text-right font-mono tabular-nums">{Number(p.selling_price).toLocaleString()}</TableCell>
- <TableCell className="text-right font-mono tabular-nums text-muted-foreground">{Number(p.mrp || 0) > 0 ? Number(p.mrp).toLocaleString() : "—"}</TableCell>
- {!hideCost && (
-   <TableCell className="text-right font-mono tabular-nums">
-     <span className="text-primary">{margin(p)}</span>
-     {landedMissing(p) && <Badge variant="outline" className="ml-1 text-[9px] py-0 px-1 text-warning border-warning/40">no landed</Badge>}
-   </TableCell>
- )}
- <TableCell className="text-right">
- <span className={Number(p.stock_quantity) <= Number(p.reorder_level) ? "text-destructive font-semibold" : ""}>{Number(p.stock_quantity).toLocaleString()}</span>
- </TableCell>
- <TableCell className="text-center">
- <div onClick={e => e.stopPropagation()} className="flex items-center justify-center gap-1">
- <Button
- variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary"
- title="Batch profile & landed cost"
- onClick={() => setProfileProduct(p)}
- >
- <Layers className="h-3.5 w-3.5" />
- </Button>
-  {!readOnly && (
-  <>
-  <Button variant="ghost" size="icon" className={`h-7 w-7 ${p.is_active === false ? "text-success" : "text-warning"}`} onClick={(e) => toggleActive(p, e)} title={p.is_active === false ? "Reactivate" : "Deactivate"}><Power className="h-3.5 w-3.5" /></Button>
-  <AlertDialog>
-  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
-  <AlertDialogContent>
-  <AlertDialogHeader><AlertDialogTitle>Delete {p.name}?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this product.</AlertDialogDescription></AlertDialogHeader>
-  <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => handleDelete(p.id, e)}>Delete</AlertDialogAction></AlertDialogFooter>
-  </AlertDialogContent>
-  </AlertDialog>
-  </>
-  )}
- </div>
- </TableCell>
- </TableRow>
- ))}
+ <TableRow><TableCell colSpan={hideCost ? 13 : 16} className="text-center py-12 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-40" />No products yet.</TableCell></TableRow>
+ ) : filtered.map(p => {
+   const supName = (p as any).supplier_name ?? supplierMap[(p as any).supplier_id] ?? "—";
+   const bs = batchSummary[p.id];
+   const bCount = (p as any).batch_count ?? bs?.count ?? 0;
+   const nearest = (p as any).nearest_expiry ?? bs?.nearest ?? null;
+   const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+   const isLow = Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= Number(p.reorder_level);
+   const isOut = Number(p.stock_quantity) <= 0;
+   return (
+   <TableRow
+     key={p.id}
+     className={`cursor-pointer table-row-hover ${p.is_active === false ? "opacity-50" : ""}`}
+     onClick={() => setDetailProductId(p.id)}
+   >
+     <TableCell className="text-xs font-mono">{p.sku || "—"}</TableCell>
+     <TableCell className="font-medium">{p.name}</TableCell>
+     <TableCell className="text-xs text-muted-foreground">{supName}</TableCell>
+     <TableCell><span className="status-pill bg-primary/10 text-primary capitalize">{p.category}</span></TableCell>
+     <TableCell className="text-xs text-muted-foreground">{p.unit || "—"}</TableCell>
+     {!hideCost && <TableCell className="text-right font-mono tabular-nums">{Number((p as any).purchase_cost ?? p.cost_price).toLocaleString()}</TableCell>}
+     {!hideCost && <TableCell className="text-right font-mono tabular-nums">{landedOf(p).toLocaleString()}</TableCell>}
+     <TableCell className="text-right font-mono tabular-nums">{Number(p.selling_price).toLocaleString()}</TableCell>
+     <TableCell className="text-right font-mono tabular-nums text-muted-foreground">{Number(p.mrp || 0) > 0 ? Number(p.mrp).toLocaleString() : "—"}</TableCell>
+     {!hideCost && (
+       <TableCell className="text-right font-mono tabular-nums">
+         <span className="text-primary">{margin(p)}</span>
+         {landedMissing(p) && <Badge variant="outline" className="ml-1 text-[9px] py-0 px-1 text-warning border-warning/40">no landed</Badge>}
+       </TableCell>
+     )}
+     <TableCell className="text-right">
+       <span className={isOut ? "text-destructive font-semibold" : isLow ? "text-warning font-semibold" : "font-mono"}>{Number(p.stock_quantity).toLocaleString()}</span>
+     </TableCell>
+     <TableCell className="text-right font-mono text-xs">{bCount || "—"}</TableCell>
+     <TableCell className="text-xs">{fmtDate(nearest)}</TableCell>
+     <TableCell className="text-right font-mono text-xs text-muted-foreground">{Number(p.reorder_level)}</TableCell>
+     <TableCell className="text-center">{stockStatus(p)}</TableCell>
+     <TableCell className="text-center">
+       <div onClick={e => e.stopPropagation()} className="flex items-center justify-center gap-1">
+         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" title="Open detail" onClick={() => setDetailProductId(p.id)}>
+           <Eye className="h-3.5 w-3.5" />
+         </Button>
+         <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" title="Batch profile & landed cost" onClick={() => setProfileProduct(p)}>
+           <Layers className="h-3.5 w-3.5" />
+         </Button>
+         {!readOnly && (
+         <>
+           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" title="Edit" onClick={() => handleEdit(p)}>
+             <Pencil className="h-3.5 w-3.5" />
+           </Button>
+           <Button variant="ghost" size="icon" className={`h-7 w-7 ${p.is_active === false ? "text-success" : "text-warning"}`} onClick={(e) => toggleActive(p, e)} title={p.is_active === false ? "Reactivate" : "Deactivate"}><Power className="h-3.5 w-3.5" /></Button>
+           <AlertDialog>
+             <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+             <AlertDialogContent>
+               <AlertDialogHeader><AlertDialogTitle>Delete {p.name}?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this product.</AlertDialogDescription></AlertDialogHeader>
+               <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={(e) => handleDelete(p.id, e)}>Delete</AlertDialogAction></AlertDialogFooter>
+             </AlertDialogContent>
+           </AlertDialog>
+         </>
+         )}
+       </div>
+     </TableCell>
+   </TableRow>
+   );
+ })}
  </TableBody>
  </Table>
  <PaginationControls
@@ -561,6 +623,15 @@ export default function Products() {
  salePrice={Number(profileProduct?.selling_price || 0)}
  currentLandedCost={Number(profileProduct?.cost_price || 0)}
  onSaved={loadAll}
+ />
+ <ProductDetailDrawer
+   open={!!detailProductId}
+   onOpenChange={(o) => { if (!o) setDetailProductId(null); }}
+   productId={detailProductId}
+   onEdit={(id) => {
+     const p = products.find((x) => x.id === id);
+     if (p) { setDetailProductId(null); handleEdit(p); }
+   }}
  />
  </AppLayout>
  );
