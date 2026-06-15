@@ -731,7 +731,12 @@ export default function ContactImportWizard() {
                       </TableCell>
                       <TableCell className="text-[11px] text-muted-foreground">{m.matchMethod}</TableCell>
                       <TableCell className="text-center"><ConfidenceBadge value={m.confidence} /></TableCell>
-                      <TableCell><StatusPill s={m.status} /></TableCell>
+                      <TableCell>
+                        <StatusPill s={m.status} />
+                        {m.reason && (m.status === "review" || m.status === "unmatched") && (
+                          <div className="text-[10px] text-muted-foreground mt-1 max-w-[180px]">{m.reason}</div>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           {m.matchedCustomerId && m.status !== "accepted" && m.status !== "created" && (
