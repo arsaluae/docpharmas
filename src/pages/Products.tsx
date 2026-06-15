@@ -551,11 +551,6 @@ export default function Products() {
  currentLandedCost={Number(profileProduct?.cost_price || 0)}
  onSaved={loadAll}
  />
- <OpeningStockDialog
- open={openingOpen}
- onOpenChange={setOpeningOpen}
- onSaved={loadAll}
- />
  </AppLayout>
  );
 }
