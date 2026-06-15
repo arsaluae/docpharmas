@@ -84,8 +84,10 @@ export default function PurchaseProforma() {
  const [pdfTitle, setPdfTitle] = useState("");
  const [pdfOpts, setPdfOpts] = useState<any | null>(null);
  // Edit Dialog
- const [editOpen, setEditOpen] = useState(false);
- const [editOrder, setEditOrder] = useState<PurchaseOrder | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editOrder, setEditOrder] = useState<PurchaseOrder | null>(null);
+  const [editBillOpen, setEditBillOpen] = useState(false);
+  const [editBillTarget, setEditBillTarget] = useState<{ id: string; number?: string } | null>(null);
  const [editSupplierId, setEditSupplierId] = useState("");
  const [editDate, setEditDate] = useState("");
  const [editValidity, setEditValidity] = useState("30");
