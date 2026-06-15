@@ -101,13 +101,19 @@ export default function ContactImportWizard() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createTargetRow, setCreateTargetRow] = useState<number | null>(null);
   const [createForm, setCreateForm] = useState({ name: "", phone: "", email: "" });
-  const [overwriteMobile, setOverwriteMobile] = useState(false);
+  const [syncOptions, setSyncOptions] = useState({
+    contact_person: true,
+    sms_mobile: true,
+    phone: false,
+    email: false,
+    overwrite: false, // false = fill blanks only
+  });
 
   // Step 4 — summary
   const [posting, setPosting] = useState(false);
   const [summary, setSummary] = useState<{
     total: number; matched: number; unmatched: number; imported: number;
-    updated: number; duplicatesSkipped: number; errors: string[];
+    updated: number; duplicatesSkipped: number; customersUpdated: number; errors: string[];
   } | null>(null);
 
   async function onFile(f: File) {
@@ -276,7 +282,7 @@ export default function ContactImportWizard() {
       const errors: string[] = [];
       const inserts: any[] = [];
       const updates: { id: string; payload: any }[] = [];
-      const customerMobileUpdates: { id: string; mobile: string }[] = [];
+      const customerSyncUpdates = new Map<string, Record<string, string>>();
 
       for (const [custId, list] of byCustomer) {
         const customerExisting = existing.filter(e => e.customer_id === custId);
@@ -285,6 +291,9 @@ export default function ContactImportWizard() {
           : false;
         let assignedPrimary = !!hasPrimary;
         const cust = customers.find(c => c.id === custId);
+
+        // Track the contact that will become primary (existing primary OR first imported row).
+        let primaryContactForSync: { contact_name: string; mobile: string; phone: string; email: string } | null = null;
 
         for (const m of list) {
           const candidate = {
@@ -313,18 +322,42 @@ export default function ContactImportWizard() {
             updated++;
             continue;
           }
+          const isThisPrimary = !assignedPrimary;
           inserts.push({
             customer_id: custId,
             ...candidate,
-            is_primary: !assignedPrimary,
+            is_primary: isThisPrimary,
             source: "import",
           });
+          if (isThisPrimary && !primaryContactForSync) {
+            primaryContactForSync = {
+              contact_name: m.row.contact_name,
+              mobile: m.row.mobile,
+              phone: m.row.phone,
+              email: m.row.email,
+            };
+          }
           if (!assignedPrimary) assignedPrimary = true;
           imported++;
+        }
 
-          // Optional: update customer's mobile if blank, or always (with confirmation flag).
-          if (cust && candidate.mobile && (overwriteMobile || !cust.sms_mobile)) {
-            customerMobileUpdates.push({ id: custId, mobile: candidate.mobile });
+        // ---- Sync primary contact details back to the customer record ----
+        if (cust && primaryContactForSync) {
+          const c = primaryContactForSync;
+          const payload: Record<string, string> = {};
+          const fillable = (field: "contact_person" | "sms_mobile" | "phone" | "email", value: string, currentVal: string | null | undefined) => {
+            if (!syncOptions[field]) return;
+            if (!value) return;
+            if (syncOptions.overwrite || !currentVal || !String(currentVal).trim()) {
+              payload[field] = value;
+            }
+          };
+          fillable("contact_person", c.contact_name, (cust as any).contact_person);
+          fillable("sms_mobile", c.mobile, cust.sms_mobile);
+          fillable("phone", c.phone || c.mobile, cust.phone);
+          fillable("email", c.email, (cust as any).email);
+          if (Object.keys(payload).length) {
+            customerSyncUpdates.set(custId, payload);
           }
         }
       }
@@ -338,12 +371,11 @@ export default function ContactImportWizard() {
         const { error } = await supabase.from("customer_contacts" as any).update(u.payload).eq("id", u.id);
         if (error) errors.push(error.message);
       }
-      // Apply customer mobile updates (deduped, last write wins per customer).
-      const mobileMap = new Map<string, string>();
-      for (const m of customerMobileUpdates) mobileMap.set(m.id, m.mobile);
-      for (const [id, mobile] of mobileMap) {
-        const { error } = await supabase.from("customers").update({ sms_mobile: mobile } as any).eq("id", id);
-        if (error) errors.push(error.message);
+      // Apply customer sync updates (deduped, one row per customer).
+      let customersUpdated = 0;
+      for (const [id, payload] of customerSyncUpdates) {
+        const { error } = await supabase.from("customers").update(payload as any).eq("id", id);
+        if (error) errors.push(error.message); else customersUpdated++;
       }
 
       const sum = {
@@ -353,6 +385,7 @@ export default function ContactImportWizard() {
         imported,
         updated,
         duplicatesSkipped: dupSkipped,
+        customersUpdated,
         errors,
       };
       setSummary(sum);
@@ -361,11 +394,11 @@ export default function ContactImportWizard() {
         entity_type: "import_batch",
         entity_id: null,
         action: "import_completed",
-        changes: { kind: "customer_contacts", note: `${imported} new, ${updated} updated`, ...sum } as any,
+        changes: { kind: "customer_contacts", note: `${imported} new, ${updated} updated, ${customersUpdated} customers synced`, ...sum } as any,
       });
 
       setStep(4);
-      toast.success(`Imported ${imported} contacts (${updated} updated)`);
+      toast.success(`Imported ${imported} contacts · ${customersUpdated} customer records synced`);
     } catch (e: any) {
       toast.error(e?.message ?? "Import failed");
     } finally {
@@ -526,20 +559,49 @@ export default function ContactImportWizard() {
         {/* ============ STEP 3: VERIFY ============ */}
         {step === 3 && (
           <Card className="p-0 overflow-hidden">
-            <div className="p-4 border-b border-border flex flex-wrap items-center gap-3">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-              <div className="flex-1 min-w-[200px]">
-                <p className="font-medium text-sm">Verify matches</p>
-                <p className="text-xs text-muted-foreground">
-                  {counts.auto} auto · {counts.review} review · {counts.unmatched} unmatched · {counts.skipped} skipped
-                </p>
+            <div className="p-4 border-b border-border space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                <div className="flex-1 min-w-[200px]">
+                  <p className="font-medium text-sm">Verify matches</p>
+                  <p className="text-xs text-muted-foreground">
+                    {counts.auto} auto · {counts.review} review · {counts.unmatched} unmatched · {counts.skipped} skipped
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={acceptAllAuto}>Accept all auto-matched</Button>
+                <Button size="sm" variant="outline" onClick={skipUnmatched}>Skip all unmatched</Button>
               </div>
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <input type="checkbox" className="accent-primary" checked={overwriteMobile} onChange={e => setOverwriteMobile(e.target.checked)} />
-                Overwrite customer mobile when present
-              </label>
-              <Button size="sm" variant="outline" onClick={acceptAllAuto}>Accept all auto-matched</Button>
-              <Button size="sm" variant="outline" onClick={skipUnmatched}>Skip all unmatched</Button>
+              <div className="rounded border border-border bg-muted/20 p-3 space-y-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Sync primary contact back to customer record
+                </p>
+                <div className="flex flex-wrap items-center gap-4 text-xs">
+                  {(["contact_person", "sms_mobile", "phone", "email"] as const).map((f) => (
+                    <label key={f} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="accent-primary"
+                        checked={syncOptions[f]}
+                        onChange={(e) => setSyncOptions(s => ({ ...s, [f]: e.target.checked }))}
+                      />
+                      {f === "contact_person" ? "Contact Person" :
+                       f === "sms_mobile" ? "Mobile" :
+                       f === "phone" ? "Phone (landline)" : "Email"}
+                    </label>
+                  ))}
+                  <span className="text-muted-foreground">·</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="accent-primary"
+                      checked={syncOptions.overwrite}
+                      onChange={(e) => setSyncOptions(s => ({ ...s, overwrite: e.target.checked }))}
+                    />
+                    Overwrite existing values
+                    <span className="text-muted-foreground">(default: fill blanks only)</span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div className="px-4 pt-3 flex flex-wrap gap-2">
@@ -655,6 +717,7 @@ export default function ContactImportWizard() {
               <Stat label="Unmatched" v={summary.unmatched} tone="muted" />
               <Stat label="Contacts Imported" v={summary.imported} tone="primary" />
               <Stat label="Updated" v={summary.updated} />
+              <Stat label="Customer Records Synced" v={summary.customersUpdated} tone="primary" />
               <Stat label="Errors" v={summary.errors.length} tone={summary.errors.length ? "danger" : "muted"} />
             </div>
             {!!summary.errors.length && (
