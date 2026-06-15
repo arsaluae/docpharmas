@@ -1636,11 +1636,19 @@ export default function PurchaseProforma() {
  </DialogContent>
  </Dialog>
 
- <QuickCreateProductDialog
-   open={quickProductOpen}
-   onOpenChange={setQuickProductOpen}
-   onCreated={handleQuickProductCreated}
- />
+  <QuickCreateProductDialog
+    open={quickProductOpen}
+    onOpenChange={setQuickProductOpen}
+    onCreated={handleQuickProductCreated}
+  />
+
+  <EditSubmittedInvoiceDialog
+    open={editBillOpen}
+    onOpenChange={setEditBillOpen}
+    invoiceId={editBillTarget?.id ?? null}
+    invoiceNumber={editBillTarget?.number}
+    onSaved={() => load()}
+  />
  </AppLayout>
  );
 }
