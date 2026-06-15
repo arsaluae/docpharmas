@@ -432,10 +432,6 @@ export default function ContactImportWizard() {
             customerSyncUpdates.set(custId, payload);
           }
         }
-          if (Object.keys(payload).length) {
-            customerSyncUpdates.set(custId, payload);
-          }
-        }
       }
 
       for (let i = 0; i < inserts.length; i += 500) {
