@@ -63,6 +63,10 @@ export default function Products() {
  const [editId, setEditId] = useState<string | null>(null);
  const [activeTab, setActiveTab] = useState("catalog");
  const [profileProduct, setProfileProduct] = useState<Product | null>(null);
+ const [detailProductId, setDetailProductId] = useState<string | null>(null);
+ const [supplierMap, setSupplierMap] = useState<Record<string, string>>({});
+ const [batchSummary, setBatchSummary] = useState<Record<string, { count: number; nearest: string | null }>>({});
+
 
  // Stock movement form
  const [moveOpen, setMoveOpen] = useState(false);
