@@ -324,9 +324,21 @@ export default function ContactImportWizard() {
         let assignedPrimary = !!hasPrimary;
         const cust = customers.find(c => c.id === custId);
 
+        // The first row imported for this customer drives the customer-master sync,
+        // regardless of whether it's also becoming the new primary contact. Without this
+        // the sync only ran when the customer had zero existing contacts, which is why
+        // imported numbers never made it back to the customer list.
         let primaryContactForSync: { contact_name: string; mobile: string; phone: string; email: string } | null = null;
 
         for (const m of list) {
+          if (!primaryContactForSync && (m.row.mobile || m.row.phone || m.row.contact_name || m.row.email)) {
+            primaryContactForSync = {
+              contact_name: m.row.contact_name,
+              mobile: m.row.mobile,
+              phone: m.row.phone,
+              email: m.row.email,
+            };
+          }
           const rn = m.row.rowNumber;
           const candidate = {
             contact_name: m.row.contact_name,
