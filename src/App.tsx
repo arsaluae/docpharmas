@@ -213,6 +213,7 @@ const App = () => (
                 <Route element={<RequireCap resource="inventory" action="write" />}>
                   <Route path="/stock" element={<StockMovements />} />
                   <Route path="/stock-audit" element={<StockAudit />} />
+                  <Route path="/opening-stock" element={<OpeningStock />} />
                 </Route>
 
                 {/* Accounting */}
