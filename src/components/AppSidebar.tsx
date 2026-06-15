@@ -102,7 +102,7 @@ export function AppSidebar() {
     return location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
   };
 
-  const { can } = useRoles();
+  const { can, isOwner } = useRoles();
   const sections = allSections
     .map(s => ({ ...s, items: s.items.filter(i => can((i.resource ?? s.resource) as Resource, "read")) }))
     .filter(s => can(s.resource, "read") && s.items.length > 0);
