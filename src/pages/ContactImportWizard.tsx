@@ -292,6 +292,9 @@ export default function ContactImportWizard() {
         let assignedPrimary = !!hasPrimary;
         const cust = customers.find(c => c.id === custId);
 
+        // Track the contact that will become primary (existing primary OR first imported row).
+        let primaryContactForSync: { contact_name: string; mobile: string; phone: string; email: string } | null = null;
+
         for (const m of list) {
           const candidate = {
             contact_name: m.row.contact_name,
@@ -319,18 +322,42 @@ export default function ContactImportWizard() {
             updated++;
             continue;
           }
+          const isThisPrimary = !assignedPrimary;
           inserts.push({
             customer_id: custId,
             ...candidate,
-            is_primary: !assignedPrimary,
+            is_primary: isThisPrimary,
             source: "import",
           });
+          if (isThisPrimary && !primaryContactForSync) {
+            primaryContactForSync = {
+              contact_name: m.row.contact_name,
+              mobile: m.row.mobile,
+              phone: m.row.phone,
+              email: m.row.email,
+            };
+          }
           if (!assignedPrimary) assignedPrimary = true;
           imported++;
+        }
 
-          // Optional: update customer's mobile if blank, or always (with confirmation flag).
-          if (cust && candidate.mobile && (overwriteMobile || !cust.sms_mobile)) {
-            customerMobileUpdates.push({ id: custId, mobile: candidate.mobile });
+        // ---- Sync primary contact details back to the customer record ----
+        if (cust && primaryContactForSync) {
+          const c = primaryContactForSync;
+          const payload: Record<string, string> = {};
+          const fillable = (field: "contact_person" | "sms_mobile" | "phone" | "email", value: string, currentVal: string | null | undefined) => {
+            if (!syncOptions[field]) return;
+            if (!value) return;
+            if (syncOptions.overwrite || !currentVal || !String(currentVal).trim()) {
+              payload[field] = value;
+            }
+          };
+          fillable("contact_person", c.contact_name, (cust as any).contact_person);
+          fillable("sms_mobile", c.mobile, cust.sms_mobile);
+          fillable("phone", c.phone || c.mobile, cust.phone);
+          fillable("email", c.email, (cust as any).email);
+          if (Object.keys(payload).length) {
+            customerSyncUpdates.set(custId, payload);
           }
         }
       }
@@ -344,12 +371,11 @@ export default function ContactImportWizard() {
         const { error } = await supabase.from("customer_contacts" as any).update(u.payload).eq("id", u.id);
         if (error) errors.push(error.message);
       }
-      // Apply customer mobile updates (deduped, last write wins per customer).
-      const mobileMap = new Map<string, string>();
-      for (const m of customerMobileUpdates) mobileMap.set(m.id, m.mobile);
-      for (const [id, mobile] of mobileMap) {
-        const { error } = await supabase.from("customers").update({ sms_mobile: mobile } as any).eq("id", id);
-        if (error) errors.push(error.message);
+      // Apply customer sync updates (deduped, one row per customer).
+      let customersUpdated = 0;
+      for (const [id, payload] of customerSyncUpdates) {
+        const { error } = await supabase.from("customers").update(payload as any).eq("id", id);
+        if (error) errors.push(error.message); else customersUpdated++;
       }
 
       const sum = {
@@ -359,6 +385,7 @@ export default function ContactImportWizard() {
         imported,
         updated,
         duplicatesSkipped: dupSkipped,
+        customersUpdated,
         errors,
       };
       setSummary(sum);
@@ -367,11 +394,11 @@ export default function ContactImportWizard() {
         entity_type: "import_batch",
         entity_id: null,
         action: "import_completed",
-        changes: { kind: "customer_contacts", note: `${imported} new, ${updated} updated`, ...sum } as any,
+        changes: { kind: "customer_contacts", note: `${imported} new, ${updated} updated, ${customersUpdated} customers synced`, ...sum } as any,
       });
 
       setStep(4);
-      toast.success(`Imported ${imported} contacts (${updated} updated)`);
+      toast.success(`Imported ${imported} contacts · ${customersUpdated} customer records synced`);
     } catch (e: any) {
       toast.error(e?.message ?? "Import failed");
     } finally {
