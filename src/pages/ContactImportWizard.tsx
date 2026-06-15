@@ -408,7 +408,13 @@ export default function ContactImportWizard() {
           imported++;
         }
 
-        if (cust && primaryContactForSync) {
+        // Fetch fresh customer record so "fill blanks only" sees real values, not the stale list cache.
+        if (primaryContactForSync) {
+          const { data: freshCust } = await supabase
+            .from("customers")
+            .select("contact_person, sms_mobile, phone, email")
+            .eq("id", custId)
+            .maybeSingle();
           const c = primaryContactForSync;
           const payload: Record<string, string> = {};
           const fillable = (field: "contact_person" | "sms_mobile" | "phone" | "email", value: string, currentVal: string | null | undefined) => {
@@ -418,10 +424,14 @@ export default function ContactImportWizard() {
               payload[field] = value;
             }
           };
-          fillable("contact_person", c.contact_name, (cust as any).contact_person);
-          fillable("sms_mobile", c.mobile, cust.sms_mobile);
-          fillable("phone", c.phone || c.mobile, cust.phone);
-          fillable("email", c.email, (cust as any).email);
+          fillable("contact_person", c.contact_name, (freshCust as any)?.contact_person);
+          fillable("sms_mobile", c.mobile, (freshCust as any)?.sms_mobile);
+          fillable("phone", c.phone || c.mobile, (freshCust as any)?.phone);
+          fillable("email", c.email, (freshCust as any)?.email);
+          if (Object.keys(payload).length) {
+            customerSyncUpdates.set(custId, payload);
+          }
+        }
           if (Object.keys(payload).length) {
             customerSyncUpdates.set(custId, payload);
           }
