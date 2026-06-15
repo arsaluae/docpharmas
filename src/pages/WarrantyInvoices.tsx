@@ -81,12 +81,9 @@ export default function WarrantyInvoices() {
  const [customerFilter, setCustomerFilter] = useState("");
  const [open, setOpen] = useState(false);
  const [editId, setEditId] = useState<string | null>(null);
- const [pdfHtml, setPdfHtml] = useState("");
- const [pdfOpen, setPdfOpen] = useState(false);
- const [pdfTitle, setPdfTitle] = useState("");
-  const [pdfOpts, setPdfOpts] = useState<WarrantyNoteOptions | null>(null);
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
+  const navigate = useNavigate();
 
   const fmtDate = (iso: string) => {
     if (!iso) return "";
