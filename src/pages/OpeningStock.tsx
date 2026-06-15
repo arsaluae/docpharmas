@@ -332,7 +332,7 @@ export default function OpeningStock() {
     <AppLayout
       title={editDocId ? "Edit Opening Stock" : "Add Opening Stock"}
       subtitle="Record one-time starting inventory. Does not hit supplier ledger or create a purchase invoice."
-      actions={
+      headerActions={
         <Button variant="outline" size="sm" onClick={() => nav("/products")}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to Products
         </Button>
