@@ -112,6 +112,13 @@ export default function Settings() {
     warranty_show_agent_license_number: true,
     warranty_show_agent_license_expiry: true,
     document_page_mode: "auto" as "half" | "full" | "auto",
+    // New (Warranty Invoice Template rebuild)
+    warranty_notes_template_html: "",
+    warranty_show_logo: true,
+    warranty_show_company_details: true,
+    warranty_show_page_number: true,
+    warranty_show_system_note: true,
+    warranty_doc_title: "WARRANTY INVOICE",
   });
 
 
@@ -162,6 +169,12 @@ export default function Settings() {
           warranty_show_agent_license_number: (data as any).warranty_show_agent_license_number !== false,
           warranty_show_agent_license_expiry: (data as any).warranty_show_agent_license_expiry !== false,
           document_page_mode: ((data as any).document_page_mode || "auto") as "half" | "full" | "auto",
+          warranty_notes_template_html: (data as any).warranty_notes_template_html || "",
+          warranty_show_logo: (data as any).warranty_show_logo !== false,
+          warranty_show_company_details: (data as any).warranty_show_company_details !== false,
+          warranty_show_page_number: (data as any).warranty_show_page_number !== false,
+          warranty_show_system_note: (data as any).warranty_show_system_note !== false,
+          warranty_doc_title: (data as any).warranty_doc_title || "WARRANTY INVOICE",
   });
 
  }
@@ -198,6 +211,12 @@ export default function Settings() {
         warranty_show_agent_license_number: form.warranty_show_agent_license_number,
         warranty_show_agent_license_expiry: form.warranty_show_agent_license_expiry,
         document_page_mode: form.document_page_mode,
+        warranty_notes_template_html: form.warranty_notes_template_html || null,
+        warranty_show_logo: form.warranty_show_logo,
+        warranty_show_company_details: form.warranty_show_company_details,
+        warranty_show_page_number: form.warranty_show_page_number,
+        warranty_show_system_note: form.warranty_show_system_note,
+        warranty_doc_title: form.warranty_doc_title || "WARRANTY INVOICE",
       };
 
  if (settingsId) {
