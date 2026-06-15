@@ -263,10 +263,31 @@ export default function ContactImportWizard() {
   async function runImport() {
     setPosting(true);
     try {
+      // Initialize per-row outcomes for ALL parsed matches so the summary can
+      // show every row, including ones the user skipped or that never matched.
+      const outcomes = new Map<number, RowResult>();
+      for (const m of matches) {
+        let outcome: RowOutcome = "unmatched";
+        let reason = m.reason || "No ERP customer matched";
+        if (m.status === "skipped") { outcome = "skipped"; reason = "Skipped by user"; }
+        else if (!m.matchedCustomerId) { outcome = "unmatched"; }
+        outcomes.set(m.row.rowNumber, {
+          rowNumber: m.row.rowNumber,
+          excelName: m.row.matchName || "—",
+          contactName: m.row.contact_name || "—",
+          customerLabel: m.matchedLabel || "—",
+          outcome,
+          reason,
+        });
+      }
+
       const ready = matches.filter(m =>
         (m.status === "accepted" || m.status === "auto" || m.status === "created") && m.matchedCustomerId);
 
-      if (!ready.length) { toast.error("Nothing to import"); setPosting(false); return; }
+      if (!ready.length) {
+        toast.error("Nothing to import — accept matches or create customers first");
+        setPosting(false); return;
+      }
 
       const customerIds = [...new Set(ready.map(m => m.matchedCustomerId!))];
 
@@ -288,11 +309,11 @@ export default function ContactImportWizard() {
         list.push(m); byCustomer.set(m.matchedCustomerId!, list);
       }
 
-      let imported = 0, updated = 0;
-      const dupSkipped = 0;
+      let imported = 0, updated = 0, dupSkipped = 0;
       const errors: string[] = [];
-      const inserts: any[] = [];
-      const updates: { id: string; payload: any }[] = [];
+      // Inserts tracked alongside the originating row so we can mark errors back.
+      const inserts: { rowNumber: number; payload: any }[] = [];
+      const updates: { rowNumber: number; id: string; payload: any }[] = [];
       const customerSyncUpdates = new Map<string, Record<string, string>>();
 
       for (const [custId, list] of byCustomer) {
@@ -303,10 +324,10 @@ export default function ContactImportWizard() {
         let assignedPrimary = !!hasPrimary;
         const cust = customers.find(c => c.id === custId);
 
-        // Track the contact that will become primary (existing primary OR first imported row).
         let primaryContactForSync: { contact_name: string; mobile: string; phone: string; email: string } | null = null;
 
         for (const m of list) {
+          const rn = m.row.rowNumber;
           const candidate = {
             contact_name: m.row.contact_name,
             designation: m.row.designation || null,
@@ -320,8 +341,20 @@ export default function ContactImportWizard() {
             email: m.row.email,
           }, customerExisting);
           if (dup) {
+            // Identical row with nothing new to add → true duplicate skip.
+            const hasNewInfo = (candidate.mobile && candidate.mobile !== dup.mobile)
+              || (candidate.email && candidate.email !== dup.email)
+              || (candidate.designation || candidate.phone);
+            if (!hasNewInfo) {
+              dupSkipped++;
+              outcomes.set(rn, {
+                ...outcomes.get(rn)!, outcome: "skipped_duplicate",
+                reason: `Already exists on ${m.matchedLabel}`,
+              });
+              continue;
+            }
             updates.push({
-              id: dup.id,
+              rowNumber: rn, id: dup.id,
               payload: {
                 contact_name: candidate.contact_name || dup.contact_name,
                 mobile: candidate.mobile || dup.mobile,
@@ -331,14 +364,25 @@ export default function ContactImportWizard() {
               },
             });
             updated++;
+            outcomes.set(rn, {
+              ...outcomes.get(rn)!, outcome: "updated",
+              reason: `Merged into existing contact on ${m.matchedLabel}`,
+            });
             continue;
           }
           const isThisPrimary = !assignedPrimary;
           inserts.push({
-            customer_id: custId,
-            ...candidate,
-            is_primary: isThisPrimary,
-            source: "import",
+            rowNumber: rn,
+            payload: {
+              customer_id: custId,
+              ...candidate,
+              is_primary: isThisPrimary,
+              source: "import",
+            },
+          });
+          outcomes.set(rn, {
+            ...outcomes.get(rn)!, outcome: "created",
+            reason: `Linked to ${m.matchedLabel}${isThisPrimary ? " (set as primary)" : ""}`,
           });
           if (isThisPrimary && !primaryContactForSync) {
             primaryContactForSync = {
@@ -352,7 +396,6 @@ export default function ContactImportWizard() {
           imported++;
         }
 
-        // ---- Sync primary contact details back to the customer record ----
         if (cust && primaryContactForSync) {
           const c = primaryContactForSync;
           const payload: Record<string, string> = {};
@@ -375,41 +418,65 @@ export default function ContactImportWizard() {
 
       for (let i = 0; i < inserts.length; i += 500) {
         const slice = inserts.slice(i, i + 500);
-        const { error } = await supabase.from("customer_contacts" as any).insert(slice);
-        if (error) { errors.push(error.message); imported -= slice.length; }
+        const { error } = await supabase.from("customer_contacts" as any).insert(slice.map(s => s.payload));
+        if (error) {
+          errors.push(error.message);
+          imported -= slice.length;
+          for (const s of slice) {
+            outcomes.set(s.rowNumber, {
+              ...outcomes.get(s.rowNumber)!, outcome: "error",
+              reason: `Insert failed: ${error.message}`,
+            });
+          }
+        }
       }
       for (const u of updates) {
         const { error } = await supabase.from("customer_contacts" as any).update(u.payload).eq("id", u.id);
-        if (error) errors.push(error.message);
+        if (error) {
+          errors.push(error.message);
+          updated--;
+          outcomes.set(u.rowNumber, {
+            ...outcomes.get(u.rowNumber)!, outcome: "error",
+            reason: `Update failed: ${error.message}`,
+          });
+        }
       }
-      // Apply customer sync updates (deduped, one row per customer).
       let customersUpdated = 0;
       for (const [id, payload] of customerSyncUpdates) {
         const { error } = await supabase.from("customers").update(payload as any).eq("id", id);
         if (error) errors.push(error.message); else customersUpdated++;
       }
 
+      const rowResults = Array.from(outcomes.values()).sort((a, b) => a.rowNumber - b.rowNumber);
       const sum = {
         total: matches.length,
         matched: matches.filter(m => m.matchedCustomerId).length,
-        unmatched: matches.filter(m => !m.matchedCustomerId && m.status !== "skipped").length,
+        unmatched: rowResults.filter(r => r.outcome === "unmatched").length,
         imported,
         updated,
         duplicatesSkipped: dupSkipped,
         customersUpdated,
         errors,
+        rowResults,
       };
       setSummary(sum);
+      setSummaryFilter("all");
 
       await logAudit({
         entity_type: "import_batch",
         entity_id: null,
         action: "import_completed",
-        changes: { kind: "customer_contacts", note: `${imported} new, ${updated} updated, ${customersUpdated} customers synced`, ...sum } as any,
+        changes: {
+          kind: "customer_contacts",
+          note: `${imported} new, ${updated} updated, ${dupSkipped} duplicates skipped, ${customersUpdated} customers synced`,
+          total: sum.total, matched: sum.matched, unmatched: sum.unmatched,
+          imported, updated, duplicatesSkipped: dupSkipped, customersUpdated,
+          errors,
+        } as any,
       });
 
       setStep(4);
-      toast.success(`Imported ${imported} contacts · ${customersUpdated} customer records synced`);
+      toast.success(`Imported ${imported} contacts · ${updated} updated · ${customersUpdated} customers synced`);
     } catch (e: any) {
       toast.error(e?.message ?? "Import failed");
     } finally {
