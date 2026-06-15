@@ -14,6 +14,8 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           "hover:border-foreground/20",
           "focus-visible:outline-none focus-visible:border-primary focus-visible:bg-foreground/[0.05]",
           "disabled:cursor-not-allowed disabled:opacity-50",
+          // Strip native number-input spinners (Chromium/Safari + Firefox) — users type values, never click counters.
+          "[appearance:textfield] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0",
           className,
         )}
         ref={ref}
