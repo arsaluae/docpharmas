@@ -324,9 +324,21 @@ export default function ContactImportWizard() {
         let assignedPrimary = !!hasPrimary;
         const cust = customers.find(c => c.id === custId);
 
+        // The first row imported for this customer drives the customer-master sync,
+        // regardless of whether it's also becoming the new primary contact. Without this
+        // the sync only ran when the customer had zero existing contacts, which is why
+        // imported numbers never made it back to the customer list.
         let primaryContactForSync: { contact_name: string; mobile: string; phone: string; email: string } | null = null;
 
         for (const m of list) {
+          if (!primaryContactForSync && (m.row.mobile || m.row.phone || m.row.contact_name || m.row.email)) {
+            primaryContactForSync = {
+              contact_name: m.row.contact_name,
+              mobile: m.row.mobile,
+              phone: m.row.phone,
+              email: m.row.email,
+            };
+          }
           const rn = m.row.rowNumber;
           const candidate = {
             contact_name: m.row.contact_name,
@@ -396,7 +408,13 @@ export default function ContactImportWizard() {
           imported++;
         }
 
-        if (cust && primaryContactForSync) {
+        // Fetch fresh customer record so "fill blanks only" sees real values, not the stale list cache.
+        if (primaryContactForSync) {
+          const { data: freshCust } = await supabase
+            .from("customers")
+            .select("contact_person, sms_mobile, phone, email")
+            .eq("id", custId)
+            .maybeSingle();
           const c = primaryContactForSync;
           const payload: Record<string, string> = {};
           const fillable = (field: "contact_person" | "sms_mobile" | "phone" | "email", value: string, currentVal: string | null | undefined) => {
@@ -406,10 +424,10 @@ export default function ContactImportWizard() {
               payload[field] = value;
             }
           };
-          fillable("contact_person", c.contact_name, (cust as any).contact_person);
-          fillable("sms_mobile", c.mobile, cust.sms_mobile);
-          fillable("phone", c.phone || c.mobile, cust.phone);
-          fillable("email", c.email, (cust as any).email);
+          fillable("contact_person", c.contact_name, (freshCust as any)?.contact_person);
+          fillable("sms_mobile", c.mobile, (freshCust as any)?.sms_mobile);
+          fillable("phone", c.phone || c.mobile, (freshCust as any)?.phone);
+          fillable("email", c.email, (freshCust as any)?.email);
           if (Object.keys(payload).length) {
             customerSyncUpdates.set(custId, payload);
           }

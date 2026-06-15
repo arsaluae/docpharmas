@@ -8,24 +8,44 @@ export async function searchCustomerIds(q: string): Promise<string[]> {
   const s = (q ?? "").trim();
   if (!s) return [];
   const safe = s.replace(/[%,()]/g, "");
-  const { data } = await supabase
-    .from("customers")
-    .select("id")
-    .or(`name.ilike.%${safe}%,company.ilike.%${safe}%,customer_code.ilike.%${safe}%`)
-    .limit(500);
-  return (data ?? []).map((r: any) => r.id as string);
+  const [{ data: direct }, { data: aliasRows }] = await Promise.all([
+    supabase
+      .from("customers")
+      .select("id")
+      .or(`name.ilike.%${safe}%,company.ilike.%${safe}%,customer_code.ilike.%${safe}%`)
+      .limit(500),
+    (supabase as any)
+      .from("customer_aliases")
+      .select("master_id")
+      .or(`old_name.ilike.%${safe}%,old_customer_code.ilike.%${safe}%`)
+      .limit(500),
+  ]);
+  const ids = new Set<string>();
+  (direct ?? []).forEach((r: any) => ids.add(r.id));
+  (aliasRows ?? []).forEach((r: any) => ids.add(r.master_id));
+  return Array.from(ids);
 }
 
 export async function searchSupplierIds(q: string): Promise<string[]> {
   const s = (q ?? "").trim();
   if (!s) return [];
   const safe = s.replace(/[%,()]/g, "");
-  const { data } = await supabase
-    .from("suppliers")
-    .select("id")
-    .or(`name.ilike.%${safe}%,company.ilike.%${safe}%,supplier_code.ilike.%${safe}%`)
-    .limit(500);
-  return (data ?? []).map((r: any) => r.id as string);
+  const [{ data: direct }, { data: aliasRows }] = await Promise.all([
+    supabase
+      .from("suppliers")
+      .select("id")
+      .or(`name.ilike.%${safe}%,company.ilike.%${safe}%,supplier_code.ilike.%${safe}%`)
+      .limit(500),
+    (supabase as any)
+      .from("supplier_aliases")
+      .select("master_id")
+      .or(`old_name.ilike.%${safe}%,old_supplier_code.ilike.%${safe}%`)
+      .limit(500),
+  ]);
+  const ids = new Set<string>();
+  (direct ?? []).forEach((r: any) => ids.add(r.id));
+  (aliasRows ?? []).forEach((r: any) => ids.add(r.master_id));
+  return Array.from(ids);
 }
 
 export async function searchProductIds(q: string): Promise<string[]> {

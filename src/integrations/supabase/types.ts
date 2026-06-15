@@ -202,6 +202,13 @@ export type Database = {
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "additional_costs_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_lookup"
+            referencedColumns: ["id"]
+          },
         ]
       }
       agent_commissions: {
@@ -299,6 +306,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_customers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_customer_lookup"
             referencedColumns: ["id"]
           },
           {
@@ -842,14 +856,73 @@ export type Database = {
           },
         ]
       }
+      customer_aliases: {
+        Row: {
+          id: string
+          master_id: string
+          merge_reason: string | null
+          merged_at: string
+          merged_by: string | null
+          old_customer_code: string | null
+          old_id: string
+          old_name: string | null
+          old_normalized_name: string | null
+          reversible_until: string
+          tenant_id: string
+        }
+        Insert: {
+          id?: string
+          master_id: string
+          merge_reason?: string | null
+          merged_at?: string
+          merged_by?: string | null
+          old_customer_code?: string | null
+          old_id: string
+          old_name?: string | null
+          old_normalized_name?: string | null
+          reversible_until?: string
+          tenant_id: string
+        }
+        Update: {
+          id?: string
+          master_id?: string
+          merge_reason?: string | null
+          merged_at?: string
+          merged_by?: string | null
+          old_customer_code?: string | null
+          old_id?: string
+          old_name?: string | null
+          old_normalized_name?: string | null
+          reversible_until?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_aliases_master_id_fkey"
+            columns: ["master_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_aliases_master_id_fkey"
+            columns: ["master_id"]
+            isOneToOne: false
+            referencedRelation: "v_customer_lookup"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_contacts: {
         Row: {
           contact_name: string
           created_at: string
+          created_by: string | null
           customer_id: string
           designation: string | null
           email: string | null
           id: string
+          import_batch_id: string | null
           is_primary: boolean
           mobile: string | null
           notes: string | null
@@ -857,14 +930,17 @@ export type Database = {
           source: string
           tenant_id: string | null
           updated_at: string
+          whatsapp: string | null
         }
         Insert: {
           contact_name: string
           created_at?: string
+          created_by?: string | null
           customer_id: string
           designation?: string | null
           email?: string | null
           id?: string
+          import_batch_id?: string | null
           is_primary?: boolean
           mobile?: string | null
           notes?: string | null
@@ -872,14 +948,17 @@ export type Database = {
           source?: string
           tenant_id?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Update: {
           contact_name?: string
           created_at?: string
+          created_by?: string | null
           customer_id?: string
           designation?: string | null
           email?: string | null
           id?: string
+          import_batch_id?: string | null
           is_primary?: boolean
           mobile?: string | null
           notes?: string | null
@@ -887,6 +966,7 @@ export type Database = {
           source?: string
           tenant_id?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Relationships: [
           {
@@ -894,6 +974,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_contacts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_customer_lookup"
             referencedColumns: ["id"]
           },
           {
@@ -951,6 +1038,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "customer_distributors_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_customer_lookup"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "customer_distributors_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1002,6 +1096,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "customer_licenses_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_customer_lookup"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "customer_licenses_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1041,6 +1142,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_products_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_customer_lookup"
             referencedColumns: ["id"]
           },
           {
@@ -1239,10 +1347,16 @@ export type Database = {
           id: string
           import_batch_id: string | null
           is_active: boolean
+          is_merged: boolean
           last_name: string | null
           license_expiry: string | null
           license_number: string | null
+          merge_reason: string | null
+          merged_at: string | null
+          merged_by: string | null
+          merged_into_id: string | null
           name: string
+          normalized_name: string | null
           notes: string | null
           ntn: string | null
           old_erp_account_code: string | null
@@ -1282,10 +1396,16 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           is_active?: boolean
+          is_merged?: boolean
           last_name?: string | null
           license_expiry?: string | null
           license_number?: string | null
+          merge_reason?: string | null
+          merged_at?: string | null
+          merged_by?: string | null
+          merged_into_id?: string | null
           name: string
+          normalized_name?: string | null
           notes?: string | null
           ntn?: string | null
           old_erp_account_code?: string | null
@@ -1325,10 +1445,16 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           is_active?: boolean
+          is_merged?: boolean
           last_name?: string | null
           license_expiry?: string | null
           license_number?: string | null
+          merge_reason?: string | null
+          merged_at?: string | null
+          merged_by?: string | null
+          merged_into_id?: string | null
           name?: string
+          normalized_name?: string | null
           notes?: string | null
           ntn?: string | null
           old_erp_account_code?: string | null
@@ -1349,6 +1475,20 @@ export type Database = {
           whatsapp?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "customers_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "v_customer_lookup"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customers_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -1714,6 +1854,33 @@ export type Database = {
           },
         ]
       }
+      duplicate_ignores: {
+        Row: {
+          group_key: string
+          id: string
+          ignored_at: string
+          ignored_by: string | null
+          party_type: string
+          tenant_id: string
+        }
+        Insert: {
+          group_key: string
+          id?: string
+          ignored_at?: string
+          ignored_by?: string | null
+          party_type: string
+          tenant_id: string
+        }
+        Update: {
+          group_key?: string
+          id?: string
+          ignored_at?: string
+          ignored_by?: string | null
+          party_type?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       expense_ledgers: {
         Row: {
           created_at: string
@@ -1943,6 +2110,13 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_received_notes_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_lookup"
             referencedColumns: ["id"]
           },
           {
@@ -2764,6 +2938,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "print_dispatches_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_lookup"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "print_dispatches_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -3402,6 +3583,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_lookup"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "products_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -3507,6 +3695,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "proforma_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_customer_lookup"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "proforma_invoices_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -3589,6 +3784,13 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoices_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_lookup"
             referencedColumns: ["id"]
           },
           {
@@ -3746,6 +3948,13 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_lookup"
             referencedColumns: ["id"]
           },
           {
@@ -3959,6 +4168,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchase_proformas_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_lookup"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "purchase_proformas_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -4098,6 +4314,13 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_returns_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_lookup"
             referencedColumns: ["id"]
           },
           {
@@ -4579,6 +4802,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sales_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_customer_lookup"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sales_invoices_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -4711,6 +4941,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_returns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_customer_lookup"
             referencedColumns: ["id"]
           },
           {
@@ -4975,6 +5212,63 @@ export type Database = {
           },
         ]
       }
+      supplier_aliases: {
+        Row: {
+          id: string
+          master_id: string
+          merge_reason: string | null
+          merged_at: string
+          merged_by: string | null
+          old_id: string
+          old_name: string | null
+          old_normalized_name: string | null
+          old_supplier_code: string | null
+          reversible_until: string
+          tenant_id: string
+        }
+        Insert: {
+          id?: string
+          master_id: string
+          merge_reason?: string | null
+          merged_at?: string
+          merged_by?: string | null
+          old_id: string
+          old_name?: string | null
+          old_normalized_name?: string | null
+          old_supplier_code?: string | null
+          reversible_until?: string
+          tenant_id: string
+        }
+        Update: {
+          id?: string
+          master_id?: string
+          merge_reason?: string | null
+          merged_at?: string
+          merged_by?: string | null
+          old_id?: string
+          old_name?: string | null
+          old_normalized_name?: string | null
+          old_supplier_code?: string | null
+          reversible_until?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_aliases_master_id_fkey"
+            columns: ["master_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_aliases_master_id_fkey"
+            columns: ["master_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_lookup"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_products: {
         Row: {
           created_at: string
@@ -5027,6 +5321,13 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_lookup"
             referencedColumns: ["id"]
           },
           {
@@ -5184,9 +5485,15 @@ export type Database = {
           id: string
           import_batch_id: string | null
           is_active: boolean
+          is_merged: boolean
           license_expiry_date: string | null
           license_number: string | null
+          merge_reason: string | null
+          merged_at: string | null
+          merged_by: string | null
+          merged_into_id: string | null
           name: string
+          normalized_name: string | null
           notes: string | null
           ntn: string | null
           old_erp_account_code: string | null
@@ -5220,9 +5527,15 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           is_active?: boolean
+          is_merged?: boolean
           license_expiry_date?: string | null
           license_number?: string | null
+          merge_reason?: string | null
+          merged_at?: string | null
+          merged_by?: string | null
+          merged_into_id?: string | null
           name: string
+          normalized_name?: string | null
           notes?: string | null
           ntn?: string | null
           old_erp_account_code?: string | null
@@ -5256,9 +5569,15 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           is_active?: boolean
+          is_merged?: boolean
           license_expiry_date?: string | null
           license_number?: string | null
+          merge_reason?: string | null
+          merged_at?: string | null
+          merged_by?: string | null
+          merged_into_id?: string | null
           name?: string
+          normalized_name?: string | null
           notes?: string | null
           ntn?: string | null
           old_erp_account_code?: string | null
@@ -5278,6 +5597,20 @@ export type Database = {
           wht_rate?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "suppliers_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suppliers_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_lookup"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "suppliers_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -5594,6 +5927,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "warranty_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_customer_lookup"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "warranty_invoices_distributor_id_fkey"
             columns: ["distributor_id"]
             isOneToOne: false
@@ -5811,6 +6151,49 @@ export type Database = {
           },
         ]
       }
+      v_customer_lookup: {
+        Row: {
+          city: string | null
+          customer_code: string | null
+          id: string | null
+          is_merged: boolean | null
+          label: string | null
+          phone: string | null
+          search_text: string | null
+          sms_mobile: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_supplier_lookup: {
+        Row: {
+          city: string | null
+          id: string | null
+          is_merged: boolean | null
+          label: string | null
+          phone: string | null
+          search_text: string | null
+          supplier_code: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_trial_balance: {
         Row: {
           account_id: string | null
@@ -5883,6 +6266,42 @@ export type Database = {
         Args: { p_id: string; p_reason: string; p_table: string }
         Returns: undefined
       }
+      detect_customer_duplicates: {
+        Args: never
+        Returns: {
+          balance: number
+          city: string
+          created_at: string
+          customer_code: string
+          customer_id: string
+          dn_count: number
+          group_key: string
+          is_merged: boolean
+          name: string
+          payment_count: number
+          phone: string
+          si_count: number
+          sms_mobile: string
+        }[]
+      }
+      detect_supplier_duplicates: {
+        Args: never
+        Returns: {
+          balance: number
+          city: string
+          created_at: string
+          group_key: string
+          is_merged: boolean
+          name: string
+          payment_count: number
+          phone: string
+          pi_count: number
+          po_count: number
+          product_count: number
+          supplier_code: string
+          supplier_id: string
+        }[]
+      }
       generate_document_number: {
         Args: { p_document_type: string }
         Returns: string
@@ -5907,7 +6326,16 @@ export type Database = {
       }
       is_agent_customer: { Args: { p_customer_id: string }; Returns: boolean }
       is_authenticated: { Args: never; Returns: boolean }
+      merge_customers: {
+        Args: { p_duplicates: string[]; p_master: string; p_reason?: string }
+        Returns: Json
+      }
+      merge_suppliers: {
+        Args: { p_duplicates: string[]; p_master: string; p_reason?: string }
+        Returns: Json
+      }
       migration_pre_snapshot: { Args: never; Returns: Json }
+      normalize_party_name: { Args: { s: string }; Returns: string }
       normalize_supplier_name: { Args: { s: string }; Returns: string }
       preview_wipe_counts: { Args: never; Returns: Json }
       recalc_customer_invoice_status: {
@@ -6021,6 +6449,8 @@ export type Database = {
       suppliers_cities: { Args: never; Returns: string[] }
       suppliers_summary: { Args: never; Returns: Json }
       table_resource: { Args: { p_table: string }; Returns: string }
+      unmerge_customer: { Args: { p_old_id: string }; Returns: Json }
+      unmerge_supplier: { Args: { p_old_id: string }; Returns: Json }
       user_prod_tenant_id: { Args: never; Returns: string }
       void_document: {
         Args: { p_id: string; p_reason: string; p_table: string }
