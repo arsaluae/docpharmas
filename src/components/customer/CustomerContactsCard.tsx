@@ -42,6 +42,32 @@ export function CustomerContactsCard({ customerId }: Props) {
     setContacts(((data ?? []) as unknown) as Contact[]);
   }
 
+  /**
+   * Mirror a contact's details onto the customer record (fill-blanks-only).
+   * Called whenever a contact becomes primary or is the first contact added.
+   */
+  async function syncToCustomer(c: { contact_name: string; mobile: string | null; phone: string | null; email: string | null }) {
+    const { data: cust } = await supabase
+      .from("customers")
+      .select("contact_person, sms_mobile, phone, email")
+      .eq("id", customerId)
+      .single();
+    if (!cust) return;
+    const payload: Record<string, string> = {};
+    const fill = (key: "contact_person" | "sms_mobile" | "phone" | "email", value: string | null) => {
+      if (!value) return;
+      const current = (cust as any)[key];
+      if (!current || !String(current).trim()) payload[key] = value;
+    };
+    fill("contact_person", c.contact_name);
+    fill("sms_mobile", c.mobile);
+    fill("phone", c.phone || c.mobile);
+    fill("email", c.email);
+    if (Object.keys(payload).length) {
+      await supabase.from("customers").update(payload as any).eq("id", customerId);
+    }
+  }
+
   async function save() {
     if (!form.contact_name.trim()) { toast.error("Name is required"); return; }
     const payload: any = {
@@ -55,12 +81,31 @@ export function CustomerContactsCard({ customerId }: Props) {
     if (editId) {
       const { error } = await supabase.from("customer_contacts" as any).update(payload).eq("id", editId);
       if (error) { toast.error(error.message); return; }
+      // If the edited contact is the primary one, keep customer record in sync.
+      const edited = contacts.find(c => c.id === editId);
+      if (edited?.is_primary) {
+        await syncToCustomer({
+          contact_name: payload.contact_name,
+          mobile: payload.mobile,
+          phone: payload.phone,
+          email: payload.email,
+        });
+      }
       toast.success("Contact updated");
     } else {
       // First contact for this customer becomes primary automatically.
-      payload.is_primary = contacts.length === 0;
+      const isPrimary = contacts.length === 0;
+      payload.is_primary = isPrimary;
       const { error } = await supabase.from("customer_contacts" as any).insert(payload);
       if (error) { toast.error(error.message); return; }
+      if (isPrimary) {
+        await syncToCustomer({
+          contact_name: payload.contact_name,
+          mobile: payload.mobile,
+          phone: payload.phone,
+          email: payload.email,
+        });
+      }
       toast.success("Contact added");
     }
     setShowForm(false); setEditId(null); setForm(emptyForm);
@@ -75,7 +120,16 @@ export function CustomerContactsCard({ customerId }: Props) {
     }
     const { error } = await supabase.from("customer_contacts" as any).update({ is_primary: true }).eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("Primary contact updated");
+    const c = contacts.find(x => x.id === id);
+    if (c) {
+      await syncToCustomer({
+        contact_name: c.contact_name,
+        mobile: c.mobile,
+        phone: c.phone,
+        email: c.email,
+      });
+    }
+    toast.success("Primary contact updated · customer record synced");
     load();
   }
 
