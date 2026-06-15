@@ -594,6 +594,8 @@ export type Database = {
           logo_url: string | null
           ntn: string | null
           phone: string | null
+          purchase_edit_auto_update_cost: boolean
+          purchase_edit_window_days: number
           require_payment_in_approval: boolean
           sales_agent_scope: string
           show_customer_mobile_on_docs: boolean
@@ -651,6 +653,8 @@ export type Database = {
           logo_url?: string | null
           ntn?: string | null
           phone?: string | null
+          purchase_edit_auto_update_cost?: boolean
+          purchase_edit_window_days?: number
           require_payment_in_approval?: boolean
           sales_agent_scope?: string
           show_customer_mobile_on_docs?: boolean
@@ -708,6 +712,8 @@ export type Database = {
           logo_url?: string | null
           ntn?: string | null
           phone?: string | null
+          purchase_edit_auto_update_cost?: boolean
+          purchase_edit_window_days?: number
           require_payment_in_approval?: boolean
           sales_agent_scope?: string
           show_customer_mobile_on_docs?: boolean
@@ -2659,6 +2665,160 @@ export type Database = {
           },
         ]
       }
+      opening_stock_batches: {
+        Row: {
+          batch_number: string
+          created_at: string
+          document_id: string
+          expiry_date: string
+          id: string
+          location: string
+          mfg_date: string | null
+          mrp: number
+          notes: string | null
+          product_id: string
+          purchase_cost: number
+          quantity: number
+          sale_price: number
+          stock_movement_id: string | null
+          supplier_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          batch_number: string
+          created_at?: string
+          document_id: string
+          expiry_date: string
+          id?: string
+          location?: string
+          mfg_date?: string | null
+          mrp?: number
+          notes?: string | null
+          product_id: string
+          purchase_cost?: number
+          quantity: number
+          sale_price?: number
+          stock_movement_id?: string | null
+          supplier_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          batch_number?: string
+          created_at?: string
+          document_id?: string
+          expiry_date?: string
+          id?: string
+          location?: string
+          mfg_date?: string | null
+          mrp?: number
+          notes?: string | null
+          product_id?: string
+          purchase_cost?: number
+          quantity?: number
+          sale_price?: number
+          stock_movement_id?: string | null
+          supplier_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opening_stock_batches_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "opening_stock_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opening_stock_batches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "agent_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "opening_stock_batches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opening_stock_batches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "sales_product_catalog_view"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "opening_stock_batches_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opening_stock_batches_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_lookup"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opening_stock_documents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          doc_date: string
+          doc_number: string | null
+          id: string
+          location: string | null
+          locked_at: string | null
+          notes: string | null
+          ref_no: string | null
+          status: string
+          tenant_id: string
+          totals_qty: number
+          totals_value: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          doc_date?: string
+          doc_number?: string | null
+          id?: string
+          location?: string | null
+          locked_at?: string | null
+          notes?: string | null
+          ref_no?: string | null
+          status?: string
+          tenant_id: string
+          totals_qty?: number
+          totals_value?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          doc_date?: string
+          doc_number?: string | null
+          id?: string
+          location?: string | null
+          locked_at?: string | null
+          notes?: string | null
+          ref_no?: string | null
+          status?: string
+          tenant_id?: string
+          totals_qty?: number
+          totals_value?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_submissions: {
         Row: {
           admin_notes: string | null
@@ -2721,12 +2881,16 @@ export type Database = {
           idempotency_key: string | null
           import_batch_id: string | null
           invoice_id: string | null
+          is_reversal: boolean
           notes: string | null
           party_id: string
           party_type: string
           payment_method: string
           payment_number: string
+          reconciled: boolean
+          reconciled_at: string | null
           reference: string | null
+          reverses_payment_id: string | null
           source: string
           status: string
           tenant_id: string | null
@@ -2749,12 +2913,16 @@ export type Database = {
           idempotency_key?: string | null
           import_batch_id?: string | null
           invoice_id?: string | null
+          is_reversal?: boolean
           notes?: string | null
           party_id: string
           party_type: string
           payment_method?: string
           payment_number: string
+          reconciled?: boolean
+          reconciled_at?: string | null
           reference?: string | null
+          reverses_payment_id?: string | null
           source?: string
           status?: string
           tenant_id?: string | null
@@ -2777,12 +2945,16 @@ export type Database = {
           idempotency_key?: string | null
           import_batch_id?: string | null
           invoice_id?: string | null
+          is_reversal?: boolean
           notes?: string | null
           party_id?: string
           party_type?: string
           payment_method?: string
           payment_number?: string
+          reconciled?: boolean
+          reconciled_at?: string | null
           reference?: string | null
+          reverses_payment_id?: string | null
           source?: string
           status?: string
           tenant_id?: string | null
@@ -2811,6 +2983,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "customer_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_reverses_payment_id_fkey"
+            columns: ["reverses_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
             referencedColumns: ["id"]
           },
           {
@@ -3735,11 +3914,14 @@ export type Database = {
           created_at: string
           date: string
           due_date: string | null
+          edit_count: number
           grn_id: string | null
           gst: number
           id: string
           import_batch_id: string | null
+          locked_at: string | null
           status: string
+          submitted_at: string | null
           subtotal: number
           supplier_id: string | null
           tenant_id: string | null
@@ -3755,11 +3937,14 @@ export type Database = {
           created_at?: string
           date?: string
           due_date?: string | null
+          edit_count?: number
           grn_id?: string | null
           gst?: number
           id?: string
           import_batch_id?: string | null
+          locked_at?: string | null
           status?: string
+          submitted_at?: string | null
           subtotal?: number
           supplier_id?: string | null
           tenant_id?: string | null
@@ -3775,11 +3960,14 @@ export type Database = {
           created_at?: string
           date?: string
           due_date?: string | null
+          edit_count?: number
           grn_id?: string | null
           gst?: number
           id?: string
           import_batch_id?: string | null
+          locked_at?: string | null
           status?: string
+          submitted_at?: string | null
           subtotal?: number
           supplier_id?: string | null
           tenant_id?: string | null
@@ -6269,6 +6457,10 @@ export type Database = {
       agent_can_see_customer: {
         Args: { p_customer_id: string }
         Returns: boolean
+      }
+      check_purchase_invoice_lock: {
+        Args: { _invoice_id: string }
+        Returns: string
       }
       current_sales_agent_id: { Args: never; Returns: string }
       current_tenant_role: {
