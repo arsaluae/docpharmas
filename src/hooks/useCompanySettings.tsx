@@ -39,6 +39,13 @@ export interface CompanySettings {
   warranty_show_prepared_by?: boolean;
   warranty_show_agent_license_number?: boolean;
   warranty_show_agent_license_expiry?: boolean;
+  // New (Warranty Invoice template rebuild)
+  warranty_notes_template_html?: string | null;
+  warranty_show_logo?: boolean;
+  warranty_show_company_details?: boolean;
+  warranty_show_page_number?: boolean;
+  warranty_show_system_note?: boolean;
+  warranty_doc_title?: string | null;
   document_page_mode?: "half" | "full" | "auto";
 }
 
