@@ -13,7 +13,8 @@ import { Save, Upload, FileText, Plus, Trash2, MessageCircle, Download, Database
 import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { useDocumentTemplates, DocumentTemplate } from "@/hooks/useDocumentTemplates";
-import { WARRANTY_NOTE_TEXT } from "@/lib/warranty-declaration";
+import { NotesEditor } from "@/components/warranty/NotesEditor";
+import { DEFAULT_WARRANTY_NOTES_HTML } from "@/lib/warranty-variables";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import * as XLSX from "xlsx";
@@ -111,6 +112,13 @@ export default function Settings() {
     warranty_show_agent_license_number: true,
     warranty_show_agent_license_expiry: true,
     document_page_mode: "auto" as "half" | "full" | "auto",
+    // New (Warranty Invoice Template rebuild)
+    warranty_notes_template_html: "",
+    warranty_show_logo: true,
+    warranty_show_company_details: true,
+    warranty_show_page_number: true,
+    warranty_show_system_note: true,
+    warranty_doc_title: "WARRANTY INVOICE",
   });
 
 
@@ -161,6 +169,12 @@ export default function Settings() {
           warranty_show_agent_license_number: (data as any).warranty_show_agent_license_number !== false,
           warranty_show_agent_license_expiry: (data as any).warranty_show_agent_license_expiry !== false,
           document_page_mode: ((data as any).document_page_mode || "auto") as "half" | "full" | "auto",
+          warranty_notes_template_html: (data as any).warranty_notes_template_html || "",
+          warranty_show_logo: (data as any).warranty_show_logo !== false,
+          warranty_show_company_details: (data as any).warranty_show_company_details !== false,
+          warranty_show_page_number: (data as any).warranty_show_page_number !== false,
+          warranty_show_system_note: (data as any).warranty_show_system_note !== false,
+          warranty_doc_title: (data as any).warranty_doc_title || "WARRANTY INVOICE",
   });
 
  }
@@ -197,6 +211,12 @@ export default function Settings() {
         warranty_show_agent_license_number: form.warranty_show_agent_license_number,
         warranty_show_agent_license_expiry: form.warranty_show_agent_license_expiry,
         document_page_mode: form.document_page_mode,
+        warranty_notes_template_html: form.warranty_notes_template_html || null,
+        warranty_show_logo: form.warranty_show_logo,
+        warranty_show_company_details: form.warranty_show_company_details,
+        warranty_show_page_number: form.warranty_show_page_number,
+        warranty_show_system_note: form.warranty_show_system_note,
+        warranty_doc_title: form.warranty_doc_title || "WARRANTY INVOICE",
       };
 
  if (settingsId) {
@@ -513,61 +533,55 @@ export default function Settings() {
                   </div>
 
                  <div className="pt-2 space-y-4 border-t border-border mt-2">
-                   <div className="flex items-center justify-between">
-                     <div>
-                       <p className="font-medium text-sm">Warranty Declaration</p>
-                       <p className="text-xs text-muted-foreground">Legal paragraph printed on every Warranty Note. Editable below.</p>
-                     </div>
-                     <Switch
-                       checked={form.warranty_declaration_enabled}
-                       onCheckedChange={v => setForm({ ...form, warranty_declaration_enabled: v })}
+                   <div>
+                     <p className="font-medium text-sm">Warranty Invoice — Document Title</p>
+                     <p className="text-xs text-muted-foreground mb-2">Printed at the top of every warranty invoice.</p>
+                     <Input
+                       value={form.warranty_doc_title}
+                       onChange={e => setForm({ ...form, warranty_doc_title: e.target.value })}
+                       placeholder="WARRANTY INVOICE"
                      />
                    </div>
 
-                   {form.warranty_declaration_enabled && (
-                     <div className="space-y-2">
-                       <Textarea
-                         rows={10}
-                         value={form.warranty_note_text}
-                         onChange={e => setForm({ ...form, warranty_note_text: e.target.value })}
-                         placeholder={WARRANTY_NOTE_TEXT}
-                         className="text-xs leading-relaxed font-mono"
-                       />
-                       <div className="text-[11px] text-muted-foreground space-y-1">
-                         <p>Use blank lines to separate paragraphs. Lines beginning with <code>1.</code> <code>2.</code> render as hanging-indent numbered points. Leave empty to use the default template.</p>
-                         <p className="font-medium text-foreground mt-2">Click a token to insert it at the cursor:</p>
-                         <div className="flex flex-wrap gap-1.5">
-                           {["{{sales_rep_name}}","{{father_name}}","{{relation}}","{{sales_rep_cnic}}","{{agent_license_number}}","{{agent_license_expiry}}","{{company_name}}"].map(tok => (
-                             <button
-                               key={tok}
-                               type="button"
-                               className="px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-accent hover:text-accent-foreground font-mono text-[10.5px] transition-colors"
-                               onClick={(e) => {
-                                 const ta = (e.currentTarget.closest('.space-y-2')?.querySelector('textarea')) as HTMLTextAreaElement | null;
-                                 const current = form.warranty_note_text || "";
-                                 if (ta) {
-                                   const start = ta.selectionStart ?? current.length;
-                                   const end = ta.selectionEnd ?? current.length;
-                                   const next = current.slice(0, start) + tok + current.slice(end);
-                                   setForm({ ...form, warranty_note_text: next });
-                                   requestAnimationFrame(() => {
-                                     ta.focus();
-                                     const pos = start + tok.length;
-                                     ta.setSelectionRange(pos, pos);
-                                   });
-                                 } else {
-                                   setForm({ ...form, warranty_note_text: current + tok });
-                                 }
-                               }}
-                             >{tok}</button>
-                           ))}
-                         </div>
-                         <p>Tokens auto-fill from the Sales Rep selected on the warranty note. Leave the textarea empty to use the default template.</p>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Show Logo</span>
+                       <Switch checked={form.warranty_show_logo} onCheckedChange={v => setForm({ ...form, warranty_show_logo: v })} />
+                     </label>
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Show Company Details</span>
+                       <Switch checked={form.warranty_show_company_details} onCheckedChange={v => setForm({ ...form, warranty_show_company_details: v })} />
+                     </label>
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Show Page Number</span>
+                       <Switch checked={form.warranty_show_page_number} onCheckedChange={v => setForm({ ...form, warranty_show_page_number: v })} />
+                     </label>
+                     <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                       <span className="text-sm">Show "System Generated" Note</span>
+                       <Switch checked={form.warranty_show_system_note} onCheckedChange={v => setForm({ ...form, warranty_show_system_note: v })} />
+                     </label>
+                   </div>
+                 </div>
 
-                       </div>
-                     </div>
+                 <div className="pt-2 space-y-2 border-t border-border mt-2">
+                   <p className="font-medium text-sm">Warranty Notes / Declaration Template</p>
+                   <p className="text-xs text-muted-foreground">
+                     Default notes printed on every warranty invoice. Users can override per-invoice. Supports bold, underline, italic, lists, alignment, and variables like
+                     <code className="mx-1">{"{{distributor_name}}"}</code>,
+                     <code className="mx-1">{"{{license_number}}"}</code>,
+                     <code className="mx-1">{"{{warranty_invoice_number}}"}</code>.
+                   </p>
+                   <NotesEditor
+                     value={form.warranty_notes_template_html || ""}
+                     onChange={(html) => setForm({ ...form, warranty_notes_template_html: html })}
+                     placeholder={DEFAULT_WARRANTY_NOTES_HTML.replace(/<[^>]+>/g, " ").trim()}
+                     minHeight={200}
+                   />
+                   {!form.warranty_notes_template_html && (
+                     <p className="text-[11px] text-muted-foreground">Leave blank to use the built-in default template.</p>
                    )}
                  </div>
+
 
                  <div className="pt-2 space-y-3 border-t border-border mt-2">
                    <div>

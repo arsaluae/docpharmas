@@ -17,15 +17,16 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, ShieldCheck, Trash2, X, Download, ArrowRight, ChevronLeft, MessageCircle, FilePlus2 } from "lucide-react";
+import { Plus, Search, ShieldCheck, Trash2, X, Download, ArrowRight, ChevronLeft, MessageCircle, FilePlus2, Eye, Printer } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { generateWarrantyNoteHtml, generateWarrantyNoteViews, type WarrantyNoteOptions } from "@/lib/pdf-generator";
-import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useDocumentTemplates } from "@/hooks/useDocumentTemplates";
 import { AddDistributorDialog } from "@/components/AddDistributorDialog";
 import { getActiveBatches, type ActiveBatch } from "@/lib/batches";
+import { NotesEditor } from "@/components/warranty/NotesEditor";
+import { DEFAULT_WARRANTY_NOTES_HTML } from "@/lib/warranty-variables";
+import { useNavigate } from "react-router-dom";
 
 
 interface Customer { id: string; name: string; company: string | null; }
@@ -80,12 +81,9 @@ export default function WarrantyInvoices() {
  const [customerFilter, setCustomerFilter] = useState("");
  const [open, setOpen] = useState(false);
  const [editId, setEditId] = useState<string | null>(null);
- const [pdfHtml, setPdfHtml] = useState("");
- const [pdfOpen, setPdfOpen] = useState(false);
- const [pdfTitle, setPdfTitle] = useState("");
-  const [pdfOpts, setPdfOpts] = useState<WarrantyNoteOptions | null>(null);
   const { settings } = useCompanySettings();
   const { getTemplate } = useDocumentTemplates();
+  const navigate = useNavigate();
 
   const fmtDate = (iso: string) => {
     if (!iso) return "";
@@ -93,99 +91,14 @@ export default function WarrantyInvoices() {
     return `${d}/${m}/${y}`;
   };
 
-  // Build the warranty-note options payload from a saved invoice. Uses snapshot
-  // fields stored on the row first, falls back to live distributor / agent.
-  const buildWarrantyOpts = async (inv: WarrantyInvoice): Promise<WarrantyNoteOptions> => {
-    let dist: Distributor | null = null;
-    if (inv.distributor_id) {
-      const { data } = await supabase.from("customer_distributors").select("*").eq("id", inv.distributor_id).single() as { data: Distributor | null };
-      dist = data;
-    }
-    // Live fallback for sales rep when snapshot is missing (legacy rows)
-    let liveRep: SalesAgent | null = null;
-    if (!inv.sales_rep_name && inv.sales_agent_id) {
-      const { data } = await supabase.from("sales_agents").select("*").eq("id", inv.sales_agent_id).single() as { data: SalesAgent | null };
-      liveRep = data;
-    }
-    const items = Array.isArray(inv.items) ? inv.items as any[] : [];
-    return {
-      invoiceNumber: inv.warranty_number,
-      date: fmtDate(inv.date),
-      dueDate: fmtDate(inv.date),
-      createdBy: inv.created_by_name || undefined,
-      distributor: {
-        name: dist?.name || inv.pharmacy_name || "—",
-        address: inv.customer_warranty_address || dist?.address || inv.pharmacy_address || null,
-        phone: inv.customer_mobile || dist?.phone || null,
-        licenseNumber: inv.customer_license_number || dist?.license_number || inv.pharmacy_license_no || null,
-        licenseExpiry: inv.customer_license_expiry ? fmtDate(inv.customer_license_expiry) : (dist?.license_expiry ? fmtDate(dist.license_expiry) : null),
-        ntn: inv.customer_ntn || null,
-        cnic: inv.customer_cnic || null,
-      },
-      items: items.map((i: any) => ({
-        product_name: i.product_name || "",
-        product_description: i.product_description || i.product_name || "",
-        batch_number: i.batch_number || "",
-        expiry_date: i.expiry_date || "",
-        quantity: Number(i.quantity || 0),
-        tp_rate: Number(i.tp_rate || 0),
-        mrp: Number(i.mrp || 0),
-        discount: Number(i.discount || 0),
-        amount: Number(i.amount || 0),
-      })),
-      subtotal: Number(inv.subtotal || 0),
-      discountAmount: Number(inv.discount_amount || 0),
-      discountLabel: Number(inv.discount_percent || 0) > 0 ? `Discount (${inv.discount_percent}%)` : "Discount",
-      total: Number(inv.total || 0),
-      salesRep: {
-        name: inv.sales_rep_name || liveRep?.name || null,
-        fatherName: inv.sales_rep_father_name || liveRep?.father_name || null,
-        cnic: inv.sales_rep_cnic || liveRep?.cnic || null,
-        gender: inv.sales_rep_gender || liveRep?.gender || null,
-        licenseNumber: inv.agent_license_number || liveRep?.license_number || null,
-        licenseExpiry: inv.agent_license_expiry ? fmtDate(inv.agent_license_expiry) : (liveRep?.license_expiry ? fmtDate(liveRep.license_expiry) : null),
-        signatureUrl: inv.rep_signature_url || liveRep?.signature_url || null,
-        stampUrl: inv.rep_stamp_url || liveRep?.stamp_url || null,
-      },
-      companyStampUrl: inv.company_stamp_url || null,
-      companySignatureUrl: inv.company_signature_url || null,
-      settings,
-    };
+  // Open the new bare-page print preview / print / pdf route. All three
+  // entrypoints share one renderer (WarrantyInvoiceTemplate) so preview ≡
+  // print ≡ PDF.
+  const openPreview = (inv: WarrantyInvoice, action?: "print" | "pdf") => {
+    const q = action ? `?action=${action}` : "";
+    window.open(`/print-preview/warranty-invoice/${inv.id}${q}`, "_blank", "noopener,noreferrer");
   };
 
-
-
-  const validateForPdf = async (inv: WarrantyInvoice): Promise<string[]> => {
-    const errs: string[] = [];
-    const s = settings as any;
-    if (!s) return errs;
-    let dist: Distributor | null = null;
-    if (inv.distributor_id) {
-      const { data } = await supabase.from("customer_distributors").select("*").eq("id", inv.distributor_id).single() as { data: Distributor | null };
-      dist = data;
-    }
-    if (s.warranty_require_mobile !== false && !dist?.phone) errs.push("Warranty Address mobile is missing");
-    if (s.warranty_require_address !== false && !dist?.address && !inv.pharmacy_address) errs.push("Warranty Address is missing");
-    if (s.warranty_require_license_no !== false && !dist?.license_number && !inv.pharmacy_license_no) errs.push("Distributor licence number is missing");
-    if (s.warranty_require_license_expiry !== false && !dist?.license_expiry) errs.push("Distributor licence expiry is missing");
-    const items = Array.isArray(inv.items) ? inv.items as any[] : [];
-    if (s.warranty_require_batch_number !== false && items.some(i => !i.batch_number)) errs.push("One or more items are missing a Batch Number");
-    if (s.warranty_require_batch_expiry !== false && items.some(i => !i.expiry_date)) errs.push("One or more items are missing a Batch Expiry");
-    return errs;
-  };
-
-  const openPdf = async (inv: WarrantyInvoice) => {
-    const errs = await validateForPdf(inv);
-    if (errs.length) {
-      toast.error("Cannot download Warranty Note", { description: errs.join(" · ") });
-      return;
-    }
-    const opts = await buildWarrantyOpts(inv);
-    setPdfOpts(opts);
-    setPdfHtml(generateWarrantyNoteHtml(opts));
-    setPdfTitle(`Warranty-Note-${inv.warranty_number}-${(inv.customers?.name || inv.pharmacy_name || "Customer").replace(/[^a-z0-9-_]+/gi, "-")}`);
-    setPdfOpen(true);
-  };
 
 
  // Creation flow state
@@ -202,7 +115,7 @@ export default function WarrantyInvoices() {
  const [discountType, setDiscountType] = useState<"percent" | "amount">("percent");
  const [discountValue, setDiscountValue] = useState(0);
  const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
- const [formNotes, setFormNotes] = useState("");
+ const [formNotes, setFormNotes] = useState(""); // rich HTML — saved to warranty_invoices.notes_html
  const [addDistOpen, setAddDistOpen] = useState(false);
 
  // Cache of active batches per product id (FEFO ordered).
@@ -383,7 +296,7 @@ export default function WarrantyInvoices() {
  setDiscountType("percent");
  setDiscountValue(0);
  setFormDate(new Date().toISOString().split("T")[0]);
- setFormNotes("");
+ setFormNotes((settings as any)?.warranty_notes_template_html || DEFAULT_WARRANTY_NOTES_HTML);
  setEditId(null);
  };
 
@@ -434,7 +347,8 @@ export default function WarrantyInvoices() {
  discount_amount: discountCalc,
  gst_amount: 0,
  total,
- notes: formNotes || null,
+ notes: null,
+ notes_html: formNotes || null,
  status: "issued",
 
  // ── Sales rep snapshot ────────────────────────────────────────────
@@ -494,7 +408,7 @@ export default function WarrantyInvoices() {
  setDiscountType(inv.discount_percent > 0 ? "percent" : "amount");
  setDiscountValue(inv.discount_percent > 0 ? inv.discount_percent : inv.discount_amount);
  setFormDate(inv.date);
- setFormNotes(inv.notes || "");
+ setFormNotes((inv as any).notes_html || inv.notes || (settings as any)?.warranty_notes_template_html || DEFAULT_WARRANTY_NOTES_HTML);
  setStep("edit_items");
  setOpen(true);
  };
@@ -826,7 +740,10 @@ export default function WarrantyInvoices() {
           </div>
         </div>
 
-        <div><Label>Notes</Label><Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={2} /></div>
+        <div>
+          <Label>Notes / Declaration <span className="text-[10px] text-muted-foreground font-normal">(rich text — supports bold, underline, lists, variables)</span></Label>
+          <NotesEditor value={formNotes} onChange={setFormNotes} minHeight={160} placeholder="Defaults to template from Settings → Warranty Invoice Template. Override per-invoice here." />
+        </div>
         <Button onClick={handleSave} className="w-full" size="lg">{editId ? "Update" : "Create"} Warranty Invoice</Button>
       </div>
     );
@@ -923,24 +840,24 @@ export default function WarrantyInvoices() {
  <TableCell className="text-center"><Badge variant="outline" className="capitalize">{inv.status}</Badge></TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
-                              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => openPdf(inv)}>
-                                <Download className="h-3 w-3" /> PDF
+                              <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => openPreview(inv)} title="Preview">
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                              <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => openPreview(inv, "print")} title="Print">
+                                <Printer className="h-3 w-3" />
+                              </Button>
+                              <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => openPreview(inv, "pdf")} title="Download PDF">
+                                <Download className="h-3 w-3" />
                               </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async (e) => {
                                 e.stopPropagation();
-                                const { uploadSharedDocument } = await import("@/lib/whatsapp-share");
                                 const { sendWhatsAppDoc } = await import("@/lib/whatsapp-templates");
                                 let phone = "";
                                 if (inv.customer_id) {
                                   const { data } = await supabase.from("customers").select("phone").eq("id", inv.customer_id).single();
                                   phone = data?.phone || "";
                                 }
-                                let pdfLink: string | undefined;
-                                try {
-                                  const opts = await buildWarrantyOpts(inv);
-                                  const html = generateWarrantyNoteHtml(opts);
-                                  pdfLink = await uploadSharedDocument(html, inv.warranty_number) || undefined;
-                                } catch (e) { console.error("PDF link error:", e); }
+                                const pdfLink = `${window.location.origin}/print-preview/warranty-invoice/${inv.id}`;
                                 await sendWhatsAppDoc({
                                   documentType: "sales_invoice",
                                   phone,
@@ -955,7 +872,7 @@ export default function WarrantyInvoices() {
                                     document_number: inv.warranty_number,
                                     document_date: inv.date,
                                     document_total: Number(inv.total).toLocaleString(),
-                                    document_link: pdfLink || "",
+                                    document_link: pdfLink,
                                   },
                                 });
                               }} title="Share via WhatsApp">
@@ -986,7 +903,7 @@ export default function WarrantyInvoices() {
  </CardContent>
  </Card>
  </div>
- <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} html={pdfHtml} views={pdfOpts ? generateWarrantyNoteViews(pdfOpts) : undefined} title={pdfTitle} />
+ {/* Legacy PdfPreviewDialog removed — preview/print/PDF now go through /print-preview/warranty-invoice/:id */}
  <AddDistributorDialog
  open={addDistOpen}
  onOpenChange={setAddDistOpen}

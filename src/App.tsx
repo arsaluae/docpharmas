@@ -104,6 +104,7 @@ const CollectPayment = lazy(() => import("./pages/CollectPayment"));
 const SalesInvoicesList = lazy(() => import("./pages/SalesInvoicesList"));
 const AgentReports = lazy(() => import("./pages/AgentReports"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const PrintWarrantyInvoice = lazy(() => import("./pages/PrintWarrantyInvoice"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -143,6 +144,8 @@ const App = () => (
 
               {/* Protected routes */}
               <Route element={<ProtectedRoute />}>
+                {/* Bare print-preview route (no AppLayout chrome) */}
+                <Route path="/print-preview/warranty-invoice/:id" element={<PrintWarrantyInvoice />} />
                 <Route path="/dashboard" element={<Index />} />
 
                 {/* Master data — customers always readable; supplier/product/printer scoped tighter */}
