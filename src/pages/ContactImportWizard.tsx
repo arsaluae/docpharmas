@@ -101,13 +101,19 @@ export default function ContactImportWizard() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createTargetRow, setCreateTargetRow] = useState<number | null>(null);
   const [createForm, setCreateForm] = useState({ name: "", phone: "", email: "" });
-  const [overwriteMobile, setOverwriteMobile] = useState(false);
+  const [syncOptions, setSyncOptions] = useState({
+    contact_person: true,
+    sms_mobile: true,
+    phone: false,
+    email: false,
+    overwrite: false, // false = fill blanks only
+  });
 
   // Step 4 — summary
   const [posting, setPosting] = useState(false);
   const [summary, setSummary] = useState<{
     total: number; matched: number; unmatched: number; imported: number;
-    updated: number; duplicatesSkipped: number; errors: string[];
+    updated: number; duplicatesSkipped: number; customersUpdated: number; errors: string[];
   } | null>(null);
 
   async function onFile(f: File) {
