@@ -282,7 +282,7 @@ export default function ContactImportWizard() {
       const errors: string[] = [];
       const inserts: any[] = [];
       const updates: { id: string; payload: any }[] = [];
-      const customerMobileUpdates: { id: string; mobile: string }[] = [];
+      const customerSyncUpdates = new Map<string, Record<string, string>>();
 
       for (const [custId, list] of byCustomer) {
         const customerExisting = existing.filter(e => e.customer_id === custId);
