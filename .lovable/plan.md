@@ -1,26 +1,27 @@
-## Problem
-The merge is failing because your logged-in user is an active tenant `owner`, but has no matching `admin` row in the separate `user_roles` table. The merge RPC currently checks `has_role(user, 'admin')`, so it rejects the owner and shows “Only admins can merge suppliers”.
+The merge error is confirmed: the live backend functions still contain `updated_at = now()` inside `merge_suppliers` and `merge_customers`, but both `suppliers` and `customers` do not have an `updated_at` column.
 
-## Plan
-1. **Add an owner-safe admin resolver**
-   - Create/update a backend function that treats an active tenant `owner` as admin for that tenant.
-   - Keep this server-side only; no local storage or frontend-only role checks.
+Plan:
 
-2. **Backfill current owners**
-   - Add missing `admin` entries in `user_roles` for existing active tenant owners, including your current owner account.
-   - Do it with conflict protection so repeated migrations do not create duplicate role rows.
+1. Recreate the live merge functions
+   - Update `merge_suppliers` and `merge_customers` in a new migration.
+   - Remove only the invalid `updated_at = now()` assignments.
+   - Keep the existing owner/admin permission check.
+   - Keep the merge audit log and alias/undo tracking.
 
-3. **Keep future owners synced**
-   - Add a backend trigger/helper so any future active tenant `owner` automatically receives the `admin` app role.
-   - If an owner is deactivated/demoted, avoid leaving merge permission unintentionally active.
+2. Keep invoice-safe movement intact
+   - Supplier merge will continue moving existing linked records to the master supplier, including purchase invoices, purchase orders, returns, payments, additional costs, supplier products, GRNs, product landed costs, and print allocations.
+   - Customer merge will continue moving linked sales invoices, returns, proformas, delivery notes, warranty invoices, contacts, payments, credit/debit notes, products, licenses, distributors, and agent mappings.
 
-4. **Update merge/unmerge RPC checks**
-   - `merge_suppliers`, `merge_customers`, `unmerge_supplier`, and `unmerge_customer` will accept either:
-     - explicit `admin` role, or
-     - active tenant `owner` role for the tenant being merged.
-   - Transaction movement remains intact: purchase invoices, purchase orders, returns, supplier products, payments, notes, landed costs, and aliases continue moving to the master supplier/customer.
+3. Verify ownership/admin access
+   - Confirm active tenant owners are treated as admins server-side.
+   - Confirm existing owners already have the `admin` application role backfilled.
 
-5. **Verification**
-   - Confirm your user now resolves as owner/admin.
-   - Retry supplier merge with existing purchase invoices.
-   - Confirm purchase invoices and ledger records point to the master supplier, old names/codes remain searchable through aliases, and undo remains available within 7 days.
+4. End-to-end validation after migration
+   - Check the function definitions no longer reference `updated_at` on suppliers/customers.
+   - Verify the schema still confirms those columns do not exist.
+   - Test a real merge path from the app or via the backend RPC using the logged-in preview user where possible.
+   - Confirm the original error no longer appears.
+
+Technical detail:
+- This is a backend-only migration. No frontend changes are needed unless testing reveals a separate UI issue.
+- I will not add `updated_at` columns just to silence the error, because that would change the table schema unnecessarily. The safer fix is to remove the invalid column writes from the merge RPCs.
