@@ -921,7 +921,47 @@ export default function PurchaseProforma() {
  quantity_requested: Number(i.quantity_requested), rate: Number(i.rate), amount: i.amount,
  })));
  }
+
+ // If the proforma has already been approved into a PO (status ordered/confirmed
+ // before GRN), keep the linked Purchase Order, its items and any unpaid Bill in sync.
+ if (editOrder.converted_po_id && !editOrder.grn_number) {
+ const poId = editOrder.converted_po_id;
+ await supabase.from("purchase_orders").update({
+ supplier_id: editSupplierId || null, date: editDate,
+ subtotal, gst, total,
+ }).eq("id", poId);
+ // Replace PO items (preserve batch/expiry when same product remains)
+ const { data: oldPoItems } = await supabase.from("purchase_order_items")
+   .select("product_id, batch_number, expiry_date").eq("po_id", poId);
+ await supabase.from("purchase_order_items").delete().eq("po_id", poId);
+ if (editItems.length > 0) {
+ await supabase.from("purchase_order_items").insert(editItems.map((i: any) => {
+   const prev = (oldPoItems || []).find((p: any) => p.product_id === i.product_id);
+   return {
+     po_id: poId, product_id: i.product_id || null,
+     quantity: Number(i.quantity_requested),
+     quantity_confirmed: Number(i.quantity_requested),
+     rate: Number(i.rate), amount: Number(i.amount),
+     batch_number: prev?.batch_number ?? null,
+     expiry_date: prev?.expiry_date ?? null,
+   };
+ }) as any);
+ }
+ // Refresh the unpaid bill total if one was auto-created at approve time
+ if (editOrder.bill_id) {
+ const { data: bill } = await supabase.from("purchase_invoices")
+   .select("status, wht_amount").eq("id", editOrder.bill_id).single();
+ if (bill && bill.status === "unpaid") {
+ const wht = Number((bill as any).wht_amount || 0);
+ await supabase.from("purchase_invoices").update({
+   date: editDate, subtotal, gst, total: subtotal + gst - wht,
+ }).eq("id", editOrder.bill_id);
+ }
+ }
+ toast.success("Order updated — linked purchase order & bill kept in sync");
+ } else {
  toast.success("Order updated");
+ }
  setEditOpen(false); setSaving(false); load();
  };
 
