@@ -112,24 +112,51 @@ export default function Products() {
   prodQuery.range(productPagination.from, productPagination.to),
   moveQuery,
   ]);
- if (prodRes.data) {
-   // Normalize view rows → Product-shaped objects (no cost data exposed)
-   const rows = hideCost
-     ? (prodRes.data as any[]).map((r) => ({
-         id: r.product_id, name: r.product_name ?? r.name, sku: r.sku, product_code: r.product_code,
-         category: r.category, pack_size: r.pack_size, unit: r.unit,
-         cost_price: 0, selling_price: r.selling_price ?? r.sale_price ?? 0, mrp: r.mrp ?? 0,
-         gst_rate: r.gst_rate ?? 0, stock_quantity: r.available_qty ?? 0,
-         reorder_level: r.reorder_level ?? 0, is_active: true,
-         drap_reg_number: null, generic_name: r.generic_name, brand: r.brand,
-         supplier_name: r.supplier_name, batch_count: r.batch_count, nearest_expiry: r.nearest_expiry,
-       }))
-     : prodRes.data;
-   setProducts(rows as any);
- }
- if (prodRes.count !== null) productPagination.setTotalCount(prodRes.count);
- if (moveRes.data) setMovements(moveRes.data);
- if (moveRes.count !== null) movementPagination.setTotalCount(moveRes.count);
+  if (prodRes.data) {
+    // Normalize view rows → Product-shaped objects (no cost data exposed)
+    const rows = hideCost
+      ? (prodRes.data as any[]).map((r) => ({
+          id: r.product_id, name: r.product_name ?? r.name, sku: r.sku, product_code: r.product_code,
+          category: r.category, pack_size: r.pack_size, unit: r.unit,
+          cost_price: 0, selling_price: r.selling_price ?? r.sale_price ?? 0, mrp: r.mrp ?? 0,
+          gst_rate: r.gst_rate ?? 0, stock_quantity: r.available_qty ?? 0,
+          reorder_level: r.reorder_level ?? 0, is_active: true,
+          drap_reg_number: null, generic_name: r.generic_name, brand: r.brand,
+          supplier_name: r.supplier_name, batch_count: r.batch_count, nearest_expiry: r.nearest_expiry,
+        }))
+      : prodRes.data;
+    setProducts(rows as any);
+
+    // Bulk enrich (admin view only — sales-agent view already has these fields).
+    if (!hideCost) {
+      const productIds = (rows as any[]).map((p) => p.id).filter(Boolean);
+      const supplierIds = Array.from(new Set((rows as any[]).map((p) => p.supplier_id).filter(Boolean)));
+      const [{ data: sups }, { data: grnRows }] = await Promise.all([
+        supplierIds.length
+          ? supabase.from("suppliers").select("id, name").in("id", supplierIds)
+          : Promise.resolve({ data: [] as any[] }),
+        productIds.length
+          ? supabase.from("grn_items").select("product_id, expiry_date, batch_number").in("product_id", productIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const sMap: Record<string, string> = {};
+      (sups as any[] || []).forEach((s) => { sMap[s.id] = s.name; });
+      setSupplierMap(sMap);
+
+      const bSummary: Record<string, { count: number; nearest: string | null }> = {};
+      (grnRows as any[] || []).forEach((g) => {
+        if (!g.product_id) return;
+        const cur = bSummary[g.product_id] || { count: 0, nearest: null as string | null };
+        if (g.batch_number) cur.count += 1;
+        if (g.expiry_date && (!cur.nearest || g.expiry_date < cur.nearest)) cur.nearest = g.expiry_date;
+        bSummary[g.product_id] = cur;
+      });
+      setBatchSummary(bSummary);
+    }
+  }
+  if (prodRes.count !== null) productPagination.setTotalCount(prodRes.count);
+  if (moveRes.data) setMovements(moveRes.data);
+  if (moveRes.count !== null) movementPagination.setTotalCount(moveRes.count);
  };
 
  const toggleActive = async (p: Product, e: React.MouseEvent) => {
