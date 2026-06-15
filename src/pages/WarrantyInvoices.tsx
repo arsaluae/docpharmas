@@ -836,24 +836,24 @@ export default function WarrantyInvoices() {
  <TableCell className="text-center"><Badge variant="outline" className="capitalize">{inv.status}</Badge></TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
-                              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => openPdf(inv)}>
-                                <Download className="h-3 w-3" /> PDF
+                              <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => openPreview(inv)} title="Preview">
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                              <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => openPreview(inv, "print")} title="Print">
+                                <Printer className="h-3 w-3" />
+                              </Button>
+                              <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => openPreview(inv, "pdf")} title="Download PDF">
+                                <Download className="h-3 w-3" />
                               </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async (e) => {
                                 e.stopPropagation();
-                                const { uploadSharedDocument } = await import("@/lib/whatsapp-share");
                                 const { sendWhatsAppDoc } = await import("@/lib/whatsapp-templates");
                                 let phone = "";
                                 if (inv.customer_id) {
                                   const { data } = await supabase.from("customers").select("phone").eq("id", inv.customer_id).single();
                                   phone = data?.phone || "";
                                 }
-                                let pdfLink: string | undefined;
-                                try {
-                                  const opts = await buildWarrantyOpts(inv);
-                                  const html = generateWarrantyNoteHtml(opts);
-                                  pdfLink = await uploadSharedDocument(html, inv.warranty_number) || undefined;
-                                } catch (e) { console.error("PDF link error:", e); }
+                                const pdfLink = `${window.location.origin}/print-preview/warranty-invoice/${inv.id}`;
                                 await sendWhatsAppDoc({
                                   documentType: "sales_invoice",
                                   phone,
@@ -868,7 +868,7 @@ export default function WarrantyInvoices() {
                                     document_number: inv.warranty_number,
                                     document_date: inv.date,
                                     document_total: Number(inv.total).toLocaleString(),
-                                    document_link: pdfLink || "",
+                                    document_link: pdfLink,
                                   },
                                 });
                               }} title="Share via WhatsApp">
